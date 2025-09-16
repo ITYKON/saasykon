@@ -57,6 +57,8 @@ export default function AdminReservations() {
 
   return (
     <div className="space-y-6">
+                  <header className="bg-white border-b border-gray-200 mb-6">
+        <div className="px-6 py-4">
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-black">Gestion des réservations</h1>
@@ -64,6 +66,8 @@ export default function AdminReservations() {
         </div>
         <Button className="bg-black text-white hover:bg-gray-800">Exporter données</Button>
       </div>
+               </div>
+         </header>
 
       <div className="space-y-4">
         {reservations.map((reservation) => (

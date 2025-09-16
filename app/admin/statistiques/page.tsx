@@ -93,28 +93,33 @@ const activityData = [
 
 export default function AdminStatisticsPage() {
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto p-6">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Statistiques de la plateforme</h1>
-            <p className="text-gray-600 mt-2">Vue d'ensemble complète des performances de Planity</p>
+    <div className="space-y-6">
+          <div className="space-y-6">
+        {/* Header ajusté pour ressembler au dashboard */}
+        <header className="bg-white border-b border-gray-200 mb-6">
+          <div className="px-6 py-4">
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-2xl font-bold text-black">Statistiques de la plateforme</h2>
+                <p className="text-gray-600">Vue d'ensemble complète des performances de Planity</p>
+              </div>
+              <div className="flex items-center space-x-4">
+                <Select defaultValue="30">
+                  <SelectTrigger className="w-40">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="7">7 derniers jours</SelectItem>
+                    <SelectItem value="30">30 derniers jours</SelectItem>
+                    <SelectItem value="90">3 derniers mois</SelectItem>
+                    <SelectItem value="365">12 derniers mois</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button variant="outline">Exporter les données</Button>
+              </div>
+            </div>
           </div>
-          <div className="flex gap-3">
-            <Select defaultValue="30">
-              <SelectTrigger className="w-40">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="7">7 derniers jours</SelectItem>
-                <SelectItem value="30">30 derniers jours</SelectItem>
-                <SelectItem value="90">3 derniers mois</SelectItem>
-                <SelectItem value="365">12 derniers mois</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button>Exporter les données</Button>
-          </div>
-        </div>
+        </header>
 
         {/* KPIs principaux */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">

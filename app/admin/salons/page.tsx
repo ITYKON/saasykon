@@ -97,6 +97,8 @@ export default function AdminSalons() {
 
   return (
     <div className="space-y-6">
+            <header className="bg-white border-b border-gray-200 mb-6">
+        <div className="px-6 py-4">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h1 className="text-2xl font-bold text-black">Gestion des salons</h1>
         <div className="flex gap-2">
@@ -110,6 +112,8 @@ export default function AdminSalons() {
           </Button>
         </div>
       </div>
+         </div>
+         </header>
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">

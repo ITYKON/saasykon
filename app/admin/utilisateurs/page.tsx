@@ -101,13 +101,20 @@ export default function AdminUtilisateurs() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-black">Gestion des utilisateurs</h1>
-          <p className="text-gray-600 mt-1">Gérez les clients et professionnels de la plateforme.</p>
+      {/* Header ajusté pour ressembler au dashboard */}
+      <header className="bg-white border-b border-gray-200 mb-6">
+        <div className="px-6 py-4">
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-2xl font-bold text-black">Gestion des utilisateurs</h2>
+              <p className="text-gray-600">Gérez les clients et professionnels de la plateforme.</p>
+            </div>
+            <div className="flex items-center space-x-4">
+              <Button variant="outline">Exporter données</Button>
+            </div>
+          </div>
         </div>
-        <Button className="bg-black text-white hover:bg-gray-800">Exporter données</Button>
-      </div>
+      </header>
 
       <div className="space-y-4">
         {users.map((user) => (
