@@ -107,136 +107,140 @@ export default function RolesPage() {
   )
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Gestion des rôles</h1>
-          <p className="text-gray-600">Gérez les rôles et permissions des utilisateurs de la plateforme.</p>
-        </div>
-        <div className="flex gap-3">
-          <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline">
-                <Users className="h-4 w-4 mr-2" />
-                Assigner un rôle
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Assigner un rôle à un utilisateur</DialogTitle>
-                <DialogDescription>
-                  Attribuez un rôle à un utilisateur existant ou créez un nouvel utilisateur.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="user-email">Email de l'utilisateur</Label>
-                  <Input
-                    id="user-email"
-                    placeholder="utilisateur@email.com"
-                    value={newUserAssignment.email}
-                    onChange={(e) => setNewUserAssignment((prev) => ({ ...prev, email: e.target.value }))}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="user-role">Rôle</Label>
-                  <Select
-                    value={newUserAssignment.role}
-                    onValueChange={(value) => setNewUserAssignment((prev) => ({ ...prev, role: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Sélectionner un rôle" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {mockRoles.map((role) => (
-                        <SelectItem key={role.id} value={role.name}>
-                          {role.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setIsAssignDialogOpen(false)}>
-                  Annuler
-                </Button>
-                <Button onClick={() => setIsAssignDialogOpen(false)}>Assigner le rôle</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-
-          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Nouveau rôle
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>Créer un nouveau rôle</DialogTitle>
-                <DialogDescription>Définissez les permissions et accès pour ce nouveau rôle.</DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="role-name">Nom du rôle</Label>
-                    <Input
-                      id="role-name"
-                      placeholder="Ex: Gestionnaire de salon"
-                      value={newRole.name}
-                      onChange={(e) => setNewRole((prev) => ({ ...prev, name: e.target.value }))}
-                    />
+    <div className="space-y-6">
+      {/* Header (match dashboard) */}
+      <header className="bg-white border-b border-gray-200 mb-6">
+        <div className="px-6 py-4">
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-2xl font-bold text-black">Gestion des rôles</h2>
+              <p className="text-gray-600">Gérez les rôles et permissions des utilisateurs de la plateforme.</p>
+            </div>
+            <div className="flex items-center space-x-3">
+              <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline">
+                    <Users className="h-4 w-4 mr-2" />
+                    Assigner un rôle
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Assigner un rôle à un utilisateur</DialogTitle>
+                    <DialogDescription>
+                      Attribuez un rôle à un utilisateur existant ou créez un nouvel utilisateur.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="user-email">Email de l'utilisateur</Label>
+                      <Input
+                        id="user-email"
+                        placeholder="utilisateur@email.com"
+                        value={newUserAssignment.email}
+                        onChange={(e) => setNewUserAssignment((prev) => ({ ...prev, email: e.target.value }))}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="user-role">Rôle</Label>
+                      <Select
+                        value={newUserAssignment.role}
+                        onValueChange={(value) => setNewUserAssignment((prev) => ({ ...prev, role: value }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Sélectionner un rôle" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {mockRoles.map((role) => (
+                            <SelectItem key={role.id} value={role.name}>
+                              {role.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
-                  <div>
-                    <Label htmlFor="role-description">Description</Label>
-                    <Input
-                      id="role-description"
-                      placeholder="Description du rôle"
-                      value={newRole.description}
-                      onChange={(e) => setNewRole((prev) => ({ ...prev, description: e.target.value }))}
-                    />
-                  </div>
-                </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsAssignDialogOpen(false)}>
+                      Annuler
+                    </Button>
+                    <Button onClick={() => setIsAssignDialogOpen(false)}>Assigner le rôle</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
 
-                <div>
-                  <Label className="text-base font-medium">Permissions</Label>
-                  <p className="text-sm text-gray-600 mb-3">
-                    Sélectionnez les interfaces auxquelles ce rôle aura accès.
-                  </p>
-                  <div className="grid grid-cols-1 gap-3 max-h-64 overflow-y-auto">
-                    {permissions.map((permission) => (
-                      <div key={permission.id} className="flex items-start space-x-3 p-3 border rounded-lg">
-                        <Checkbox
-                          id={permission.id}
-                          checked={newRole.permissions.includes(permission.id)}
-                          onCheckedChange={(checked) => handlePermissionChange(permission.id, checked as boolean)}
+              <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Nouveau rôle
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-2xl">
+                  <DialogHeader>
+                    <DialogTitle>Créer un nouveau rôle</DialogTitle>
+                    <DialogDescription>Définissez les permissions et accès pour ce nouveau rôle.</DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="role-name">Nom du rôle</Label>
+                        <Input
+                          id="role-name"
+                          placeholder="Ex: Gestionnaire de salon"
+                          value={newRole.name}
+                          onChange={(e) => setNewRole((prev) => ({ ...prev, name: e.target.value }))}
                         />
-                        <div className="flex-1">
-                          <Label htmlFor={permission.id} className="font-medium cursor-pointer">
-                            {permission.name}
-                          </Label>
-                          <p className="text-sm text-gray-600">{permission.description}</p>
-                        </div>
                       </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
-                  Annuler
-                </Button>
-                <Button onClick={() => setIsCreateDialogOpen(false)}>Créer le rôle</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </div>
-      </div>
+                      <div>
+                        <Label htmlFor="role-description">Description</Label>
+                        <Input
+                          id="role-description"
+                          placeholder="Description du rôle"
+                          value={newRole.description}
+                          onChange={(e) => setNewRole((prev) => ({ ...prev, description: e.target.value }))}
+                        />
+                      </div>
+                    </div>
 
+                    <div>
+                      <Label className="text-base font-medium">Permissions</Label>
+                      <p className="text-sm text-gray-600 mb-3">
+                        Sélectionnez les interfaces auxquelles ce rôle aura accès.
+                      </p>
+                      <div className="grid grid-cols-1 gap-3 max-h-64 overflow-y-auto">
+                        {permissions.map((permission) => (
+                          <div key={permission.id} className="flex items-start space-x-3 p-3 border rounded-lg">
+                            <Checkbox
+                              id={permission.id}
+                              checked={newRole.permissions.includes(permission.id)}
+                              onCheckedChange={(checked) => handlePermissionChange(permission.id, checked as boolean)}
+                            />
+                            <div className="flex-1">
+                              <Label htmlFor={permission.id} className="font-medium cursor-pointer">
+                                {permission.name}
+                              </Label>
+                              <p className="text-sm text-gray-600">{permission.description}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+                      Annuler
+                    </Button>
+                    <Button onClick={() => setIsCreateDialogOpen(false)}>Créer le rôle</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div className="px-6 space-y-6">
       {/* Search */}
       <div className="flex items-center gap-4">
         <div className="relative flex-1 max-w-md">
@@ -303,7 +307,8 @@ export default function RolesPage() {
         ))}
       </div>
 
-      {/* Users with Roles Table */}
+      {/* Users with Roles Table */
+      }
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -359,6 +364,7 @@ export default function RolesPage() {
           </div>
         </CardContent>
       </Card>
+      </div>
     </div>
   )
 }
