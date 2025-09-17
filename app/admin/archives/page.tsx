@@ -377,11 +377,18 @@ export default function AdminArchivesPage() {
   }
 
   return (
-    <div className="p-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Archives</h1>
-        <p className="text-gray-600">Gérez les éléments supprimés de la plateforme et restaurez-les si nécessaire.</p>
+    <div className="space-y-6">
+       <header className="bg-white border-b border-gray-200 mb-6">
+        <div className="px-6 py-4">  
+                <div className="flex justify-between items-center"> 
+        <div>
+        <h1 className="text-3xl font-bold text-black">Archives</h1>
+        <p className="text-gray-600 mt-1">Gérez les éléments supprimés de la plateforme et restaurez-les si nécessaire.</p>
       </div>
+            </div>
+            </div>  
+      </header>
+
 
       {/* Statistiques */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">

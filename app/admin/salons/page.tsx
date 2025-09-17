@@ -100,7 +100,10 @@ export default function AdminSalons() {
             <header className="bg-white border-b border-gray-200 mb-6">
         <div className="px-6 py-4">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
         <h1 className="text-2xl font-bold text-black">Gestion des salons</h1>
+         <p className="text-gray-600 mt-1">Surveillez et gérez toutes les salons de la plateforme.</p>
+        </div>
         <div className="flex gap-2">
           <Button variant="outline">
             <Filter className="h-4 w-4 mr-2" />
