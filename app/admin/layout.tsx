@@ -26,7 +26,7 @@ export default function AdminLayout({
     <div className="min-h-screen bg-gray-50">
       <div className="flex">
         {/* Sidebar */}
-        <div className="w-64 bg-white shadow-sm border-r">
+        <div className="w-64 bg-white shadow-sm border-r sticky top-0 h-screen overflow-y-auto">
           <div className="p-6">
             <h2 className="text-xl font-bold text-gray-900">Admin Planity</h2>
           </div>
