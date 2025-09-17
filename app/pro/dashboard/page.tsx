@@ -43,40 +43,7 @@ export default function ProDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Sidebar */}
-      <div className="fixed inset-y-0 left-0 w-64 bg-white border-r border-gray-200">
-        <div className="flex flex-col h-full">
-          <div className="flex items-center h-16 px-6 border-b border-gray-200">
-            <h1 className="text-xl font-bold text-black tracking-wide">PLANITY PRO</h1>
-          </div>
-
-          <nav className="flex-1 px-4 py-6 space-y-2">
-            <a href="#" className="flex items-center px-4 py-2 text-black bg-gray-100 rounded-lg">
-              <TrendingUp className="h-5 w-5 mr-3" />
-              Dashboard
-            </a>
-            <a href="/pro/agenda" className="flex items-center px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">
-              <Calendar className="h-5 w-5 mr-3" />
-              Agenda
-            </a>
-            <a href="/pro/clients" className="flex items-center px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">
-              <Users className="h-5 w-5 mr-3" />
-              Clients
-            </a>
-            <a href="/pro/services" className="flex items-center px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">
-              <Settings className="h-5 w-5 mr-3" />
-              Services
-            </a>
-            <a href="/pro/paiments" className="flex items-center px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">
-              <DollarSign className="h-5 w-5 mr-3" />
-              Paiements
-            </a>
-          </nav>
-        </div>
-      </div>
-
       {/* Main Content */}
-      <div className="ml-64">
         {/* Header */}
         <header className="bg-white border-b border-gray-200">
           <div className="px-6 py-4">
@@ -256,7 +223,6 @@ export default function ProDashboard() {
             </Card>
           </div>
         </div>
-      </div>
     </div>
   )
 }
