@@ -65,8 +65,10 @@ export default function StatistiquesPage() {
   const [period, setPeriod] = useState("6months")
 
   return (
-    <div className="p-6 space-y-6">
+    <div>
       {/* Header */}
+              <header className="bg-white border-b border-gray-200">
+          <div className="px-6 py-4">
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Statistiques Avancées</h1>
@@ -90,6 +92,8 @@ export default function StatistiquesPage() {
           </Button>
         </div>
       </div>
+                </div>
+        </header>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

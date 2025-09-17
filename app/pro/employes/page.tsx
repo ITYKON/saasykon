@@ -99,10 +99,10 @@ export default function EmployeesPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white border-b">
+      {/* <div className="bg-white border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center space-x-4">
+          <div className="flex items-center justify-between h-16"> */}
+            {/* <div className="flex items-center space-x-4">
               <h1 className="text-2xl font-bold text-gray-900">PLANITY</h1>
               <div className="hidden md:flex items-center space-x-6 ml-8">
                 <a href="/pro/dashboard" className="text-gray-600 hover:text-gray-900">
@@ -120,39 +120,30 @@ export default function EmployeesPage() {
                 <a href="/pro/employes" className="text-gray-900 font-medium">
                   Employés
                 </a>
-              </div>
-            </div>
-            <div className="flex items-center space-x-4">
+              </div> */}
+            {/* </div> */}
+            {/* <div className="flex items-center space-x-4">
               <Button variant="outline" size="sm">
                 Je suis un professionnel de beauté
               </Button>
               <Button variant="default" size="sm" className="bg-black text-white hover:bg-gray-800">
                 Mon compte
               </Button>
-            </div>
-          </div>
+            </div> */}
+          {/* </div>
         </div>
-      </div>
+      </div> */}
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div>
         {/* Page Header */}
-        <div className="mb-8">
+        <header className="bg-white border-b border-gray-200">
+          <div className="px-6 py-4">
+            <div className="flex justify-between items-center">
+              <div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Gestion des employés</h1>
           <p className="text-gray-600">Gérez votre équipe, leurs services et leurs horaires de travail.</p>
         </div>
-
-        {/* Actions Bar */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-            <Input
-              placeholder="Rechercher un employé..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+                  <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
               <Button className="bg-black text-white hover:bg-gray-800">
                 <Plus className="h-4 w-4 mr-2" />
@@ -229,6 +220,22 @@ export default function EmployeesPage() {
               </div>
             </DialogContent>
           </Dialog>
+        </div>
+        </div>
+        </header>
+
+        {/* Actions Bar */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <Input
+              placeholder="Rechercher un employé..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+
         </div>
 
         {/* Employees Grid */}

@@ -52,11 +52,15 @@ export default function ProAgenda() {
   ]
 
   return (
-    <div className="space-y-6 bg-white min-h-screen">
-      <div className="bg-white p-6 border-b">
-        <h1 className="text-2xl font-bold text-black mb-6">Planning de la semaine</h1>
 
-        <div className="flex gap-3">
+      <div className="bg-white border-b border-gray-200">
+      <div className="px-6 py-4">
+         <div className="flex justify-between items-center">
+          <div>
+        <h1 className="text-2xl font-bold text-black">Planning de la semaine</h1>
+        <p className="text-gray-600">Gérer votre planning</p>
+        </div>
+        <div className="flex items-center space-x-4">
           <Button className="bg-black text-white hover:bg-gray-800 rounded-lg px-6">
             <Plus className="h-4 w-4 mr-2" />
             Nouveau rendez-vous
@@ -65,6 +69,7 @@ export default function ProAgenda() {
             Gérer les disponibilités
           </Button>
         </div>
+      </div>
       </div>
 
       <div className="p-6">

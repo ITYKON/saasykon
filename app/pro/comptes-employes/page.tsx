@@ -87,8 +87,11 @@ export default function ComptesEmployesPage() {
   )
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
+
+    <div>
+           <header className="bg-white border-b border-gray-200">
+            <div className="px-6 py-4">
+      <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Comptes Employés</h1>
           <p className="text-gray-600">Gérez les comptes et permissions de vos employés</p>
@@ -171,6 +174,8 @@ export default function ComptesEmployesPage() {
           </DialogContent>
         </Dialog>
       </div>
+      </div>
+      </header>
 
       {/* Statistiques */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
