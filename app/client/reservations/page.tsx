@@ -63,11 +63,19 @@ export default function ClientReservations() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <header className="bg-white border-b border-gray-200">
+        <div className="px-8 py-6">
+          <div className="flex justify-between items-center">
+        <div>
         <h1 className="text-2xl font-bold text-black">Mes réservations</h1>
+                      <p className="text-gray-600 mt-1">Gérez vos réservations beauté en toute simplicité.</p>
+      </div>
         <Button className="bg-black text-white hover:bg-gray-800">Nouveau rendez-vous</Button>
       </div>
-
+      </div>
+      </header>
+{/* le corps avec son padding */}
+{/* <div  > */}
       {/* Filters */}
       <Card>
         <CardContent className="p-4">
@@ -187,7 +195,7 @@ export default function ClientReservations() {
                           <Star
                             key={i}
                             className={`h-4 w-4 ${
-                              i < booking.rating ? "text-yellow-500 fill-current" : "text-gray-300"
+                              i < (booking.rating ?? 0) ? "text-yellow-500 fill-current" : "text-gray-300"
                             }`}
                           />
                         ))}
@@ -228,5 +236,6 @@ export default function ClientReservations() {
         </CardContent>
       </Card>
     </div>
+    // </div>
   )
 }

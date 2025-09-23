@@ -1,0 +1,674 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model addresses {
+  id           String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id      String?    @db.Uuid
+  label        String?
+  line1        String
+  line2        String?
+  postal_code  String?
+  city_id      Int?
+  country_code String?    @db.Char(2)
+  latitude     Float?
+  longitude    Float?
+  is_default   Boolean?   @default(false)
+  cities       cities?    @relation(fields: [city_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  countries    countries? @relation(fields: [country_code], references: [code], onDelete: NoAction, onUpdate: NoAction)
+  users        users?     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model business_locations {
+  id            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  business_id   String         @db.Uuid
+  address_line1 String
+  address_line2 String?
+  postal_code   String?
+  city_id       Int?
+  country_code  String?        @db.Char(2)
+  latitude      Float?
+  longitude     Float?
+  timezone      String         @default("Europe/Paris")
+  is_primary    Boolean        @default(true)
+  created_at    DateTime       @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime       @default(now()) @db.Timestamptz(6)
+  businesses    businesses     @relation(fields: [business_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  cities        cities?        @relation(fields: [city_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  countries     countries?     @relation(fields: [country_code], references: [code], onDelete: NoAction, onUpdate: NoAction)
+  reservations  reservations[]
+
+  @@index([business_id, is_primary])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model business_media {
+  id          String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  business_id String     @db.Uuid
+  url         String
+  type        String?
+  position    Int?       @default(0)
+  created_at  DateTime   @default(now()) @db.Timestamptz(6)
+  businesses  businesses @relation(fields: [business_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model businesses {
+  id                   String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  owner_user_id        String                 @db.Uuid
+  legal_name           String
+  public_name          String
+  description          String?
+  email                String?
+  phone                String?
+  website              String?
+  vat_number           String?
+  category_code        String?
+  logo_url             String?
+  cover_url            String?
+  created_at           DateTime               @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime               @default(now()) @db.Timestamptz(6)
+  archived_at          DateTime?              @db.Timestamptz(6)
+  deleted_at           DateTime?              @db.Timestamptz(6)
+  business_locations   business_locations[]
+  business_media       business_media[]
+  users                users                  @relation(fields: [owner_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  client_favorites     client_favorites[]
+  daily_business_stats daily_business_stats[]
+  employees            employees[]
+  invoices             invoices[]
+  notifications        notifications[]
+  payments             payments[]
+  payouts              payouts[]
+  ratings_aggregates   ratings_aggregates?
+  reservations         reservations[]
+  resources            resources[]
+  reviews              reviews[]
+  services             services[]
+  subscriptions        subscriptions[]
+  user_roles           user_roles[]
+  waitlist             waitlist[]
+  working_hours        working_hours[]
+}
+
+model cities {
+  id                 Int                  @id @default(autoincrement())
+  country_code       String?              @db.Char(2)
+  name               String
+  addresses          addresses[]
+  business_locations business_locations[]
+  countries          countries?           @relation(fields: [country_code], references: [code], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model client_favorites {
+  client_id   String     @db.Uuid
+  business_id String     @db.Uuid
+  created_at  DateTime   @default(now()) @db.Timestamptz(6)
+  businesses  businesses @relation(fields: [business_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  clients     clients    @relation(fields: [client_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([client_id, business_id])
+}
+
+model clients {
+  id               String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id          String?            @db.Uuid
+  first_name       String?
+  last_name        String?
+  phone            String?
+  notes            String?
+  created_at       DateTime           @default(now()) @db.Timestamptz(6)
+  client_favorites client_favorites[]
+  users            users?             @relation(fields: [user_id], references: [id], onUpdate: NoAction)
+  invoices         invoices[]
+  reservations     reservations[]
+  reviews          reviews[]
+  waitlist         waitlist[]
+}
+
+model countries {
+  code               String               @id @db.Char(2)
+  name               String
+  addresses          addresses[]
+  business_locations business_locations[]
+  cities             cities[]
+}
+
+model daily_business_stats {
+  business_id       String     @db.Uuid
+  date              DateTime   @db.Date
+  bookings_count    Int        @default(0)
+  new_clients_count Int        @default(0)
+  revenue_cents     Int        @default(0)
+  rating_avg        Decimal    @default(0) @db.Decimal(3, 2)
+  businesses        businesses @relation(fields: [business_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([business_id, date])
+}
+
+model employee_accounts {
+  user_id     String    @id @db.Uuid
+  employee_id String    @db.Uuid
+  employees   employees @relation(fields: [employee_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users       users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([employee_id, user_id])
+}
+
+model employee_availability_overrides {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  employee_id  String    @db.Uuid
+  date         DateTime  @db.Date
+  is_available Boolean
+  start_time   DateTime? @db.Time(6)
+  end_time     DateTime? @db.Time(6)
+  employees    employees @relation(fields: [employee_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([employee_id, date], map: "employee_availability_overrides_employee_id_date_idx")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model employee_roles {
+  employee_id String    @db.Uuid
+  role        String
+  employees   employees @relation(fields: [employee_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([employee_id, role])
+}
+
+model employee_services {
+  employee_id String    @db.Uuid
+  service_id  String    @db.Uuid
+  employees   employees @relation(fields: [employee_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  services    services  @relation(fields: [service_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([employee_id, service_id])
+}
+
+model employees {
+  id                              String                            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  business_id                     String                            @db.Uuid
+  full_name                       String
+  email                           String?
+  phone                           String?
+  color                           String?
+  is_active                       Boolean                           @default(true)
+  created_at                      DateTime                          @default(now()) @db.Timestamptz(6)
+  updated_at                      DateTime                          @default(now()) @db.Timestamptz(6)
+  employee_accounts               employee_accounts[]
+  employee_availability_overrides employee_availability_overrides[]
+  employee_roles                  employee_roles[]
+  employee_services               employee_services[]
+  businesses                      businesses                        @relation(fields: [business_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  reservation_items               reservation_items[]
+  reservations                    reservations[]
+  time_off                        time_off[]
+  working_hours                   working_hours[]
+
+  @@index([business_id, is_active])
+}
+
+model event_logs {
+  id          BigInt   @id @default(autoincrement())
+  occurred_at DateTime @default(now()) @db.Timestamptz(6)
+  user_id     String?  @db.Uuid
+  business_id String?  @db.Uuid
+  event_name  String
+  payload     Json?
+
+  @@index([business_id, occurred_at(sort: Desc)])
+}
+
+model invoices {
+  id             String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  business_id    String        @db.Uuid
+  client_id      String?       @db.Uuid
+  reservation_id String?       @db.Uuid
+  amount_cents   Int
+  currency       String        @default("EUR") @db.Char(3)
+  status         String        @default("OPEN")
+  issued_at      DateTime      @default(now()) @db.Timestamptz(6)
+  businesses     businesses    @relation(fields: [business_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  clients        clients?      @relation(fields: [client_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  reservations   reservations? @relation(fields: [reservation_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model login_attempts {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id      String?  @db.Uuid
+  attempted_at DateTime @default(now()) @db.Timestamptz(6)
+  success      Boolean
+  ip_address   String?
+  user_agent   String?
+  users        users?   @relation(fields: [user_id], references: [id], onUpdate: NoAction)
+}
+
+model notification_preferences {
+  user_id    String  @id @db.Uuid
+  email      Boolean @default(true)
+  sms        Boolean @default(false)
+  push       Boolean @default(false)
+  categories Json    @default("{}")
+  users      users   @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model notifications {
+  id          String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id     String?     @db.Uuid
+  business_id String?     @db.Uuid
+  type        String
+  payload     Json
+  is_read     Boolean     @default(false)
+  created_at  DateTime    @default(now()) @db.Timestamptz(6)
+  businesses  businesses? @relation(fields: [business_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users       users?      @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model payment_providers {
+  id            Int             @id @default(autoincrement())
+  code          String          @unique
+  name          String
+  payments      payments[]
+  subscriptions subscriptions[]
+}
+
+model payments {
+  id                  String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  business_id         String             @db.Uuid
+  reservation_id      String?            @db.Uuid
+  provider_id         Int?
+  provider_payment_id String?
+  amount_cents        Int
+  currency            String             @default("EUR") @db.Char(3)
+  status              payment_status
+  captured_at         DateTime?          @db.Timestamptz(6)
+  created_at          DateTime           @default(now()) @db.Timestamptz(6)
+  businesses          businesses         @relation(fields: [business_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  payment_providers   payment_providers? @relation(fields: [provider_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  reservations        reservations?      @relation(fields: [reservation_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  refunds             refunds[]
+
+  @@index([business_id, created_at(sort: Desc)])
+}
+
+model payouts {
+  id                 String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  business_id        String     @db.Uuid
+  provider_payout_id String?
+  amount_cents       Int
+  currency           String     @default("EUR") @db.Char(3)
+  period_start       DateTime   @db.Date
+  period_end         DateTime   @db.Date
+  created_at         DateTime   @default(now()) @db.Timestamptz(6)
+  businesses         businesses @relation(fields: [business_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model permissions {
+  id               Int                @id @default(autoincrement())
+  code             String             @unique
+  description      String?
+  role_permissions role_permissions[]
+}
+
+model plan_features {
+  id           Int     @id @default(autoincrement())
+  plan_id      Int
+  feature_code String
+  value        String?
+  plans        plans   @relation(fields: [plan_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model plans {
+  id               Int             @id @default(autoincrement())
+  code             String          @unique
+  name             String
+  price_cents      Int
+  currency         String          @default("EUR") @db.Char(3)
+  billing_interval String
+  trial_days       Int?            @default(0)
+  is_active        Boolean         @default(true)
+  plan_features    plan_features[]
+  subscriptions    subscriptions[]
+}
+
+model ratings_aggregates {
+  business_id     String     @id @db.Uuid
+  rating_avg      Decimal    @default(0) @db.Decimal(3, 2)
+  rating_count    Int        @default(0)
+  last_updated_at DateTime   @default(now()) @db.Timestamptz(6)
+  businesses      businesses @relation(fields: [business_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model refunds {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  payment_id   String   @db.Uuid
+  amount_cents Int
+  reason       String?
+  created_at   DateTime @default(now()) @db.Timestamptz(6)
+  payments     payments @relation(fields: [payment_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model reservation_items {
+  id               String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  reservation_id   String            @db.Uuid
+  service_id       String            @db.Uuid
+  variant_id       String?           @db.Uuid
+  addon_ids        String[]          @default([]) @db.Uuid
+  employee_id      String?           @db.Uuid
+  price_cents      Int
+  currency         String            @default("EUR") @db.Char(3)
+  duration_minutes Int
+  employees        employees?        @relation(fields: [employee_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  reservations     reservations      @relation(fields: [reservation_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  services         services          @relation(fields: [service_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  service_variants service_variants? @relation(fields: [variant_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model reservation_status_history {
+  id                 String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  reservation_id     String              @db.Uuid
+  from_status        reservation_status?
+  to_status          reservation_status
+  changed_by_user_id String?             @db.Uuid
+  changed_at         DateTime            @default(now()) @db.Timestamptz(6)
+  reason             String?
+  users              users?              @relation(fields: [changed_by_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  reservations       reservations        @relation(fields: [reservation_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model reservations {
+  id                         String                       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  business_id                String                       @db.Uuid
+  location_id                String?                      @db.Uuid
+  client_id                  String?                      @db.Uuid
+  booker_user_id             String?                      @db.Uuid
+  employee_id                String?                      @db.Uuid
+  starts_at                  DateTime                     @db.Timestamptz(6)
+  ends_at                    DateTime                     @db.Timestamptz(6)
+  status                     reservation_status           @default(PENDING)
+  notes                      String?
+  source                     String?                      @default("WEB")
+  created_at                 DateTime                     @default(now()) @db.Timestamptz(6)
+  updated_at                 DateTime                     @default(now()) @db.Timestamptz(6)
+  cancelled_at               DateTime?                    @db.Timestamptz(6)
+  invoices                   invoices[]
+  payments                   payments[]
+  reservation_items          reservation_items[]
+  reservation_status_history reservation_status_history[]
+  users                      users?                       @relation(fields: [booker_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  businesses                 businesses                   @relation(fields: [business_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  clients                    clients?                     @relation(fields: [client_id], references: [id], onUpdate: NoAction)
+  employees                  employees?                   @relation(fields: [employee_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  business_locations         business_locations?          @relation(fields: [location_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  reviews                    reviews[]
+
+  @@index([business_id, starts_at])
+  @@index([client_id, starts_at])
+  @@index([employee_id, starts_at])
+}
+
+model resources {
+  id          String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  business_id String     @db.Uuid
+  name        String
+  capacity    Int        @default(1)
+  is_active   Boolean    @default(true)
+  businesses  businesses @relation(fields: [business_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model review_photos {
+  id        String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  review_id String  @db.Uuid
+  url       String
+  position  Int?    @default(0)
+  reviews   reviews @relation(fields: [review_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model reviews {
+  id             String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  business_id    String          @db.Uuid
+  reservation_id String?         @db.Uuid
+  client_id      String?         @db.Uuid
+  rating         Int
+  comment        String?
+  created_at     DateTime        @default(now()) @db.Timestamptz(6)
+  is_public      Boolean?        @default(true)
+  review_photos  review_photos[]
+  businesses     businesses      @relation(fields: [business_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  clients        clients?        @relation(fields: [client_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  reservations   reservations?   @relation(fields: [reservation_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([business_id])
+}
+
+model role_permissions {
+  role_id       Int
+  permission_id Int
+  permissions   permissions @relation(fields: [permission_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  roles         roles       @relation(fields: [role_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([role_id, permission_id])
+}
+
+model roles {
+  id               Int                @id @default(autoincrement())
+  code             String             @unique
+  name             String
+  role_permissions role_permissions[]
+  user_roles       user_roles[]
+}
+
+model service_addons {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  service_id       String   @db.Uuid
+  name             String
+  duration_minutes Int
+  price_cents      Int
+  currency         String   @default("EUR") @db.Char(3)
+  is_active        Boolean  @default(true)
+  services         services @relation(fields: [service_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model service_categories {
+  id       Int        @id @default(autoincrement())
+  code     String     @unique
+  name     String
+  services services[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model service_variants {
+  id                    String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  service_id            String              @db.Uuid
+  name                  String?
+  duration_minutes      Int
+  price_cents           Int?
+  price_min_cents       Int?
+  price_max_cents       Int?
+  currency              String              @default("EUR") @db.Char(3)
+  buffer_before_minutes Int?                @default(0)
+  buffer_after_minutes  Int?                @default(0)
+  is_active             Boolean             @default(true)
+  reservation_items     reservation_items[]
+  services              services            @relation(fields: [service_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model services {
+  id                 String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  business_id        String              @db.Uuid
+  category_id        Int?
+  name               String
+  description        String?
+  is_active          Boolean             @default(true)
+  created_at         DateTime            @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime            @default(now()) @db.Timestamptz(6)
+  employee_services  employee_services[]
+  reservation_items  reservation_items[]
+  service_addons     service_addons[]
+  service_variants   service_variants[]
+  businesses         businesses          @relation(fields: [business_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  service_categories service_categories? @relation(fields: [category_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([business_id, is_active])
+}
+
+model sessions {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id    String   @db.Uuid
+  token      String   @unique
+  expires_at DateTime @db.Timestamptz(6)
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  users      users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model subscription_invoices {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  subscription_id String        @db.Uuid
+  amount_cents    Int
+  currency        String        @default("EUR") @db.Char(3)
+  status          String        @default("OPEN")
+  issued_at       DateTime      @default(now()) @db.Timestamptz(6)
+  subscriptions   subscriptions @relation(fields: [subscription_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model subscriptions {
+  id                       String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  business_id              String                  @db.Uuid
+  plan_id                  Int
+  provider_id              Int?
+  provider_subscription_id String?
+  status                   subscription_status
+  current_period_start     DateTime                @db.Timestamptz(6)
+  current_period_end       DateTime                @db.Timestamptz(6)
+  cancel_at_period_end     Boolean?                @default(false)
+  created_at               DateTime                @default(now()) @db.Timestamptz(6)
+  updated_at               DateTime                @default(now()) @db.Timestamptz(6)
+  subscription_invoices    subscription_invoices[]
+  businesses               businesses              @relation(fields: [business_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  plans                    plans                   @relation(fields: [plan_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  payment_providers        payment_providers?      @relation(fields: [provider_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  usage_records            usage_records[]
+}
+
+model time_off {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  employee_id String    @db.Uuid
+  starts_at   DateTime  @db.Timestamptz(6)
+  ends_at     DateTime  @db.Timestamptz(6)
+  reason      String?
+  employees   employees @relation(fields: [employee_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([employee_id, starts_at, ends_at])
+}
+
+model usage_records {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  subscription_id String        @db.Uuid
+  metric_code     String
+  quantity        Int
+  period_start    DateTime      @db.Timestamptz(6)
+  period_end      DateTime      @db.Timestamptz(6)
+  created_at      DateTime      @default(now()) @db.Timestamptz(6)
+  subscriptions   subscriptions @relation(fields: [subscription_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model user_roles {
+  user_id     String     @db.Uuid
+  role_id     Int
+  business_id String     @db.Uuid
+  businesses  businesses @relation(fields: [business_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  roles       roles      @relation(fields: [role_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users       users      @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([user_id, role_id, business_id])
+}
+
+model users {
+  id                         String                       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email                      String                       @unique
+  phone                      String?
+  password_hash              String?
+  provider                   String?
+  provider_id                String?
+  first_name                 String?
+  last_name                  String?
+  avatar_url                 String?
+  locale                     String?                      @default("fr")
+  is_email_verified          Boolean?                     @default(false)
+  is_phone_verified          Boolean?                     @default(false)
+  created_at                 DateTime                     @default(now()) @db.Timestamptz(6)
+  updated_at                 DateTime                     @default(now()) @db.Timestamptz(6)
+  deleted_at                 DateTime?                    @db.Timestamptz(6)
+  addresses                  addresses[]
+  businesses                 businesses[]
+  clients                    clients[]
+  employee_accounts          employee_accounts?
+  login_attempts             login_attempts[]
+  notification_preferences   notification_preferences?
+  notifications              notifications[]
+  reservation_status_history reservation_status_history[]
+  reservations               reservations[]
+  sessions                   sessions[]
+  user_roles                 user_roles[]
+
+  @@index([provider, provider_id])
+}
+
+model waitlist {
+  id                 String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  business_id        String                    @db.Uuid
+  client_id          String?                   @db.Uuid
+  desired_date       DateTime                  @db.Date
+  desired_time_range Unsupported("tstzrange")?
+  created_at         DateTime                  @default(now()) @db.Timestamptz(6)
+  status             String                    @default("OPEN")
+  businesses         businesses                @relation(fields: [business_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  clients            clients?                  @relation(fields: [client_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model working_hours {
+  id          String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  business_id String     @db.Uuid
+  employee_id String?    @db.Uuid
+  weekday     Int
+  start_time  DateTime   @db.Time(6)
+  end_time    DateTime   @db.Time(6)
+  breaks      Json?      @default("[]")
+  businesses  businesses @relation(fields: [business_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  employees   employees? @relation(fields: [employee_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([business_id, employee_id])
+}
+
+enum payment_status {
+  REQUIRES_ACTION
+  AUTHORIZED
+  CAPTURED
+  REFUNDED
+  FAILED
+  CANCELLED
+}
+
+enum reservation_status {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  NO_SHOW
+  COMPLETED
+}
+
+enum subscription_status {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  INCOMPLETE
+}

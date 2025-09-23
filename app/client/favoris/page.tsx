@@ -49,12 +49,19 @@ export default function ClientFavoris() {
 
   return (
     <div className="space-y-6">
+            <header className="bg-white border-b border-gray-200">
+        <div className="px-8 py-6">
       <div className="flex justify-between items-center">
+        <div>
         <h1 className="text-2xl font-bold text-black">Mes salons favoris</h1>
-        <Badge variant="outline" className="text-gray-600">
+        <p className="text-gray-600 mt-1">Gérer vos favoris</p>
+        </div>
+        <Badge variant="outline" className="bg-black text-white hover:bg-gray-800">
           {favoriteSalons.length} salon{favoriteSalons.length > 1 ? "s" : ""}
         </Badge>
       </div>
+      </div>
+      </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {favoriteSalons.map((salon) => (
