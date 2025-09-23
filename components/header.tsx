@@ -39,8 +39,9 @@ export function Header() {
               variant="outline"
               size="sm"
               className="hidden md:inline-flex bg-transparent border-gray-300 hover:bg-gray-50"
+              asChild
             >
-              Je suis un professionnel de beauté
+              <Link href="/auth/pro">Je suis un professionnel de beauté</Link>
             </Button>
             <Button size="sm" className="bg-black text-white hover:bg-gray-800" asChild>
               <Link href="/auth/login">Mon compte</Link>
@@ -69,8 +70,8 @@ export function Header() {
               <Link href="/institut-de-beaute" className="text-gray-700 hover:text-black transition-colors">
                 Institut de beauté
               </Link>
-              <Button variant="outline" size="sm" className="w-full bg-transparent border-gray-300 hover:bg-gray-50">
-                Je suis un professionnel de beauté
+              <Button variant="outline" size="sm" className="w-full bg-transparent border-gray-300 hover:bg-gray-50" asChild>
+                <Link href="/auth/pro">Je suis un professionnel de beauté</Link>
               </Button>
             </nav>
           </div>
