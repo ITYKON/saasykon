@@ -2,12 +2,29 @@
 
 import type React from "react"
 import Link from "next/link"
+import { useEffect, useState } from "react"
 import { usePathname } from "next/navigation"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Calendar, Heart, Settings, LogOut, LayoutDashboard } from "lucide-react"
 
+type AuthUser = {
+  id: string
+  email: string
+  first_name: string | null
+  last_name: string | null
+  roles: string[]
+}
+
 function ClientSidebar() {
   const pathname = usePathname()
+  const [authUser, setAuthUser] = useState<AuthUser | null>(null)
+
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then((r) => r.json())
+      .then((d) => setAuthUser(d.user || null))
+      .catch(() => setAuthUser(null))
+  }, [])
 
   const navItems = [
     { href: "/client/dashboard", label: "Tableau de bord", icon: LayoutDashboard },
@@ -21,10 +38,12 @@ function ClientSidebar() {
       <div className="p-6">
         <div className="text-center mb-8">
           <Avatar className="h-20 w-20 mx-auto mb-4 bg-gray-200">
-            <AvatarFallback className="text-gray-600 text-xl font-medium">MD</AvatarFallback>
+            <AvatarFallback className="text-gray-600 text-xl font-medium">
+              {`${(authUser?.first_name?.[0] || "M").toUpperCase()}${(authUser?.last_name?.[0] || "D").toUpperCase()}`}
+            </AvatarFallback>
           </Avatar>
-          <h2 className="text-xl font-semibold text-black">Marie Dupont</h2>
-          <p className="text-gray-600 text-sm">marie.dupont@email.com</p>
+          <h2 className="text-xl font-semibold text-black">{authUser ? `${authUser.first_name || ""} ${authUser.last_name || ""}`.trim() : "Utilisateur"}</h2>
+          <p className="text-gray-600 text-sm">{authUser?.email || ""}</p>
         </div>
 
         <nav className="space-y-2">

@@ -45,12 +45,26 @@ export default function AdminLayout({
                 </Link>
               )
             })}
+            {/* Bouton se déconnecter */}
+            <button
+              onClick={async () => {
+                try {
+                  await fetch("/api/auth/logout", { method: "POST" });
+                } catch (err) {
+                  console.error("Erreur réseau :", err);
+                }
+                window.location.href = "/auth/login";
+              }}
+              className="flex items-center gap-3 px-3 py-2 rounded-lg font-medium transition-colors text-red-700 hover:bg-red-100 w-full mt-4"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a2 2 0 01-2 2H7a2 2 0 01-2-2V7a2 2 0 012-2h6a2 2 0 012 2v1" /></svg>
+              Se déconnecter
+            </button>
           </nav>
         </div>
-
         {/* Main content */}
         <div className="flex-1">{children}</div>
       </div>
     </div>
-  )
+  );
 }

@@ -115,7 +115,7 @@ export default function RegisterPage() {
                         setError(data.error || "Impossible de créer le compte")
                         return
                       }
-                      router.push("/pro/inscription")
+                      router.push("/client/dashboard")
                     } catch (e) {
                       setError("Erreur réseau")
                     }

@@ -1,3 +1,5 @@
+"use client"
+import { useEffect, useState } from "react"
 import { User, Calendar, Star, Camera } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -7,13 +9,26 @@ import { Textarea } from "@/components/ui/textarea"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 
-export default function ClientProfil() {
-  const userStats = {
-    totalBookings: 24,
-    averageRating: 4.8,
-    favoriteServices: ["Coiffure", "Coloration"],
-    memberSince: "Janvier 2024",
+type Profile = {
+  id: string
+  users: {
+    first_name: string | null
+    last_name: string | null
+    email: string
+    created_at?: string
   }
+}
+
+export default function ClientProfil() {
+  const [profile, setProfile] = useState<Profile | null>(null)
+  const favoriteServices: string[] = []
+
+  useEffect(() => {
+    fetch("/api/client/profile")
+      .then((res) => res.json())
+      .then((data) => setProfile(data.user))
+      .catch(() => setProfile(null))
+  }, [])
 
   return (
     <div className="space-y-6">
@@ -39,7 +54,9 @@ export default function ClientProfil() {
                 <div className="relative">
                   <Avatar className="h-20 w-20">
                     <AvatarImage src="/placeholder.svg?height=80&width=80" />
-                    <AvatarFallback className="text-lg">SB</AvatarFallback>
+                    <AvatarFallback className="text-lg">
+                      {`${(profile?.users.first_name?.[0] || "?").toUpperCase()}${(profile?.users.last_name?.[0] || "").toUpperCase()}`}
+                    </AvatarFallback>
                   </Avatar>
                   <Button
                     size="sm"
@@ -50,33 +67,33 @@ export default function ClientProfil() {
                   </Button>
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-black">Sarah Benali</h3>
-                  <p className="text-gray-600">Membre depuis {userStats.memberSince}</p>
+                  <h3 className="text-lg font-semibold text-black">{`${profile?.users.first_name || ""} ${profile?.users.last_name || ""}`.trim() || "Utilisateur"}</h3>
+                  <p className="text-gray-600">{profile?.users.email}</p>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="firstName">Prénom</Label>
-                  <Input id="firstName" defaultValue="Sarah" />
+                  <Input id="firstName" defaultValue={profile?.users.first_name || ""} />
                 </div>
                 <div>
                   <Label htmlFor="lastName">Nom</Label>
-                  <Input id="lastName" defaultValue="Benali" />
+                  <Input id="lastName" defaultValue={profile?.users.last_name || ""} />
                 </div>
                 <div>
                   <Label htmlFor="email">Email</Label>
-                  <Input id="email" type="email" defaultValue="sarah.benali@email.com" />
+                  <Input id="email" type="email" defaultValue={profile?.users.email || ""} />
                 </div>
                 <div>
                   <Label htmlFor="phone">Téléphone</Label>
-                  <Input id="phone" defaultValue="+213 XX XX XX XX" />
+                  <Input id="phone" defaultValue="" />
                 </div>
               </div>
 
               <div>
                 <Label htmlFor="address">Adresse</Label>
-                <Textarea id="address" defaultValue="Rue Didouche Mourad, Alger Centre, Alger" rows={2} />
+                <Textarea id="address" defaultValue={""} rows={2} />
               </div>
 
               <Button className="bg-black text-white hover:bg-gray-800">Sauvegarder les modifications</Button>
@@ -92,7 +109,7 @@ export default function ClientProfil() {
               <div>
                 <Label>Services préférés</Label>
                 <div className="flex flex-wrap gap-2 mt-2">
-                  {userStats.favoriteServices.map((service, index) => (
+                  {favoriteServices.map((service, index) => (
                     <Badge key={index} variant="secondary">
                       {service}
                     </Badge>
@@ -132,20 +149,20 @@ export default function ClientProfil() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="text-center">
-                <div className="text-3xl font-bold text-black">{userStats.totalBookings}</div>
+                <div className="text-3xl font-bold text-black">—</div>
                 <p className="text-gray-600">Rendez-vous pris</p>
               </div>
 
               <div className="text-center">
                 <div className="flex items-center justify-center">
                   <Star className="h-5 w-5 text-yellow-500 fill-current mr-1" />
-                  <span className="text-2xl font-bold text-black">{userStats.averageRating}</span>
+                  <span className="text-2xl font-bold text-black">—</span>
                 </div>
                 <p className="text-gray-600">Note moyenne donnée</p>
               </div>
 
               <div className="text-center">
-                <div className="text-2xl font-bold text-black">{userStats.favoriteServices.length}</div>
+                <div className="text-2xl font-bold text-black">{favoriteServices.length}</div>
                 <p className="text-gray-600">Services favoris</p>
               </div>
             </CardContent>

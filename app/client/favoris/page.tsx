@@ -1,51 +1,31 @@
+"use client"
+import { useEffect, useState } from "react"
 import { Heart, MapPin, Star, Clock, Phone } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import Image from "next/image"
 
+type Favorite = {
+  id: string
+  businesses: {
+    id: string
+    name: string | null
+    address?: string | null
+    phone?: string | null
+    cover_image_url?: string | null
+  }
+}
+
 export default function ClientFavoris() {
-  const favoriteSalons = [
-    {
-      id: 1,
-      name: "PAVANA",
-      address: "16 Rue Hadi Ahmed Mohamed, 16000 Hydra",
-      rating: 4.9,
-      reviewCount: 72,
-      image: "/elegant-beauty-salon-interior-with-warm-lighting-a.jpg",
-      services: ["Coiffure", "Coiffage", "Coloration"],
-      priceRange: "200 - 800 DA",
-      openingHours: "09:00 - 18:00",
-      phone: "+213 21 XX XX XX",
-      distance: "2.5 km",
-    },
-    {
-      id: 2,
-      name: "Beauty Studio",
-      address: "Rue Didouche Mourad, Alger Centre",
-      rating: 4.7,
-      reviewCount: 45,
-      image: "/modern-beauty-salon-with-stylish-people-getting-ha.jpg",
-      services: ["Brushing", "Shampoing", "Masque"],
-      priceRange: "150 - 600 DA",
-      openingHours: "08:30 - 19:00",
-      phone: "+213 21 XX XX XX",
-      distance: "1.8 km",
-    },
-    {
-      id: 3,
-      name: "Salon Elite",
-      address: "Boulevard Zighout Youcef, Alger",
-      rating: 4.8,
-      reviewCount: 89,
-      image: "/modern-beauty-salon-with-professional-hairstylist-.jpg",
-      services: ["Coloration", "Mèches", "Lissage"],
-      priceRange: "300 - 1200 DA",
-      openingHours: "09:30 - 18:30",
-      phone: "+213 21 XX XX XX",
-      distance: "3.2 km",
-    },
-  ]
+  const [favorites, setFavorites] = useState<Favorite[]>([])
+
+  useEffect(() => {
+    fetch("/api/client/favorites")
+      .then((res) => res.json())
+      .then((data) => setFavorites(data.favorites || []))
+      .catch(() => setFavorites([]))
+  }, [])
 
   return (
     <div className="space-y-6">
@@ -57,17 +37,17 @@ export default function ClientFavoris() {
         <p className="text-gray-600 mt-1">Gérer vos favoris</p>
         </div>
         <Badge variant="outline" className="bg-black text-white hover:bg-gray-800">
-          {favoriteSalons.length} salon{favoriteSalons.length > 1 ? "s" : ""}
+          {favorites.length} salon{favorites.length > 1 ? "s" : ""}
         </Badge>
       </div>
       </div>
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {favoriteSalons.map((salon) => (
-          <Card key={salon.id} className="overflow-hidden hover:shadow-lg transition-shadow">
+        {favorites.map((fav) => (
+          <Card key={fav.id} className="overflow-hidden hover:shadow-lg transition-shadow">
             <div className="relative h-48">
-              <Image src={salon.image || "/placeholder.svg"} alt={salon.name} fill className="object-cover" />
+              <Image src={fav.businesses.cover_image_url || "/placeholder.svg"} alt={fav.businesses.name || "Salon"} fill className="object-cover" />
               <Button
                 variant="ghost"
                 size="sm"
@@ -80,44 +60,40 @@ export default function ClientFavoris() {
             <CardContent className="p-6">
               <div className="flex justify-between items-start mb-3">
                 <div>
-                  <h3 className="text-xl font-bold text-black">{salon.name}</h3>
+                  <h3 className="text-xl font-bold text-black">{fav.businesses.name}</h3>
                   <div className="flex items-center text-gray-600 text-sm mt-1">
                     <MapPin className="h-4 w-4 mr-1" />
-                    {salon.address}
+                    {fav.businesses.address || "Adresse indisponible"}
                   </div>
                 </div>
                 <div className="text-right">
                   <div className="flex items-center">
                     <Star className="h-4 w-4 text-yellow-500 fill-current mr-1" />
-                    <span className="font-semibold">{salon.rating}</span>
+                    <span className="font-semibold">—</span>
                   </div>
-                  <p className="text-xs text-gray-500">({salon.reviewCount} avis)</p>
+                  <p className="text-xs text-gray-500">(avis)</p>
                 </div>
               </div>
 
               <div className="space-y-3 mb-4">
                 <div className="flex flex-wrap gap-2">
-                  {salon.services.map((service, index) => (
-                    <Badge key={index} variant="secondary" className="text-xs">
-                      {service}
-                    </Badge>
-                  ))}
+                  {/* Services tags si disponibles ultérieurement */}
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-gray-600">
                   <div className="flex items-center">
                     <Clock className="h-4 w-4 mr-2" />
-                    {salon.openingHours}
+                    —
                   </div>
                   <div className="flex items-center">
                     <Phone className="h-4 w-4 mr-2" />
-                    {salon.phone}
+                    {fav.businesses.phone || "—"}
                   </div>
                 </div>
 
                 <div className="flex justify-between items-center text-sm">
-                  <span className="text-gray-600">Prix: {salon.priceRange}</span>
-                  <span className="text-gray-500">À {salon.distance}</span>
+                  <span className="text-gray-600">Prix: —</span>
+                  <span className="text-gray-500">—</span>
                 </div>
               </div>
 
@@ -132,7 +108,7 @@ export default function ClientFavoris() {
         ))}
       </div>
 
-      {favoriteSalons.length === 0 && (
+      {favorites.length === 0 && (
         <Card>
           <CardContent className="p-12 text-center">
             <Heart className="h-12 w-12 text-gray-300 mx-auto mb-4" />

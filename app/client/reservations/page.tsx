@@ -1,3 +1,5 @@
+"use client"
+import { useEffect, useMemo, useState } from "react"
 import { Calendar, Clock, MapPin, Star, User } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -5,61 +7,29 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
+type Booking = {
+  id: string
+  status: string
+  starts_at: string
+  duration_minutes?: number | null
+  businesses?: { name?: string; address?: string | null }
+  employees?: { full_name?: string }
+  reservation_items?: Array<{ services?: { name?: string }; price_cents?: number }>
+}
+
 export default function ClientReservations() {
-  const bookings = [
-    {
-      id: 1,
-      salon: "PAVANA",
-      service: "COUPE + COIFFAGE",
-      date: "20 septembre 2025",
-      time: "10:30",
-      duration: "30min",
-      price: "200 DA",
-      professional: "SOUSSOU HAMICHE",
-      address: "16 Rue Hadi Ahmed Mohamed, 16000 Hydra",
-      status: "confirmé",
-      type: "upcoming",
-    },
-    {
-      id: 2,
-      salon: "Beauty Studio",
-      service: "BRUSHING + SHAMPOING",
-      date: "25 septembre 2025",
-      time: "14:00",
-      duration: "45min",
-      price: "150 DA",
-      professional: "Sarah Benali",
-      address: "Rue Didouche Mourad, Alger Centre",
-      status: "confirmé",
-      type: "upcoming",
-    },
-    {
-      id: 3,
-      salon: "PAVANA",
-      service: "MASQUE + COIFFAGE",
-      date: "15 septembre 2025",
-      time: "16:00",
-      duration: "60min",
-      price: "400 DA",
-      professional: "SOUSSOU HAMICHE",
-      rating: 5,
-      status: "terminé",
-      type: "past",
-    },
-    {
-      id: 4,
-      salon: "Salon Elite",
-      service: "COLORATION",
-      date: "10 septembre 2025",
-      time: "09:00",
-      duration: "120min",
-      price: "800 DA",
-      professional: "Amina Kaci",
-      rating: 4,
-      status: "terminé",
-      type: "past",
-    },
-  ]
+  const [bookings, setBookings] = useState<Booking[]>([])
+  const [statusFilter, setStatusFilter] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetch("/api/client/bookings")
+      .then((res) => res.json())
+      .then((data) => setBookings(data.bookings || []))
+      .catch(() => setBookings([]))
+  }, [])
+
+  const upcoming = useMemo(() => bookings.filter((b) => new Date(b.starts_at) >= new Date()), [bookings])
+  const past = useMemo(() => bookings.filter((b) => new Date(b.starts_at) < new Date()), [bookings])
 
   return (
     <div className="space-y-6">
@@ -83,7 +53,7 @@ export default function ClientReservations() {
             <div className="flex-1">
               <Input placeholder="Rechercher par salon ou service..." className="w-full" />
             </div>
-            <Select>
+            <Select onValueChange={(v) => setStatusFilter(v === "all" ? null : v)}>
               <SelectTrigger className="w-full sm:w-48">
                 <SelectValue placeholder="Statut" />
               </SelectTrigger>
@@ -115,16 +85,15 @@ export default function ClientReservations() {
           <CardTitle className="text-xl font-bold text-black">Rendez-vous à venir</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {bookings
-            .filter((b) => b.type === "upcoming")
+          {(statusFilter === "past" ? [] : upcoming)
             .map((booking) => (
               <div key={booking.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
                 <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
                   <div className="flex-1">
                     <div className="flex justify-between items-start mb-3">
                       <div>
-                        <h3 className="font-semibold text-black text-lg">{booking.salon}</h3>
-                        <p className="text-gray-600">{booking.service}</p>
+                        <h3 className="font-semibold text-black text-lg">{booking.businesses?.name || "Salon"}</h3>
+                        <p className="text-gray-600">{booking.reservation_items?.[0]?.services?.name || "Service"}</p>
                       </div>
                       <Badge variant="outline" className="text-green-600 border-green-600">
                         {booking.status}
@@ -134,19 +103,19 @@ export default function ClientReservations() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-gray-600 mb-4">
                       <div className="flex items-center">
                         <Calendar className="h-4 w-4 mr-2" />
-                        {booking.date} à {booking.time}
+                        {new Date(booking.starts_at).toLocaleDateString()} à {new Date(booking.starts_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </div>
                       <div className="flex items-center">
                         <Clock className="h-4 w-4 mr-2" />
-                        {booking.duration} - {booking.price}
+                        {booking.duration_minutes ? `${booking.duration_minutes} min` : "—"} - {booking.reservation_items?.[0]?.price_cents ? `${booking.reservation_items[0].price_cents / 100} DA` : ""}
                       </div>
                       <div className="flex items-center">
                         <User className="h-4 w-4 mr-2" />
-                        avec {booking.professional}
+                        avec {booking.employees?.full_name || "Professionnel"}
                       </div>
                       <div className="flex items-center">
                         <MapPin className="h-4 w-4 mr-2" />
-                        {booking.address}
+                        {booking.businesses?.address || "—"}
                       </div>
                     </div>
                   </div>
@@ -179,25 +148,19 @@ export default function ClientReservations() {
           <CardTitle className="text-xl font-bold text-black">Historique</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {bookings
-            .filter((b) => b.type === "past")
+          {(statusFilter === "upcoming" ? [] : past)
             .map((booking) => (
               <div key={booking.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
                 <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
                   <div className="flex-1">
                     <div className="flex justify-between items-start mb-3">
                       <div>
-                        <h3 className="font-semibold text-black text-lg">{booking.salon}</h3>
-                        <p className="text-gray-600">{booking.service}</p>
+                        <h3 className="font-semibold text-black text-lg">{booking.businesses?.name || "Salon"}</h3>
+                        <p className="text-gray-600">{booking.reservation_items?.[0]?.services?.name || "Service"}</p>
                       </div>
                       <div className="flex items-center">
                         {[...Array(5)].map((_, i) => (
-                          <Star
-                            key={i}
-                            className={`h-4 w-4 ${
-                              i < (booking.rating ?? 0) ? "text-yellow-500 fill-current" : "text-gray-300"
-                            }`}
-                          />
+                          <Star key={i} className={`h-4 w-4 ${i < 0 ? "text-yellow-500 fill-current" : "text-gray-300"}`} />
                         ))}
                       </div>
                     </div>
@@ -205,15 +168,15 @@ export default function ClientReservations() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-gray-600 mb-4">
                       <div className="flex items-center">
                         <Calendar className="h-4 w-4 mr-2" />
-                        {booking.date} à {booking.time}
+                        {new Date(booking.starts_at).toLocaleDateString()} à {new Date(booking.starts_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </div>
                       <div className="flex items-center">
                         <Clock className="h-4 w-4 mr-2" />
-                        {booking.duration} - {booking.price}
+                        {booking.duration_minutes ? `${booking.duration_minutes} min` : "—"} - {booking.reservation_items?.[0]?.price_cents ? `${booking.reservation_items[0].price_cents / 100} DA` : ""}
                       </div>
                       <div className="flex items-center">
                         <User className="h-4 w-4 mr-2" />
-                        avec {booking.professional}
+                        avec {booking.employees?.full_name || "Professionnel"}
                       </div>
                     </div>
                   </div>
