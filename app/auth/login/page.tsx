@@ -1,17 +1,22 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useTransition } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Eye, EyeOff } from "lucide-react"
 import Link from "next/link"
+import { useRouter, useSearchParams } from "next/navigation"
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [error, setError] = useState<string | null>(null)
+  const [isPending, startTransition] = useTransition()
+  const router = useRouter()
+  const params = useSearchParams()
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -66,7 +71,40 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              <Button className="w-full bg-black hover:bg-gray-800 text-white">Se connecter</Button>
+              {error ? <p className="text-sm text-red-600">{error}</p> : null}
+              <Button
+                className="w-full bg-black hover:bg-gray-800 text-white"
+                disabled={isPending}
+                onClick={() => {
+                  setError(null)
+                  startTransition(async () => {
+                    try {
+                      const res = await fetch("/api/auth/login", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ email, password }),
+                      })
+                      if (!res.ok) {
+                        const data = await res.json().catch(() => ({}))
+                        setError(data.error || "Impossible de se connecter")
+                        return
+                      }
+                      // Get roles and redirect accordingly
+                      const me = await fetch("/api/auth/me").then((r) => r.json()).catch(() => null)
+                      const roles = me?.user?.roles || []
+                      const next = params.get("next")
+                      if (next) return router.push(next)
+                      if (roles.includes("ADMIN")) return router.push("/admin/dashboard")
+                      if (roles.includes("PRO")) return router.push("/pro/dashboard")
+                      router.push("/client/dashboard")
+                    } catch (e) {
+                      setError("Erreur réseau")
+                    }
+                  })
+                }}
+              >
+                {isPending ? "Connexion..." : "Se connecter"}
+              </Button>
 
               <div className="text-center">
                 <span className="text-gray-500">OU</span>

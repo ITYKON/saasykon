@@ -1,12 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useTransition } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Eye, EyeOff } from "lucide-react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 
 export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false)
@@ -16,6 +17,9 @@ export default function RegisterPage() {
     password: "",
     acceptTerms: false,
   })
+  const [error, setError] = useState<string | null>(null)
+  const [isPending, startTransition] = useTransition()
+  const router = useRouter()
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -89,7 +93,37 @@ export default function RegisterPage() {
                 </div>
               </div>
 
-              <Button className="w-full bg-black hover:bg-gray-800 text-white">Créer mon compte</Button>
+              {error ? <p className="text-sm text-red-600">{error}</p> : null}
+              <Button
+                className="w-full bg-black hover:bg-gray-800 text-white"
+                disabled={isPending}
+                onClick={() => {
+                  setError(null)
+                  startTransition(async () => {
+                    try {
+                      const res = await fetch("/api/auth/register", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          phone: formData.phone || undefined,
+                          email: formData.email,
+                          password: formData.password,
+                        }),
+                      })
+                      if (!res.ok) {
+                        const data = await res.json().catch(() => ({}))
+                        setError(data.error || "Impossible de créer le compte")
+                        return
+                      }
+                      router.push("/pro/inscription")
+                    } catch (e) {
+                      setError("Erreur réseau")
+                    }
+                  })
+                }}
+              >
+                {isPending ? "Création..." : "Créer mon compte"}
+              </Button>
 
               <div className="text-xs text-gray-500 leading-relaxed">
                 Mes informations sont traitées par Planity, consultez notre{" "}

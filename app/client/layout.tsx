@@ -41,7 +41,7 @@ function ClientSidebar() {
             )
           })}
 
-          <a href="#" className="flex items-center px-4 py-3 text-red-600 hover:bg-red-50 rounded-lg">
+          <a href="/auth/logout" className="flex items-center px-4 py-3 text-red-600 hover:bg-red-50 rounded-lg">
             <LogOut className="h-5 w-5 mr-3" />
             Se déconnecter
           </a>
