@@ -4,6 +4,7 @@ import { GeistSans } from "geist/font/sans"
 import { GeistMono } from "geist/font/mono"
 import { Analytics } from "@vercel/analytics/next"
 import { Suspense } from "react"
+import SessionKeepAlive from "@/components/session-keep-alive"
 import "./globals.css"
 
 export const metadata: Metadata = {
@@ -23,9 +24,12 @@ export default function RootLayout({
       <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable} antialiased`}>
         <Suspense fallback={null}>
           {children}
+          <SessionKeepAlive />
           <Analytics />
         </Suspense>
       </body>
     </html>
   )
 }
+
+// Client logic moved to components/session-keep-alive.tsx

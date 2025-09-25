@@ -17,6 +17,7 @@ export default function LoginPage() {
   const [isPending, startTransition] = useTransition()
   const router = useRouter()
   const params = useSearchParams()
+  const context = (params.get("context") || "client").toLowerCase() // "pro" or "client"
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -82,7 +83,7 @@ export default function LoginPage() {
                       const res = await fetch("/api/auth/login", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ email, password }),
+                        body: JSON.stringify({ email, password, context }),
                       })
                       if (!res.ok) {
                         const data = await res.json().catch(() => ({}))
@@ -94,9 +95,20 @@ export default function LoginPage() {
                       const roles = me?.user?.roles || []
                       const next = params.get("next")
                       if (next) return router.push(next)
-                      if (roles.includes("ADMIN")) return router.push("/admin/dashboard")
-                      if (roles.includes("PRO")) return router.push("/pro/dashboard")
-                      router.push("/client/dashboard")
+                      // Enforce interface context after login
+                      if (context === "pro") {
+                        if (roles.includes("ADMIN")) return router.push("/admin/dashboard")
+                        if (roles.includes("PRO")) return router.push("/pro/dashboard")
+                        // Not allowed on pro interface → send to client area
+                        return router.push("/client/dashboard")
+                      } else {
+                        // client context
+                        if (roles.includes("CLIENT")) return router.push("/client/dashboard")
+                        // If user is pro/admin trying client login, route them properly
+                        if (roles.includes("ADMIN")) return router.push("/admin/dashboard")
+                        if (roles.includes("PRO")) return router.push("/pro/dashboard")
+                        return router.push("/client/dashboard")
+                      }
                     } catch (e) {
                       setError("Erreur réseau")
                     }

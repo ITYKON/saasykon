@@ -43,11 +43,18 @@ export async function createSession(userId: string) {
   });
 
   // Also set a readable roles cookie for middleware/client redirects
-  const userRoles = await prisma.user_roles.findMany({
-    where: { user_id: userId },
-    include: { roles: true },
-  });
-  const roleCodes = userRoles.map((ur) => ur.roles.code).join(",");
+  const [userRoles, userBusinesses] = await Promise.all([
+    prisma.user_roles.findMany({
+      where: { user_id: userId },
+      include: { roles: true },
+    }),
+    prisma.businesses.findMany({ where: { owner_user_id: userId }, select: { id: true } }),
+  ]);
+  const explicitRoleCodes = userRoles.map((ur) => ur.roles.code);
+  const hasAdmin = explicitRoleCodes.includes("ADMIN");
+  const hasPro = explicitRoleCodes.includes("PRO") || userBusinesses.length > 0;
+  const computedRoles = hasAdmin ? ["ADMIN", "PRO"] : hasPro ? ["PRO"] : ["CLIENT"];
+  const roleCodes = Array.from(new Set([...explicitRoleCodes, ...computedRoles])).join(",");
   response.cookies.set("saas_roles", roleCodes, {
     httpOnly: false,
     sameSite: "lax",

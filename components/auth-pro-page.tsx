@@ -74,6 +74,9 @@ export default function AuthProLanding() {
               <Link href="#contact">
                 <Button variant="secondary" size="lg">Être recontacté</Button>
               </Link>
+              <Link href={{ pathname: "/auth/login", query: { context: "pro" } }}>
+                <Button variant="outline" size="lg">Se connecter (Pro)</Button>
+              </Link>
             </div>
           </div>
           <Card className="md:ml-auto">
