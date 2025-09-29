@@ -40,6 +40,18 @@ export async function POST(req: Request) {
       deleted_at: null,
     },
   });
+
+  // Affecte le rôle "PROFESSIONNEL" à ce user avec le business fraichement créé
+  const proRole = await prisma.roles.findFirst({ where: { code: { equals: "PROFESSIONNEL" } } });
+  if (proRole) {
+    await prisma.user_roles.create({
+      data: {
+        user_id: user.id,
+        role_id: proRole.id,
+        business_id: lead.id,
+      }
+    });
+  }
   // TODO: notifier un commercial (email, CRM...)
   return NextResponse.json({ success: true, lead });
 }

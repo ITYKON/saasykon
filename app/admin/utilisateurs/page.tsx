@@ -1,3 +1,5 @@
+"use client";
+import React from "react";
 import { Users, Mail } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -5,73 +7,67 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 
 export default function AdminUtilisateurs() {
-  const users = [
-    {
-      id: 1,
-      name: "Marie Dupont",
-      email: "marie.dupont@email.com",
-      phone: "+213 555 123 456",
-      role: "Client",
-      status: "Actif",
-      joinDate: "Inscrit le 15 sept. 2025",
-      reservations: 8,
-      avatar: "MD",
-    },
-    {
-      id: 2,
-      name: "SOUSSOU HAMICHE",
-      email: "soussou@pavana.dz",
-      phone: "+213 555 789 012",
-      role: "Professionnel",
-      status: "Actif",
-      joinDate: "Inscrit le 10 sept. 2025",
-      salon: "Salon: PAVANA",
-      avatar: "SH",
-    },
-    {
-      id: 3,
-      name: "Amina Khelifi",
-      email: "amina.khelifi@email.com",
-      phone: "+213 XX XX XX XX",
-      role: "client",
-      status: "actif",
-      joinDate: "3 mars 2024",
-      lastActivity: "Il y a 1j",
-      totalBookings: 12,
-      totalSpent: 2400,
-      averageRating: 4.7,
-      city: "Oran",
-    },
-    {
-      id: 4,
-      name: "Admin User",
-      email: "admin@planity.com",
-      phone: "+213 XX XX XX XX",
-      role: "admin",
-      status: "actif",
-      joinDate: "1 janvier 2023",
-      lastActivity: "Il y a 30min",
-      totalBookings: 0,
-      totalSpent: 0,
-      averageRating: 0,
-      city: "Alger",
-    },
-    {
-      id: 5,
-      name: "Fatima Meziani",
-      email: "fatima.meziani@email.com",
-      phone: "+213 XX XX XX XX",
-      role: "professionnel",
-      status: "suspendu",
-      joinDate: "20 septembre 2025",
-      lastActivity: "Il y a 3j",
-      totalBookings: 8,
-      totalSpent: 0,
-      averageRating: 4.2,
-      city: "Constantine",
-      salonName: "Salon Elite",
-    },
-  ]
+  // Utilisateurs du backend
+  const [users, setUsers] = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    fetch("/api/admin/users")
+      .then(res => res.json())
+      .then(data => {
+        // Mappe les utilisateurs du backend vers le format attendu par le front
+        const mapped = (data.users || []).map(u => {
+          // Détermine le rôle principal
+          let role = "Client";
+          if (u.user_roles && Array.isArray(u.user_roles) && u.user_roles.length > 0) {
+            // Prend le premier rôle ou adapte selon la logique métier
+            const mainRole = u.user_roles[0].roles?.code?.toLowerCase();
+            if (mainRole === "admin") role = "Admin";
+            else if (mainRole === "professionnel" || mainRole === "pro") role = "Professionnel";
+          }
+          return {
+            id: u.id,
+            name: u.first_name && u.last_name ? `${u.first_name} ${u.last_name}` : u.email,
+            email: u.email,
+            phone: u.phone,
+            role,
+            status: u.status || "Actif",
+            joinDate: u.created_at ? `Inscrit le ${new Date(u.created_at).toLocaleDateString()}` : "",
+            reservations: u.reservations || 0,
+            avatar: u.first_name ? u.first_name[0] + (u.last_name ? u.last_name[0] : "") : "U"
+          }
+        });
+        setUsers(mapped);
+        setLoading(false);
+      });
+  }, []);
+
+  async function handleDeleteUser(id: string) {
+    if (!window.confirm("Confirmer la suppression de l'utilisateur ?")) return;
+    await fetch("/api/admin/users", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id })
+    });
+    setUsers(users.filter(u => u.id !== id));
+  }
+
+  const [search, setSearch] = React.useState("");
+  const [roleFilter, setRoleFilter] = React.useState<string|null>(null);
+  const [statusFilter, setStatusFilter] = React.useState<string|null>(null);
+  const [selected, setSelected] = React.useState<number[]>([]);
+
+  // Filtrage et recherche
+  const filteredUsers = users.filter(u => {
+    if (!u || !u.name || !u.email || !u.role || !u.status) return false;
+    const matchSearch =
+      u.name.toLowerCase().includes(search.toLowerCase()) ||
+      u.email.toLowerCase().includes(search.toLowerCase());
+    const matchRole = roleFilter ? u.role.toLowerCase() === roleFilter.toLowerCase() : true;
+    const matchStatus = statusFilter ? u.status.toLowerCase() === statusFilter : true;
+    return matchSearch && matchRole && matchStatus;
+  });
+  // (bloc dupliqué supprimé)
 
   const getRoleColor = (role: string) => {
     switch (role.toLowerCase()) {
@@ -101,6 +97,31 @@ export default function AdminUtilisateurs() {
 
   return (
     <div className="space-y-6">
+      {/* Filtres et recherche */}
+      <div className="flex flex-wrap gap-4 items-center mb-4 px-6">
+        <input
+          type="text"
+          placeholder="Rechercher par nom ou email..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="border rounded px-3 py-2 w-64"
+        />
+        <select value={roleFilter ?? ""} onChange={e => setRoleFilter(e.target.value || null)} className="border rounded px-2 py-2">
+          <option value="">Tous rôles</option>
+          <option value="client">Client</option>
+          <option value="professionnel">Professionnel</option>
+          <option value="admin">Admin</option>
+        </select>
+        <select value={statusFilter ?? ""} onChange={e => setStatusFilter(e.target.value || null)} className="border rounded px-2 py-2">
+          <option value="">Tous statuts</option>
+          <option value="actif">Actif</option>
+          <option value="suspendu">Suspendu</option>
+        </select>
+        <Button variant="outline" onClick={() => setSelected(filteredUsers.map(u => u.id))}>Tout sélectionner</Button>
+        <Button variant="outline" onClick={() => setSelected([])}>Désélectionner</Button>
+        <Button variant="destructive" disabled={selected.length === 0}>Supprimer sélection</Button>
+        <Button variant="outline" disabled={selected.length === 0}>Exporter sélection</Button>
+      </div>
       {/* Header ajusté pour ressembler au dashboard */}
       <header className="bg-white border-b border-gray-200 mb-6">
         <div className="px-6 py-4">
@@ -117,41 +138,56 @@ export default function AdminUtilisateurs() {
       </header>
 
       <div className="space-y-4">
-        {users.map((user) => (
-          <Card key={user.id} className="border border-gray-200">
+        {filteredUsers.map((user) => (
+          <Card key={user.id} className={`border ${selected.includes(user.id) ? "border-blue-400" : "border-gray-200"}`}>
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
+                  <input
+                    type="checkbox"
+                    checked={selected.includes(user.id)}
+                    onChange={e => {
+                      if (e.target.checked) setSelected([...selected, user.id])
+                      else setSelected(selected.filter(id => id !== user.id))
+                    }}
+                    className="mr-2"
+                  />
                   <Avatar className="h-12 w-12 bg-gray-200">
                     <AvatarFallback className="text-gray-600 font-medium">{user.avatar}</AvatarFallback>
                   </Avatar>
-
                   <div className="space-y-1">
                     <h3 className="text-lg font-semibold text-black">{user.name}</h3>
                     <p className="text-gray-600">{user.email}</p>
                     {user.salon && <p className="text-sm text-gray-500">{user.salon}</p>}
-
+                    {/* Badge Lead si pro en attente */}
+                    {user.role.toLowerCase().includes("professionnel") && user.status.toLowerCase() === "en attente" && (
+                      <Badge className="bg-yellow-100 text-yellow-800 border-yellow-400">Lead à contacter</Badge>
+                    )}
                     <div className="flex items-center space-x-4 mt-2">
                       <Badge variant="outline" className={getRoleColor(user.role)}>
                         {user.role}
                       </Badge>
-                      <Badge variant="outline" className="text-green-600 border-green-600">
+                      <Badge variant="outline" className={getStatusColor(user.status)}>
                         {user.status}
                       </Badge>
                     </div>
                   </div>
                 </div>
-
                 <div className="text-right space-y-2">
                   <p className="text-sm text-gray-500">{user.joinDate}</p>
                   {user.reservations && <p className="text-sm text-gray-500">{user.reservations} réservations</p>}
-
                   <div className="flex space-x-2 mt-3">
-                    <Button variant="outline" size="sm" className="bg-transparent">
+                    <Button variant="outline" size="sm" className="bg-transparent" title="Voir fiche">
                       <Users className="h-4 w-4" />
                     </Button>
-                    <Button variant="outline" size="sm" className="bg-transparent">
+                    <Button variant="outline" size="sm" className="bg-transparent" title="Envoyer un email">
                       <Mail className="h-4 w-4" />
+                    </Button>
+                    <Button variant="outline" size="sm" className="bg-transparent" title="Modifier">
+                      ✏️
+                    </Button>
+                    <Button variant="destructive" size="sm" className="bg-transparent" title="Supprimer" onClick={() => handleDeleteUser(user.id)}>
+                      🗑️
                     </Button>
                   </div>
                 </div>

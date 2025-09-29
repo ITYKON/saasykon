@@ -626,6 +626,7 @@ model users {
   reservations               reservations[]
   sessions                   sessions[]
   user_roles                 user_roles[]
+  password_reset_tokens      password_reset_tokens[]
 
   @@index([provider, provider_id])
 }
