@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { PhoneInput } from "@/components/ui/phone-input";
 
 type LeadFormState = {
   companyName: string;
@@ -18,6 +19,7 @@ type LeadFormState = {
   lastName: string;
   email: string;
   phone: string;
+  phoneCountry: string;
   city: string;
   businessType: string;
   consent: boolean;
@@ -32,11 +34,13 @@ export default function AuthProLanding() {
     lastName: "",
     email: "",
     phone: "",
+    phoneCountry: "+33",
     city: "",
     businessType: "",
     consent: false,
   });
 
+  // (ligne supprimée, déjà dans le state)
   function update<K extends keyof LeadFormState>(key: K, value: LeadFormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
@@ -48,10 +52,15 @@ export default function AuthProLanding() {
       return;
     }
     setSubmitting(true);
-    try {
-      await new Promise((r) => setTimeout(r, 900));
-      toast({ title: "Demande envoyée", description: "Nous vous recontactons très vite pour activer votre compte Pro." });
-      setForm({ companyName: "", firstName: "", lastName: "", email: "", phone: "", city: "", businessType: "", consent: false });
+        try {
+          const res = await fetch("/api/lead", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(form),
+          });
+          if (!res.ok) throw new Error("Erreur API");
+          setForm({ companyName: "", firstName: "", lastName: "", email: "", phone: "", phoneCountry: "+33", city: "", businessType: "", consent: false });
+          window.location.href = "/lead-confirmation";
     } catch (err) {
       toast({ title: "Une erreur est survenue", description: "Merci de réessayer plus tard." });
     } finally {
@@ -104,7 +113,13 @@ export default function AuthProLanding() {
                   </div>
                   <div>
                     <Label htmlFor="phone">Téléphone</Label>
-                    <Input id="phone" type="tel" value={form.phone} onChange={(e) => update("phone", e.target.value)} required />
+                    <PhoneInput
+                      value={form.phone}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => update("phone", e.target.value)}
+                      country={form.phoneCountry}
+                      onCountryChange={(v: string) => update("phoneCountry", v)}
+                      required
+                    />
                   </div>
                 </div>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
