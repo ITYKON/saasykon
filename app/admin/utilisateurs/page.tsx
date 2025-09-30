@@ -5,25 +5,53 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { UserDetailModal } from "@/components/admin/UserDetailModal"
+import { UserEditModal } from "@/components/admin/UserEditModal"
 
 export default function AdminUtilisateurs() {
+  // Modals pour actions rapides
+  const [detailModalOpen, setDetailModalOpen] = React.useState(false);
+  const [editModalOpen, setEditModalOpen] = React.useState(false);
+  const [activeUser, setActiveUser] = React.useState<any|null>(null);
   // Utilisateurs du backend
   const [users, setUsers] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
+    // Définition du type utilisateur backend
+    interface BackendUser {
+      id: number | string;
+      first_name?: string;
+      last_name?: string;
+      email: string;
+      phone?: string;
+      user_roles?: Array<{
+        roles?: {
+          code?: string;
+        }
+      }>;
+      status?: string;
+      created_at?: string;
+      reservations?: number;
+      salon?: string;
+    }
+
     fetch("/api/admin/users")
       .then(res => res.json())
       .then(data => {
         // Mappe les utilisateurs du backend vers le format attendu par le front
-        const mapped = (data.users || []).map(u => {
+        const mapped = (data.users || []).map((u: BackendUser) => {
           // Détermine le rôle principal
           let role = "Client";
+          let status = u.status || "Actif";
           if (u.user_roles && Array.isArray(u.user_roles) && u.user_roles.length > 0) {
-            // Prend le premier rôle ou adapte selon la logique métier
             const mainRole = u.user_roles[0].roles?.code?.toLowerCase();
             if (mainRole === "admin") role = "Admin";
-            else if (mainRole === "professionnel" || mainRole === "pro") role = "Professionnel";
+            else if (mainRole === "professionnel" || mainRole === "pro") {
+              role = "Professionnel";
+              // Par défaut, le professionnel est inactif sauf si explicitement actif
+              status = u.status ? u.status : "Inactif";
+            }
           }
           return {
             id: u.id,
@@ -31,10 +59,11 @@ export default function AdminUtilisateurs() {
             email: u.email,
             phone: u.phone,
             role,
-            status: u.status || "Actif",
+            status,
             joinDate: u.created_at ? `Inscrit le ${new Date(u.created_at).toLocaleDateString()}` : "",
             reservations: u.reservations || 0,
-            avatar: u.first_name ? u.first_name[0] + (u.last_name ? u.last_name[0] : "") : "U"
+            avatar: u.first_name ? u.first_name[0] + (u.last_name ? u.last_name[0] : "") : "U",
+            salon: u.salon
           }
         });
         setUsers(mapped);
@@ -116,6 +145,7 @@ export default function AdminUtilisateurs() {
           <option value="">Tous statuts</option>
           <option value="actif">Actif</option>
           <option value="suspendu">Suspendu</option>
+          <option value="inactif">Inactif</option>
         </select>
         <Button variant="outline" onClick={() => setSelected(filteredUsers.map(u => u.id))}>Tout sélectionner</Button>
         <Button variant="outline" onClick={() => setSelected([])}>Désélectionner</Button>
@@ -167,9 +197,24 @@ export default function AdminUtilisateurs() {
                       <Badge variant="outline" className={getRoleColor(user.role)}>
                         {user.role}
                       </Badge>
-                      <Badge variant="outline" className={getStatusColor(user.status)}>
-                        {user.status}
-                      </Badge>
+                      {/* Badge Inactif pour professionnel inactif, même style que Actif */}
+                      {user.role.toLowerCase().includes("professionnel") && user.status.toLowerCase() === "inactif" && (
+                        <Badge variant="outline" className={getStatusColor(user.status)}>
+                          Inactif
+                        </Badge>
+                      )}
+                      {/* Affiche le badge Actif uniquement si le professionnel est actif */}
+                      {user.role.toLowerCase().includes("professionnel") && user.status.toLowerCase() === "actif" && (
+                        <Badge variant="outline" className={getStatusColor(user.status)}>
+                          {user.status}
+                        </Badge>
+                      )}
+                      {/* Les autres rôles affichent le badge statut normalement */}
+                      {!user.role.toLowerCase().includes("professionnel") && (
+                        <Badge variant="outline" className={getStatusColor(user.status)}>
+                          {user.status}
+                        </Badge>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -177,13 +222,11 @@ export default function AdminUtilisateurs() {
                   <p className="text-sm text-gray-500">{user.joinDate}</p>
                   {user.reservations && <p className="text-sm text-gray-500">{user.reservations} réservations</p>}
                   <div className="flex space-x-2 mt-3">
-                    <Button variant="outline" size="sm" className="bg-transparent" title="Voir fiche">
+                    <Button variant="outline" size="sm" className="bg-transparent" title="Voir fiche" onClick={() => { setActiveUser(user); setDetailModalOpen(true); }}>
                       <Users className="h-4 w-4" />
                     </Button>
-                    <Button variant="outline" size="sm" className="bg-transparent" title="Envoyer un email">
-                      <Mail className="h-4 w-4" />
-                    </Button>
-                    <Button variant="outline" size="sm" className="bg-transparent" title="Modifier">
+                    
+                    <Button variant="outline" size="sm" className="bg-transparent" title="Modifier" onClick={() => { setActiveUser(user); setEditModalOpen(true); }}>
                       ✏️
                     </Button>
                     <Button variant="destructive" size="sm" className="bg-transparent" title="Supprimer" onClick={() => handleDeleteUser(user.id)}>
@@ -196,6 +239,24 @@ export default function AdminUtilisateurs() {
           </Card>
         ))}
       </div>
+      {/* Modals pour actions rapides */}
+      {activeUser && (
+        <>
+          <UserDetailModal
+            open={detailModalOpen}
+            onClose={() => setDetailModalOpen(false)}
+            user={activeUser}
+          />
+          <UserEditModal
+            open={editModalOpen}
+            onClose={() => setEditModalOpen(false)}
+            user={activeUser}
+            onSave={updatedUser => {
+              setUsers(users.map(u => u.id === updatedUser.id ? updatedUser : u));
+            }}
+          />
+        </>
+      )}
     </div>
   )
 }
