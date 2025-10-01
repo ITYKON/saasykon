@@ -39,6 +39,7 @@ export default function AdminReservations() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
   const [filterType, setFilterType] = useState("client")
+  const [groupBy, setGroupBy] = useState<string|null>(null)
 
   useEffect(() => {
     fetch("/api/admin/reservations")
@@ -59,8 +60,30 @@ export default function AdminReservations() {
     }
   })
 
+  // Regroupement par client ou salon
+  let groupedReservations: Record<string, any[]> = {}
+  if (groupBy) {
+    filteredReservations.forEach(r => {
+      const key = groupBy === "client" ? r.client || "-" : r.salon || "-"
+      if (!groupedReservations[key]) groupedReservations[key] = []
+      groupedReservations[key].push(r)
+    })
+  }
+
   return (
     <div className="space-y-6">
+      <header className="bg-white border-b border-gray-200 mb-6">
+        <div className="px-6 py-4">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-3xl font-bold text-black">Gestion des réservations</h1>
+              <p className="text-gray-600 mt-1">Surveillez et gérez toutes les réservations de la plateforme.</p>
+            </div>
+            <Button className="bg-black text-white hover:bg-gray-800">Exporter données</Button>
+          </div>
+        </div>
+      </header>
+
       {/* Filtres et recherche */}
       <div className="flex flex-wrap gap-4 items-center mb-4 px-6">
         <input
@@ -74,51 +97,82 @@ export default function AdminReservations() {
           <option value="client">Client</option>
           <option value="salon">Salon</option>
         </select>
+        <Button
+          variant={groupBy === filterType ? "default" : "outline"}
+          className="px-4 py-2"
+          onClick={() => setGroupBy(groupBy === filterType ? null : filterType)}
+        >
+          {groupBy === filterType ? `Annuler le regroupement` : `Regrouper par ${filterType}`}
+        </Button>
       </div>
-
-      <header className="bg-white border-b border-gray-200 mb-6">
-        <div className="px-6 py-4">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-3xl font-bold text-black">Gestion des réservations</h1>
-              <p className="text-gray-600 mt-1">Surveillez et gérez toutes les réservations de la plateforme.</p>
-            </div>
-            <Button className="bg-black text-white hover:bg-gray-800">Exporter données</Button>
-          </div>
-        </div>
-      </header>
 
       <div className="space-y-4">
         {loading ? (
           <div className="text-center text-gray-500">Chargement...</div>
         ) : filteredReservations.length === 0 ? (
           <div className="text-center text-gray-500">Aucune réservation trouvée.</div>
-        ) : filteredReservations.map((reservation) => (
-          <Card key={reservation.id} className="border border-gray-200">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="space-y-2">
-                  <div className="flex items-center space-x-2">
-                    <User className="h-4 w-4 text-gray-500" />
-                    <h3 className="text-lg font-semibold text-black">{reservation.client || "-"}</h3>
-                  </div>
-                  <div className="flex items-center space-x-2 text-gray-600">
-                    <MapPin className="h-4 w-4" />
-                    <span className="font-medium">{reservation.service ? `${reservation.service} chez ${reservation.salon}` : "-"}</span>
-                  </div>
-                  <div className="flex items-center space-x-2 text-gray-500">
-                    <Calendar className="h-4 w-4" />
-                    <span>{formatDate(reservation.date)}</span>
-                  </div>
-                </div>
-                <div className="text-right space-y-2">
-                  <div className="text-2xl font-bold text-black">{reservation.price ? `${reservation.price.toLocaleString()} DA` : "-"}</div>
-                  <div className={`font-semibold ${getStatusColor(reservation.status)}`}>{getStatusLabel(reservation.status)}</div>
-                </div>
+        ) : groupBy ? (
+          Object.entries(groupedReservations).map(([group, items]) => (
+            <div key={group} className="mb-8">
+              <div className="font-bold text-lg text-black mb-2 bg-gray-50 px-4 py-2 rounded border border-gray-200">{groupBy === "client" ? `Client : ${group}` : `Salon : ${group}`}</div>
+              <div className="space-y-2">
+                {items.map((reservation) => (
+                  <Card key={reservation.id} className="border border-gray-200">
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-2">
+                          <div className="flex items-center space-x-2">
+                            <User className="h-4 w-4 text-gray-500" />
+                            <h3 className="text-lg font-semibold text-black">{reservation.client || "-"}</h3>
+                          </div>
+                          <div className="flex items-center space-x-2 text-gray-600">
+                            <MapPin className="h-4 w-4" />
+                            <span className="font-medium">{reservation.service ? `${reservation.service} chez ${reservation.salon}` : "-"}</span>
+                          </div>
+                          <div className="flex items-center space-x-2 text-gray-500">
+                            <Calendar className="h-4 w-4" />
+                            <span>{formatDate(reservation.date)}</span>
+                          </div>
+                        </div>
+                        <div className="text-right space-y-2">
+                          <div className="text-2xl font-bold text-black">{reservation.price ? `${reservation.price.toLocaleString()} DA` : "-"}</div>
+                          <div className={`font-semibold ${getStatusColor(reservation.status)}`}>{getStatusLabel(reservation.status)}</div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
-            </CardContent>
-          </Card>
-        ))}
+            </div>
+          ))
+        ) : (
+          filteredReservations.map((reservation) => (
+            <Card key={reservation.id} className="border border-gray-200">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-2">
+                    <div className="flex items-center space-x-2">
+                      <User className="h-4 w-4 text-gray-500" />
+                      <h3 className="text-lg font-semibold text-black">{reservation.client || "-"}</h3>
+                    </div>
+                    <div className="flex items-center space-x-2 text-gray-600">
+                      <MapPin className="h-4 w-4" />
+                      <span className="font-medium">{reservation.service ? `${reservation.service} chez ${reservation.salon}` : "-"}</span>
+                    </div>
+                    <div className="flex items-center space-x-2 text-gray-500">
+                      <Calendar className="h-4 w-4" />
+                      <span>{formatDate(reservation.date)}</span>
+                    </div>
+                  </div>
+                  <div className="text-right space-y-2">
+                    <div className="text-2xl font-bold text-black">{reservation.price ? `${reservation.price.toLocaleString()} DA` : "-"}</div>
+                    <div className={`font-semibold ${getStatusColor(reservation.status)}`}>{getStatusLabel(reservation.status)}</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        )}
       </div>
     </div>
   )
