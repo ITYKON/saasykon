@@ -37,6 +37,8 @@ function getStatusColor(status: string) {
 export default function AdminReservations() {
   const [reservations, setReservations] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState("")
+  const [filterType, setFilterType] = useState("client")
 
   useEffect(() => {
     fetch("/api/admin/reservations")
@@ -48,8 +50,32 @@ export default function AdminReservations() {
       .catch(() => setLoading(false))
   }, [])
 
+  // Filtrage par client ou salon
+  const filteredReservations = reservations.filter(r => {
+    if (filterType === "client") {
+      return r.client?.toLowerCase().includes(search.toLowerCase())
+    } else {
+      return r.salon?.toLowerCase().includes(search.toLowerCase())
+    }
+  })
+
   return (
     <div className="space-y-6">
+      {/* Filtres et recherche */}
+      <div className="flex flex-wrap gap-4 items-center mb-4 px-6">
+        <input
+          type="text"
+          placeholder={filterType === "client" ? "Rechercher par client..." : "Rechercher par salon..."}
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="border rounded px-3 py-2 w-64"
+        />
+        <select value={filterType} onChange={e => setFilterType(e.target.value)} className="border rounded px-2 py-2">
+          <option value="client">Client</option>
+          <option value="salon">Salon</option>
+        </select>
+      </div>
+
       <header className="bg-white border-b border-gray-200 mb-6">
         <div className="px-6 py-4">
           <div className="flex justify-between items-center">
@@ -65,9 +91,9 @@ export default function AdminReservations() {
       <div className="space-y-4">
         {loading ? (
           <div className="text-center text-gray-500">Chargement...</div>
-        ) : reservations.length === 0 ? (
+        ) : filteredReservations.length === 0 ? (
           <div className="text-center text-gray-500">Aucune réservation trouvée.</div>
-        ) : reservations.map((reservation) => (
+        ) : filteredReservations.map((reservation) => (
           <Card key={reservation.id} className="border border-gray-200">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">

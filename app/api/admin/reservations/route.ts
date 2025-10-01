@@ -18,18 +18,18 @@ export async function GET() {
 			},
 		});
 		// Formatage pour l'affichage admin (nom, service, salon, date, statut, prix)
-		const formatted = reservations.map(r => {
-			const item = r.reservation_items[0];
-			return {
-				id: r.id,
-				client: r.clients ? `${r.clients.first_name || ''} ${r.clients.last_name || ''}`.trim() : null,
-				service: item?.services?.name || null,
-				salon: r.businesses?.public_name || null,
-				date: r.starts_at,
-				status: r.status,
-				price: item?.price_cents ? item.price_cents / 100 : null,
-			};
-		});
+			const formatted = reservations.map(r => {
+				const item = r.reservation_items[0];
+				return {
+					id: r.id,
+					client: r.clients ? `${r.clients.first_name || ''} ${r.clients.last_name || ''}`.trim() : '',
+					service: item?.services?.name ? String(item.services.name) : '',
+					salon: r.businesses?.public_name ? String(r.businesses.public_name) : '',
+					date: r.starts_at ? String(r.starts_at) : '',
+					status: r.status ? String(r.status) : '',
+					price: item?.price_cents ? Number(item.price_cents) / 100 : null,
+				};
+			});
 		return NextResponse.json({ reservations: formatted });
 	} catch (e) {
 		console.error("[GET /api/admin/reservations] Erreur:", e);
