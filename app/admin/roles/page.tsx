@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Plus, Search, Edit, Trash2, Shield, Users, Eye } from "lucide-react"
+import { toast } from "@/hooks/use-toast"
 
 const permissions = [
   { id: "dashboard", name: "Dashboard", description: "Accès au tableau de bord principal" },
@@ -76,6 +77,9 @@ export default function RolesPage() {
   const [selectedRole, setSelectedRole] = useState<any>(null)
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false)
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [roleDetails, setRoleDetails] = useState<any | null>(null)
   const [newRole, setNewRole] = useState({
     name: "",
     description: "",
@@ -85,25 +89,39 @@ export default function RolesPage() {
     email: "",
     role: "",
   })
+  const [roles, setRoles] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [editForm, setEditForm] = useState<{ id?: number; name: string; code: string; permissions: string[] }>({
+    name: "",
+    code: "",
+    permissions: [],
+  })
+
+  // Charger les rôles depuis l'API
+  const fetchRoles = async () => {
+    setLoading(true)
+    const res = await fetch("/api/admin/roles")
+    const data = await res.json()
+    setRoles(data.roles || [])
+    setLoading(false)
+  }
+  // Initial fetch
+  useEffect(() => { fetchRoles() }, [])
 
   const handlePermissionChange = (permissionId: string, checked: boolean) => {
-    if (checked) {
-      setNewRole((prev) => ({
-        ...prev,
-        permissions: [...prev.permissions, permissionId],
-      }))
-    } else {
-      setNewRole((prev) => ({
-        ...prev,
-        permissions: prev.permissions.filter((p) => p !== permissionId),
-      }))
-    }
+    setNewRole((prev) => ({
+      ...prev,
+      permissions: checked
+        ? [...prev.permissions, permissionId]
+        : prev.permissions.filter((p) => p !== permissionId),
+    }))
   }
 
-  const filteredRoles = mockRoles.filter(
+  // Filtrage sur la liste réelle
+  const filteredRoles = roles.filter(
     (role) =>
       role.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      role.description.toLowerCase().includes(searchTerm.toLowerCase()),
+      role.code.toLowerCase().includes(searchTerm.toLowerCase()),
   )
 
   return (
@@ -151,8 +169,8 @@ export default function RolesPage() {
                           <SelectValue placeholder="Sélectionner un rôle" />
                         </SelectTrigger>
                         <SelectContent>
-                          {mockRoles.map((role) => (
-                            <SelectItem key={role.id} value={role.name}>
+                          {roles.map((role) => (
+                            <SelectItem key={role.id} value={role.code}>
                               {role.name}
                             </SelectItem>
                           ))}
@@ -164,7 +182,52 @@ export default function RolesPage() {
                     <Button variant="outline" onClick={() => setIsAssignDialogOpen(false)}>
                       Annuler
                     </Button>
-                    <Button onClick={() => setIsAssignDialogOpen(false)}>Assigner le rôle</Button>
+                    <Button
+                      onClick={async () => {
+                        if (!newUserAssignment.email.trim() || !newUserAssignment.role.trim()) return;
+                        try {
+                          const res = await fetch("/api/admin/roles/assign", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              email: newUserAssignment.email,
+                              roleCode: newUserAssignment.role,
+                            }),
+                          });
+
+                          if (res.ok) {
+                            toast({
+                              title: "Rôle assigné",
+                              description: "Le rôle a été assigné avec succès.",
+                            });
+                            setIsAssignDialogOpen(false);
+                            setNewUserAssignment({ email: "", role: "" });
+                          } else {
+                            const data = await res.json().catch(() => ({} as any));
+                            if (res.status === 409) {
+                              toast({
+                                title: "Déjà assigné",
+                                description: data?.error || "Ce rôle est déjà assigné à cet utilisateur.",
+                              });
+                            } else {
+                              toast({
+                                variant: "destructive",
+                                title: "Échec de l'assignation",
+                                description: data?.error || "Une erreur est survenue lors de l'assignation du rôle.",
+                              });
+                            }
+                          }
+                        } catch (e) {
+                          toast({
+                            variant: "destructive",
+                            title: "Erreur réseau",
+                            description: "Vérifiez votre connexion et réessayez.",
+                          });
+                        }
+                      }}
+                    >
+                      Assigner le rôle
+                    </Button>
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
@@ -231,7 +294,26 @@ export default function RolesPage() {
                     <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
                       Annuler
                     </Button>
-                    <Button onClick={() => setIsCreateDialogOpen(false)}>Créer le rôle</Button>
+                    <Button
+                      onClick={async () => {
+                        if (!newRole.name.trim()) return;
+                        const res = await fetch("/api/admin/roles", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            name: newRole.name,
+                            permissions: newRole.permissions,
+                          }),
+                        })
+                        if (res.ok) {
+                          setIsCreateDialogOpen(false)
+                          setNewRole({ name: "", description: "", permissions: [] })
+                          fetchRoles()
+                        }
+                      }}
+                    >
+                      Créer le rôle
+                    </Button>
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
@@ -262,10 +344,10 @@ export default function RolesPage() {
               <div className="flex items-start justify-between">
                 <div>
                   <CardTitle className="text-lg">{role.name}</CardTitle>
-                  <CardDescription className="mt-1">{role.description}</CardDescription>
+                  <CardDescription className="mt-1">Code: {role.code}</CardDescription>
                 </div>
-                <Badge className={role.color}>
-                  {role.users} utilisateur{role.users > 1 ? "s" : ""}
+                <Badge>
+                  {role.usersCount ?? 0} utilisateur{(role.usersCount ?? 0) > 1 ? "s" : ""}
                 </Badge>
               </div>
             </CardHeader>
@@ -273,7 +355,7 @@ export default function RolesPage() {
               <div>
                 <h4 className="font-medium text-sm text-gray-900 mb-2">Permissions ({role.permissions.length})</h4>
                 <div className="flex flex-wrap gap-1">
-                  {role.permissions.slice(0, 3).map((permId) => {
+                  {role.permissions.slice(0, 3).map((permId: string) => {
                     const perm = permissions.find((p) => p.id === permId)
                     return (
                       <Badge key={permId} variant="secondary" className="text-xs">
@@ -290,15 +372,72 @@ export default function RolesPage() {
               </div>
 
               <div className="flex gap-2 pt-2">
-                <Button variant="outline" size="sm" className="flex-1 bg-transparent">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 bg-transparent"
+                  onClick={async () => {
+                    try {
+                      const res = await fetch(`/api/admin/roles/${role.id}`)
+                      const data = await res.json()
+                      if (res.ok) {
+                        setRoleDetails(data.role)
+                        setIsViewDialogOpen(true)
+                      } else {
+                        toast({ variant: "destructive", title: "Impossible d'afficher", description: data?.error || "Erreur inconnue" })
+                      }
+                    } catch {
+                      toast({ variant: "destructive", title: "Erreur réseau", description: "Réessayez plus tard." })
+                    }
+                  }}
+                >
                   <Eye className="h-4 w-4 mr-1" />
                   Voir
                 </Button>
-                <Button variant="outline" size="sm" className="flex-1 bg-transparent">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 bg-transparent"
+                  onClick={async () => {
+                    try {
+                      const res = await fetch(`/api/admin/roles/${role.id}`)
+                      const data = await res.json()
+                      if (res.ok) {
+                        const r = data.role
+                        setEditForm({ id: r.id, name: r.name, code: r.code, permissions: r.permissions || [] })
+                        setIsEditDialogOpen(true)
+                      } else {
+                        toast({ variant: "destructive", title: "Impossible de charger le rôle", description: data?.error || "Erreur inconnue" })
+                      }
+                    } catch {
+                      toast({ variant: "destructive", title: "Erreur réseau", description: "Réessayez plus tard." })
+                    }
+                  }}
+                >
                   <Edit className="h-4 w-4 mr-1" />
                   Modifier
                 </Button>
-                <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700 bg-transparent">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-red-600 hover:text-red-700 bg-transparent"
+                  onClick={async () => {
+                    const ok = window.confirm("Supprimer ce rôle ? Cette action est irréversible.")
+                    if (!ok) return
+                    try {
+                      const res = await fetch(`/api/admin/roles?id=${role.id}`, { method: "DELETE" })
+                      const data = await res.json().catch(() => ({} as any))
+                      if (res.ok) {
+                        toast({ title: "Rôle supprimé", description: "Le rôle a été supprimé avec succès." })
+                        fetchRoles()
+                      } else {
+                        toast({ variant: "destructive", title: "Suppression échouée", description: data?.error || "Erreur inconnue" })
+                      }
+                    } catch {
+                      toast({ variant: "destructive", title: "Erreur réseau", description: "Réessayez plus tard." })
+                    }
+                  }}
+                >
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </div>
@@ -365,6 +504,113 @@ export default function RolesPage() {
         </CardContent>
       </Card>
       </div>
+
+      {/* View Role Dialog */}
+      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Détails du rôle</DialogTitle>
+            <DialogDescription>Informations sur le rôle sélectionné.</DialogDescription>
+          </DialogHeader>
+          {roleDetails && (
+            <div className="space-y-3">
+              <div className="text-sm text-gray-700">Nom: <span className="font-medium text-black">{roleDetails.name}</span></div>
+              <div className="text-sm text-gray-700">Code: <span className="font-mono">{roleDetails.code}</span></div>
+              <div>
+                <div className="text-sm font-medium text-gray-900 mb-1">Permissions ({roleDetails.permissions?.length || 0})</div>
+                <div className="flex flex-wrap gap-1">
+                  {(roleDetails.permissions || []).map((p: string) => {
+                    const perm = permissions.find((x) => x.id === p)
+                    return (
+                      <Badge key={p} variant="secondary" className="text-xs">{perm?.name || p}</Badge>
+                    )
+                  })}
+                </div>
+              </div>
+              <div className="text-sm text-gray-700">Utilisateurs: <span className="font-medium text-black">{roleDetails.usersCount ?? 0}</span></div>
+          </div>
+          )}
+          <DialogFooter>
+            <Button onClick={() => setIsViewDialogOpen(false)}>Fermer</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Role Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Modifier le rôle</DialogTitle>
+            <DialogDescription>Mettre à jour le nom, le code et les permissions.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="edit-role-name">Nom</Label>
+                <Input id="edit-role-name" value={editForm.name} onChange={(e) => setEditForm((prev) => ({ ...prev, name: e.target.value }))} />
+              </div>
+              <div>
+                <Label htmlFor="edit-role-code">Code</Label>
+                <Input id="edit-role-code" value={editForm.code} onChange={(e) => setEditForm((prev) => ({ ...prev, code: e.target.value }))} />
+              </div>
+            </div>
+            <div>
+              <Label className="text-base font-medium">Permissions</Label>
+              <div className="grid grid-cols-1 gap-3 max-h-64 overflow-y-auto">
+                {permissions.map((permission) => (
+                  <div key={permission.id} className="flex items-start space-x-3 p-3 border rounded-lg">
+                    <Checkbox
+                      id={`edit-${permission.id}`}
+                      checked={editForm.permissions.includes(permission.id)}
+                      onCheckedChange={(checked) =>
+                        setEditForm((prev) => ({
+                          ...prev,
+                          permissions: (checked as boolean)
+                            ? [...prev.permissions, permission.id]
+                            : prev.permissions.filter((p) => p !== permission.id),
+                        }))
+                      }
+                    />
+                    <div className="flex-1">
+                      <Label htmlFor={`edit-${permission.id}`} className="font-medium cursor-pointer">
+                        {permission.name}
+                      </Label>
+                      <p className="text-sm text-gray-600">{permission.description}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Annuler</Button>
+            <Button
+              onClick={async () => {
+                if (!editForm.id) return
+                try {
+                  const res = await fetch('/api/admin/roles', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: editForm.id, name: editForm.name, code: editForm.code, permissions: editForm.permissions }),
+                  })
+                  const data = await res.json().catch(() => ({} as any))
+                  if (res.ok) {
+                    toast({ title: 'Rôle mis à jour', description: 'Les modifications ont été enregistrées.' })
+                    setIsEditDialogOpen(false)
+                    fetchRoles()
+                  } else {
+                    toast({ variant: 'destructive', title: 'Échec de la mise à jour', description: data?.error || 'Erreur inconnue' })
+                  }
+                } catch {
+                  toast({ variant: 'destructive', title: 'Erreur réseau', description: 'Réessayez plus tard.' })
+                }
+              }}
+            >
+              Enregistrer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

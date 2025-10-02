@@ -49,15 +49,12 @@ export default function AdminSalons() {
   const [selectedSalon, setSelectedSalon] = React.useState<any | null>(null);
 
   // Filtrage et recherche
-  const filteredSalons = salons.filter(salon => {
-    const query = search.toLowerCase();
-    const haystacks = [
-      salon.public_name ?? "",
-      salon.legal_name ?? "",
-      salon.email ?? "",
-      salon.description ?? "",
-    ].map((s) => s.toLowerCase());
-    const matchSearch = query.length === 0 ? true : haystacks.some((text) => text.includes(query));
+    const filteredSalons = salons.filter(salon => {
+    const matchSearch =
+      (salon.public_name?.toLowerCase().includes(search.toLowerCase()) || "") ||
+      (salon.legal_name?.toLowerCase().includes(search.toLowerCase()) || "") ||
+      (salon.email?.toLowerCase().includes(search.toLowerCase()) || "") ||
+      (salon.description?.toLowerCase().includes(search.toLowerCase()) || "");
     const matchStatus = statusFilter === "all" ? true : salon.status === statusFilter;
     const matchSubscription = subscriptionFilter === "all" ? true : (salon.subscription?.toLowerCase() === subscriptionFilter.toLowerCase());
     // city: utilise business_locations[0]?.cities?.name si présent

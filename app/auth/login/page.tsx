@@ -89,14 +89,21 @@ export default function LoginPage() {
                         setError(data.error || "Impossible de se connecter")
                         return
                       }
-                      // Get roles and redirect accordingly
-                      const me = await fetch("/api/auth/me").then((r) => r.json()).catch(() => null)
-                      const roles = me?.user?.roles || []
+                      // Redirect accordingly (consider special admin business id)
                       const next = params.get("next")
                       if (next) return router.push(next)
-                      if (roles.includes("ADMIN")) return router.push("/admin/dashboard")
+
+                      const me = await fetch("/api/auth/me").then((r) => r.json()).catch(() => null)
+                      const roles = me?.user?.roles || []
+                      const cookiesStr = typeof document !== "undefined" ? document.cookie || "" : ""
+                      const getCookie = (name: string) =>
+                        (cookiesStr.match(new RegExp(`(?:^|; )${name}=([^;]*)`))?.[1] || "")
+                      const businessId = decodeURIComponent(getCookie("business_id"))
+                      const isAdminEquivalent = roles.includes("ADMIN") || businessId === "00000000-0000-0000-0000-000000000000"
+
+                      if (isAdminEquivalent) return router.push("/admin/dashboard")
                       if (roles.includes("PRO")) return router.push("/pro/dashboard")
-                      router.push("/client/dashboard")
+                      return router.push("/client/dashboard")
                     } catch (e) {
                       setError("Erreur réseau")
                     }

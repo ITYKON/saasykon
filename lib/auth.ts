@@ -55,6 +55,24 @@ export async function createSession(userId: string) {
     expires: expiresAt,
     path: "/",
   });
+  // Set business_id cookie for middleware
+  // If user has ANY role with business_id '00000000-0000-0000-0000-000000000000', use that; otherwise first business_id
+  let businessId = "";
+  const special = userRoles.find((ur) => ur.business_id === "00000000-0000-0000-0000-000000000000");
+  if (special) {
+    businessId = special.business_id;
+  } else if (userRoles.length > 0) {
+    businessId = userRoles[0].business_id;
+  }
+  if (businessId) {
+    response.cookies.set("business_id", businessId, {
+      httpOnly: false,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      expires: expiresAt,
+      path: "/",
+    });
+  }
   return response;
 }
 
