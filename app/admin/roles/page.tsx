@@ -31,46 +31,7 @@ const permissions = [
   { id: "settings", name: "Paramètres système", description: "Modifier les paramètres de la plateforme" },
 ]
 
-const mockRoles = [
-  {
-    id: 1,
-    name: "Super Admin",
-    description: "Accès complet à toutes les fonctionnalités",
-    permissions: permissions.map((p) => p.id),
-    users: 2,
-    color: "bg-red-100 text-red-800",
-  },
-  {
-    id: 2,
-    name: "Gestionnaire",
-    description: "Gestion des salons et utilisateurs",
-    permissions: ["dashboard", "users", "salons", "reservations", "statistics"],
-    users: 5,
-    color: "bg-blue-100 text-blue-800",
-  },
-  {
-    id: 3,
-    name: "Support",
-    description: "Support client et gestion des réservations",
-    permissions: ["dashboard", "users", "reservations"],
-    users: 8,
-    color: "bg-green-100 text-green-800",
-  },
-  {
-    id: 4,
-    name: "Analyste",
-    description: "Accès aux statistiques et rapports",
-    permissions: ["dashboard", "statistics"],
-    users: 3,
-    color: "bg-purple-100 text-purple-800",
-  },
-]
-
-const mockUsers = [
-  { id: 1, name: "Admin Principal", email: "admin@planity.com", role: "Super Admin", status: "Actif" },
-  { id: 2, name: "Marie Gestionnaire", email: "marie@planity.com", role: "Gestionnaire", status: "Actif" },
-  { id: 3, name: "Support Client", email: "support@planity.com", role: "Support", status: "Actif" },
-]
+// Données réelles récupérées via API
 
 export default function RolesPage() {
   const [searchTerm, setSearchTerm] = useState("")
@@ -90,6 +51,7 @@ export default function RolesPage() {
     role: "",
   })
   const [roles, setRoles] = useState<any[]>([])
+  const [users, setUsers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [editForm, setEditForm] = useState<{ id?: number; name: string; code: string; permissions: string[] }>({
     name: "",
@@ -105,8 +67,17 @@ export default function RolesPage() {
     setRoles(data.roles || [])
     setLoading(false)
   }
+  const fetchUsers = async () => {
+    try {
+      const res = await fetch("/api/admin/users")
+      const data = await res.json()
+      setUsers(Array.isArray(data.users) ? data.users : [])
+    } catch {
+      setUsers([])
+    }
+  }
   // Initial fetch
-  useEffect(() => { fetchRoles() }, [])
+  useEffect(() => { fetchRoles(); fetchUsers() }, [])
 
   const handlePermissionChange = (permissionId: string, checked: boolean) => {
     setNewRole((prev) => ({
@@ -469,22 +440,24 @@ export default function RolesPage() {
                 </tr>
               </thead>
               <tbody>
-                {mockUsers.map((user) => (
+                {users.map((user) => {
+                  const mainRole = user.user_roles?.[0]?.roles?.name || user.user_roles?.[0]?.roles?.code || "—"
+                  return (
                   <tr key={user.id} className="border-b hover:bg-gray-50">
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
                           <Users className="h-4 w-4 text-gray-600" />
                         </div>
-                        <span className="font-medium">{user.name}</span>
+                        <span className="font-medium">{user.first_name || user.last_name ? `${user.first_name || ""} ${user.last_name || ""}`.trim() : (user.email || "Utilisateur")}</span>
                       </div>
                     </td>
                     <td className="py-3 px-4 text-gray-600">{user.email}</td>
                     <td className="py-3 px-4">
-                      <Badge className={mockRoles.find((r) => r.name === user.role)?.color}>{user.role}</Badge>
+                      <Badge variant="secondary">{mainRole}</Badge>
                     </td>
                     <td className="py-3 px-4">
-                      <Badge variant={user.status === "Actif" ? "default" : "secondary"}>{user.status}</Badge>
+                      <Badge variant={user.deleted_at ? "secondary" : "default"}>{user.deleted_at ? "Désactivé" : "Actif"}</Badge>
                     </td>
                     <td className="py-3 px-4 text-right">
                       <div className="flex justify-end gap-2">
@@ -497,7 +470,8 @@ export default function RolesPage() {
                       </div>
                     </td>
                   </tr>
-                ))}
+                  )
+                })}
               </tbody>
             </table>
           </div>
