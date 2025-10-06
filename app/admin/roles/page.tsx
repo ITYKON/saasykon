@@ -79,6 +79,51 @@ export default function RolesPage() {
   // Initial fetch
   useEffect(() => { fetchRoles(); fetchUsers() }, [])
 
+  // Open the "assign role" dialog pre-filled for a given user (used as edit)
+  const handleOpenAssignForUser = (user: any) => {
+    setNewUserAssignment({
+      email: user.email || "",
+      role: user.user_roles?.[0]?.roles?.code || "",
+    })
+    setIsAssignDialogOpen(true)
+  }
+
+  // Delete a user with confirmation
+  const handleDeleteUser = async (user: any) => {
+    const nameOrEmail = user.email || `${user.first_name || ''} ${user.last_name || ''}`.trim()
+    const ok = window.confirm(`Supprimer l'utilisateur ${nameOrEmail} ? Cette action est irréversible.`)
+    if (!ok) return
+    // Optimistic UI: remove user locally first
+  const previousUsers = users
+  setUsers((prev) => prev.filter((u) => String(u.id) !== String(user.id)))
+    try {
+      const res = await fetch(`/api/admin/users`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: user.id }),
+      })
+      const data = await res.json().catch(() => ({} as any))
+      if (res.ok) {
+        toast({ title: 'Utilisateur supprimé', description: data?.user ? `${data.user.email ?? data.user.id} supprimé` : "L'utilisateur a été supprimé avec succès." })
+        // already removed optimistically; ensure backend is in sync by refetching in background
+        fetchUsers()
+        fetchRoles()
+      } else if (res.status === 404) {
+        // resource not found on server; keep optimistic removal but inform user
+        toast({ title: "Utilisateur non trouvé", description: data?.error || 'L’utilisateur est introuvable sur le serveur.' })
+      } else {
+        // rollback
+        setUsers(previousUsers)
+        toast({ variant: 'destructive', title: 'Suppression échouée', description: data?.error || 'Erreur inconnue' })
+      }
+    } catch (err) {
+      // rollback
+      setUsers(previousUsers)
+      console.error('Erreur delete user:', err)
+      toast({ variant: 'destructive', title: 'Erreur réseau', description: 'Réessayez plus tard.' })
+    }
+  }
+
   const handlePermissionChange = (permissionId: string, checked: boolean) => {
     setNewRole((prev) => ({
       ...prev,
@@ -173,6 +218,7 @@ export default function RolesPage() {
                             });
                             setIsAssignDialogOpen(false);
                             setNewUserAssignment({ email: "", role: "" });
+                            fetchUsers()
                           } else {
                             const data = await res.json().catch(() => ({} as any));
                             if (res.status === 409) {
@@ -401,6 +447,7 @@ export default function RolesPage() {
                       if (res.ok) {
                         toast({ title: "Rôle supprimé", description: "Le rôle a été supprimé avec succès." })
                         fetchRoles()
+                        fetchUsers()
                       } else {
                         toast({ variant: "destructive", title: "Suppression échouée", description: data?.error || "Erreur inconnue" })
                       }
@@ -461,10 +508,15 @@ export default function RolesPage() {
                     </td>
                     <td className="py-3 px-4 text-right">
                       <div className="flex justify-end gap-2">
-                        <Button variant="outline" size="sm">
+                        <Button variant="outline" size="sm" onClick={() => handleOpenAssignForUser(user)}>
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700 bg-transparent">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-red-600 hover:text-red-700 bg-transparent"
+                          onClick={() => handleDeleteUser(user)}
+                        >
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>

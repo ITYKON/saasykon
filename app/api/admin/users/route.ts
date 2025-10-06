@@ -26,15 +26,27 @@ export async function GET() {
 // DELETE: Supprime un utilisateur (soft delete)
 export async function DELETE(request: Request) {
 		try {
-			const { id } = await request.json();
-			console.log("[DELETE /api/admin/users] id reçu:", id);
+			const body = await request.json().catch(() => ({} as any));
+			const rawId = body.id ?? body.userId ?? body.user_id
+			const id = rawId !== undefined && rawId !== null ? String(rawId) : null
+			console.log("[DELETE /api/admin/users] id reçu:", id, "(raw:", rawId, ")");
 			if (!id) return NextResponse.json({ error: "ID requis" }, { status: 400 });
-			const result = await prisma.users.update({
-				where: { id },
-				data: { deleted_at: new Date() },
-			});
-			console.log("[DELETE /api/admin/users] user supprimé:", result);
-			return NextResponse.json({ success: true });
+			try {
+				const result = await prisma.users.update({
+					where: { id },
+					data: { deleted_at: new Date() },
+				});
+				console.log("[DELETE /api/admin/users] user supprimé:", result);
+				return NextResponse.json({ success: true, user: result });
+			} catch (err: any) {
+				// Prisma 'record not found' error (P2025) -> return 404
+				if (err?.code === 'P2025') {
+					console.warn('[DELETE /api/admin/users] utilisateur non trouvé:', id)
+					return NextResponse.json({ error: 'Utilisateur non trouvé' }, { status: 404 })
+				}
+				console.error("[DELETE /api/admin/users] Erreur Prisma:", err)
+				return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
+			}
 		} catch (e) {
 			console.error("[DELETE /api/admin/users] Erreur:", e);
 			return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
