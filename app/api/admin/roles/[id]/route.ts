@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAdminOrPermission } from "@/lib/authorization";
 
 export async function GET(_req: Request, context: { params: { id: string } }) {
+  const authCheck = await requireAdminOrPermission("roles");
+  if (authCheck instanceof NextResponse) return authCheck;
   try {
     const idNum = Number(context.params.id);
     if (!idNum || Number.isNaN(idNum)) {

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { writeFile } from "fs/promises";
 import path from "path";
+import { requireAdminOrPermission } from "@/lib/authorization";
 
 export const config = {
   api: {
@@ -9,6 +10,8 @@ export const config = {
 };
 
 export async function POST(req: Request) {
+  const authCheck = await requireAdminOrPermission("salons");
+  if (authCheck instanceof NextResponse) return authCheck;
   // Gestion upload image (logo/couverture)
   const formData = await req.formData();
   const file = formData.get("file") as File;

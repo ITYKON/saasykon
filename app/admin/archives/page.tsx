@@ -17,6 +17,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { ProtectedAdminPage } from "@/components/admin/ProtectedAdminPage"
 
 const tabs = [
   { id: "utilisateurs", name: "Utilisateurs", icon: Users, count: 12 },
@@ -107,6 +108,14 @@ const archivedData = {
 }
 
 export default function AdminArchivesPage() {
+  return (
+    <ProtectedAdminPage requiredPermission="archives">
+      <AdminArchivesPageContent />
+    </ProtectedAdminPage>
+  );
+}
+
+function AdminArchivesPageContent() {
   const [activeTab, setActiveTab] = useState("utilisateurs")
   const [searchTerm, setSearchTerm] = useState("")
 

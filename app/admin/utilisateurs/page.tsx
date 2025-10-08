@@ -1,5 +1,6 @@
 "use client";
 import React from "react";
+import useAuth from "@/hooks/useAuth";
 import { Users, Mail } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -7,8 +8,17 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { UserDetailModal } from "@/components/admin/UserDetailModal"
 import { UserEditModal } from "@/components/admin/UserEditModal"
+import { ProtectedAdminPage } from "@/components/admin/ProtectedAdminPage"
 
 export default function AdminUtilisateurs() {
+  return (
+    <ProtectedAdminPage requiredPermission="users">
+      <AdminUtilisateursContent />
+    </ProtectedAdminPage>
+  );
+}
+
+function AdminUtilisateursContent() {
   // Modals pour actions rapides
   const [detailModalOpen, setDetailModalOpen] = React.useState(false);
   const [editModalOpen, setEditModalOpen] = React.useState(false);
@@ -16,8 +26,22 @@ export default function AdminUtilisateurs() {
   // Utilisateurs du backend
   const [users, setUsers] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [availableRoles, setAvailableRoles] = React.useState<string[]>([]);
 
   React.useEffect(() => {
+    // Charger les rôles disponibles
+    fetch("/api/admin/roles")
+      .then(res => res.json())
+      .then(data => {
+        const roleCodes = (data.roles || []).map((r: any) => r.code);
+        setAvailableRoles(roleCodes);
+      })
+      .catch(() => setAvailableRoles([]));
+  }, []);
+
+  // Fonction pour charger les utilisateurs depuis la base de données
+  const loadUsers = React.useCallback(() => {
+    setLoading(true);
     // Définition du type utilisateur backend
     interface BackendUser {
       id: number | string;
@@ -41,24 +65,28 @@ export default function AdminUtilisateurs() {
       .then(data => {
         // Mappe les utilisateurs du backend vers le format attendu par le front
         const mapped = (data.users || []).map((u: BackendUser) => {
-          // Détermine le rôle principal
-          let role = "Client";
+          // Récupère tous les rôles de l'utilisateur
+          let roles: string[] = [];
           let status = u.status || "Actif";
+          
           if (u.user_roles && Array.isArray(u.user_roles) && u.user_roles.length > 0) {
-            const mainRole = u.user_roles[0].roles?.code?.toLowerCase();
-            if (mainRole === "admin") role = "Admin";
-            else if (mainRole === "professionnel" || mainRole === "pro") {
-              role = "Professionnel";
-              // Par défaut, le professionnel est inactif sauf si explicitement actif
-              status = u.status ? u.status : "Inactif";
-            }
+            // Récupère tous les codes de rôles (pas juste le premier)
+            roles = u.user_roles
+              .map((ur) => ur.roles?.code)
+              .filter((code): code is string => Boolean(code));
           }
+          
+          // Si aucun rôle, considérer comme Client
+          if (roles.length === 0) {
+            roles = ["Client"];
+          }
+          
           return {
             id: u.id,
             name: u.first_name && u.last_name ? `${u.first_name} ${u.last_name}` : u.email,
             email: u.email,
             phone: u.phone,
-            role,
+            roles, // Tableau de tous les rôles
             status,
             joinDate: u.created_at ? `Inscrit le ${new Date(u.created_at).toLocaleDateString()}` : "",
             reservations: u.reservations || 0,
@@ -68,17 +96,42 @@ export default function AdminUtilisateurs() {
         });
         setUsers(mapped);
         setLoading(false);
+      })
+      .catch((error) => {
+        console.error("Erreur chargement utilisateurs:", error);
+        setLoading(false);
       });
   }, []);
 
+  React.useEffect(() => {
+    loadUsers();
+  }, [loadUsers]);
+
+  const { auth } = useAuth();
+  const permissions = auth?.permissions || [];
+  const isAdmin = auth?.roles?.includes("ADMIN");
+  const canManageUsers = Boolean(isAdmin || permissions.includes("users"));
+
   async function handleDeleteUser(id: string) {
     if (!window.confirm("Confirmer la suppression de l'utilisateur ?")) return;
-    await fetch("/api/admin/users", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id })
-    });
-    setUsers(users.filter(u => u.id !== id));
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id })
+      });
+      
+      if (res.ok) {
+        // Recharger les données depuis la base de données
+        loadUsers();
+      } else {
+        const error = await res.json();
+        alert(`Erreur: ${error.error || "Suppression impossible"}`);
+      }
+    } catch (error) {
+      console.error("Erreur suppression:", error);
+      alert("Erreur réseau lors de la suppression");
+    }
   }
 
   const [search, setSearch] = React.useState("");
@@ -88,27 +141,33 @@ export default function AdminUtilisateurs() {
 
   // Filtrage et recherche
   const filteredUsers = users.filter(u => {
-    if (!u || !u.name || !u.email || !u.role || !u.status) return false;
+    if (!u || !u.name || !u.email || !u.roles || !u.status) return false;
     const matchSearch =
       u.name.toLowerCase().includes(search.toLowerCase()) ||
       u.email.toLowerCase().includes(search.toLowerCase());
-    const matchRole = roleFilter ? u.role.toLowerCase() === roleFilter.toLowerCase() : true;
+    // Vérifie si l'utilisateur a le rôle filtré (parmi tous ses rôles)
+    const matchRole = roleFilter 
+      ? u.roles.some((role: string) => role.toLowerCase() === roleFilter.toLowerCase())
+      : true;
     const matchStatus = statusFilter ? u.status.toLowerCase() === statusFilter : true;
     return matchSearch && matchRole && matchStatus;
   });
   // (bloc dupliqué supprimé)
 
   const getRoleColor = (role: string) => {
-    switch (role.toLowerCase()) {
-      case "admin":
-        return "bg-purple-100 text-purple-800"
-      case "professionnel":
-        return "bg-blue-100 text-blue-800"
-      case "client":
-        return "bg-green-100 text-green-800"
-      default:
-        return "bg-gray-100 text-gray-800"
-    }
+    const roleLower = role.toLowerCase();
+    // Rôles admin
+    if (roleLower === "admin") return "bg-purple-100 text-purple-800";
+    // Rôles commerciaux/support
+    if (roleLower.includes("commercial") || roleLower === "agent_commercial") return "bg-orange-100 text-orange-800";
+    if (roleLower.includes("support")) return "bg-cyan-100 text-cyan-800";
+    if (roleLower.includes("manager")) return "bg-indigo-100 text-indigo-800";
+    // Rôles professionnels
+    if (roleLower === "professionnel" || roleLower === "pro") return "bg-blue-100 text-blue-800";
+    // Rôles clients
+    if (roleLower === "client") return "bg-green-100 text-green-800";
+    // Par défaut
+    return "bg-gray-100 text-gray-800";
   }
 
   const getStatusColor = (status: string) => {
@@ -137,9 +196,11 @@ export default function AdminUtilisateurs() {
         />
         <select value={roleFilter ?? ""} onChange={e => setRoleFilter(e.target.value || null)} className="border rounded px-2 py-2">
           <option value="">Tous rôles</option>
-          <option value="client">Client</option>
-          <option value="professionnel">Professionnel</option>
-          <option value="admin">Admin</option>
+          {availableRoles.map((role) => (
+            <option key={role} value={role}>
+              {role}
+            </option>
+          ))}
         </select>
         <select value={statusFilter ?? ""} onChange={e => setStatusFilter(e.target.value || null)} className="border rounded px-2 py-2">
           <option value="">Tous statuts</option>
@@ -149,7 +210,11 @@ export default function AdminUtilisateurs() {
         </select>
         <Button variant="outline" onClick={() => setSelected(filteredUsers.map(u => u.id))}>Tout sélectionner</Button>
         <Button variant="outline" onClick={() => setSelected([])}>Désélectionner</Button>
-        <Button variant="destructive" disabled={selected.length === 0}>Supprimer sélection</Button>
+        {canManageUsers ? (
+          <Button variant="destructive" disabled={selected.length === 0}>Supprimer sélection</Button>
+        ) : (
+          <Button variant="destructive" disabled className="opacity-50 cursor-not-allowed">Supprimer sélection</Button>
+        )}
         <Button variant="outline" disabled={selected.length === 0}>Exporter sélection</Button>
       </div>
       {/* Header ajusté pour ressembler au dashboard */}
@@ -189,32 +254,17 @@ export default function AdminUtilisateurs() {
                     <h3 className="text-lg font-semibold text-black">{user.name}</h3>
                     <p className="text-gray-600">{user.email}</p>
                     {user.salon && <p className="text-sm text-gray-500">{user.salon}</p>}
-                    {/* Badge Lead si pro en attente */}
-                    {user.role.toLowerCase().includes("professionnel") && user.status.toLowerCase() === "en attente" && (
-                      <Badge className="bg-yellow-100 text-yellow-800 border-yellow-400">Lead à contacter</Badge>
-                    )}
-                    <div className="flex items-center space-x-4 mt-2">
-                      <Badge variant="outline" className={getRoleColor(user.role)}>
-                        {user.role}
+                    <div className="flex items-center flex-wrap gap-2 mt-2">
+                      {/* Afficher tous les rôles */}
+                      {user.roles && user.roles.map((role: string, index: number) => (
+                        <Badge key={index} variant="outline" className={getRoleColor(role)}>
+                          {role}
+                        </Badge>
+                      ))}
+                      {/* Badge statut */}
+                      <Badge variant="outline" className={getStatusColor(user.status)}>
+                        {user.status}
                       </Badge>
-                      {/* Badge Inactif pour professionnel inactif, même style que Actif */}
-                      {user.role.toLowerCase().includes("professionnel") && user.status.toLowerCase() === "inactif" && (
-                        <Badge variant="outline" className={getStatusColor(user.status)}>
-                          Inactif
-                        </Badge>
-                      )}
-                      {/* Affiche le badge Actif uniquement si le professionnel est actif */}
-                      {user.role.toLowerCase().includes("professionnel") && user.status.toLowerCase() === "actif" && (
-                        <Badge variant="outline" className={getStatusColor(user.status)}>
-                          {user.status}
-                        </Badge>
-                      )}
-                      {/* Les autres rôles affichent le badge statut normalement */}
-                      {!user.role.toLowerCase().includes("professionnel") && (
-                        <Badge variant="outline" className={getStatusColor(user.status)}>
-                          {user.status}
-                        </Badge>
-                      )}
                     </div>
                   </div>
                 </div>
@@ -226,12 +276,25 @@ export default function AdminUtilisateurs() {
                       <Users className="h-4 w-4" />
                     </Button>
                     
-                    <Button variant="outline" size="sm" className="bg-transparent" title="Modifier" onClick={() => { setActiveUser(user); setEditModalOpen(true); }}>
-                      ✏️
-                    </Button>
-                    <Button variant="destructive" size="sm" className="bg-transparent" title="Supprimer" onClick={() => handleDeleteUser(user.id)}>
-                      🗑️
-                    </Button>
+                    {canManageUsers ? (
+                      <>
+                        <Button variant="outline" size="sm" className="bg-transparent" title="Modifier" onClick={() => { setActiveUser(user); setEditModalOpen(true); }}>
+                          ✏️
+                        </Button>
+                        <Button variant="destructive" size="sm" className="bg-transparent" title="Supprimer" onClick={() => handleDeleteUser(user.id)}>
+                          🗑️
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <Button variant="outline" size="sm" className="bg-transparent opacity-50 cursor-not-allowed" title="Modifier" disabled>
+                          ✏️
+                        </Button>
+                        <Button variant="destructive" size="sm" className="bg-transparent opacity-50 cursor-not-allowed" title="Supprimer" disabled>
+                          🗑️
+                        </Button>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
@@ -251,8 +314,9 @@ export default function AdminUtilisateurs() {
             open={editModalOpen}
             onClose={() => setEditModalOpen(false)}
             user={activeUser}
-            onSave={updatedUser => {
-              setUsers(users.map(u => u.id === updatedUser.id ? updatedUser : u));
+            onSave={() => {
+              // Recharger les données depuis la base de données
+              loadUsers();
             }}
           />
         </>

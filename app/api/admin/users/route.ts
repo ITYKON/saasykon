@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAdminOrPermission } from "@/lib/authorization";
 
 // GET: Liste tous les utilisateurs
 export async function GET() {
 		try {
+			const authCheck = await requireAdminOrPermission("users");
+			if (authCheck instanceof NextResponse) return authCheck;
 			const users = await prisma.users.findMany({
 				where: { deleted_at: null },
 				orderBy: { created_at: "desc" },
@@ -26,6 +29,8 @@ export async function GET() {
 // DELETE: Supprime un utilisateur (soft delete)
 export async function DELETE(request: Request) {
 		try {
+			const authCheck = await requireAdminOrPermission("users");
+			if (authCheck instanceof NextResponse) return authCheck;
 			const body = await request.json().catch(() => ({} as any));
 			const rawId = body.id ?? body.userId ?? body.user_id
 			const id = rawId !== undefined && rawId !== null ? String(rawId) : null
@@ -56,6 +61,8 @@ export async function DELETE(request: Request) {
 // PUT: Modifie un utilisateur
 export async function PUT(request: Request) {
 		try {
+			const authCheck = await requireAdminOrPermission("users");
+			if (authCheck instanceof NextResponse) return authCheck;
 			const { id, ...data } = await request.json();
 			console.log("[PUT /api/admin/users] id reçu:", id, "data:", data);
 			if (!id) return NextResponse.json({ error: "ID requis" }, { status: 400 });

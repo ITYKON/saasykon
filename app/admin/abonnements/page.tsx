@@ -1,3 +1,5 @@
+"use client";
+
 import {
   Crown,
   Star,
@@ -18,8 +20,17 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { ProtectedAdminPage } from "@/components/admin/ProtectedAdminPage";
 
 export default function AdminAbonnements() {
+  return (
+    <ProtectedAdminPage requiredPermission="subscriptions">
+      <AdminAbonnementsContent />
+    </ProtectedAdminPage>
+  );
+}
+
+function AdminAbonnementsContent() {
   const subscriptionStats = {
     totalRevenue: "1,250,000 DA",
     activeSubscriptions: 1247,

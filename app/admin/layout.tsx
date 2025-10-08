@@ -1,20 +1,22 @@
-'use client';
-import type React from "react"
-import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { BarChart3, Users, Building2, CreditCard, Settings, Calendar, TrendingUp, Shield, Archive } from "lucide-react"
+"use client";
+import type React from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { BarChart3, Users, Building2, CreditCard, Settings, Calendar, TrendingUp, Shield, Archive } from "lucide-react";
+import useAuth from "@/hooks/useAuth";
 
+// Map navigation items to an optional permission code required to view them.
 const navigation = [
-  { name: "Dashboard", href: "/admin/dashboard", icon: BarChart3 },
-  { name: "Utilisateurs", href: "/admin/utilisateurs", icon: Users },
-  { name: "Salons", href: "/admin/salons", icon: Building2 },
-  { name: "Réservations", href: "/admin/reservations", icon: Calendar },
-  { name: "Abonnements", href: "/admin/abonnements", icon: CreditCard },
-  { name: "Statistiques", href: "/admin/statistiques", icon: TrendingUp },
-  { name: "Rôles", href: "/admin/roles", icon: Shield },
-  { name: "Archives", href: "/admin/archives", icon: Archive },
-  { name: "Paramètres", href: "/admin/parametres", icon: Settings },
-]
+  { name: "Dashboard", href: "/admin/dashboard", icon: BarChart3, permission: null },
+  { name: "Utilisateurs", href: "/admin/utilisateurs", icon: Users, permission: "users" },
+  { name: "Salons", href: "/admin/salons", icon: Building2, permission: "salons" },
+  { name: "Réservations", href: "/admin/reservations", icon: Calendar, permission: "reservations" },
+  { name: "Abonnements", href: "/admin/abonnements", icon: CreditCard, permission: "subscriptions" },
+  { name: "Statistiques", href: "/admin/statistiques", icon: TrendingUp, permission: "statistics" },
+  { name: "Rôles", href: "/admin/roles", icon: Shield, permission: "roles" },
+  { name: "Archives", href: "/admin/archives", icon: Archive, permission: "archives" },
+  { name: "Paramètres", href: "/admin/parametres", icon: Settings, permission: "settings" },
+];
 
 export default function AdminLayout({
   children,
@@ -22,6 +24,9 @@ export default function AdminLayout({
   children: React.ReactNode
 }) {
   const pathname = usePathname()
+  const { auth } = useAuth();
+  const permissions = auth?.permissions || [];
+  const isAdmin = auth?.roles?.includes("ADMIN");
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="flex">
@@ -31,20 +36,22 @@ export default function AdminLayout({
             <h2 className="text-xl font-bold text-gray-900">Admin Planity</h2>
           </div>
           <nav className="px-4 space-y-2">
-            {navigation.map((item) => {
-              const Icon = item.icon
-              const isActive = pathname === item.href || pathname.startsWith(item.href + "/")
-              return (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  className={`flex items-center gap-3 px-3 py-2 rounded-lg font-medium transition-colors text-gray-700 hover:bg-gray-100 ${isActive ? "bg-gray-100 text-gray-900" : ""}`}
-                >
-                  <Icon className={`h-5 w-5 ${isActive ? "text-primary" : "text-gray-500"}`} />
-                  {item.name}
-                </Link>
-              )
-            })}
+            {navigation
+              .filter((item) => isAdmin || !item.permission || permissions.includes(item.permission))
+              .map((item) => {
+                const Icon = item.icon as any;
+                const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+                return (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    className={`flex items-center gap-3 px-3 py-2 rounded-lg font-medium transition-colors text-gray-700 hover:bg-gray-100 ${isActive ? "bg-gray-100 text-gray-900" : ""}`}
+                  >
+                    <Icon className={`h-5 w-5 ${isActive ? "text-primary" : "text-gray-500"}`} />
+                    {item.name}
+                  </Link>
+                );
+              })}
             {/* Bouton se déconnecter */}
             <button
               onClick={async () => {

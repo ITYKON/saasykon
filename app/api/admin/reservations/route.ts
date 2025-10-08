@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAdminOrPermission } from "@/lib/authorization";
 
 // GET: Liste toutes les réservations avec infos client, service, salon
 export async function GET() {
 	try {
+		const authCheck = await requireAdminOrPermission("reservations");
+		if (authCheck instanceof NextResponse) return authCheck;
 		const reservations = await prisma.reservations.findMany({
 			orderBy: { starts_at: "desc" },
 			include: {
@@ -40,6 +43,8 @@ export async function GET() {
 // POST: Crée une réservation de test
 export async function POST() {
 			try {
+				const authCheck = await requireAdminOrPermission("reservations");
+				if (authCheck instanceof NextResponse) return authCheck;
 				// Test spécifique demandé : salon RARE BEAUTYY GOMEZ, client fayza20@gmail.com
 				const salon = await prisma.businesses.findFirst({ where: { public_name: "RARE BEAUTYY GOMEZ" } });
 				if (!salon) return NextResponse.json({ error: "Salon RARE BEAUTYY GOMEZ introuvable" }, { status: 404 });

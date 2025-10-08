@@ -95,13 +95,10 @@ export default function LoginPage() {
 
                       const me = await fetch("/api/auth/me").then((r) => r.json()).catch(() => null)
                       const roles = me?.user?.roles || []
-                      const cookiesStr = typeof document !== "undefined" ? document.cookie || "" : ""
-                      const getCookie = (name: string) =>
-                        (cookiesStr.match(new RegExp(`(?:^|; )${name}=([^;]*)`))?.[1] || "")
-                      const businessId = decodeURIComponent(getCookie("business_id"))
-                      const isAdminEquivalent = roles.includes("ADMIN") || businessId === "00000000-0000-0000-0000-000000000000"
-
-                      if (isAdminEquivalent) return router.push("/admin/dashboard")
+                      // Prefer explicit ADMIN role to determine admin access. The API /api/auth/me
+                      // now returns permissions and assignments; do not trust the business_id cookie
+                      // alone to grant full admin access to avoid over-privilege for sub-admins.
+                      if (roles.includes("ADMIN")) return router.push("/admin/dashboard")
                       if (roles.includes("PRO")) return router.push("/pro/dashboard")
                       return router.push("/client/dashboard")
                     } catch (e) {

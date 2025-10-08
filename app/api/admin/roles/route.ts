@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { requireAdminOrPermission } from "@/lib/authorization";
 
 // Helpers
 function generateRoleCodeFromName(name: string): string {
@@ -27,6 +28,9 @@ const updateRoleSchema = z.object({
 });
 
 export async function GET(req: Request) {
+  const auth = await requireAdminOrPermission("roles");
+  if (auth instanceof NextResponse) return auth;
+
   try {
     const { searchParams } = new URL(req.url);
     const page = parseInt(searchParams.get("page") || "1", 10);
@@ -63,6 +67,9 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  const auth = await requireAdminOrPermission("roles");
+  if (auth instanceof NextResponse) return auth;
+
   try {
     const body = await req.json();
     const parse = createRoleSchema.safeParse(body);
@@ -123,6 +130,9 @@ export async function POST(req: Request) {
 }
 
 export async function PUT(req: Request) {
+  const auth = await requireAdminOrPermission("roles");
+  if (auth instanceof NextResponse) return auth;
+
   try {
     const body = await req.json();
     const parse = updateRoleSchema.safeParse(body);
@@ -194,6 +204,9 @@ export async function PUT(req: Request) {
 }
 
 export async function DELETE(req: Request) {
+  const auth = await requireAdminOrPermission("roles");
+  if (auth instanceof NextResponse) return auth;
+
   try {
     const { searchParams } = new URL(req.url);
     const idParam = searchParams.get("id");

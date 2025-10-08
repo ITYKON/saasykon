@@ -3,6 +3,7 @@ import { Calendar, MapPin, User } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { useEffect, useState } from "react"
+import { ProtectedAdminPage } from "@/components/admin/ProtectedAdminPage"
 
 function formatDate(dateStr: string) {
   const date = new Date(dateStr)
@@ -35,6 +36,14 @@ function getStatusColor(status: string) {
 }
 
 export default function AdminReservations() {
+  return (
+    <ProtectedAdminPage requiredPermission="reservations">
+      <AdminReservationsContent />
+    </ProtectedAdminPage>
+  );
+}
+
+function AdminReservationsContent() {
   const [reservations, setReservations] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")

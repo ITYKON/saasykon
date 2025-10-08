@@ -19,6 +19,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Plus, Search, Edit, Trash2, Shield, Users, Eye } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
+import { ProtectedAdminPage } from "@/components/admin/ProtectedAdminPage"
 
 const permissions = [
   { id: "dashboard", name: "Dashboard", description: "Accès au tableau de bord principal" },
@@ -34,6 +35,14 @@ const permissions = [
 // Données réelles récupérées via API
 
 export default function RolesPage() {
+  return (
+    <ProtectedAdminPage requiredPermission="roles">
+      <RolesPageContent />
+    </ProtectedAdminPage>
+  );
+}
+
+function RolesPageContent() {
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedRole, setSelectedRole] = useState<any>(null)
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)

@@ -9,8 +9,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import Image from "next/image"
 import { SalonFormModal } from "@/components/admin/SalonFormModal";
 import { SalonDetailModal } from "@/components/admin/SalonDetailModal";
+import { ProtectedAdminPage } from "@/components/admin/ProtectedAdminPage";
 
 export default function AdminSalons() {
+  return (
+    <ProtectedAdminPage requiredPermission="salons">
+      <AdminSalonsContent />
+    </ProtectedAdminPage>
+  );
+}
+
+function AdminSalonsContent() {
   // États pour la recherche et les filtres
   const [search, setSearch] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("all");
@@ -406,5 +415,5 @@ export default function AdminSalons() {
         />
       )}
     </div>
-  )
+  );
 }

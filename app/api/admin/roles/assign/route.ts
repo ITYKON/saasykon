@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAdminOrPermission } from "@/lib/authorization";
 import { z } from "zod";
 
 const assignSchema = z.object({
@@ -15,7 +16,9 @@ const unassignSchema = z.object({
 });
 
 export async function POST(req: Request) {
-  try {
+    try {
+      const authCheck = await requireAdminOrPermission("roles");
+      if (authCheck instanceof NextResponse) return authCheck;
     const body = await req.json();
     const parse = assignSchema.safeParse(body);
     if (!parse.success) {
@@ -55,7 +58,9 @@ export async function POST(req: Request) {
 }
 
 export async function DELETE(req: Request) {
-  try {
+    try {
+      const authCheck = await requireAdminOrPermission("roles");
+      if (authCheck instanceof NextResponse) return authCheck;
     const body = await req.json().catch(() => ({}));
     const parse = unassignSchema.safeParse(body);
     if (!parse.success) {

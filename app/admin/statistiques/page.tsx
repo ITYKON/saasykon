@@ -34,6 +34,7 @@ import {
   DollarSign,
   UserCheck,
 } from "lucide-react"
+import { ProtectedAdminPage } from "@/components/admin/ProtectedAdminPage"
 
 const revenueData = [
   { month: "Jan", revenue: 45000, subscriptions: 12000, commissions: 33000 },
@@ -92,6 +93,14 @@ const activityData = [
 ]
 
 export default function AdminStatisticsPage() {
+  return (
+    <ProtectedAdminPage requiredPermission="statistics">
+      <AdminStatisticsPageContent />
+    </ProtectedAdminPage>
+  );
+}
+
+function AdminStatisticsPageContent() {
   return (
     <div className="space-y-6">
           <div className="space-y-6">

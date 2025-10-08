@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { requireAdminOrPermission } from "@/lib/authorization";
 
 export async function GET(req: Request) {
+  // Enforce auth
+  const authCheck = await requireAdminOrPermission("salons");
+  if (authCheck instanceof NextResponse) return authCheck;
   // Pagination
   const { searchParams } = new URL(req.url);
   const page = parseInt(searchParams.get("page") || "1", 10);
@@ -74,7 +78,9 @@ const salonSchema = z.object({
 });
 
 export async function POST(req: Request) {
-  const data = await req.json();
+    const authCheck = await requireAdminOrPermission("salons");
+    if (authCheck instanceof NextResponse) return authCheck;
+    const data = await req.json();
   console.log("[POST /api/admin/salons] data reçu:", data);
   const parse = salonSchema.safeParse(data);
   if (!parse.success) {
@@ -127,7 +133,9 @@ export async function POST(req: Request) {
 }
 
 export async function PUT(req: Request) {
-  const data = await req.json();
+    const authCheck = await requireAdminOrPermission("salons");
+    if (authCheck instanceof NextResponse) return authCheck;
+    const data = await req.json();
   console.log("[PUT /api/admin/salons] data reçu:", data);
   if (!data.id) {
     console.error("[PUT /api/admin/salons] Missing salon id");
@@ -164,7 +172,9 @@ export async function PUT(req: Request) {
 }
 
 export async function DELETE(req: Request) {
-  const { id } = await req.json();
+    const authCheck = await requireAdminOrPermission("salons");
+    if (authCheck instanceof NextResponse) return authCheck;
+    const { id } = await req.json();
   if (!id) return NextResponse.json({ error: "Missing salon id" }, { status: 400 });
   await prisma.businesses.delete({ where: { id } });
   return NextResponse.json({ success: true });
