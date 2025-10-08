@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { Search, RotateCcw, Trash2, Users, Building2, Calendar, CreditCard, AlertTriangle } from "lucide-react"
+import { useEffect, useMemo, useState } from "react"
+import { Search, RotateCcw, Trash2, Users, Building2, Calendar, CreditCard, AlertTriangle, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -18,94 +18,14 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { ProtectedAdminPage } from "@/components/admin/ProtectedAdminPage"
+import { useToast } from "@/hooks/use-toast"
 
-const tabs = [
-  { id: "utilisateurs", name: "Utilisateurs", icon: Users, count: 12 },
-  { id: "salons", name: "Salons", icon: Building2, count: 8 },
-  { id: "reservations", name: "Réservations", icon: Calendar, count: 45 },
-  { id: "abonnements", name: "Abonnements", icon: CreditCard, count: 6 },
-]
-
-const archivedData = {
-  utilisateurs: [
-    {
-      id: 1,
-      nom: "Marie Dupont",
-      email: "marie.dupont@email.com",
-      type: "Client",
-      dateSupression: "2025-01-08",
-      raisonSupression: "Demande utilisateur",
-    },
-    {
-      id: 2,
-      nom: "Jean Martin",
-      email: "jean.martin@salon.com",
-      type: "Professionnel",
-      dateSupression: "2025-01-07",
-      raisonSupression: "Violation des conditions",
-    },
-  ],
-  salons: [
-    {
-      id: 1,
-      nom: "Bella Vista",
-      proprietaire: "Sarah Benali",
-      ville: "Alger",
-      dateSupression: "2025-01-06",
-      raisonSupression: "Fermeture définitive",
-    },
-    {
-      id: 2,
-      nom: "Style & Co",
-      proprietaire: "Amina Kaci",
-      ville: "Oran",
-      dateSupression: "2025-01-05",
-      raisonSupression: "Non-conformité",
-    },
-  ],
-  reservations: [
-    {
-      id: 1,
-      client: "Fatima Zohra",
-      salon: "PAVANA",
-      service: "Coupe + Brushing",
-      date: "2025-01-15",
-      prix: "2,500 DA",
-      dateSupression: "2025-01-08",
-      raisonSupression: "Annulation client",
-    },
-    {
-      id: 2,
-      client: "Nadia Benaissa",
-      salon: "Bella Vista",
-      service: "Coloration",
-      date: "2025-01-12",
-      prix: "4,800 DA",
-      dateSupression: "2025-01-07",
-      raisonSupression: "Salon fermé",
-    },
-  ],
-  abonnements: [
-    {
-      id: 1,
-      salon: "PAVANA",
-      plan: "Premium",
-      dateExpiration: "2025-02-15",
-      montant: "15,000 DA",
-      dateSupression: "2025-01-08",
-      raisonSupression: "Rétrogradation",
-    },
-    {
-      id: 2,
-      salon: "Style & Co",
-      plan: "Pro",
-      dateExpiration: "2025-01-30",
-      montant: "8,000 DA",
-      dateSupression: "2025-01-05",
-      raisonSupression: "Salon fermé",
-    },
-  ],
-}
+const TABS_DEF = [
+  { id: "utilisateurs", name: "Utilisateurs", icon: Users },
+  { id: "salons", name: "Salons", icon: Building2 },
+  { id: "reservations", name: "Réservations", icon: Calendar },
+  { id: "abonnements", name: "Abonnements", icon: CreditCard },
+] as const
 
 export default function AdminArchivesPage() {
   return (
@@ -118,16 +38,99 @@ export default function AdminArchivesPage() {
 function AdminArchivesPageContent() {
   const [activeTab, setActiveTab] = useState("utilisateurs")
   const [searchTerm, setSearchTerm] = useState("")
+  const [counts, setCounts] = useState<Record<string, number>>({
+    utilisateurs: 0,
+    salons: 0,
+    reservations: 0,
+    abonnements: 0,
+  })
+  const [items, setItems] = useState<any[]>([])
+  const [loading, setLoading] = useState(false)
+  const [actionId, setActionId] = useState<string | number | null>(null)
+  const { toast } = useToast()
 
-  const handleRestore = (type: string, id: number) => {
-    console.log(`Restauration ${type} ID: ${id}`)
-    // Logique de restauration
+  async function fetchStats() {
+    try {
+      const res = await fetch("/api/admin/archives/stats", { cache: "no-store" })
+      if (!res.ok) throw new Error("Erreur stats")
+      const data = await res.json()
+      setCounts(data)
+    } catch (e) {
+      console.error("[archives/stats]", e)
+    }
   }
 
-  const handlePermanentDelete = (type: string, id: number) => {
-    console.log(`Suppression définitive ${type} ID: ${id}`)
-    // Logique de suppression définitive
+  async function fetchList() {
+    try {
+      setLoading(true)
+      const u = new URL(window.location.origin + "/api/admin/archives")
+      u.searchParams.set("type", activeTab)
+      if (searchTerm.trim()) u.searchParams.set("q", searchTerm.trim())
+      u.searchParams.set("page", "1")
+      u.searchParams.set("pageSize", "20")
+      const res = await fetch(u.toString(), { cache: "no-store" })
+      if (!res.ok) throw new Error("Erreur liste")
+      const data = await res.json()
+      setItems(Array.isArray(data.items) ? data.items : [])
+    } catch (e) {
+      console.error("[archives/list]", e)
+      toast({ title: "Erreur", description: "Impossible de charger les archives.", variant: "destructive" })
+    } finally {
+      setLoading(false)
+    }
   }
+
+  const handleRestore = async (type: string, id: string | number) => {
+    try {
+      setActionId(id)
+      const res = await fetch("/api/admin/archives/restore", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type, id }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data?.error || "Erreur restauration")
+      toast({ title: "Restauration", description: data?.message || "Restauré avec succès." })
+      await Promise.all([fetchList(), fetchStats()])
+    } catch (e: any) {
+      toast({ title: "Erreur", description: e?.message || "Restauration impossible.", variant: "destructive" })
+    } finally {
+      setActionId(null)
+    }
+  }
+
+  const handlePermanentDelete = async (type: string, id: string | number) => {
+    try {
+      setActionId(id)
+      const res = await fetch("/api/admin/archives", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type, id }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data?.error || "Erreur suppression")
+      toast({ title: "Suppression", description: data?.message || "Supprimé définitivement." })
+      await Promise.all([fetchList(), fetchStats()])
+    } catch (e: any) {
+      toast({ title: "Erreur", description: e?.message || "Suppression impossible.", variant: "destructive" })
+    } finally {
+      setActionId(null)
+    }
+  }
+
+  // Fetch stats on mount
+  useEffect(() => {
+    fetchStats()
+  }, [])
+
+  // Debounced fetch list on tab/search change
+  useEffect(() => {
+    const t = setTimeout(() => {
+      fetchList()
+    }, 300)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, searchTerm])
 
   const renderUsersTable = () => (
     <Table>
@@ -141,28 +144,28 @@ function AdminArchivesPageContent() {
         </TableRow>
       </TableHeader>
       <TableBody>
-        {archivedData.utilisateurs.map((user) => (
+        {items.map((user: any) => (
           <TableRow key={user.id}>
             <TableCell>
               <div>
-                <div className="font-medium">{user.nom}</div>
+                <div className="font-medium">{[user.first_name, user.last_name].filter(Boolean).join(" ") || user.email || "Utilisateur"}</div>
                 <div className="text-sm text-gray-500">{user.email}</div>
               </div>
             </TableCell>
             <TableCell>
-              <Badge variant={user.type === "Client" ? "secondary" : "outline"}>{user.type}</Badge>
+              <Badge variant="outline">-</Badge>
             </TableCell>
-            <TableCell>{user.dateSupression}</TableCell>
-            <TableCell>{user.raisonSupression}</TableCell>
+            <TableCell>{user.deleted_at ? new Date(user.deleted_at).toLocaleString() : ""}</TableCell>
+            <TableCell>-</TableCell>
             <TableCell>
               <div className="flex gap-2">
-                <Button size="sm" variant="outline" onClick={() => handleRestore("utilisateur", user.id)}>
-                  <RotateCcw className="h-4 w-4" />
+                <Button size="sm" variant="outline" onClick={() => handleRestore("utilisateurs", user.id)} disabled={actionId === user.id}>
+                  {actionId === user.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
                 </Button>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button size="sm" variant="destructive">
-                      <Trash2 className="h-4 w-4" />
+                    <Button size="sm" variant="destructive" disabled={actionId === user.id}>
+                      {actionId === user.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
@@ -175,7 +178,7 @@ function AdminArchivesPageContent() {
                     <AlertDialogFooter>
                       <AlertDialogCancel>Annuler</AlertDialogCancel>
                       <AlertDialogAction
-                        onClick={() => handlePermanentDelete("utilisateur", user.id)}
+                        onClick={() => handlePermanentDelete("utilisateurs", user.id)}
                         className="bg-red-600 hover:bg-red-700"
                       >
                         Supprimer
@@ -204,22 +207,22 @@ function AdminArchivesPageContent() {
         </TableRow>
       </TableHeader>
       <TableBody>
-        {archivedData.salons.map((salon) => (
+        {items.map((salon: any) => (
           <TableRow key={salon.id}>
-            <TableCell className="font-medium">{salon.nom}</TableCell>
-            <TableCell>{salon.proprietaire}</TableCell>
-            <TableCell>{salon.ville}</TableCell>
-            <TableCell>{salon.dateSupression}</TableCell>
-            <TableCell>{salon.raisonSupression}</TableCell>
+            <TableCell className="font-medium">{salon.public_name || salon.legal_name}</TableCell>
+            <TableCell>{salon.users ? [salon.users.first_name, salon.users.last_name].filter(Boolean).join(" ") : "-"}</TableCell>
+            <TableCell>-</TableCell>
+            <TableCell>{salon.deleted_at ? new Date(salon.deleted_at).toLocaleString() : salon.archived_at ? new Date(salon.archived_at).toLocaleString() : ""}</TableCell>
+            <TableCell>-</TableCell>
             <TableCell>
               <div className="flex gap-2">
-                <Button size="sm" variant="outline" onClick={() => handleRestore("salon", salon.id)}>
-                  <RotateCcw className="h-4 w-4" />
+                <Button size="sm" variant="outline" onClick={() => handleRestore("salons", salon.id)} disabled={actionId === salon.id}>
+                  {actionId === salon.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
                 </Button>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button size="sm" variant="destructive">
-                      <Trash2 className="h-4 w-4" />
+                    <Button size="sm" variant="destructive" disabled={actionId === salon.id}>
+                      {actionId === salon.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
@@ -232,7 +235,7 @@ function AdminArchivesPageContent() {
                     <AlertDialogFooter>
                       <AlertDialogCancel>Annuler</AlertDialogCancel>
                       <AlertDialogAction
-                        onClick={() => handlePermanentDelete("salon", salon.id)}
+                        onClick={() => handlePermanentDelete("salons", salon.id)}
                         className="bg-red-600 hover:bg-red-700"
                       >
                         Supprimer
@@ -263,24 +266,24 @@ function AdminArchivesPageContent() {
         </TableRow>
       </TableHeader>
       <TableBody>
-        {archivedData.reservations.map((reservation) => (
+        {items.map((reservation: any) => (
           <TableRow key={reservation.id}>
-            <TableCell className="font-medium">{reservation.client}</TableCell>
-            <TableCell>{reservation.salon}</TableCell>
-            <TableCell>{reservation.service}</TableCell>
-            <TableCell>{reservation.date}</TableCell>
-            <TableCell className="font-medium">{reservation.prix}</TableCell>
-            <TableCell>{reservation.dateSupression}</TableCell>
-            <TableCell>{reservation.raisonSupression}</TableCell>
+            <TableCell className="font-medium">{reservation.clients ? [reservation.clients.first_name, reservation.clients.last_name].filter(Boolean).join(" ") : "-"}</TableCell>
+            <TableCell>{reservation.businesses ? reservation.businesses.public_name : "-"}</TableCell>
+            <TableCell>{reservation.reservation_items?.[0]?.services?.name || (reservation.reservation_items?.length || 0) + " service(s)"}</TableCell>
+            <TableCell>{reservation.starts_at ? new Date(reservation.starts_at).toLocaleString() : "-"}</TableCell>
+            <TableCell className="font-medium">-</TableCell>
+            <TableCell>{reservation.cancelled_at ? new Date(reservation.cancelled_at).toLocaleString() : ""}</TableCell>
+            <TableCell>-</TableCell>
             <TableCell>
               <div className="flex gap-2">
-                <Button size="sm" variant="outline" onClick={() => handleRestore("reservation", reservation.id)}>
-                  <RotateCcw className="h-4 w-4" />
+                <Button size="sm" variant="outline" onClick={() => handleRestore("reservations", reservation.id)} disabled={actionId === reservation.id}>
+                  {actionId === reservation.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
                 </Button>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button size="sm" variant="destructive">
-                      <Trash2 className="h-4 w-4" />
+                    <Button size="sm" variant="destructive" disabled={actionId === reservation.id}>
+                      {actionId === reservation.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
@@ -293,7 +296,7 @@ function AdminArchivesPageContent() {
                     <AlertDialogFooter>
                       <AlertDialogCancel>Annuler</AlertDialogCancel>
                       <AlertDialogAction
-                        onClick={() => handlePermanentDelete("reservation", reservation.id)}
+                        onClick={() => handlePermanentDelete("reservations", reservation.id)}
                         className="bg-red-600 hover:bg-red-700"
                       >
                         Supprimer
@@ -323,25 +326,25 @@ function AdminArchivesPageContent() {
         </TableRow>
       </TableHeader>
       <TableBody>
-        {archivedData.abonnements.map((abonnement) => (
+        {items.map((abonnement: any) => (
           <TableRow key={abonnement.id}>
-            <TableCell className="font-medium">{abonnement.salon}</TableCell>
+            <TableCell className="font-medium">{abonnement.businesses ? abonnement.businesses.public_name : "-"}</TableCell>
             <TableCell>
-              <Badge variant={abonnement.plan === "Premium" ? "default" : "secondary"}>{abonnement.plan}</Badge>
+              <Badge variant="secondary">{abonnement.plans ? abonnement.plans.name : "-"}</Badge>
             </TableCell>
-            <TableCell>{abonnement.dateExpiration}</TableCell>
-            <TableCell className="font-medium">{abonnement.montant}</TableCell>
-            <TableCell>{abonnement.dateSupression}</TableCell>
-            <TableCell>{abonnement.raisonSupression}</TableCell>
+            <TableCell>{abonnement.current_period_end ? new Date(abonnement.current_period_end).toLocaleDateString() : "-"}</TableCell>
+            <TableCell className="font-medium">{abonnement.plans?.price_cents != null ? `${(abonnement.plans.price_cents / 100).toFixed(2)} €` : "-"}</TableCell>
+            <TableCell>-</TableCell>
+            <TableCell>-</TableCell>
             <TableCell>
               <div className="flex gap-2">
-                <Button size="sm" variant="outline" onClick={() => handleRestore("abonnement", abonnement.id)}>
-                  <RotateCcw className="h-4 w-4" />
+                <Button size="sm" variant="outline" onClick={() => handleRestore("abonnements", abonnement.id)} disabled={actionId === abonnement.id}>
+                  {actionId === abonnement.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
                 </Button>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button size="sm" variant="destructive">
-                      <Trash2 className="h-4 w-4" />
+                    <Button size="sm" variant="destructive" disabled={actionId === abonnement.id}>
+                      {actionId === abonnement.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
@@ -354,7 +357,7 @@ function AdminArchivesPageContent() {
                     <AlertDialogFooter>
                       <AlertDialogCancel>Annuler</AlertDialogCancel>
                       <AlertDialogAction
-                        onClick={() => handlePermanentDelete("abonnement", abonnement.id)}
+                        onClick={() => handlePermanentDelete("abonnements", abonnement.id)}
                         className="bg-red-600 hover:bg-red-700"
                       >
                         Supprimer
@@ -401,14 +404,14 @@ function AdminArchivesPageContent() {
 
       {/* Statistiques */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-        {tabs.map((tab) => {
+        {TABS_DEF.map((tab) => {
           const Icon = tab.icon
           return (
             <div key={tab.id} className="bg-white p-6 rounded-lg shadow-sm border">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600">{tab.name} archivés</p>
-                  <p className="text-2xl font-bold text-gray-900">{tab.count}</p>
+                  <p className="text-2xl font-bold text-gray-900">{counts[tab.id as keyof typeof counts] ?? 0}</p>
                 </div>
                 <Icon className="h-8 w-8 text-gray-400" />
               </div>
@@ -421,7 +424,7 @@ function AdminArchivesPageContent() {
       <div className="bg-white rounded-lg shadow-sm border">
         <div className="border-b border-gray-200">
           <nav className="flex space-x-8 px-6">
-            {tabs.map((tab) => {
+            {TABS_DEF.map((tab) => {
               const Icon = tab.icon
               return (
                 <button
@@ -435,7 +438,7 @@ function AdminArchivesPageContent() {
                 >
                   <Icon className="h-4 w-4" />
                   {tab.name}
-                  <span className="bg-gray-100 text-gray-600 py-0.5 px-2 rounded-full text-xs">{tab.count}</span>
+                  <span className="bg-gray-100 text-gray-600 py-0.5 px-2 rounded-full text-xs">{counts[tab.id as keyof typeof counts] ?? 0}</span>
                 </button>
               )
             })}
@@ -471,7 +474,15 @@ function AdminArchivesPageContent() {
           </div>
 
           {/* Tableau */}
-          <div className="border rounded-lg">{renderTable()}</div>
+          <div className="border rounded-lg">
+            {loading ? (
+              <div className="flex items-center justify-center py-10 text-gray-500">
+                <Loader2 className="h-5 w-5 mr-2 animate-spin" /> Chargement...
+              </div>
+            ) : (
+              renderTable()
+            )}
+          </div>
         </div>
       </div>
     </div>

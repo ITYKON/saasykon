@@ -13,9 +13,21 @@ export async function GET(req: Request) {
   const pageSize = parseInt(searchParams.get("pageSize") || "10", 10);
   const skip = (page - 1) * pageSize;
   const take = pageSize;
+  const q = (searchParams.get("q") || "").trim();
+
+  const where: any = q
+    ? {
+        OR: [
+          { public_name: { contains: q, mode: "insensitive" } },
+          { legal_name: { contains: q, mode: "insensitive" } },
+          { email: { contains: q, mode: "insensitive" } },
+        ],
+      }
+    : {};
 
   const [salons, total] = await Promise.all([
     prisma.businesses.findMany({
+      where,
       include: {
         business_locations: true,
         business_media: true,
@@ -30,7 +42,7 @@ export async function GET(req: Request) {
       skip,
       take,
     }),
-    prisma.businesses.count(),
+    prisma.businesses.count({ where }),
   ]);
 
   // Calculs business pour badges/statuts avancés
@@ -40,11 +52,21 @@ export async function GET(req: Request) {
     const rating_count = salon.ratings_aggregates?.rating_count ?? 0;
     // abonnement principal (nom du plan)
     const subscription = salon.subscriptions?.[0]?.plans?.name || "";
+    // statut: en attente si inscription incomplète ou sans abonnement actif, inactif si archivé/supprimé
+    const hasLocation = (salon.business_locations || []).length > 0;
+    const hasService = (salon.services || []).length > 0;
+    const hasEmployee = (salon.employees || []).length > 0;
+    const profileComplete = hasLocation && hasService && hasEmployee && Boolean(salon.public_name);
+    const hasActiveSubscription = Boolean(salon.subscriptions && salon.subscriptions[0]);
+    const status: "en attente" | "inactif" = (salon as any).archived_at || (salon as any).deleted_at
+      ? "inactif"
+      : "en attente"; // d'après la règle fournie, pas d'état "actif" exposé ici
     return {
       ...salon,
       rating_avg,
       rating_count,
       subscription,
+      status,
       isTop: rating_avg >= 4.5,
       isNew: (new Date().getTime() - new Date(salon.created_at).getTime()) < 1000 * 60 * 60 * 24 * 30,
       isPremium: subscription.toLowerCase() === "premium",
@@ -61,20 +83,11 @@ const salonSchema = z.object({
   description: z.string().optional(),
   email: z.string().email(),
   phone: z.string().min(6),
-  country_code: z.string().min(2),
   website: z.string().url().optional(),
   vat_number: z.string().optional(),
   category_code: z.string().optional(),
   logo_url: z.string().optional(),
   cover_url: z.string().optional(),
-  status: z.string(),
-  subscription: z.string(),
-  joinDate: z.string().optional(),
-  lastActivity: z.string().optional(),
-  rating: z.number().optional(),
-  reviewCount: z.number().optional(),
-  totalBookings: z.number().optional(),
-  monthlyRevenue: z.number().optional(),
 });
 
 export async function POST(req: Request) {
@@ -125,6 +138,13 @@ export async function POST(req: Request) {
       },
     });
     console.log("[POST /api/admin/salons] Salon créé:", salon);
+    await prisma.event_logs.create({
+      data: {
+        user_id: (authCheck as any).userId,
+        event_name: "salon.create",
+        payload: { business_id: salon.id } as any,
+      },
+    });
     return NextResponse.json({ salon });
   } catch (err) {
     console.error("[POST /api/admin/salons] Erreur création salon:", err);
@@ -164,9 +184,19 @@ export async function PUT(req: Request) {
       },
     });
     console.log("[PUT /api/admin/salons] Salon modifié:", salon);
+    await prisma.event_logs.create({
+      data: {
+        user_id: (authCheck as any).userId,
+        event_name: "salon.update",
+        payload: { business_id: salon.id } as any,
+      },
+    });
     return NextResponse.json({ salon });
-  } catch (err) {
+  } catch (err: any) {
     console.error("[PUT /api/admin/salons] Erreur modification salon:", err);
+    if (err?.code === "P2025") {
+      return NextResponse.json({ error: "Salon non trouvé" }, { status: 404 });
+    }
     return NextResponse.json({ error: "Erreur modification salon", details: err }, { status: 500 });
   }
 }
@@ -176,6 +206,25 @@ export async function DELETE(req: Request) {
     if (authCheck instanceof NextResponse) return authCheck;
     const { id } = await req.json();
   if (!id) return NextResponse.json({ error: "Missing salon id" }, { status: 400 });
-  await prisma.businesses.delete({ where: { id } });
-  return NextResponse.json({ success: true });
+  try {
+    // Soft delete: archive le salon pour intégration avec la page Archives
+    const salon = await prisma.businesses.update({ where: { id }, data: { archived_at: new Date() } });
+    await prisma.event_logs.create({
+      data: {
+        user_id: (authCheck as any).userId,
+        event_name: "salon.archive",
+        payload: { business_id: id } as any,
+      },
+    });
+    return NextResponse.json({ success: true, message: "Salon archivé", salon });
+  } catch (err: any) {
+    if (err?.code === "P2025") {
+      return NextResponse.json({ error: "Salon non trouvé" }, { status: 404 });
+    }
+    if (err?.code === "P2003") {
+      return NextResponse.json({ error: "Suppression impossible: contraintes de données" }, { status: 409 });
+    }
+    console.error("[DELETE /api/admin/salons] Erreur:", err);
+    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
+  }
 }

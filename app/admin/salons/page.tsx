@@ -285,11 +285,14 @@ function AdminSalonsContent() {
               <div className="mb-4">
                 <p className="text-sm text-gray-600 mb-2">Services:</p>
                 <div className="flex flex-wrap gap-1">
-                  {(salon.services ?? []).map((service: string, index: number) => (
-                    <Badge key={index} variant="secondary" className="text-xs">
-                      {service}
-                    </Badge>
-                  ))}
+                  {((salon.services ?? [])
+                    .map((s: any) => (typeof s === "string" ? s : s?.name))
+                    .filter(Boolean) as string[])
+                    .map((name: string, index: number) => (
+                      <Badge key={index} variant="secondary" className="text-xs">
+                        {name}
+                      </Badge>
+                    ))}
                 </div>
               </div>
 
