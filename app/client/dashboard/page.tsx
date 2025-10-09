@@ -4,6 +4,7 @@ import { Calendar, Clock, MapPin } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { useRouter } from "next/navigation"
 
 
 type Booking = {
@@ -16,6 +17,7 @@ type Booking = {
 }
 
 export default function ClientDashboard() {
+  const router = useRouter()
   const [stats, setStats] = useState({ upcomingCount: 0, monthCount: 0, favoritesCount: 0 })
   const [upcomingBookings, setUpcomingBookings] = useState<Booking[]>([])
   const [userName, setUserName] = useState<string>("")
@@ -51,7 +53,7 @@ export default function ClientDashboard() {
               <h1 className="text-3xl font-bold text-black">Bonjour {userName || "!"}</h1>
               <p className="text-gray-600 mt-1">Gérez vos rendez-vous beauté en toute simplicité.</p>
             </div>
-            <Button className="bg-black text-white hover:bg-gray-800">Prendre rendez-vous</Button>
+            <Button className="bg-black text-white hover:bg-gray-800" onClick={() => router.push("/institut-de-beaute")}>Prendre rendez-vous</Button>
           </div>
         </div>
       </header>
@@ -83,7 +85,7 @@ export default function ClientDashboard() {
         <div className="mb-8">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold text-black">Prochains rendez-vous</h2>
-            <Button className="bg-black text-white hover:bg-gray-800">Prendre rendez-vous</Button>
+            <Button className="bg-black text-white hover:bg-gray-800" onClick={() => router.push("/institut-de-beaute")}>Prendre rendez-vous</Button>
           </div>
 
           {upcomingBookings.map((booking) => (

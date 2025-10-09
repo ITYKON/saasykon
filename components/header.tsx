@@ -20,6 +20,9 @@ export function Header() {
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex space-x-8">
+            <Link href="/institut-de-beaute" className="text-gray-700 hover:text-black transition-colors">
+            Institut de beauté
+            </Link>
             <Link href="/coiffeur" className="text-gray-700 hover:text-black transition-colors">
               Coiffeur
             </Link>
@@ -29,9 +32,7 @@ export function Header() {
             <Link href="/manucure" className="text-gray-700 hover:text-black transition-colors">
               Manucure
             </Link>
-            <Link href="/institut-de-beaute" className="text-gray-700 hover:text-black transition-colors">
-              Institut de beauté
-            </Link>
+
           </nav>
 
           <div className="flex items-center space-x-4">
