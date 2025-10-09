@@ -1,8 +1,87 @@
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import Link from "next/link"
+import { prisma } from "@/lib/prisma"
+import { redirect } from "next/navigation"
 
-export default function InstitutDeBeautePage() {
+function slugifyCity(name: string) {
+  return name
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "")
+}
+
+function SearchForm() {
+  async function searchAction(formData: FormData) {
+    "use server"
+    const q = formData.get("q")?.toString().trim()
+    const where = formData.get("where")?.toString().trim()
+
+    if (where && where.length > 0) {
+      const slug = slugifyCity(where)
+      // Validate city exists to avoid 404
+      const allCities = await prisma.cities.findMany({ select: { name: true } })
+      const exists = allCities.some((c) => slugifyCity(c.name) === slug)
+      if (exists) {
+        redirect(`/institut-de-beaute/${slug}`)
+      }
+      // Fallback: show list with all cities and preserve desired city in query
+      const qs = new URLSearchParams()
+      qs.set("all", "1")
+      if (q) qs.set("q", q)
+      qs.set("city", slug)
+      redirect(`/institut-de-beaute?${qs.toString()}`)
+    }
+
+    // Default: stay on listing, optionally could pass q in querystring later
+    redirect(`/institut-de-beaute`)
+  }
+
+  return (
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-2">
+      <form action={searchAction} className="flex flex-col md:flex-row gap-2">
+        <div className="flex-1">
+          <div className="relative">
+            <Input
+              name="q"
+              type="text"
+              placeholder="Que cherchez-vous ?"
+              defaultValue="Instituts de beauté"
+              className="border-0 focus:ring-0 text-gray-900 bg-transparent"
+            />
+          </div>
+        </div>
+        <div className="flex-1">
+          <div className="relative">
+            <Input
+              name="where"
+              type="text"
+              placeholder="Où"
+              defaultValue="Adresse, ville..."
+              className="border-0 focus:ring-0 text-gray-500 bg-transparent"
+            />
+          </div>
+        </div>
+        <Button type="submit" className="bg-black hover:bg-gray-800 text-white px-8">Rechercher</Button>
+      </form>
+    </div>
+  )
+}
+
+export default async function InstitutDeBeautePage({
+  searchParams,
+}: {
+  searchParams?: { [key: string]: string | string[] | undefined }
+}) {
+  const cities = await prisma.cities.findMany({
+    orderBy: { name: "asc" },
+  })
+  const showAll = (typeof searchParams?.all === "string" && searchParams?.all === "1") ||
+    (Array.isArray(searchParams?.all) && searchParams?.all.includes("1"))
+  const cityList = showAll ? cities : cities.slice(0, 12)
+
   return (
     <div className="min-h-screen bg-white">
       {/* Hero Section with Search */}
@@ -16,134 +95,76 @@ export default function InstitutDeBeautePage() {
 
           {/* Search Bar */}
           <div className="max-w-4xl mx-auto">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-2">
-              <div className="flex flex-col md:flex-row gap-2">
-                <div className="flex-1">
-                  <div className="relative">
-                    <Input
-                      type="text"
-                      placeholder="Que cherchez-vous ?"
-                      defaultValue="Instituts de beauté"
-                      className="border-0 focus:ring-0 text-gray-900 bg-transparent"
-                    />
-                  </div>
-                </div>
-                <div className="flex-1">
-                  <div className="relative">
-                    <Input
-                      type="text"
-                      placeholder="Où"
-                      defaultValue="Adresse, ville..."
-                      className="border-0 focus:ring-0 text-gray-500 bg-transparent"
-                    />
-                  </div>
-                </div>
-                <Button className="bg-black hover:bg-gray-800 text-white px-8">Rechercher</Button>
-              </div>
-            </div>
+            <SearchForm />
           </div>
         </div>
       </section>
 
-      {/* Cities Section */}
+      {/* Cities Section (from DB) */}
       <section className="py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="mb-8">
             <h2 className="text-3xl font-bold text-gray-900 mb-2">Institut de beauté</h2>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {/* Paris Card */}
-            <Link href="/institut-de-beaute/paris" className="group">
-              <div className="bg-white rounded-lg overflow-hidden shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
-                <div className="aspect-video relative overflow-hidden">
-                  <img
-                    src="/paris-eiffel-tower-beautiful-cityscape.jpg"
-                    alt="Paris - Tour Eiffel"
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
+          {/* Featured Algerian Cities */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
+            {[
+              { name: "Béjaïa", slug: slugifyCity("Béjaïa"), img: "/beauty-salon-reception-area-with-modern-decor.jpg" },
+              { name: "Alger", slug: slugifyCity("Alger"), img: "/elegant-beauty-salon-interior-with-warm-lighting-a.jpg" },
+              { name: "Oran", slug: slugifyCity("Oran"), img: "/modern-spa-interior-marseille.jpg" },
+            ].map((c) => (
+              <Link key={c.slug} href={`/institut-de-beaute/${c.slug}`} className="group">
+                <div className="bg-white rounded-lg overflow-hidden shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
+                  <div className="aspect-video relative overflow-hidden">
+                    <img
+                      src={c.img}
+                      alt={`${c.name} - Institut de beauté`}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                  </div>
+                  <div className="p-6">
+                    <p className="text-sm text-gray-600 mb-2">Découvrez nos</p>
+                    <h3 className="text-xl font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
+                      Instituts de beauté à {c.name}
+                    </h3>
+                  </div>
                 </div>
-                <div className="p-6">
-                  <p className="text-sm text-gray-600 mb-2">Découvrez nos</p>
-                  <h3 className="text-xl font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
-                    Instituts de beauté à Paris
-                  </h3>
-                </div>
-              </div>
-            </Link>
-
-            {/* Marseille Card */}
-            <Link href="/institut-de-beaute/marseille" className="group">
-              <div className="bg-white rounded-lg overflow-hidden shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
-                <div className="aspect-video relative overflow-hidden">
-                  <img
-                    src="/marseille-city-view-mediterranean-architecture.jpg"
-                    alt="Marseille - Vue urbaine"
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
-                </div>
-                <div className="p-6">
-                  <p className="text-sm text-gray-600 mb-2">Découvrez nos</p>
-                  <h3 className="text-xl font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
-                    Instituts de beauté à Marseille
-                  </h3>
-                </div>
-              </div>
-            </Link>
-
-            {/* Lyon Card */}
-            <Link href="/institut-de-beaute/lyon" className="group">
-              <div className="bg-white rounded-lg overflow-hidden shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
-                <div className="aspect-video relative overflow-hidden">
-                  <img
-                    src="/lyon-city-view-sa-ne-river-beautiful-architecture.jpg"
-                    alt="Lyon - Vue sur la Saône"
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
-                </div>
-                <div className="p-6">
-                  <p className="text-sm text-gray-600 mb-2">Découvrez nos</p>
-                  <h3 className="text-xl font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
-                    Instituts de beauté à Lyon
-                  </h3>
-                </div>
-              </div>
-            </Link>
+              </Link>
+            ))}
           </div>
 
-          {/* Additional Cities Grid */}
-          <div className="mt-16">
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-8">
-              {[
-                "Bordeaux",
-                "Lille",
-                "Toulouse",
-                "Nice",
-                "Nantes",
-                "Montpellier",
-                "Strasbourg",
-                "Rennes",
-                "Reims",
-                "Saint-Étienne",
-                "Toulon",
-                "Le Havre",
-              ].map((city) => (
-                <Link
-                  key={city}
-                  href={`/institut-de-beaute/${city.toLowerCase().replace(/[^a-z0-9]/g, "-")}`}
-                  className="group"
-                >
+          {/* All Cities from DB */}
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-8">
+            {cityList.map((city) => {
+              const slug = slugifyCity(city.name)
+              return (
+                <Link key={`${city.id}-${slug}`} href={`/institut-de-beaute/${slug}`} className="group">
                   <div className="bg-white rounded-lg p-6 border border-gray-200 hover:shadow-md transition-shadow text-center">
                     <div className="w-16 h-16 bg-gray-100 rounded-full mx-auto mb-4 flex items-center justify-center group-hover:bg-blue-50 transition-colors">
                       <div className="w-8 h-8 bg-gray-300 rounded-full group-hover:bg-blue-300 transition-colors"></div>
                     </div>
-                    <h3 className="font-medium text-gray-900 group-hover:text-blue-600 transition-colors">{city}</h3>
+                    <h3 className="font-medium text-gray-900 group-hover:text-blue-600 transition-colors">{city.name}</h3>
                     <p className="text-sm text-gray-600 mt-1">Instituts de beauté</p>
                   </div>
                 </Link>
-              ))}
-            </div>
+              )
+            })}
           </div>
+          {!showAll && cities.length > 12 && (
+            <div className="flex justify-center mt-10">
+              <Button asChild className="bg-black hover:bg-gray-800 text-white">
+                <Link href="/institut-de-beaute?all=1">Voir plus</Link>
+              </Button>
+            </div>
+          )}
+          {showAll && cities.length > 12 && (
+            <div className="flex justify-center mt-10">
+              <Button asChild variant="outline">
+                <Link href="/institut-de-beaute">Voir moins</Link>
+              </Button>
+            </div>
+          )}
         </div>
       </section>
 
@@ -200,3 +221,4 @@ export default function InstitutDeBeautePage() {
     </div>
   )
 }
+

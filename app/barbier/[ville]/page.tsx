@@ -3,89 +3,27 @@ import { notFound } from "next/navigation"
 import Image from "next/image"
 import { MapPin, Star, Filter, Info } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
+import { prisma } from "@/lib/prisma"
 
 interface PageProps {
-  params: {
-    ville: string
-  }
-}
-
-const validCities = [
-  "paris",
-  "marseille",
-  "lyon",
-  "toulouse",
-  "nice",
-  "nantes",
-  "montpellier",
-  "strasbourg",
-  "bordeaux",
-  "lille",
-]
-
-const cityNames: Record<string, string> = {
-  paris: "Paris",
-  marseille: "Marseille",
-  lyon: "Lyon",
-  toulouse: "Toulouse",
-  nice: "Nice",
-  nantes: "Nantes",
-  montpellier: "Montpellier",
-  strasbourg: "Strasbourg",
-  bordeaux: "Bordeaux",
-  lille: "Lille",
+  params: { ville: string }
 }
 
 const filters = ["Coupe", "Rasage", "Taille de barbe", "Soins visage", "Traditionnel"]
 
-const salons = [
-  {
-    id: 1,
-    name: "Barbershop Vintage",
-    address: "25 Rue de la Paix, 75002 Paris",
-    rating: 4.9,
-    reviewCount: 234,
-    priceRange: "€€",
-    image: "/traditional-barbershop-vintage-chairs-mirrors.jpg",
-    featured: true,
-    timeSlots: {
-      morning: ["09:00", "10:30", "11:00"],
-      afternoon: ["14:00", "15:30", "16:00"],
-    },
-  },
-  {
-    id: 2,
-    name: "Modern Barber",
-    address: "18 Boulevard Saint-Germain, 75005 Paris",
-    rating: 4.7,
-    reviewCount: 167,
-    priceRange: "€€€",
-    image: "/modern-barbershop-contemporary-style.jpg",
-    featured: true,
-    timeSlots: {
-      morning: ["09:30", "10:00", "11:30"],
-      afternoon: ["14:30", "15:00", "16:30"],
-    },
-  },
-  {
-    id: 3,
-    name: "Gentleman's Cut",
-    address: "7 Rue du Faubourg Saint-Honoré, 75008 Paris",
-    rating: 4.8,
-    reviewCount: 189,
-    priceRange: "€€€€",
-    image: "/luxury-barbershop-elegant-interior.jpg",
-    featured: false,
-    timeSlots: {
-      morning: ["09:00", "10:00", "11:00"],
-      afternoon: ["14:00", "15:00", "16:00"],
-    },
-  },
-]
+function slugifyCity(name: string) {
+  return name
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "")
+}
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const cityName = cityNames[params.ville]
+  const all = await prisma.cities.findMany({ select: { name: true } })
+  const city = all.find((c) => slugifyCity(c.name) === params.ville)
+  const cityName = city?.name
   if (!cityName) return { title: "Ville non trouvée" }
 
   return {
@@ -94,12 +32,15 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }
 }
 
-export default function BarbierVillePage({ params }: PageProps) {
-  if (!validCities.includes(params.ville)) {
-    notFound()
-  }
-
-  const cityName = cityNames[params.ville]
+export default async function BarbierVillePage({ params }: PageProps) {
+  const all = await prisma.cities.findMany()
+  const city = all.find((c) => slugifyCity(c.name) === params.ville)
+  if (!city) notFound()
+  const locations = await prisma.business_locations.findMany({
+    where: { city_id: city.id },
+    include: { businesses: true },
+    orderBy: { created_at: "desc" },
+  })
 
   return (
     <div className="min-h-screen bg-white">
@@ -120,9 +61,7 @@ export default function BarbierVillePage({ params }: PageProps) {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Sélectionnez un salon</h1>
-          <p className="text-gray-600 mb-2">
-            Les meilleurs barbiers aux alentours de {cityName} : Réservation en ligne
-          </p>
+          <p className="text-gray-600 mb-2">Les meilleurs barbiers aux alentours de {city.name} : Réservation en ligne</p>
           <button className="text-blue-600 hover:text-blue-700 text-sm flex items-center">
             Classement des résultats à la une
             <Info className="w-4 h-4 ml-1" />
@@ -131,20 +70,15 @@ export default function BarbierVillePage({ params }: PageProps) {
 
         {/* Salons List */}
         <div className="space-y-8">
-          {salons.map((salon) => (
+          {locations.map((loc) => (
             <div
-              key={salon.id}
+              key={loc.id}
               className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow"
             >
               <div className="flex flex-col lg:flex-row">
                 {/* Image */}
                 <div className="relative lg:w-80 h-64 lg:h-auto">
-                  <Image src={salon.image || "/placeholder.svg"} alt={salon.name} fill className="object-cover" />
-                  {salon.featured && (
-                    <Badge className="absolute top-3 left-3 bg-blue-100 text-blue-800 hover:bg-blue-100">
-                      À la une
-                    </Badge>
-                  )}
+                  <Image src={loc.businesses.cover_url || "/placeholder.svg"} alt={loc.businesses.public_name} fill className="object-cover" />
                   {/* Image dots indicator */}
                   <div className="absolute bottom-3 left-1/2 transform -translate-x-1/2 flex space-x-1">
                     {[...Array(5)].map((_, i) => (
@@ -157,16 +91,16 @@ export default function BarbierVillePage({ params }: PageProps) {
                 <div className="flex-1 p-6">
                   <div className="flex justify-between items-start mb-4">
                     <div>
-                      <h3 className="text-xl font-semibold text-gray-900 mb-2">{salon.name}</h3>
+                      <h3 className="text-xl font-semibold text-gray-900 mb-2">{loc.businesses.public_name}</h3>
                       <div className="flex items-center text-gray-600 mb-2">
                         <MapPin className="w-4 h-4 mr-1" />
-                        <span className="text-sm">{salon.address}</span>
+                        <span className="text-sm">{loc.address_line1}</span>
                       </div>
                       <div className="flex items-center">
                         <Star className="w-4 h-4 text-yellow-400 fill-current mr-1" />
-                        <span className="text-sm font-medium">{salon.rating}</span>
-                        <span className="text-sm text-gray-500 ml-1">({salon.reviewCount} avis)</span>
-                        <span className="text-sm text-gray-400 ml-3">{salon.priceRange}</span>
+                        <span className="text-sm font-medium">4.8</span>
+                        <span className="text-sm text-gray-500 ml-1">(0 avis)</span>
+                        <span className="text-sm text-gray-400 ml-3">€€€</span>
                       </div>
                     </div>
                     <Button className="bg-black hover:bg-gray-800 text-white">Prendre RDV</Button>
@@ -177,7 +111,7 @@ export default function BarbierVillePage({ params }: PageProps) {
                     <div>
                       <span className="text-sm font-medium text-gray-700 mr-4">MATIN</span>
                       <div className="inline-flex gap-2">
-                        {salon.timeSlots.morning.map((time) => (
+                        {["09:00", "10:30", "11:00"].map((time) => (
                           <Button
                             key={time}
                             variant="outline"
@@ -192,7 +126,7 @@ export default function BarbierVillePage({ params }: PageProps) {
                     <div>
                       <span className="text-sm font-medium text-gray-700 mr-4">APRÈS-MIDI</span>
                       <div className="inline-flex gap-2">
-                        {salon.timeSlots.afternoon.map((time) => (
+                        {["14:00", "15:30", "16:00"].map((time) => (
                           <Button
                             key={time}
                             variant="outline"
@@ -217,4 +151,9 @@ export default function BarbierVillePage({ params }: PageProps) {
       </div>
     </div>
   )
+}
+
+export async function generateStaticParams() {
+  const cities = await prisma.cities.findMany({ select: { name: true } })
+  return cities.map((c) => ({ ville: slugifyCity(c.name) }))
 }
