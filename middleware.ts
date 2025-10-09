@@ -13,7 +13,8 @@ export function middleware(request: NextRequest) {
   const isProtected = ["/admin", "/pro", "/client", "/api/admin", "/api/client"].some((p) => pathname.startsWith(p));
 
   const sessionToken = request.cookies.get(SESSION_COOKIE_NAME)?.value;
-  const roles = request.cookies.get("saas_roles")?.value?.split(",") ?? [];
+  const rolesCookie = request.cookies.get("saas_roles")?.value ?? "";
+  const roles = rolesCookie.split(",").filter(Boolean); // filter out empty entries
   const businessId = request.cookies.get("business_id")?.value;
   const SPECIAL_ADMIN_BUSINESS_ID = "00000000-0000-0000-0000-000000000000";
   

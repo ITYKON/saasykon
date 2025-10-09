@@ -12,6 +12,8 @@ import { useRouter } from "next/navigation"
 export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [formData, setFormData] = useState({
+    first_name: "",
+    last_name: "",
     phone: "",
     email: "",
     password: "",
@@ -38,6 +40,28 @@ export default function RegisterPage() {
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="first_name">Prénom</Label>
+                    <Input
+                      id="first_name"
+                      value={formData.first_name}
+                      onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
+                      className="mt-1"
+                      placeholder="Votre prénom"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="last_name">Nom</Label>
+                    <Input
+                      id="last_name"
+                      value={formData.last_name}
+                      onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
+                      className="mt-1"
+                      placeholder="Votre nom"
+                    />
+                  </div>
+                </div>
                 <div>
                   <Label htmlFor="phone">Téléphone portable *</Label>
                   <div className="flex mt-1">
@@ -105,6 +129,8 @@ export default function RegisterPage() {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
+                          first_name: formData.first_name || undefined,
+                          last_name: formData.last_name || undefined,
                           phone: formData.phone || undefined,
                           email: formData.email,
                           password: formData.password,

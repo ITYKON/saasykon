@@ -27,13 +27,31 @@ export default function AdminLayout({
   const { auth } = useAuth();
   const permissions = auth?.permissions || [];
   const isAdmin = auth?.roles?.includes("ADMIN");
+  // Compute display info for current user
+  const roleLabelMap: Record<string, string> = {
+    ADMIN: "Admin",
+    AGENT_COMMERCIAL: "Agent commercial",
+    agent_commercial: "Agent commercial",
+    COMMERCIAL: "Commercial",
+    SUPPORT: "Support",
+    MANAGER: "Manager",
+    PROFESSIONNEL: "Professionnel",
+    PRO: "Professionnel",
+    CLIENT: "Client",
+  };
+  const primaryRoleCode = auth?.roles?.[0] || (permissions.includes("statistics") ? "ADMIN" : "");
+  const primaryRoleLabel = primaryRoleCode ? (roleLabelMap[primaryRoleCode] || primaryRoleCode) : "";
+  const fullName = [auth?.first_name, auth?.last_name].filter(Boolean).join(" ");
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="flex">
         {/* Sidebar */}
         <div className="w-64 bg-white shadow-sm border-r sticky top-0 h-screen overflow-y-auto">
           <div className="p-6">
-            <h2 className="text-xl font-bold text-gray-900">Admin Planity</h2>
+            {/* Title becomes the main role */}
+            <h2 className="text-xl font-bold text-gray-900">{primaryRoleLabel || "Admin"}</h2>
+            {/* Full name below */}
+            {fullName && <div className="mt-1 text-sm text-gray-500">{fullName}</div>}
           </div>
           <nav className="px-4 space-y-2">
             {navigation

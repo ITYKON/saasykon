@@ -23,14 +23,24 @@ export default function AdminDashboard() {
   const [loadingPending, setLoadingPending] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
-  const load = () => {
-    return fetch("/api/admin/dashboard")
-      .then(r => r.json())
-      .then(d => {
-        setGlobalStats(d.globalStats)
-        setRecentSalons(d.recentSalons)
-        setSystemAlerts(d.systemAlerts)
-      })
+  const load = async () => {
+    try {
+      const r = await fetch("/api/admin/dashboard", { cache: "no-store" })
+      if (!r.ok) {
+        setGlobalStats(null)
+        setRecentSalons([])
+        setSystemAlerts([])
+        return
+      }
+      const d = await r.json().catch(() => ({} as any))
+      setGlobalStats(d?.globalStats ?? null)
+      setRecentSalons(Array.isArray(d?.recentSalons) ? d.recentSalons : [])
+      setSystemAlerts(Array.isArray(d?.systemAlerts) ? d.systemAlerts : [])
+    } catch {
+      setGlobalStats(null)
+      setRecentSalons([])
+      setSystemAlerts([])
+    }
   }
 
   useEffect(() => {

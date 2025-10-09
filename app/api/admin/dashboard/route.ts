@@ -10,7 +10,7 @@ function getMonthBounds(now = new Date()) {
 
 export async function GET() {
   try {
-    const auth = await requireAdminOrPermission("statistics");
+    const auth = await requireAdminOrPermission("dashboard");
     if (auth instanceof NextResponse) return auth;
 
     const now = new Date();

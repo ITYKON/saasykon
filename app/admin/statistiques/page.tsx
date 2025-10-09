@@ -162,7 +162,22 @@ function AdminStatisticsPageContent() {
                     <SelectItem value="365">12 derniers mois</SelectItem>
                   </SelectContent>
                 </Select>
-                <Button variant="outline">Exporter les données</Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    const days = parseInt(rangeDays, 10);
+                    const granularity = days >= 90 ? 'month' : 'day';
+                    const url = `/api/admin/statistics/export?range=${days}d&granularity=${granularity}`;
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = '';
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                  }}
+                >
+                  Exporter les données
+                </Button>
               </div>
             </div>
           </div>

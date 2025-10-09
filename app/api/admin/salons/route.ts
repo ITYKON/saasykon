@@ -45,7 +45,49 @@ export async function GET(req: Request) {
     prisma.businesses.count({ where }),
   ]);
 
-  // Calculs business pour badges/statuts avancés
+  // Pré-calculs agrégés pour enrichir les champs attendus par le front
+  const businessIds = salons.map((s) => s.id);
+  const now = new Date();
+  const last30 = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+  // groupBy reservations -> totalBookings
+  const reservationsCounts = businessIds.length
+    ? await prisma.reservations.groupBy({
+        by: ["business_id"],
+        where: { business_id: { in: businessIds } },
+        _count: { _all: true },
+      })
+    : [];
+  const bookingsMap = Object.fromEntries(reservationsCounts.map((r) => [r.business_id, r._count._all]));
+
+  // groupBy payments in last 30d -> monthlyRevenue in DA
+  const paymentsSums = businessIds.length
+    ? await prisma.payments.groupBy({
+        by: ["business_id"],
+        where: { business_id: { in: businessIds }, status: "CAPTURED", created_at: { gte: last30, lt: now } },
+        _sum: { amount_cents: true },
+      })
+    : [];
+  const monthlyRevenueMap = Object.fromEntries(
+    paymentsSums.map((p) => [p.business_id, Math.round(((p._sum.amount_cents || 0) as number) / 100)])
+  );
+
+  // lastActivity via event_logs (take recent and pick first per business)
+  const recentLogs = businessIds.length
+    ? await prisma.event_logs.findMany({
+        where: { business_id: { in: businessIds } },
+        orderBy: { occurred_at: "desc" },
+        take: 200,
+        select: { business_id: true, occurred_at: true },
+      })
+    : [];
+  const lastActivityMap: Record<string, string> = {};
+  for (const log of recentLogs) {
+    const bid = log.business_id as string | null;
+    if (bid && !lastActivityMap[bid]) lastActivityMap[bid] = log.occurred_at.toISOString();
+  }
+
+  // Calculs business pour badges/statuts avancés + enrichissements UI
   const salonsWithBadges = salons.map(salon => {
     // rating_avg et rating_count
     const rating_avg = salon.ratings_aggregates?.rating_avg ? Number(salon.ratings_aggregates.rating_avg) : 0;
@@ -65,6 +107,13 @@ export async function GET(req: Request) {
       ...salon,
       rating_avg,
       rating_count,
+      // Champs attendus par le front
+      rating: rating_avg,
+      reviewCount: rating_count,
+      totalBookings: bookingsMap[salon.id] || 0,
+      monthlyRevenue: monthlyRevenueMap[salon.id] || 0, // DA
+      joinDate: salon.created_at?.toISOString?.() || (salon as any).created_at,
+      lastActivity: lastActivityMap[salon.id] || undefined,
       subscription,
       status,
       isTop: rating_avg >= 4.5,
