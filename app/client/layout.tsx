@@ -4,7 +4,7 @@ import type React from "react"
 import Link from "next/link"
 import { useEffect, useState } from "react"
 import { usePathname } from "next/navigation"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Calendar, Heart, Settings, LogOut, LayoutDashboard } from "lucide-react"
 
 type AuthUser = {
@@ -13,6 +13,7 @@ type AuthUser = {
   first_name: string | null
   last_name: string | null
   roles: string[]
+  avatar_url?: string | null
 }
 
 function ClientSidebar() {
@@ -38,6 +39,7 @@ function ClientSidebar() {
       <div className="p-6">
         <div className="text-center mb-8">
           <Avatar className="h-20 w-20 mx-auto mb-4 bg-gray-200">
+            {authUser?.avatar_url ? <AvatarImage src={authUser.avatar_url} /> : null}
             <AvatarFallback className="text-gray-600 text-xl font-medium">
               {`${(authUser?.first_name?.[0] || "M").toUpperCase()}${(authUser?.last_name?.[0] || "D").toUpperCase()}`}
             </AvatarFallback>

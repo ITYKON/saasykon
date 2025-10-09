@@ -30,6 +30,8 @@ export async function GET() {
       email: session.users.email,
       first_name: session.users.first_name,
       last_name: session.users.last_name,
+      phone: session.users.phone,
+      avatar_url: session.users.avatar_url,
       roles: roleCodes,
       permissions: Array.from(permissionSet),
       // also expose role assignments so the client knows which business each role belongs to
