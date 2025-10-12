@@ -6,6 +6,7 @@ import { useEffect, useState } from "react"
 import { usePathname } from "next/navigation"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Calendar, Heart, Settings, LogOut, LayoutDashboard } from "lucide-react"
+import { Toaster } from "@/components/ui/toaster"
 
 type AuthUser = {
   id: string
@@ -85,6 +86,7 @@ export default function ClientLayout({
           {children}
         </div>
       </div>
+      <Toaster />
     </div>
   )
 }

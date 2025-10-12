@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { useToast } from "@/hooks/use-toast"
 
 
 type Booking = {
@@ -20,8 +22,11 @@ export default function ClientDashboard() {
   const [stats, setStats] = useState({ upcomingCount: 0, monthCount: 0, favoritesCount: 0 })
   const [upcomingBookings, setUpcomingBookings] = useState<Booking[]>([])
   const [userName, setUserName] = useState<string>("")
+  const [cancellingId, setCancellingId] = useState<string | null>(null)
+  const router = useRouter()
+  const { toast } = useToast()
 
-  useEffect(() => {
+  const loadData = () => {
     fetch("/api/client/dashboard")
       .then(res => res.json())
       .then(data => {
@@ -40,7 +45,51 @@ export default function ClientDashboard() {
         }
       })
       .catch(() => {})
+  }
+
+  useEffect(() => {
+    loadData()
   }, [])
+
+  const handleCancelBooking = async (bookingId: string) => {
+    if (!confirm("Êtes-vous sûr de vouloir annuler cette réservation ?")) return
+    
+    setCancellingId(bookingId)
+    try {
+      const response = await fetch("/api/client/bookings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: bookingId, reason: "cancelled-by-client" })
+      })
+      
+      if (response.ok) {
+        toast({
+          title: "Réservation annulée",
+          description: "Votre réservation a été annulée avec succès.",
+        })
+        loadData() // Recharger les données
+      } else {
+        const error = await response.json()
+        toast({
+          title: "Erreur",
+          description: error.error || "Impossible d'annuler la réservation.",
+          variant: "destructive"
+        })
+      }
+    } catch (error) {
+      toast({
+        title: "Erreur",
+        description: "Une erreur est survenue lors de l'annulation.",
+        variant: "destructive"
+      })
+    } finally {
+      setCancellingId(null)
+    }
+  }
+
+  const handleModifyBooking = (bookingId: string) => {
+    router.push(`/client/bookings/${bookingId}/edit`)
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -122,11 +171,22 @@ export default function ClientDashboard() {
                   <div className="text-right space-y-2">
                     <div className="text-2xl font-bold text-black">{booking.reservation_items?.[0]?.price_cents ? (booking.reservation_items[0].price_cents / 100 + " DA") : ""}</div>
                     <div className="flex space-x-2">
-                      <Button variant="outline" size="sm" className="bg-transparent">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="bg-transparent"
+                        onClick={() => handleModifyBooking(booking.id)}
+                      >
                         Modifier
                       </Button>
-                      <Button variant="outline" size="sm" className="text-red-600 border-red-600 bg-transparent">
-                        Annuler
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="text-red-600 border-red-600 bg-transparent"
+                        onClick={() => handleCancelBooking(booking.id)}
+                        disabled={cancellingId === booking.id}
+                      >
+                        {cancellingId === booking.id ? "Annulation..." : "Annuler"}
                       </Button>
                     </div>
                   </div>

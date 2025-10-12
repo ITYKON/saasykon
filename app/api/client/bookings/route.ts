@@ -60,6 +60,62 @@ export async function GET(request: Request) {
   return NextResponse.json({ items: bookings, total, page, pageSize, bookings })
 }
 
+// Modifier une réservation par le client (reprogrammer)
+export async function PUT(request: Request) {
+  const user = await getAuthUserFromCookies()
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  const { id, starts_at, employee_id, notes } = await request.json().catch(() => ({}))
+  if (!id) return NextResponse.json({ error: "Missing reservation id" }, { status: 400 })
+
+  const client = await prisma.clients.findFirst({ where: { user_id: user.id } })
+  if (!client) return NextResponse.json({ error: "Client not found" }, { status: 404 })
+
+  const reservation = await prisma.reservations.findUnique({ 
+    where: { id }, 
+    select: { id: true, client_id: true, status: true, starts_at: true, employee_id: true } 
+  })
+  if (!reservation || reservation.client_id !== client.id)
+    return NextResponse.json({ error: "Not found" }, { status: 404 })
+
+  if (reservation.status === "CANCELLED")
+    return NextResponse.json({ error: "Cannot modify cancelled reservation" }, { status: 400 })
+
+  // Préparer les données à mettre à jour
+  const updateData: any = { updated_at: new Date() }
+  if (starts_at) updateData.starts_at = new Date(starts_at)
+  if (employee_id) updateData.employee_id = employee_id
+  if (notes !== undefined) updateData.notes = notes
+
+  // Mettre à jour la réservation + historiser
+  const updated = await prisma.$transaction(async (tx) => {
+    const res = await tx.reservations.update({ 
+      where: { id }, 
+      data: updateData,
+      include: {
+        businesses: { select: { id: true, public_name: true, legal_name: true, phone: true } },
+        employees: true,
+        reservation_items: { include: { services: true } },
+        business_locations: { select: { address_line1: true, postal_code: true, cities: { select: { name: true } } } },
+      }
+    })
+    
+    // Historiser le changement
+    await tx.reservation_status_history.create({
+      data: {
+        reservation_id: id,
+        from_status: reservation.status as any,
+        to_status: reservation.status as any,
+        changed_by_user_id: user.id,
+        reason: "modified-by-client",
+      },
+    })
+    return res
+  })
+
+  return NextResponse.json({ booking: updated })
+}
+
 // Annuler une réservation par le client
 export async function PATCH(request: Request) {
   const user = await getAuthUserFromCookies()
