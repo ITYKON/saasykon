@@ -48,11 +48,7 @@ export async function createSession(userId: string) {
     include: { roles: true },
   });
   
-  console.log("🔍 [CREATE SESSION] User ID:", userId);
-  console.log("🔍 [CREATE SESSION] User roles from DB:", JSON.stringify(userRoles, null, 2));
-  
   const roleCodes = userRoles.map((ur) => ur.roles.code).join(",");
-  console.log("🔍 [CREATE SESSION] Role codes:", roleCodes);
   
   response.cookies.set("saas_roles", roleCodes, {
     httpOnly: false,
@@ -61,20 +57,16 @@ export async function createSession(userId: string) {
     expires: expiresAt,
     path: "/",
   });
-  console.log("✅ [CREATE SESSION] Set saas_roles cookie:", roleCodes);
   
   // Set business_id cookie for middleware
   // If user has ANY role with business_id '00000000-0000-0000-0000-000000000000', use that; otherwise first business_id
   let businessId = "";
   const special = userRoles.find((ur) => ur.business_id === "00000000-0000-0000-0000-000000000000");
-  console.log("🔍 [CREATE SESSION] Special business role found?", special ? "✅ YES" : "❌ NO");
   
   if (special) {
     businessId = special.business_id;
-    console.log("✅ [CREATE SESSION] Using special business_id:", businessId);
   } else if (userRoles.length > 0) {
     businessId = userRoles[0].business_id;
-    console.log("⚠️ [CREATE SESSION] Using first business_id:", businessId);
   }
   
   if (businessId) {
@@ -85,9 +77,6 @@ export async function createSession(userId: string) {
       expires: expiresAt,
       path: "/",
     });
-    console.log("✅ [CREATE SESSION] Set business_id cookie:", businessId);
-  } else {
-    console.log("⚠️ [CREATE SESSION] No business_id to set");
   }
   return response;
 }
