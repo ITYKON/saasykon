@@ -1,8 +1,8 @@
 import { ChevronDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
+import { SearchForm } from "@/components/search-form"
 import Link from "next/link"
 import Image from "next/image"
 
@@ -27,25 +27,7 @@ export default function HomePage() {
 
           {/* Search Form */}
           <div className="max-w-4xl mx-auto bg-white rounded-lg p-6 shadow-2xl">
-            <div className="grid md:grid-cols-3 gap-4">
-              <div className="md:col-span-2 relative">
-                <label className="block text-sm text-gray-600 mb-1 text-left">Que cherchez-vous ?</label>
-                <Input
-                  placeholder="Nom du salon, prestations (coupe...)"
-                  className="h-12 text-lg border-gray-300 focus:border-black focus:ring-black"
-                />
-              </div>
-              <div className="relative">
-                <label className="block text-sm text-gray-600 mb-1 text-left">Où</label>
-                <Input
-                  placeholder="Adresse, ville..."
-                  className="h-12 text-lg border-gray-300 focus:border-black focus:ring-black"
-                />
-              </div>
-            </div>
-            <Button className="w-full mt-4 h-12 text-lg bg-black hover:bg-gray-800 transition-colors">
-              Rechercher
-            </Button>
+            <SearchForm />
           </div>
         </div>
       </section>
