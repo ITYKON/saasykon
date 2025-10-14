@@ -23,15 +23,10 @@ interface SearchMapProps {
 }
 
 export function SearchMap({ businesses, center, onMarkerClick }: SearchMapProps) {
-  const [apiKey, setApiKey] = useState<string>("")
+  // Read NEXT_PUBLIC_ env at build time so Next.js inlines the value for client
+  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ""
   const [mapCenter, setMapCenter] = useState(center || { lat: 36.7538, lng: 3.0588 }) // Alger par défaut
   const [mapZoom, setMapZoom] = useState(13)
-
-  useEffect(() => {
-    // Récupérer la clé API depuis les variables d'environnement
-    const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ""
-    setApiKey(key)
-  }, [])
 
   useEffect(() => {
     // Calculer le centre de la carte basé sur les résultats
