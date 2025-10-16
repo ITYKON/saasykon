@@ -8,6 +8,7 @@ import useAuth from "@/hooks/useAuth";
 // Map navigation items to an optional permission code required to view them.
 const navigation = [
   { name: "Dashboard", href: "/admin/dashboard", icon: BarChart3, permission: null },
+  { name: "Leads", href: "/admin/leads", icon: Users, permission: null },
   { name: "Utilisateurs", href: "/admin/utilisateurs", icon: Users, permission: "users" },
   { name: "Salons", href: "/admin/salons", icon: Building2, permission: "salons" },
   { name: "Réservations", href: "/admin/reservations", icon: Calendar, permission: "reservations" },

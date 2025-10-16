@@ -6,6 +6,7 @@ const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME || "saas_session";
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isAuthPage = pathname.startsWith("/auth/");
+  const isInvitePage = pathname.startsWith("/auth/invite");
   const isApiRequest = pathname.startsWith("/api/");
   if (pathname === "/auth/logout") {
     return NextResponse.next();
@@ -51,12 +52,20 @@ export function middleware(request: NextRequest) {
   // Redirect sub-admins trying to access client/pro routes to admin dashboard
   const isClientPath = pathname.startsWith("/client");
   const isProPath = pathname.startsWith("/pro");
+  const isProOnboarding = pathname.startsWith("/pro/onboarding");
   
   if (canAccessAdmin && (isClientPath || isProPath)) {
     return NextResponse.redirect(new URL("/admin/dashboard", request.url));
   }
 
-  if (isAuthPage && sessionToken) {
+  // Force PRO users to complete onboarding before accessing other /pro pages
+  const onboardingDone = request.cookies.get("onboarding_done")?.value === "true";
+  if (roles.includes("PRO") && isProPath && !isProOnboarding && !onboardingDone) {
+    return NextResponse.redirect(new URL("/pro/onboarding", request.url));
+  }
+
+  // Do NOT auto-redirect away from the invite flow, even if a session exists
+  if (isAuthPage && !isInvitePage && sessionToken) {
     // Redirect based on roles and business_id
     if (canAccessAdmin) {
       return NextResponse.redirect(new URL("/admin/dashboard", request.url));

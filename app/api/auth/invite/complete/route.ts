@@ -1,0 +1,66 @@
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { rateLimit } from "@/lib/rateLimit";
+import { createHash } from "crypto";
+import { createSession, hashPassword } from "@/lib/auth";
+
+function getIp(req: NextRequest) {
+  return req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.ip || "";
+}
+
+function getUA(req: NextRequest) {
+  return req.headers.get("user-agent") || "";
+}
+
+export async function POST(req: NextRequest) {
+  const ip = getIp(req);
+  const rl = rateLimit(`invite-complete:${ip}`, 10, 60_000);
+  if (!rl.ok) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+
+  let body: any;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+
+  const token = (body?.token || "").toString();
+  const password = (body?.password || "").toString();
+  if (!token || !password) return NextResponse.json({ error: "Token and password are required" }, { status: 400 });
+
+  if (password.length < 8) return NextResponse.json({ error: "Password too short" }, { status: 400 });
+
+  const tokenHash = createHash("sha256").update(token).digest("hex");
+  const invite = await prisma.invite_tokens.findUnique({ where: { token_hash: tokenHash } }).catch(() => null);
+  const now = new Date();
+  const ok = !!invite && !invite.used && invite.expires_at > now;
+
+  await prisma.event_logs.create({
+    data: {
+      event_name: "invite.complete_attempt",
+      payload: { ok, ip, ua: getUA(req), invite_id: invite?.id, email: invite?.email },
+    },
+  }).catch(() => {});
+
+  if (!ok) return NextResponse.json({ error: invite ? (invite.used ? "Token already used" : "Token expired") : "Invalid token" }, { status: 400 });
+
+  // Update user password
+  const newHash = await hashPassword(password);
+  await prisma.users.update({ where: { id: invite!.user_id }, data: { password_hash: newHash, updated_at: new Date() } });
+
+  // Mark token used
+  await prisma.invite_tokens.update({ where: { token_hash: tokenHash }, data: { used: true } });
+
+  // Create session cookie response
+  const res = await createSession(invite!.user_id);
+
+  await prisma.event_logs.create({
+    data: {
+      user_id: invite!.user_id,
+      event_name: "invite.completed",
+      payload: { ip, ua: getUA(req), invite_id: invite!.id },
+    },
+  }).catch(() => {});
+
+  return res; // JSON { ok: true } with cookies set
+}

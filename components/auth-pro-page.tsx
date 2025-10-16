@@ -52,17 +52,35 @@ export default function AuthProLanding() {
       return;
     }
     setSubmitting(true);
-        try {
-          const res = await fetch("/api/lead", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(form),
-          });
-          if (!res.ok) throw new Error("Erreur API");
-          setForm({ companyName: "", firstName: "", lastName: "", email: "", phone: "", phoneCountry: "+33", city: "", businessType: "", consent: false });
-          window.location.href = "/lead-confirmation";
-    } catch (err) {
-      toast({ title: "Une erreur est survenue", description: "Merci de réessayer plus tard." });
+    try {
+      const payload = {
+        business_name: form.companyName,
+        owner_first_name: form.firstName,
+        owner_last_name: form.lastName,
+        email: form.email,
+        phone: form.phone,
+        activity_type: form.businessType || null,
+        location: form.city || null,
+        notes: null as string | null,
+      };
+      const res = await fetch("/api/leads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        const msg = data?.error || `Erreur API (${res.status})`;
+        throw new Error(msg);
+      }
+      setForm({ companyName: "", firstName: "", lastName: "", email: "", phone: "", phoneCountry: "+33", city: "", businessType: "", consent: false });
+      toast({ title: "Merci !", description: "Un expert vous contactera sous 24h." });
+      // Option: navigate to a confirmation section instead of page
+      if (typeof window !== "undefined") {
+        window.location.hash = "contact";
+      }
+    } catch (err: any) {
+      toast({ title: "Impossible d'envoyer votre demande", description: err?.message || "Merci de réessayer plus tard." });
     } finally {
       setSubmitting(false);
     }
