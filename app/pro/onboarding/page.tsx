@@ -125,7 +125,7 @@ export default function ProOnboardingPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 py-8">
+    <div className="relative z-50 mx-auto w-full max-w-3xl px-4 py-8">
       <div className="mb-6">
         <h1 className="text-2xl font-semibold">Configuration du compte professionnel</h1>
         <div className="text-sm text-muted-foreground">Étape {step + 1} / {STEPS.length} — {STEPS[step]}</div>
@@ -333,8 +333,11 @@ export default function ProOnboardingPage() {
           </div>
         </div>
       )}
-      {/* Overlay pour empêcher l'interaction avec la sidebar / reste du layout pendant l'onboarding */}
-      <div className="fixed inset-0 z-40 pointer-events-auto backdrop-blur-sm bg-background/30"></div>
+      {/* Overlay limité à la sidebar (largeur configurable) */}
+      <div
+        className="fixed left-0 top-0 z-40 h-screen pointer-events-auto backdrop-blur-sm bg-background/30"
+        style={{ width: "var(--sidebar-width, 280px)" }}
+      ></div>
     </div>
   );
 }
