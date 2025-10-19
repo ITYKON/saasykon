@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import {
   Crown,
   Star,
@@ -13,6 +14,9 @@ import {
   Plus,
   Edit,
   Eye,
+  Gift,
+  Rocket,
+  X,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -20,6 +24,9 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import { ProtectedAdminPage } from "@/components/admin/ProtectedAdminPage";
 
 export default function AdminAbonnements() {
@@ -30,43 +37,154 @@ export default function AdminAbonnements() {
   );
 }
 
+type PlanFeature = {
+  feature_code: string;
+  value: string | null;
+};
+
+type Plan = {
+  id: number;
+  code: string;
+  name: string;
+  price_cents: number;
+  currency: string;
+  billing_interval: string;
+  trial_days: number | null;
+  is_active: boolean;
+  features: PlanFeature[];
+  subscribers: number;
+  revenue: number;
+};
+
 function AdminAbonnementsContent() {
+  const [loading, setLoading] = useState(true);
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
+  const [editForm, setEditForm] = useState({
+    name: "",
+    price_cents: 0,
+    trial_days: 0,
+    features: "" as string,
+  });
+  const [submitting, setSubmitting] = useState(false);
+
   const subscriptionStats = {
-    totalRevenue: "1,250,000 DA",
-    activeSubscriptions: 1247,
-    monthlyGrowth: "+12%",
-    churnRate: "2.3%",
+    totalRevenue: "5,623,500 DA",
+    activeSubscriptions: 1571,
+    monthlyGrowth: "+18%",
+    churnRate: "1.8%",
+  };
+
+  // Charger les plans depuis l'API
+  useEffect(() => {
+    loadPlans();
+  }, []);
+
+  async function loadPlans() {
+    try {
+      const res = await fetch("/api/admin/plans");
+      if (!res.ok) throw new Error("Erreur de chargement");
+      const data = await res.json();
+      setPlans(data.plans || []);
+    } catch (error) {
+      console.error("Erreur lors du chargement des plans:", error);
+    } finally {
+      setLoading(false);
+    }
   }
 
-  const subscriptionPlans = [
-    {
-      name: "Basic",
-      price: "5,000 DA/mois",
-      color: "bg-gray-100 text-gray-800",
-      icon: Package,
-      features: ["Jusqu'à 50 RDV/mois", "Support email", "1 utilisateur"],
-      subscribers: 456,
-      revenue: "228,000 DA",
-    },
-    {
-      name: "Pro",
-      price: "15,000 DA/mois",
-      color: "bg-blue-100 text-blue-800",
-      icon: Star,
-      features: ["RDV illimités", "Support prioritaire", "5 utilisateurs", "Analytics"],
-      subscribers: 623,
-      revenue: "934,500 DA",
-    },
-    {
-      name: "Premium",
-      price: "25,000 DA/mois",
-      color: "bg-yellow-100 text-yellow-800",
-      icon: Crown,
-      features: ["Tout Pro +", "Support 24/7", "Utilisateurs illimités", "API access"],
-      subscribers: 168,
-      revenue: "420,000 DA",
-    },
-  ]
+  function openEditModal(plan: Plan) {
+    setSelectedPlan(plan);
+    setEditForm({
+      name: plan.name,
+      price_cents: plan.price_cents,
+      trial_days: plan.trial_days || 0,
+      features: plan.features.map(f => `${f.feature_code}: ${f.value || "true"}`).join("\n"),
+    });
+    setEditModalOpen(true);
+  }
+
+  async function handleSavePlan() {
+    if (!selectedPlan) return;
+    setSubmitting(true);
+
+    try {
+      // Parser les features depuis le textarea
+      const featuresLines = editForm.features.split("\n").filter(l => l.trim());
+      const features = featuresLines.map(line => {
+        const [feature_code, value] = line.split(":").map(s => s.trim());
+        return { feature_code, value: value || null };
+      });
+
+      const res = await fetch(`/api/admin/plans/${selectedPlan.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: editForm.name,
+          price_cents: editForm.price_cents,
+          trial_days: editForm.trial_days,
+          features,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Erreur de mise à jour");
+      }
+
+      alert("Plan mis à jour avec succès!");
+      setEditModalOpen(false);
+      await loadPlans();
+    } catch (error: any) {
+      alert(error.message || "Erreur lors de la mise à jour");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  // Fonction pour obtenir l'icône et la couleur selon le code du plan
+  function getPlanIcon(code: string) {
+    switch (code) {
+      case "decouverte": return { icon: Gift, color: "bg-green-100 text-green-800" };
+      case "starter": return { icon: Rocket, color: "bg-blue-100 text-blue-800" };
+      case "pro": return { icon: Star, color: "bg-purple-100 text-purple-800" };
+      case "business": return { icon: Crown, color: "bg-yellow-100 text-yellow-800" };
+      default: return { icon: Package, color: "bg-gray-100 text-gray-800" };
+    }
+  }
+
+  // Formater le prix en DA
+  function formatPrice(amount: number) {
+    return new Intl.NumberFormat("fr-DZ").format(amount) + " DA";
+  }
+
+  // Formater les features pour l'affichage
+  function formatFeatures(features: PlanFeature[]) {
+    return features.map(f => {
+      const label = f.feature_code.replace(/_/g, " ");
+      return f.value && f.value !== "true" ? `${label} (${f.value})` : label;
+    });
+  }
+
+  if (loading) {
+    return <div className="flex items-center justify-center h-full">Chargement...</div>;
+  }
+
+  const subscriptionPlans = plans.map(plan => {
+    const { icon, color } = getPlanIcon(plan.code);
+    return {
+      id: plan.id,
+      name: plan.name,
+      price: `${formatPrice(plan.price_cents)}/mois`,
+      color,
+      icon,
+      features: formatFeatures(plan.features),
+      subscribers: plan.subscribers,
+      revenue: formatPrice(plan.revenue),
+      rawData: plan,
+    };
+  });
 
   const allSubscriptions = [
     {
@@ -78,7 +196,7 @@ function AdminAbonnementsContent() {
       status: "Actif",
       startDate: "20 Sept 2025",
       nextBilling: "20 Oct 2025",
-      amount: "15,000 DA",
+      amount: "4,500 DA",
       paymentMethod: "Carte bancaire",
       autoRenewal: true,
     },
@@ -87,11 +205,11 @@ function AdminAbonnementsContent() {
       salonName: "Salon Elegance",
       owner: "Sarah Benali",
       email: "sarah@elegance.dz",
-      plan: "Premium",
+      plan: "Business",
       status: "Actif",
       startDate: "18 Sept 2025",
       nextBilling: "18 Oct 2025",
-      amount: "25,000 DA",
+      amount: "10,000 DA",
       paymentMethod: "Virement",
       autoRenewal: true,
     },
@@ -100,11 +218,11 @@ function AdminAbonnementsContent() {
       salonName: "Coiffure Moderne",
       owner: "Fatima Meziani",
       email: "fatima@moderne.dz",
-      plan: "Basic",
+      plan: "Starter",
       status: "Expiré",
       startDate: "15 Août 2025",
       nextBilling: "15 Sept 2025",
-      amount: "5,000 DA",
+      amount: "2,500 DA",
       paymentMethod: "Carte bancaire",
       autoRenewal: false,
     },
@@ -117,7 +235,7 @@ function AdminAbonnementsContent() {
       status: "En attente",
       startDate: "22 Sept 2025",
       nextBilling: "22 Oct 2025",
-      amount: "15,000 DA",
+      amount: "4,500 DA",
       paymentMethod: "Carte bancaire",
       autoRenewal: true,
     },
@@ -126,12 +244,12 @@ function AdminAbonnementsContent() {
       salonName: "Institut Beauté",
       owner: "Nadia Bouali",
       email: "nadia@institut.dz",
-      plan: "Basic",
-      status: "Suspendu",
+      plan: "Découverte",
+      status: "Actif",
       startDate: "10 Sept 2025",
-      nextBilling: "10 Oct 2025",
-      amount: "5,000 DA",
-      paymentMethod: "Virement",
+      nextBilling: "-",
+      amount: "0 DA",
+      paymentMethod: "Gratuit",
       autoRenewal: false,
     },
   ]
@@ -232,7 +350,11 @@ function AdminAbonnementsContent() {
                         <p className="text-lg font-semibold text-gray-600">{plan.price}</p>
                       </div>
                     </div>
-                    <Button variant="outline" size="sm">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => openEditModal(plan.rawData)}
+                    >
                       <Edit className="h-4 w-4 mr-1" />
                       Modifier
                     </Button>
@@ -316,11 +438,13 @@ function AdminAbonnementsContent() {
                           <Badge
                             variant="outline"
                             className={
-                              subscription.plan === "Premium"
+                              subscription.plan === "Business"
                                 ? "text-yellow-600 border-yellow-600"
                                 : subscription.plan === "Pro"
-                                  ? "text-blue-600 border-blue-600"
-                                  : "text-gray-600 border-gray-600"
+                                  ? "text-purple-600 border-purple-600"
+                                  : subscription.plan === "Starter"
+                                    ? "text-blue-600 border-blue-600"
+                                    : "text-green-600 border-green-600"
                             }
                           >
                             {subscription.plan}
@@ -376,6 +500,86 @@ function AdminAbonnementsContent() {
             </Card>
           </div>
         </div>
+
+        {/* Modal de modification de plan */}
+        <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Modifier le plan {selectedPlan?.name}</DialogTitle>
+            </DialogHeader>
+            
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="plan-name">Nom du plan</Label>
+                <Input
+                  id="plan-name"
+                  value={editForm.name}
+                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                  placeholder="Nom du plan"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="plan-price">Prix (en DA)</Label>
+                  <Input
+                    id="plan-price"
+                    type="number"
+                    value={editForm.price_cents}
+                    onChange={(e) => setEditForm({ ...editForm, price_cents: parseInt(e.target.value) || 0 })}
+                    placeholder="Ex: 2500 pour 2,500 DA"
+                  />
+                  <p className="text-xs text-gray-500">
+                    Prix actuel: {formatPrice(editForm.price_cents)}
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="plan-trial">Jours d'essai</Label>
+                  <Input
+                    id="plan-trial"
+                    type="number"
+                    value={editForm.trial_days}
+                    onChange={(e) => setEditForm({ ...editForm, trial_days: parseInt(e.target.value) || 0 })}
+                    placeholder="Ex: 14"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="plan-features">Fonctionnalités</Label>
+                <Textarea
+                  id="plan-features"
+                  value={editForm.features}
+                  onChange={(e) => setEditForm({ ...editForm, features: e.target.value })}
+                  placeholder="Une fonctionnalité par ligne&#10;Format: feature_code: valeur"
+                  rows={10}
+                  className="font-mono text-sm"
+                />
+                <p className="text-xs text-gray-500">
+                  Format: <code>feature_code: valeur</code> (une par ligne)
+                </p>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setEditModalOpen(false)}
+                disabled={submitting}
+              >
+                Annuler
+              </Button>
+              <Button
+                onClick={handleSavePlan}
+                disabled={submitting}
+                className="bg-black text-white hover:bg-gray-800"
+              >
+                {submitting ? "Enregistrement..." : "Enregistrer"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   )
