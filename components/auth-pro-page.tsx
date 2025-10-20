@@ -95,7 +95,7 @@ export default function AuthProLanding() {
             <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">La plateforme n°1 pour gérer votre salon ou institut</h1>
             <p className="text-muted-foreground">Réservations en ligne, agenda intelligent, rappels automatiques et outils marketing pour développer votre activité.</p>
             <div className="flex gap-3 pt-2">
-              <Link href="/pro/abonnement">
+              <Link href="/offres">
                 <Button size="lg">Découvrir les offres</Button>
               </Link>
               <Link href="#contact">

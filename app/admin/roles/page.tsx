@@ -550,7 +550,7 @@ function RolesPageContent() {
           {roleDetails && (
             <div className="space-y-3">
               <div className="text-sm text-gray-700">Nom: <span className="font-medium text-black">{roleDetails.name}</span></div>
-              <div className="text-sm text-gray-700">Code: <span className="font-mono">{roleDetails.code}</span></div>
+              <div className="">Code: <span className="font-mono">{roleDetails.code}</span></div>
               <div>
                 <div className="text-sm font-medium text-gray-900 mb-1">Permissions ({roleDetails.permissions?.length || 0})</div>
                 <div className="flex flex-wrap gap-1">

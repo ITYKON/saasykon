@@ -126,7 +126,9 @@ export default function HomePage() {
                 Planity recherche des profils dans toute la France pour digitaliser le secteur de la beauté
               </h3>
               <p className="text-gray-600 mb-6 italic">Antoine Puymirat - CEO</p>
-              <Button className="bg-black hover:bg-gray-800 text-white">Découvrir nos offres</Button>
+              <Link href="/offres">
+                <Button className="bg-black hover:bg-gray-800 text-white">Découvrir nos offres</Button>
+              </Link>
             </div>
           </div>
         </div>
