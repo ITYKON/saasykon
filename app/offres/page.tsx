@@ -247,17 +247,17 @@ export default function OffresPage() {
       </header>
 
       {/* Hero Section - Minimal */}
-      <section className="py-12 px-4 sm:px-6 lg:px-8 text-center">
-        <div className="max-w-4xl mx-auto mb-16">
+      <section className="py-4 px-4 sm:px-6 lg:px-8 text-center">
+        <div className="max-w-4xl mx-auto mb-4">
           <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
-            Découvrez nos offres professionnelles
+            Découvrez nos offres
           </h1>
-          <p className="text-xl text-gray-600 mb-8">
-            Optimisez la gestion de votre salon de coiffure avec nos solutions tout-en-un.
-            <br />
+          <p className="text-xl text-gray-600 mb-2">
+            {/* Optimisez la gestion de votre salon de coiffure avec nos solutions tout-en-un.
+            <br /> */}
             Choisissez la formule qui correspond le mieux à vos besoins et faites passer votre entreprise au niveau supérieur.
           </p>
-          <div className="flex flex-wrap justify-center gap-4">
+          {/* <div className="flex flex-wrap justify-center gap-4">
             <div className="flex items-center">
               <Check className="h-5 w-5 text-green-500 mr-2" />
               <span className="text-gray-700">Gestion simplifiée</span>
@@ -270,7 +270,7 @@ export default function OffresPage() {
               <Check className="h-5 w-5 text-green-500 mr-2" />
               <span className="text-gray-700">Évolutif</span>
             </div>
-          </div>
+          </div> */}
         </div>
         <div className="max-w-7xl mx-auto">
           {/* Vide - pas de hero dans le design fourni */}
