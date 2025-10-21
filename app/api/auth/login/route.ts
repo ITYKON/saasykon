@@ -43,7 +43,21 @@ export async function POST(request: Request) {
         user_agent: undefined,
       },
     }).catch(() => {});
-    return await createSession(user.id);
+    // Create session and role/business cookies
+    const res = await createSession(user.id);
+    // Sync onboarding_done cookie for PRO guard based on DB flag
+    try {
+      const owned = await prisma.businesses.findMany({ where: { owner_user_id: user.id }, select: { onboarding_completed: true } });
+      const done = owned.some((b) => b.onboarding_completed === true);
+      const expires = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
+      if (done) {
+        res.cookies.set("onboarding_done", "true", { httpOnly: false, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", expires });
+      } else {
+        // ensure it is cleared so middleware redirects to /pro/onboarding
+        res.cookies.set("onboarding_done", "", { httpOnly: false, expires: new Date(0), path: "/" });
+      }
+    } catch {}
+    return res;
   } catch (error) {
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
   }

@@ -68,6 +68,18 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     },
   });
 
+  // Ensure owner has PRO role for this business
+  try {
+    const proRole = await prisma.roles.findUnique({ where: { code: "PRO" } });
+    if (proRole) {
+      await prisma.user_roles.upsert({
+        where: { user_id_role_id_business_id: { user_id: user.id, role_id: proRole.id, business_id: business.id } as any },
+        update: {},
+        create: { user_id: user.id, role_id: proRole.id, business_id: business.id },
+      } as any);
+    }
+  } catch {}
+
   // Optional: attach plan via subscriptions placeholder (no Stripe yet)
   if (plan_code) {
     const plan = await prisma.plans.findUnique({ where: { code: plan_code } }).catch(() => null);

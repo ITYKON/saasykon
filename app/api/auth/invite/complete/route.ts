@@ -51,6 +51,21 @@ export async function POST(req: NextRequest) {
   // Mark token used
   await prisma.invite_tokens.update({ where: { token_hash: tokenHash }, data: { used: true } });
 
+  // Ensure invited user has PRO role on their business(es)
+  try {
+    const proRole = await prisma.roles.findUnique({ where: { code: "PRO" } });
+    if (proRole) {
+      const businesses = await prisma.businesses.findMany({ where: { owner_user_id: invite!.user_id }, select: { id: true } });
+      for (const b of businesses) {
+        await prisma.user_roles.upsert({
+          where: { user_id_role_id_business_id: { user_id: invite!.user_id, role_id: proRole.id, business_id: b.id } as any },
+          update: {},
+          create: { user_id: invite!.user_id, role_id: proRole.id, business_id: b.id },
+        } as any);
+      }
+    }
+  } catch {}
+
   // Create session cookie response
   const res = await createSession(invite!.user_id);
 
