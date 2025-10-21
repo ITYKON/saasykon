@@ -38,19 +38,36 @@ export async function POST(req: Request) {
       owner_user_id: user.id,
       archived_at: null,
       deleted_at: null,
+      status: "pending_verification" as any,
     },
   });
 
-  // Affecte le rôle "PROFESSIONNEL" à ce user avec le business fraichement créé
-  const proRole = await prisma.roles.findFirst({ where: { code: { equals: "PROFESSIONNEL" } } });
-  if (proRole) {
-    await prisma.user_roles.create({
-      data: {
-        user_id: user.id,
-        role_id: proRole.id,
-        business_id: lead.id,
-      }
-    });
+  // Log lead creation
+  await prisma.event_logs.create({
+    data: { event_name: "lead.created", user_id: user.id, business_id: lead.id, payload: { source: "api/lead", email: user.email } },
+  }).catch(() => {});
+
+  // Affecte le rôle PRO à la source (fallback legacy: PROFESSIONNEL)
+  try {
+    const role = await prisma.roles.findFirst({ where: { code: { in: ["PRO", "PROFESSIONNEL"] } } });
+    if (role) {
+      await prisma.user_roles.upsert({
+        where: { user_id_role_id_business_id: { user_id: user.id, role_id: role.id, business_id: lead.id } as any },
+        update: {},
+        create: { user_id: user.id, role_id: role.id, business_id: lead.id },
+      } as any);
+      await prisma.event_logs.create({
+        data: { event_name: "role.assigned", user_id: user.id, business_id: lead.id, payload: { role: role.code } },
+      }).catch(() => {});
+    } else {
+      await prisma.event_logs.create({
+        data: { event_name: "role.missing", user_id: user.id, business_id: lead.id, payload: { tried: ["PRO", "PROFESSIONNEL"] } },
+      }).catch(() => {});
+    }
+  } catch (e) {
+    await prisma.event_logs.create({
+      data: { event_name: "role.assign_error", user_id: user.id, business_id: lead.id, payload: { error: (e as any)?.message } },
+    }).catch(() => {});
   }
   // TODO: notifier un commercial (email, CRM...)
   return NextResponse.json({ success: true, lead });

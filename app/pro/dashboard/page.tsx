@@ -2,8 +2,34 @@ import { Calendar, Clock, Users, TrendingUp, DollarSign, Settings, Plus, Eye } f
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { prisma } from "@/lib/prisma"
+import { cookies } from "next/headers"
 
-export default function ProDashboard() {
+export default async function ProDashboard() {
+  // Load current business from cookie, fallback to first owned business
+  const cookieStore = cookies();
+  const businessId = cookieStore.get("business_id")?.value;
+  let business: { public_name: string; legal_name: string; id: string } | null = null;
+  let address: { address_line1?: string | null } | null = null;
+  if (businessId) {
+    business = await prisma.businesses.findUnique({ where: { id: businessId }, select: { id: true, public_name: true, legal_name: true } });
+    const loc = await prisma.business_locations.findFirst({ where: { business_id: businessId, is_primary: true }, select: { address_line1: true } });
+    address = loc as any;
+  } else {
+    // Fallback: pick any business of the logged-in user via session cookie
+    const sessionToken = cookieStore.get(process.env.SESSION_COOKIE_NAME || "saas_session")?.value;
+    if (sessionToken) {
+      const session = await prisma.sessions.findUnique({ where: { token: sessionToken } });
+      if (session) {
+        const owned = await prisma.businesses.findFirst({ where: { owner_user_id: session.user_id }, select: { id: true, public_name: true, legal_name: true } });
+        business = owned as any;
+        if (owned) {
+          const loc = await prisma.business_locations.findFirst({ where: { business_id: owned.id, is_primary: true }, select: { address_line1: true } });
+          address = loc as any;
+        }
+      }
+    }
+  }
   const todayBookings = [
     {
       id: 1,
@@ -49,8 +75,12 @@ export default function ProDashboard() {
           <div className="px-6 py-4">
             <div className="flex justify-between items-center">
               <div>
-                <h2 className="text-2xl font-bold text-black">PAVANA</h2>
-                <p className="text-gray-600">16 Rue Hadi Ahmed Mohamed, 16000 Hydra</p>
+                <h2 className="text-2xl font-bold text-black">{business?.public_name || business?.legal_name || "Mon salon"}</h2>
+                {address?.address_line1 ? (
+                  <p className="text-gray-600">{address.address_line1}</p>
+                ) : (
+                  <p className="text-gray-600">&nbsp;</p>
+                )}
               </div>
               <div className="flex items-center space-x-4">
                 <Button className="bg-black text-white hover:bg-gray-800">

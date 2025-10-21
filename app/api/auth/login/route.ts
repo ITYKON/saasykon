@@ -57,6 +57,29 @@ export async function POST(request: Request) {
         res.cookies.set("onboarding_done", "", { httpOnly: false, expires: new Date(0), path: "/" });
       }
     } catch {}
+    // Fallback: if user owns businesses but has no PRO role, auto-assign PRO
+    try {
+      const [assignments, owned, proRole] = await Promise.all([
+        prisma.user_roles.findMany({ where: { user_id: user.id }, include: { roles: true } }),
+        prisma.businesses.findMany({ where: { owner_user_id: user.id }, select: { id: true } }),
+        prisma.roles.findUnique({ where: { code: "PRO" } }),
+      ]);
+      const hasPRO = assignments.some((a) => a.roles.code === "PRO");
+      if (!hasPRO && proRole && owned.length) {
+        for (const b of owned) {
+          await prisma.user_roles.upsert({
+            where: { user_id_role_id_business_id: { user_id: user.id, role_id: proRole.id, business_id: b.id } as any },
+            update: {},
+            create: { user_id: user.id, role_id: proRole.id, business_id: b.id },
+          } as any);
+        }
+        // refresh roles cookie
+        const refreshed = await prisma.user_roles.findMany({ where: { user_id: user.id }, include: { roles: true } });
+        const roleCodes = refreshed.map((ur) => ur.roles.code).join(",");
+        const expiresAt = new Date(Date.now() + (Number(process.env.SESSION_TTL_SECONDS || 60 * 60 * 24 * 7)) * 1000);
+        res.cookies.set("saas_roles", roleCodes, { httpOnly: false, sameSite: "lax", secure: process.env.NODE_ENV === "production", expires: expiresAt, path: "/" });
+      }
+    } catch {}
     return res;
   } catch (error) {
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
