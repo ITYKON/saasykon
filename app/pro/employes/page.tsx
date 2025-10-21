@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -12,56 +12,22 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Plus, Search, Edit, Trash2, Calendar, Clock, Phone, Mail, User } from "lucide-react"
 
-const employees = [
-  {
-    id: 1,
-    name: "SOUSSOU HAMICHE",
-    email: "soussou@pavana.dz",
-    phone: "+213 555 123 456",
-    avatar: "/placeholder.svg?height=40&width=40",
-    role: "Coiffeur Senior",
-    services: ["Coupe", "Coloration", "Brushing"],
-    workDays: ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"],
-    restDays: ["Dimanche"],
-    workHours: "09:00 - 18:00",
-    status: "Actif",
-    joinDate: "15 mars 2023",
-    totalClients: 156,
-    rating: 4.8,
-  },
-  {
-    id: 2,
-    name: "Amina Khelifi",
-    email: "amina.k@pavana.dz",
-    phone: "+213 555 789 012",
-    avatar: "/placeholder.svg?height=40&width=40",
-    role: "Esthéticienne",
-    services: ["Soin visage", "Épilation", "Manucure"],
-    workDays: ["Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"],
-    restDays: ["Lundi", "Dimanche"],
-    workHours: "10:00 - 17:00",
-    status: "Actif",
-    joinDate: "22 juin 2023",
-    totalClients: 89,
-    rating: 4.9,
-  },
-  {
-    id: 3,
-    name: "Karim Benali",
-    email: "karim.b@pavana.dz",
-    phone: "+213 555 345 678",
-    avatar: "/placeholder.svg?height=40&width=40",
-    role: "Barbier",
-    services: ["Coupe homme", "Barbe", "Rasage"],
-    workDays: ["Lundi", "Mercredi", "Jeudi", "Vendredi", "Samedi"],
-    restDays: ["Mardi", "Dimanche"],
-    workHours: "09:00 - 19:00",
-    status: "En congé",
-    joinDate: "10 janvier 2024",
-    totalClients: 67,
-    rating: 4.7,
-  },
-]
+// Chargé dynamiquement depuis l'API
+type UIEmployee = {
+  id: string
+  name: string
+  email: string | null
+  phone: string | null
+  avatar?: string | null
+  role: string
+  services: string[]
+  workDays: string[]
+  restDays: string[]
+  workHours: string
+  status: string
+  totalClients?: number
+  rating?: number
+}
 
 const services = [
   "Coupe",
@@ -84,8 +50,174 @@ export default function EmployeesPage() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [selectedEmployee, setSelectedEmployee] = useState<any>(null)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [items, setItems] = useState<UIEmployee[]>([])
+  const [loading, setLoading] = useState(false)
 
-  const filteredEmployees = employees.filter(
+  function fmt(hhmm: string | Date): string {
+    const d = typeof hhmm === "string" ? new Date(`1970-01-01T${hhmm.length === 5 ? hhmm + ":00" : hhmm}Z`) : new Date(hhmm)
+    return d.toISOString().substring(11, 16)
+  }
+
+  function weekdayName(n: number): string {
+    return ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"][n]
+  }
+
+  async function loadEmployees() {
+    setLoading(true)
+    try {
+      const bidMatch = document.cookie.match(/(?:^|; )business_id=([^;]+)/)
+      const businessId = bidMatch ? decodeURIComponent(bidMatch[1]) : ""
+      const q = businessId ? `?business_id=${encodeURIComponent(businessId)}` : ""
+      const res = await fetch(`/api/pro/employees${q}`)
+      const data = await res.json()
+      if (!res.ok) throw new Error(data?.error || "Erreur de chargement")
+      const list: Array<{ id: string; full_name: string }> = data.employees || []
+
+      const out: UIEmployee[] = []
+      for (const e of list) {
+        const detRes = await fetch(`/api/pro/employees/${e.id}`)
+        const det = await detRes.json()
+        if (!detRes.ok || !det?.employee) continue
+        const emp = det.employee
+        const servicesNames: string[] = (emp.employee_services || []).map((x: any) => x.services?.name).filter(Boolean)
+        const hours = (emp.working_hours || [])
+        let minStart: string | null = null
+        let maxEnd: string | null = null
+        const workDaysNames: string[] = []
+        for (const h of hours) {
+          try {
+            const wd = Number(h.weekday)
+            workDaysNames.push(weekdayName(wd))
+            const st = fmt(h.start_time)
+            const en = fmt(h.end_time)
+            if (!minStart || st < minStart) minStart = st
+            if (!maxEnd || en > maxEnd) maxEnd = en
+          } catch {}
+        }
+        const workSet = new Set(workDaysNames)
+        const rest = ["Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi","Dimanche"].filter((d) => !workSet.has(d))
+        const role = (emp.employee_roles?.[0]?.role as string) || ""
+        out.push({
+          id: emp.id,
+          name: emp.full_name,
+          email: emp.email || null,
+          phone: emp.phone || null,
+          avatar: null,
+          role,
+          services: servicesNames,
+          workDays: Array.from(workSet),
+          restDays: rest,
+          workHours: minStart && maxEnd ? `${minStart} - ${maxEnd}` : "",
+          status: emp.is_active ? "Actif" : "Inactif",
+        })
+      }
+      setItems(out)
+    } catch (e) {
+      // ignore for now
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadEmployees()
+  }, [])
+
+  async function handleAddEmployee() {
+    const nameEl = document.getElementById("name") as HTMLInputElement | null
+    const emailEl = document.getElementById("email") as HTMLInputElement | null
+    const phoneEl = document.getElementById("phone") as HTMLInputElement | null
+    const startEl = document.getElementById("startTime") as HTMLInputElement | null
+    const endEl = document.getElementById("endTime") as HTMLInputElement | null
+    const roleEl = document.getElementById("role") as HTMLInputElement | null
+
+    const full_name = nameEl?.value?.trim() || ""
+    const email = emailEl?.value?.trim() || ""
+    const phone = phoneEl?.value?.trim() || ""
+    const start_time = startEl?.value || "09:00"
+    const end_time = endEl?.value || "18:00"
+
+    if (!full_name) {
+      alert("Nom complet requis")
+      return
+    }
+
+    try {
+      const bidMatch = document.cookie.match(/(?:^|; )business_id=([^;]+)/)
+      const businessId = bidMatch ? decodeURIComponent(bidMatch[1]) : ""
+      const q = businessId ? `?business_id=${encodeURIComponent(businessId)}` : ""
+      // 1) Create employee
+      const createRes = await fetch(`/api/pro/employees${q}` , {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ full_name, email: email || undefined, phone: phone || undefined }),
+      })
+      const created = await createRes.json()
+      if (!createRes.ok) throw new Error(created?.error || "Erreur de création")
+
+      const empId: string = created.id
+
+      // Gather service checkboxes
+      const selectedServiceNames = services.filter((s) => (document.getElementById(s) as HTMLInputElement | null)?.checked)
+      // Fetch canonical services with ids
+      let serviceIds: string[] = []
+      try {
+        const svcRes = await fetch(`/api/pro/services${q}`)
+        const svcs = await svcRes.json()
+        if (svcRes.ok && Array.isArray(svcs?.services)) {
+          const byName = new Map<string, string>()
+          for (const s of svcs.services) byName.set(String(s.name).toLowerCase(), s.id)
+          serviceIds = selectedServiceNames.map((n) => byName.get(n.toLowerCase())).filter(Boolean) as string[]
+        }
+      } catch {}
+
+      if (serviceIds.length) {
+        await fetch(`/api/pro/employees/${empId}/services`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ service_ids: serviceIds }),
+        }).catch(() => {})
+      }
+
+      // Gather working days checkboxes -> map to weekday indexes
+      const selectedDays = workDays.filter((d) => (document.getElementById(d) as HTMLInputElement | null)?.checked)
+      const dayIndex: Record<string, number> = {
+        "Lundi": 1,
+        "Mardi": 2,
+        "Mercredi": 3,
+        "Jeudi": 4,
+        "Vendredi": 5,
+        "Samedi": 6,
+        "Dimanche": 0,
+      }
+      const hours = selectedDays.map((d) => ({ weekday: dayIndex[d], start_time, end_time, breaks: [] }))
+      if (hours.length) {
+        await fetch(`/api/pro/employees/${empId}/hours`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ hours }),
+        }).catch(() => {})
+      }
+
+      // Optional: store role as an internal label if provided
+      const roleVal = roleEl?.value?.trim()
+      if (roleVal) {
+        await fetch(`/api/pro/employees/${empId}/roles`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ roles: [roleVal] }),
+        }).catch(() => {})
+      }
+
+      alert("Employé ajouté")
+      setIsAddDialogOpen(false)
+      await loadEmployees()
+    } catch (e: any) {
+      alert(e?.message || "Impossible d'ajouter l'employé")
+    }
+  }
+
+  const filteredEmployees = items.filter(
     (employee) =>
       employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       employee.role.toLowerCase().includes(searchTerm.toLowerCase()),
@@ -94,6 +226,66 @@ export default function EmployeesPage() {
   const handleEditEmployee = (employee: any) => {
     setSelectedEmployee(employee)
     setIsEditDialogOpen(true)
+  }
+
+  async function handleDeleteEmployee(id: string) {
+    if (!confirm("Supprimer cet employé ?")) return
+    try {
+      const res = await fetch(`/api/pro/employees/${id}`, { method: "DELETE" })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data?.error || "Suppression impossible")
+      await loadEmployees()
+    } catch (e: any) {
+      alert(e?.message || "Erreur lors de la suppression")
+    }
+  }
+
+  async function handleSaveEdit() {
+    if (!selectedEmployee?.id) return
+    const nameEl = document.getElementById("edit-name") as HTMLInputElement | null
+    const emailEl = document.getElementById("edit-email") as HTMLInputElement | null
+    const phoneEl = document.getElementById("edit-phone") as HTMLInputElement | null
+    const roleEl = document.getElementById("edit-role") as HTMLInputElement | null
+
+    const full_name = nameEl?.value?.trim() || ""
+    const email = emailEl?.value?.trim() || ""
+    const phone = phoneEl?.value?.trim() || ""
+    const roleVal = roleEl?.value?.trim() || ""
+
+    if (!full_name) {
+      alert("Nom complet requis")
+      return
+    }
+
+    try {
+      const res = await fetch(`/api/pro/employees/${selectedEmployee.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ full_name, email: email || undefined, phone: phone || undefined }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data?.error || "Mise à jour impossible")
+
+      if (roleVal) {
+        await fetch(`/api/pro/employees/${selectedEmployee.id}/roles`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ roles: [roleVal] }),
+        }).catch(() => {})
+      } else {
+        // vide => retire les rôles
+        await fetch(`/api/pro/employees/${selectedEmployee.id}/roles`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ roles: [] }),
+        }).catch(() => {})
+      }
+
+      setIsEditDialogOpen(false)
+      await loadEmployees()
+    } catch (e: any) {
+      alert(e?.message || "Erreur lors de la mise à jour")
+    }
   }
 
   return (
@@ -216,7 +408,7 @@ export default function EmployeesPage() {
                 <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
                   Annuler
                 </Button>
-                <Button className="bg-black text-white hover:bg-gray-800">Ajouter l'employé</Button>
+                <Button className="bg-black text-white hover:bg-gray-800" onClick={handleAddEmployee}>Ajouter l'employé</Button>
               </div>
             </DialogContent>
           </Dialog>
