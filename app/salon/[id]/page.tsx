@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -13,63 +13,53 @@ export default function SalonPage({ params }: { params: { id: string } }) {
   const [showBooking, setShowBooking] = useState(false)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const [isFavorite, setIsFavorite] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [data, setData] = useState<any | null>(null)
 
-  const salon = {
-    id: params.id,
-    name: "PAVANA",
-    address: "24 Rue Hadi Ahmed Mohamed, 16000 Hydra",
-    rating: 4.9,
-    reviewCount: 72,
-    distance: "4.9 km",
-    phone: "+213 21 XX XX XX",
-    images: [
-      "/elegant-beauty-salon-interior-with-warm-lighting-a.jpg",
-      "/modern-beauty-salon-with-stylish-people-getting-ha.jpg",
-      "/modern-beauty-salon-with-professional-hairstylist-.jpg",
-    ],
-    services: [
-      {
-        category: "COIFFURE - COIFFAGE",
-        items: [
-          {
-            name: "BRUSHING COURT / MI-LONGS / LONGS à partir de 1200-2000 DA",
-            description: "Coiffage uniquement",
-            price: "45min",
-            duration: "45min",
-            id: 1,
-          },
-          {
-            name: "SHAMPOING à partir de 300 DA",
-            description: "Shampoing professionnel",
-            price: "10min",
-            duration: "10min",
-            id: 2,
-          },
-          {
-            name: "MASQUE à partir de 400 DA",
-            description: "Masque nourrissant",
-            price: "10min",
-            duration: "10min",
-            id: 3,
-          },
-          {
-            name: "COUPE 2,200 DA",
-            description: "Coupe personnalisée",
-            price: "30min",
-            duration: "30min",
-            id: 4,
-          },
-          {
-            name: "BRUSHING / SHAMPOING / MASQUE à partir de 1900 DA",
-            description: "Prestation complète",
-            price: "45min",
-            duration: "45min",
-            id: 5,
-          },
-        ],
-      },
-    ],
-    hours: {
+  useEffect(() => {
+    let mounted = true
+    setLoading(true)
+    fetch(`/api/salon/${params.id}`, { cache: "no-store" })
+      .then(async (r) => {
+        const j = await r.json().catch(() => ({}))
+        if (!r.ok) throw new Error(j?.error || "Erreur de chargement")
+        return j
+      })
+      .then((j) => {
+        if (!mounted) return
+        setData(j)
+        setError(null)
+      })
+      .catch((e) => {
+        if (!mounted) return
+        setError(e?.message || "Erreur de chargement")
+      })
+      .finally(() => mounted && setLoading(false))
+    return () => { mounted = false }
+  }, [params.id])
+
+  const salon = useMemo(() => {
+    if (!data) return null
+    const ratings = {
+      overall: Number(data.rating || 0) || 0,
+      welcome: Number(data.rating || 0) || 0,
+      cleanliness: Number(data.rating || 0) || 0,
+      atmosphere: Number(data.rating || 0) || 0,
+      quality: Number(data.rating || 0) || 0,
+    }
+    // Map services to UI shape
+    const services = (data.services || []).map((c: any) => ({
+      category: c.category,
+      items: (c.items || []).map((it: any) => ({
+        id: it.id,
+        name: it.name,
+        description: it.description || "",
+        duration: `${it.duration_minutes || 30}min`,
+        price: it.price_cents != null ? `${Math.round(it.price_cents / 100)} DA` : "—",
+      })),
+    }))
+    const hours = {
       Lundi: "09:00 - 18:00",
       Mardi: "09:00 - 18:00",
       Mercredi: "09:00 - 18:00",
@@ -77,52 +67,55 @@ export default function SalonPage({ params }: { params: { id: string } }) {
       Vendredi: "09:00 - 18:00",
       Samedi: "09:00 - 18:00",
       Dimanche: "09:00 - 18:00",
-    },
-    ratings: {
-      overall: 4.9,
-      welcome: 4.9,
-      cleanliness: 4.9,
-      atmosphere: 4.9,
-      quality: 4.8,
-    },
-    reviews: [
-      {
-        id: 1,
-        author: "Sarah B.",
-        rating: 5,
-        date: "Il y a 2 jours",
-        comment: "Excellent service, très professionnel. Je recommande vivement !",
-        service: "COUPE + COIFFAGE",
-      },
-      {
-        id: 2,
-        author: "Amina K.",
-        rating: 5,
-        date: "Il y a 1 semaine",
-        comment: "Salon très propre, accueil chaleureux. Résultat parfait.",
-        service: "BRUSHING",
-      },
-      {
-        id: 3,
-        author: "Leila M.",
-        rating: 4,
-        date: "Il y a 2 semaines",
-        comment: "Bon salon, prix corrects. Satisfaite du résultat.",
-        service: "MASQUE",
-      },
-    ],
-  }
+    }
+    const reviews = (data.reviews || []).map((r: any) => ({
+      id: r.id,
+      author: r.author || "Client",
+      rating: r.rating || 0,
+      date: new Date(r.date).toLocaleDateString("fr-FR"),
+      comment: r.comment || "",
+      service: "",
+    }))
+    return {
+      id: data.id,
+      name: data.name,
+      address: data.address,
+      rating: ratings.overall,
+      reviewCount: data.reviewCount || reviews.length,
+      distance: "",
+      phone: data.phone || "",
+      images: data.images?.length ? data.images : ["/placeholder.svg"],
+      services,
+      hours,
+      ratings,
+      reviews,
+    }
+  }, [data])
 
   const nextImage = () => {
-    setCurrentImageIndex((prev) => (prev + 1) % salon.images.length)
+    const len = salon?.images?.length || 1
+    setCurrentImageIndex((prev) => (prev + 1) % len)
   }
 
   const prevImage = () => {
-    setCurrentImageIndex((prev) => (prev - 1 + salon.images.length) % salon.images.length)
+    const len = salon?.images?.length || 1
+    setCurrentImageIndex((prev) => (prev - 1 + len) % len)
   }
 
-  if (showBooking) {
+  if (showBooking && salon) {
     return <BookingWizard salon={salon} onClose={() => setShowBooking(false)} />
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center text-gray-600">Chargement…</div>
+    )
+  }
+
+  if (error || !salon) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center text-red-600">{error || "Salon introuvable"}</div>
+    )
   }
 
   return (
@@ -149,16 +142,16 @@ export default function SalonPage({ params }: { params: { id: string } }) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-black mb-2">{salon.name}</h1>
+            <h1 className="text-3xl font-bold text-black mb-2">{salon?.name || (loading ? "Chargement..." : "Salon")}</h1>
             <div className="flex flex-col sm:flex-row sm:items-center text-gray-600 gap-2 sm:gap-4">
               <div className="flex items-center">
                 <MapPin className="h-4 w-4 mr-1" />
-                <span>{salon.address}</span>
+                <span>{salon?.address || (loading ? "Chargement..." : "")}</span>
               </div>
               <div className="flex items-center">
                 <Star className="h-4 w-4 mr-1 text-yellow-500 fill-current" />
-                <span className="font-semibold">{salon.rating}</span>
-                <span className="ml-1">({salon.reviewCount} avis)</span>
+                <span className="font-semibold">{salon?.rating ?? 0}</span>
+                <span className="ml-1">({salon?.reviewCount ?? 0} avis)</span>
               </div>
             </div>
           </div>
@@ -176,7 +169,7 @@ export default function SalonPage({ params }: { params: { id: string } }) {
               <Share2 className="h-4 w-4 mr-1" />
               Partager
             </Button>
-            <Button className="bg-black hover:bg-gray-800 text-white" onClick={() => setShowBooking(true)}>
+            <Button className="bg-black hover:bg-gray-800 text-white" disabled={!salon} onClick={() => setShowBooking(true)}>
               Prendre RDV
             </Button>
           </div>
@@ -185,13 +178,13 @@ export default function SalonPage({ params }: { params: { id: string } }) {
         <div className="relative mb-8">
           <div className="aspect-video lg:aspect-[21/9] rounded-lg overflow-hidden">
             <Image
-              src={salon.images[currentImageIndex] || "/placeholder.svg"}
-              alt={`${salon.name} ${currentImageIndex + 1}`}
+              src={(salon?.images?.[currentImageIndex]) || "/placeholder.svg"}
+              alt={`${salon?.name || "Salon"} ${currentImageIndex + 1}`}
               fill
               className="object-cover"
             />
           </div>
-          {salon.images.length > 1 && (
+          {salon?.images?.length > 1 && (
             <>
               <Button
                 variant="outline"
@@ -210,7 +203,7 @@ export default function SalonPage({ params }: { params: { id: string } }) {
                 <ChevronRight className="h-4 w-4" />
               </Button>
               <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2">
-                {salon.images.map((_, index) => (
+                {(salon?.images || []).map((_: any, index: number) => (
                   <button
                     key={index}
                     className={`w-2 h-2 rounded-full ${index === currentImageIndex ? "bg-white" : "bg-white/50"}`}
@@ -227,7 +220,7 @@ export default function SalonPage({ params }: { params: { id: string } }) {
           <div className="lg:col-span-2">
             <Card className="mb-6">
               <CardContent className="p-6">
-                <h2 className="text-xl font-semibold mb-4">Réserver en ligne pour un RDV chez {salon.name}</h2>
+                <h2 className="text-xl font-semibold mb-4">Réserver en ligne pour un RDV chez {salon?.name || "ce salon"}</h2>
                 <div className="flex flex-wrap gap-4 text-sm text-gray-600">
                   <span>24h/24</span>
                   <span>•</span>
@@ -247,12 +240,12 @@ export default function SalonPage({ params }: { params: { id: string } }) {
               </TabsList>
 
               <TabsContent value="services" className="space-y-6">
-                {salon.services.map((category, categoryIndex) => (
+                {(salon?.services || []).map((category: any, categoryIndex: number) => (
                   <Card key={categoryIndex}>
                     <CardContent className="p-6">
                       <h3 className="font-semibold text-lg mb-4">{category.category}</h3>
                       <div className="space-y-3">
-                        {category.items.map((service) => (
+                        {category.items.map((service: any) => (
                           <div
                             key={service.id}
                             className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
@@ -280,7 +273,7 @@ export default function SalonPage({ params }: { params: { id: string } }) {
               </TabsContent>
 
               <TabsContent value="reviews" className="space-y-4">
-                {salon.reviews.map((review) => (
+                {(salon?.reviews || []).map((review: any) => (
                   <Card key={review.id}>
                     <CardContent className="p-6">
                       <div className="flex justify-between items-start mb-3">
@@ -352,7 +345,7 @@ export default function SalonPage({ params }: { params: { id: string } }) {
                   Horaires d'ouverture
                 </h3>
                 <div className="space-y-2">
-                  {Object.entries(salon.hours).map(([day, hours]) => (
+                  {Object.entries(salon?.hours || {}).map(([day, hours]) => (
                     <div key={day} className="flex justify-between text-sm">
                       <span className="font-medium text-gray-700">{day}</span>
                       <span className={hours === "Fermé" ? "text-red-600" : "text-gray-600"}>{hours}</span>
@@ -368,11 +361,11 @@ export default function SalonPage({ params }: { params: { id: string } }) {
                 <div className="space-y-3">
                   <div className="flex items-center">
                     <Phone className="h-4 w-4 mr-3 text-gray-500" />
-                    <span className="text-sm">{salon.phone}</span>
+                    <span className="text-sm">{salon?.phone || ""}</span>
                   </div>
                   <div className="flex items-center">
                     <MapPin className="h-4 w-4 mr-3 text-gray-500" />
-                    <span className="text-sm">{salon.address}</span>
+                    <span className="text-sm">{salon?.address || ""}</span>
                   </div>
                 </div>
               </CardContent>

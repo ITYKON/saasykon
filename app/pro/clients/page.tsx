@@ -1,10 +1,11 @@
-import { Users, Filter, Phone, Mail, Calendar, Star } from "lucide-react"
+import { Users, Filter, Phone, Mail, Calendar, Star, Eye, Pencil, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import Link from "next/link"
 
 export default function ProClients() {
   const clients = [
@@ -80,12 +81,30 @@ export default function ProClients() {
         <h1 className="text-2xl font-bold text-black">Mes clients</h1>
         <p className="text-gray-600">Gérer vos clients</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline">
-            <Filter className="h-4 w-4 mr-2" />
-            Filtres
-          </Button>
-        </div>
+              <div className="flex gap-2">
+                <Button variant="outline">
+                  <Filter className="h-4 w-4 mr-2" />
+                  Filtres
+                </Button>
+                <Link href="/pro/clients/new" className="flex-1">
+                  <Button variant="outline" size="sm" className="w-full bg-transparent">
+                    <Eye className="h-4 w-4 mr-1" />
+                    Voir tous
+                  </Button>
+                </Link>
+                <Link href="/pro/clients/new" className="flex-1">
+                  <Button variant="outline" size="sm" className="w-full bg-transparent">
+                    <Pencil className="h-4 w-4 mr-1" />
+                    Modifier
+                  </Button>
+                </Link>
+                <Link href="/pro/clients/new" className="flex-1">
+                  <Button variant="outline" size="sm" className="w-full bg-transparent text-red-600 border-red-300">
+                    <Trash2 className="h-4 w-4 mr-1" />
+                    Supprimer
+                  </Button>
+                </Link>
+              </div>
       </div>
       </div>
 </header>
@@ -201,7 +220,24 @@ export default function ProClients() {
                     </div>
                   </div>
                 </div>
-                <Badge className={getStatusColor(client.status)}>{client.status}</Badge>
+                <div className="flex items-center gap-2">
+                  <Badge className={getStatusColor(client.status)}>{client.status}</Badge>
+                  <Link href={`/pro/clients/${client.id}`} title="Voir">
+                    <Button variant="outline" size="icon" className="bg-transparent">
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                  </Link>
+                  <Link href={`/pro/clients/${client.id}/edit`} title="Modifier">
+                    <Button variant="outline" size="icon" className="bg-transparent">
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  </Link>
+                  <Link href={`/pro/clients/${client.id}?action=delete`} title="Supprimer">
+                    <Button variant="outline" size="icon" className="bg-transparent text-red-600 border-red-300">
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </Link>
+                </div>
               </div>
 
               <div className="space-y-2 text-sm text-gray-600 mb-4">
@@ -242,6 +278,27 @@ export default function ProClients() {
               </div>
 
               <div className="flex gap-2">
+                <Link href={`/pro/clients/${client.id}`} className="flex-1">
+                  <Button variant="outline" size="sm" className="w-full bg-transparent">
+                    <Eye className="h-4 w-4 mr-1" />
+                    Voir
+                  </Button>
+                </Link>
+                <Link href={`/pro/clients/${client.id}/edit`} className="flex-1">
+                  <Button variant="outline" size="sm" className="w-full bg-transparent">
+                    <Pencil className="h-4 w-4 mr-1" />
+                    Modifier
+                  </Button>
+                </Link>
+                <Link href={`/pro/clients/${client.id}?action=delete`} className="flex-1">
+                  <Button variant="outline" size="sm" className="w-full bg-transparent text-red-600 border-red-300">
+                    <Trash2 className="h-4 w-4 mr-1" />
+                    Supprimer
+                  </Button>
+                </Link>
+              </div>
+
+              <div className="flex gap-2 mt-3">
                 <Button variant="outline" size="sm" className="flex-1 bg-transparent">
                   <Calendar className="h-4 w-4 mr-1" />
                   Nouveau RDV
