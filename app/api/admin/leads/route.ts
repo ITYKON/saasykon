@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAdminOrPermission } from "@/lib/authorization";
+import { getAuthContext, requireAdminOrPermission } from "@/lib/authorization";
 
 export async function GET(req: NextRequest) {
-  const auth = await requireAdminOrPermission("LEADS_VIEW");
-  if (auth instanceof NextResponse) return auth;
+  // Accept either legacy uppercase code or unified lowercase code
+  const ctx = await getAuthContext();
+  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!ctx.roles.includes("ADMIN") && !ctx.permissions.includes("LEADS_VIEW") && !ctx.permissions.includes("leads")) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   const { searchParams } = new URL(req.url);
   const status = searchParams.get("status") || undefined;

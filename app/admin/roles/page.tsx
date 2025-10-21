@@ -21,7 +21,7 @@ import { Plus, Search, Edit, Trash2, Shield, Users, Eye } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { ProtectedAdminPage } from "@/components/admin/ProtectedAdminPage"
 
-const permissions = [
+const defaultPermissions = [
   { id: "dashboard", name: "Dashboard", description: "Accès au tableau de bord principal" },
   { id: "users", name: "Gestion des utilisateurs", description: "Voir et gérer les utilisateurs" },
   { id: "salons", name: "Gestion des salons", description: "Voir et gérer les salons partenaires" },
@@ -67,6 +67,7 @@ function RolesPageContent() {
     code: "",
     permissions: [],
   })
+  const [allPermissions, setAllPermissions] = useState(defaultPermissions)
 
   // Charger les rôles depuis l'API
   const fetchRoles = async () => {
@@ -75,6 +76,14 @@ function RolesPageContent() {
     const data = await res.json()
     setRoles(data.roles || [])
     setLoading(false)
+  }
+  const fetchPermissions = async () => {
+    try {
+      const res = await fetch("/api/admin/permissions")
+      if (!res.ok) return
+      const data = await res.json().catch(() => null)
+      if (data?.permissions?.length) setAllPermissions(data.permissions)
+    } catch {}
   }
   const fetchUsers = async () => {
     try {
@@ -86,7 +95,7 @@ function RolesPageContent() {
     }
   }
   // Initial fetch
-  useEffect(() => { fetchRoles(); fetchUsers() }, [])
+  useEffect(() => { fetchRoles(); fetchUsers(); fetchPermissions() }, [])
 
   // Open the "assign role" dialog pre-filled for a given user (used as edit)
   const handleOpenAssignForUser = (user: any) => {
@@ -298,7 +307,7 @@ function RolesPageContent() {
                         Sélectionnez les interfaces auxquelles ce rôle aura accès.
                       </p>
                       <div className="grid grid-cols-1 gap-3 max-h-64 overflow-y-auto">
-                        {permissions.map((permission) => (
+                        {allPermissions.map((permission) => (
                           <div key={permission.id} className="flex items-start space-x-3 p-3 border rounded-lg">
                             <Checkbox
                               id={permission.id}
@@ -382,7 +391,7 @@ function RolesPageContent() {
                 <h4 className="font-medium text-sm text-gray-900 mb-2">Permissions ({role.permissions.length})</h4>
                 <div className="flex flex-wrap gap-1">
                   {role.permissions.slice(0, 3).map((permId: string) => {
-                    const perm = permissions.find((p) => p.id === permId)
+                    const perm = allPermissions.find((p) => p.id === permId)
                     return (
                       <Badge key={permId} variant="secondary" className="text-xs">
                         {perm?.name}
@@ -555,7 +564,7 @@ function RolesPageContent() {
                 <div className="text-sm font-medium text-gray-900 mb-1">Permissions ({roleDetails.permissions?.length || 0})</div>
                 <div className="flex flex-wrap gap-1">
                   {(roleDetails.permissions || []).map((p: string) => {
-                    const perm = permissions.find((x) => x.id === p)
+                    const perm = allPermissions.find((x) => x.id === p)
                     return (
                       <Badge key={p} variant="secondary" className="text-xs">{perm?.name || p}</Badge>
                     )
@@ -592,7 +601,7 @@ function RolesPageContent() {
             <div>
               <Label className="text-base font-medium">Permissions</Label>
               <div className="grid grid-cols-1 gap-3 max-h-64 overflow-y-auto">
-                {permissions.map((permission) => (
+                {allPermissions.map((permission) => (
                   <div key={permission.id} className="flex items-start space-x-3 p-3 border rounded-lg">
                     <Checkbox
                       id={`edit-${permission.id}`}
