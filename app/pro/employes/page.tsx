@@ -56,12 +56,10 @@ export default function EmployeesPage() {
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
   const [viewEmployee, setViewEmployee] = useState<UIEmployee | null>(null)
   // Add modal states
-  const [addServices, setAddServices] = useState<Set<string>>(new Set())
   const [addDays, setAddDays] = useState<Set<string>>(new Set())
   const [addStart, setAddStart] = useState<string>("09:00")
   const [addEnd, setAddEnd] = useState<string>("18:00")
   // Edit modal states
-  const [editServices, setEditServices] = useState<Set<string>>(new Set())
   const [editDays, setEditDays] = useState<Set<string>>(new Set())
   const [editStart, setEditStart] = useState<string>("09:00")
   const [editEnd, setEditEnd] = useState<string>("18:00")
@@ -148,7 +146,6 @@ export default function EmployeesPage() {
   useEffect(() => {
     if (isEditDialogOpen && selectedEmployee) {
       setEditStatus(selectedEmployee.status || "Actif")
-      setEditServices(new Set(selectedEmployee.services || []))
       setEditDays(new Set(selectedEmployee.workDays || []))
       const parts = (selectedEmployee.workHours || "").split(" - ")
       setEditStart(parts[0] || "09:00")
@@ -158,7 +155,6 @@ export default function EmployeesPage() {
 
   useEffect(() => {
     if (isAddDialogOpen) {
-      setAddServices(new Set())
       setAddDays(new Set())
       setAddStart("09:00")
       setAddEnd("18:00")
@@ -198,31 +194,7 @@ export default function EmployeesPage() {
 
       const empId: string = created.id
 
-      // Gather service checkboxes
-      const selectedServiceNames = Array.from(addServices)
-      // Fetch canonical services with ids
-      let serviceIds: string[] = []
-      try {
-        const svcRes = await fetch(`/api/pro/services${q}`)
-        const svcs = await svcRes.json()
-        if (svcRes.ok && Array.isArray(svcs?.services)) {
-          const byName = new Map<string, string>()
-          for (const s of svcs.services) byName.set(String(s.name).toLowerCase(), s.id)
-          serviceIds = selectedServiceNames.map((n) => byName.get(n.toLowerCase())).filter(Boolean) as string[]
-        }
-      } catch {}
-
-      if (serviceIds.length) {
-        const svcPut = await fetch(`/api/pro/employees/${empId}/services`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ service_ids: serviceIds }),
-        })
-        if (!svcPut.ok) {
-          const j = await svcPut.json().catch(() => ({}))
-          throw new Error(j?.error || "Échec de l'affectation des services")
-        }
-      }
+      // Services non affectés à ce stade (ignorés à la création)
 
       // Gather working days checkboxes -> map to weekday indexes
       const selectedDays = Array.from(addDays)
@@ -341,31 +313,7 @@ export default function EmployeesPage() {
         }).catch(() => {})
       }
 
-      const selectedServiceNames = Array.from(editServices)
-      let serviceIds: string[] = []
-      try {
-        const bidMatch = document.cookie.match(/(?:^|; )business_id=([^;]+)/)
-        const businessId = bidMatch ? decodeURIComponent(bidMatch[1]) : ""
-        const q = businessId ? `?business_id=${encodeURIComponent(businessId)}` : ""
-        const svcRes = await fetch(`/api/pro/services${q}`)
-        const svcs = await svcRes.json()
-        if (svcRes.ok && Array.isArray(svcs?.services)) {
-          const byName = new Map<string, string>()
-          for (const s of svcs.services) byName.set(String(s.name).toLowerCase(), s.id)
-          serviceIds = selectedServiceNames.map((n) => byName.get(n.toLowerCase())).filter(Boolean) as string[]
-        }
-      } catch {}
-      {
-        const svcPut = await fetch(`/api/pro/employees/${selectedEmployee.id}/services`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ service_ids: serviceIds }),
-        })
-        if (!svcPut.ok) {
-          const j = await svcPut.json().catch(() => ({}))
-          throw new Error(j?.error || "Échec de l'affectation des services")
-        }
-      }
+      // Pas d'affectation de services dans la modale Modifier
 
       const selectedDays = Array.from(editDays)
       const dayIndex: Record<string, number> = { "Lundi": 1, "Mardi": 2, "Mercredi": 3, "Jeudi": 4, "Vendredi": 5, "Samedi": 6, "Dimanche": 0 }
@@ -468,23 +416,7 @@ export default function EmployeesPage() {
                     <Input id="phone" placeholder="+213 555 123 456" />
                   </div>
                 </div>
-                <div>
-                  <Label>Services proposés</Label>
-                  <div className="grid grid-cols-3 gap-2 mt-2">
-                    {services.map((service) => (
-                      <div key={service} className="flex items-center space-x-2">
-                        <Checkbox id={service} checked={addServices.has(service)} onCheckedChange={(v) => {
-                          const next = new Set(addServices)
-                          if (v) next.add(service); else next.delete(service)
-                          setAddServices(next)
-                        }} />
-                        <Label htmlFor={service} className="text-sm">
-                          {service}
-                        </Label>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                {/* Services non affectés à l'ajout */}
                 <div>
                   <Label>Jours de travail</Label>
                   <div className="grid grid-cols-4 gap-2 mt-2">
@@ -722,23 +654,7 @@ export default function EmployeesPage() {
                     <Input id="edit-phone" defaultValue={selectedEmployee.phone} />
                   </div>
                 </div>
-                <div>
-                  <Label>Services proposés</Label>
-                  <div className="grid grid-cols-3 gap-2 mt-2">
-                    {services.map((service) => (
-                      <div key={service} className="flex items-center space-x-2">
-                        <Checkbox id={`edit-${service}`} checked={editServices.has(service)} onCheckedChange={(v) => {
-                          const next = new Set(editServices)
-                          if (v) next.add(service); else next.delete(service)
-                          setEditServices(next)
-                        }} />
-                        <Label htmlFor={`edit-${service}`} className="text-sm">
-                          {service}
-                        </Label>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                {/* Services non modifiés ici */}
                 <div>
                   <Label>Jours de travail</Label>
                   <div className="grid grid-cols-4 gap-2 mt-2">
