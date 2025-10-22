@@ -12,12 +12,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
  
 export default function ProServices() {
-  const [services, setServices] = useState<Array<{ id: string; name: string; category: string; duration: number; price: number; description: string; active: boolean }>>([])
+  const [services, setServices] = useState<Array<{ id: string; name: string; category: string; duration: number; price: number; priceMin?: number; priceMax?: number; description: string; active: boolean }>>([])
   const [loading, setLoading] = useState(false)
   const [newName, setNewName] = useState("")
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>("")
   const [newDuration, setNewDuration] = useState<string>("")
   const [newPrice, setNewPrice] = useState<string>("")
+  const [newPriceMin, setNewPriceMin] = useState<string>("")
+  const [newPriceMax, setNewPriceMax] = useState<string>("")
+  const [priceMode, setPriceMode] = useState<"fixed" | "range">("fixed")
   const [newDescription, setNewDescription] = useState("")
   const [isServiceModalOpen, setIsServiceModalOpen] = useState(false)
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false)
@@ -33,6 +36,9 @@ export default function ProServices() {
   const [editCategoryId, setEditCategoryId] = useState<string>("")
   const [editDuration, setEditDuration] = useState<string>("")
   const [editPrice, setEditPrice] = useState<string>("")
+  const [editPriceMin, setEditPriceMin] = useState<string>("")
+  const [editPriceMax, setEditPriceMax] = useState<string>("")
+  const [editPriceMode, setEditPriceMode] = useState<"fixed" | "range">("fixed")
   const [editDescription, setEditDescription] = useState("")
   const [editActive, setEditActive] = useState<boolean>(true)
 
@@ -56,7 +62,17 @@ export default function ProServices() {
       const v = Array.isArray(s.service_variants) ? s.service_variants[0] : undefined
       setEditVariantId(v?.id ? String(v.id) : "")
       setEditDuration(typeof v?.duration_minutes === "number" ? String(v.duration_minutes) : "")
-      setEditPrice(typeof v?.price_cents === "number" ? String(Math.round(v.price_cents / 100)) : "")
+      if (typeof v?.price_cents === "number") {
+        setEditPrice(String(Math.round(v.price_cents / 100)))
+        setEditPriceMode("fixed")
+      } else {
+        setEditPrice("")
+        const min = typeof v?.price_min_cents === "number" ? String(Math.round(v.price_min_cents / 100)) : ""
+        const max = typeof v?.price_max_cents === "number" ? String(Math.round(v.price_max_cents / 100)) : ""
+        setEditPriceMin(min)
+        setEditPriceMax(max)
+        setEditPriceMode("range")
+      }
       setIsEditModalOpen(true)
     } catch (e: any) {
       alert(e?.message || "Impossible d'ouvrir la modification")
@@ -68,9 +84,15 @@ export default function ProServices() {
     const name = editName.trim()
     const duration = parseInt(editDuration || "0", 10)
     const price = parseInt(editPrice || "0", 10)
+    const priceMin = parseInt(editPriceMin || "0", 10)
+    const priceMax = parseInt(editPriceMax || "0", 10)
     if (!name) return alert("Nom du service requis")
     if (!duration || duration <= 0) return alert("Durée invalide")
-    if (price < 0) return alert("Prix invalide")
+    if (editPriceMode === "fixed" && price < 0) return alert("Prix invalide")
+    if (editPriceMode === "range") {
+      if (isNaN(priceMin) || isNaN(priceMax) || priceMin < 0 || priceMax < 0) return alert("Prix min/max invalides")
+      if (priceMin > priceMax) return alert("Prix min > max")
+    }
     try {
       // Update service fields
       const body: any = { name, description: editDescription || null, is_active: !!editActive }
@@ -85,10 +107,20 @@ export default function ProServices() {
 
       // Update first variant if available
       if (editVariantId) {
+        const variantPatch: any = { duration_minutes: duration }
+        if (editPriceMode === "fixed") {
+          variantPatch.price_cents = price * 100
+          variantPatch.price_min_cents = null
+          variantPatch.price_max_cents = null
+        } else {
+          variantPatch.price_cents = null
+          variantPatch.price_min_cents = priceMin * 100
+          variantPatch.price_max_cents = priceMax * 100
+        }
         await fetch(`/api/pro/variants/${editVariantId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ duration_minutes: duration, price_cents: price * 100 }),
+          body: JSON.stringify(variantPatch),
         }).then(() => {}).catch(() => {})
       }
 
@@ -111,12 +143,18 @@ export default function ProServices() {
       const list: any[] = Array.isArray(data?.services) ? data.services : []
       const mapped = list.map((s: any) => {
         const v = Array.isArray(s.service_variants) ? s.service_variants[0] : undefined
+        const minPrice = typeof v?.price_min_cents === "number" ? Math.round(v.price_min_cents / 100) : undefined
+        const maxPrice = typeof v?.price_max_cents === "number" ? Math.round(v.price_max_cents / 100) : undefined
+        const hasRange = typeof minPrice === "number" && typeof maxPrice === "number"
+        const price = typeof v?.price_cents === "number" ? Math.round(v.price_cents / 100) : (typeof minPrice === "number" ? minPrice : (typeof maxPrice === "number" ? maxPrice : 0))
         return {
           id: String(s.id),
           name: String(s.name || ""),
           category: s?.service_categories?.name ? String(s.service_categories.name) : "Autres",
           duration: typeof v?.duration_minutes === "number" ? v.duration_minutes : 0,
-          price: typeof v?.price_cents === "number" ? Math.round(v.price_cents / 100) : 0,
+          price,
+          ...(typeof minPrice === "number" ? { priceMin: minPrice } : {}),
+          ...(typeof maxPrice === "number" ? { priceMax: maxPrice } : {}),
           description: String(s.description || ""),
           active: true,
         }
@@ -157,9 +195,15 @@ export default function ProServices() {
     const name = newName.trim()
     const duration = parseInt(newDuration || "0", 10)
     const price = parseInt(newPrice || "0", 10)
+    const priceMin = parseInt(newPriceMin || "0", 10)
+    const priceMax = parseInt(newPriceMax || "0", 10)
     if (!name) return alert("Nom du service requis")
     if (!duration || duration <= 0) return alert("Durée invalide")
-    if (price < 0) return alert("Prix invalide")
+    if (priceMode === "fixed" && price < 0) return alert("Prix invalide")
+    if (priceMode === "range") {
+      if (isNaN(priceMin) || isNaN(priceMax) || priceMin < 0 || priceMax < 0) return alert("Prix min/max invalides")
+      if (priceMin > priceMax) return alert("Prix min > max")
+    }
     const category_id = selectedCategoryId ? parseInt(selectedCategoryId, 10) : undefined
     try {
       const bid = getBusinessId()
@@ -173,16 +217,25 @@ export default function ProServices() {
       if (!createRes.ok) throw new Error(created?.error || "Création service échouée")
       const serviceId: string = created.id
 
+      const variantPayload: any = { name: null, duration_minutes: duration }
+      if (priceMode === "fixed") variantPayload.price_cents = price * 100
+      if (priceMode === "range") {
+        variantPayload.price_min_cents = priceMin * 100
+        variantPayload.price_max_cents = priceMax * 100
+      }
       await fetch(`/api/pro/services/${serviceId}/variants`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: null, duration_minutes: duration, price_cents: price * 100 }),
+        body: JSON.stringify(variantPayload),
       }).then(() => {}).catch(() => {})
 
       setNewName("")
       setSelectedCategoryId("")
       setNewDuration("")
       setNewPrice("")
+      setNewPriceMin("")
+      setNewPriceMax("")
+      setPriceMode("fixed")
       setNewDescription("")
       setIsServiceModalOpen(false)
       await loadServices()
@@ -275,7 +328,23 @@ export default function ProServices() {
               </div>
               <div>
                 <Label htmlFor="servicePrice">Prix (DA)</Label>
-                <Input id="servicePrice" type="number" value={newPrice} onChange={(e) => setNewPrice(e.target.value)} placeholder="200" />
+                <div className="grid grid-cols-3 gap-2">
+                  <Select value={priceMode} onValueChange={(v) => setPriceMode(v as any)}>
+                    <SelectTrigger><SelectValue placeholder="Mode" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="fixed">Fixe</SelectItem>
+                      <SelectItem value="range">Plage</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {priceMode === "fixed" ? (
+                    <Input id="servicePrice" type="number" value={newPrice} onChange={(e) => setNewPrice(e.target.value)} placeholder="200" />
+                  ) : (
+                    <>
+                      <Input id="servicePriceMin" type="number" value={newPriceMin} onChange={(e) => setNewPriceMin(e.target.value)} placeholder="Min" />
+                      <Input id="servicePriceMax" type="number" value={newPriceMax} onChange={(e) => setNewPriceMax(e.target.value)} placeholder="Max" />
+                    </>
+                  )}
+                </div>
               </div>
               <div className="md:col-span-2">
                 <Label htmlFor="serviceDescription">Description</Label>
@@ -421,7 +490,11 @@ export default function ProServices() {
                         <Clock className="h-4 w-4 mr-1" />
                         {service.duration}min
                       </div>
-                      <div className="text-lg font-bold text-black">{service.price} DA</div>
+                      <div className="text-lg font-bold text-black">
+                        {typeof service.priceMin === "number" && typeof service.priceMax === "number"
+                          ? `${service.priceMin}–${service.priceMax} DA`
+                          : `${service.price} DA`}
+                      </div>
                     </div>
 
                     <div className="flex gap-2">
@@ -486,7 +559,23 @@ export default function ProServices() {
             </div>
             <div>
               <Label htmlFor="editServicePrice">Prix (DA)</Label>
-              <Input id="editServicePrice" type="number" value={editPrice} onChange={(e) => setEditPrice(e.target.value)} />
+              <div className="grid grid-cols-3 gap-2">
+                <Select value={editPriceMode} onValueChange={(v) => setEditPriceMode(v as any)}>
+                  <SelectTrigger><SelectValue placeholder="Mode" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="fixed">Fixe</SelectItem>
+                    <SelectItem value="range">Plage</SelectItem>
+                  </SelectContent>
+                </Select>
+                {editPriceMode === "fixed" ? (
+                  <Input id="editServicePrice" type="number" value={editPrice} onChange={(e) => setEditPrice(e.target.value)} />
+                ) : (
+                  <>
+                    <Input id="editServicePriceMin" type="number" value={editPriceMin} onChange={(e) => setEditPriceMin(e.target.value)} placeholder="Min" />
+                    <Input id="editServicePriceMax" type="number" value={editPriceMax} onChange={(e) => setEditPriceMax(e.target.value)} placeholder="Max" />
+                  </>
+                )}
+              </div>
             </div>
             <div className="md:col-span-2">
               <Label htmlFor="editServiceDescription">Description</Label>

@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
       description: true,
       category_id: true,
       service_categories: { select: { id: true, name: true } },
-      service_variants: { where: { is_active: true }, orderBy: { duration_minutes: "asc" }, select: { id: true, name: true, duration_minutes: true, price_cents: true } },
+      service_variants: { where: { is_active: true }, orderBy: { duration_minutes: "asc" }, select: { id: true, name: true, duration_minutes: true, price_cents: true, price_min_cents: true, price_max_cents: true } },
     },
   });
   return NextResponse.json({ services });
