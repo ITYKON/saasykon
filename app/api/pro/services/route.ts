@@ -20,8 +20,42 @@ export async function GET(req: NextRequest) {
       id: true,
       name: true,
       description: true,
+      category_id: true,
+      service_categories: { select: { id: true, name: true } },
       service_variants: { where: { is_active: true }, orderBy: { duration_minutes: "asc" }, select: { id: true, name: true, duration_minutes: true, price_cents: true } },
     },
   });
   return NextResponse.json({ services });
 }
+
+export async function POST(req: NextRequest) {
+  const ctx = await getAuthContext();
+  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const cookieStore = cookies();
+  const url = new URL(req.url);
+  const businessId = url.searchParams.get("business_id") || cookieStore.get("business_id")?.value || ctx.assignments[0]?.business_id;
+  if (!businessId) return NextResponse.json({ error: "business_id required" }, { status: 400 });
+  const allowed = ctx.roles.includes("ADMIN") || ctx.assignments.some((a) => a.business_id === businessId && (a.role === "PRO" || a.role === "PROFESSIONNEL"));
+  if (!allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  const body = await req.json().catch(() => null);
+  if (!body) return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  const { name, description, category_id, is_active } = body || {};
+  if (!name || typeof name !== "string") {
+    return NextResponse.json({ error: "name required" }, { status: 400 });
+  }
+
+  const created = await prisma.services.create({
+    data: {
+      business_id: businessId,
+      name,
+      description: description ?? null,
+      ...(typeof category_id === "number" ? { category_id } : {}),
+      ...(typeof is_active === "boolean" ? { is_active } : {}),
+    },
+    select: { id: true },
+  });
+
+  return NextResponse.json({ id: created.id }, { status: 201 });
+}
+

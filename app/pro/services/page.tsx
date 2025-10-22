@@ -1,3 +1,6 @@
+"use client"
+
+import { useEffect, useMemo, useState } from "react"
 import { Plus, Edit, Trash2, Clock, DollarSign } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -6,66 +9,222 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+ 
 export default function ProServices() {
-  const services = [
-    {
-      id: 1,
-      name: "COUPE + COIFFAGE",
-      category: "Coiffure",
-      duration: 30,
-      price: 200,
-      description: "Coupe personnalisée avec coiffage",
-      active: true,
-    },
-    {
-      id: 2,
-      name: "BRUSHING",
-      category: "Coiffure",
-      duration: 45,
-      price: 150,
-      description: "Brushing professionnel",
-      active: true,
-    },
-    {
-      id: 3,
-      name: "SHAMPOING",
-      category: "Soins",
-      duration: 10,
-      price: 50,
-      description: "Shampoing avec massage du cuir chevelu",
-      active: true,
-    },
-    {
-      id: 4,
-      name: "MASQUE",
-      category: "Soins",
-      duration: 20,
-      price: 100,
-      description: "Masque nourrissant pour cheveux",
-      active: true,
-    },
-    {
-      id: 5,
-      name: "COLORATION",
-      category: "Coloration",
-      duration: 120,
-      price: 800,
-      description: "Coloration complète avec soins",
-      active: true,
-    },
-    {
-      id: 6,
-      name: "MÈCHES",
-      category: "Coloration",
-      duration: 90,
-      price: 600,
-      description: "Mèches avec technique au choix",
-      active: false,
-    },
-  ]
+  const [services, setServices] = useState<Array<{ id: string; name: string; category: string; duration: number; price: number; description: string; active: boolean }>>([])
+  const [loading, setLoading] = useState(false)
+  const [newName, setNewName] = useState("")
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>("")
+  const [newDuration, setNewDuration] = useState<string>("")
+  const [newPrice, setNewPrice] = useState<string>("")
+  const [newDescription, setNewDescription] = useState("")
+  const [isServiceModalOpen, setIsServiceModalOpen] = useState(false)
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false)
+  const [categoriesApi, setCategoriesApi] = useState<Array<{ id: number; name: string }>>([])
+  const [newCategoryName, setNewCategoryName] = useState("")
+  const [newCategoryCode, setNewCategoryCode] = useState("")
 
-  const categories = ["Coiffure", "Soins", "Coloration"]
+  // Edit modal state
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [editServiceId, setEditServiceId] = useState<string>("")
+  const [editVariantId, setEditVariantId] = useState<string>("")
+  const [editName, setEditName] = useState("")
+  const [editCategoryId, setEditCategoryId] = useState<string>("")
+  const [editDuration, setEditDuration] = useState<string>("")
+  const [editPrice, setEditPrice] = useState<string>("")
+  const [editDescription, setEditDescription] = useState("")
+  const [editActive, setEditActive] = useState<boolean>(true)
+
+  function getBusinessId(): string {
+    const m = typeof document !== "undefined" ? document.cookie.match(/(?:^|; )business_id=([^;]+)/) : null
+    return m ? decodeURIComponent(m[1]) : ""
+  }
+
+  async function openEditModal(serviceId: string) {
+    try {
+      const res = await fetch(`/api/pro/services/${serviceId}`)
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || !data?.service) throw new Error(data?.error || "Chargement impossible")
+      const s = data.service
+      setEditServiceId(String(s.id))
+      setEditName(String(s.name || ""))
+      const catId = typeof s?.category_id === "number" ? String(s.category_id) : (s?.service_categories?.id ? String(s.service_categories.id) : "")
+      setEditCategoryId(catId)
+      setEditDescription(String(s.description || ""))
+      setEditActive(Boolean(s.is_active))
+      const v = Array.isArray(s.service_variants) ? s.service_variants[0] : undefined
+      setEditVariantId(v?.id ? String(v.id) : "")
+      setEditDuration(typeof v?.duration_minutes === "number" ? String(v.duration_minutes) : "")
+      setEditPrice(typeof v?.price_cents === "number" ? String(Math.round(v.price_cents / 100)) : "")
+      setIsEditModalOpen(true)
+    } catch (e: any) {
+      alert(e?.message || "Impossible d'ouvrir la modification")
+    }
+  }
+
+  async function handleSaveEdit() {
+    if (!editServiceId) return
+    const name = editName.trim()
+    const duration = parseInt(editDuration || "0", 10)
+    const price = parseInt(editPrice || "0", 10)
+    if (!name) return alert("Nom du service requis")
+    if (!duration || duration <= 0) return alert("Durée invalide")
+    if (price < 0) return alert("Prix invalide")
+    try {
+      // Update service fields
+      const body: any = { name, description: editDescription || null, is_active: !!editActive }
+      if (editCategoryId) body.category_id = parseInt(editCategoryId, 10)
+      const res = await fetch(`/api/pro/services/${editServiceId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data?.error || "Mise à jour service échouée")
+
+      // Update first variant if available
+      if (editVariantId) {
+        await fetch(`/api/pro/variants/${editVariantId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ duration_minutes: duration, price_cents: price * 100 }),
+        }).then(() => {}).catch(() => {})
+      }
+
+      setIsEditModalOpen(false)
+      await loadServices()
+      alert("Service modifié")
+    } catch (e: any) {
+      alert(e?.message || "Impossible d'enregistrer")
+    }
+  }
+
+  async function loadServices() {
+    setLoading(true)
+    try {
+      const bid = getBusinessId()
+      const q = bid ? `?business_id=${encodeURIComponent(bid)}` : ""
+      const res = await fetch(`/api/pro/services${q}`)
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data?.error || "Erreur de chargement")
+      const list: any[] = Array.isArray(data?.services) ? data.services : []
+      const mapped = list.map((s: any) => {
+        const v = Array.isArray(s.service_variants) ? s.service_variants[0] : undefined
+        return {
+          id: String(s.id),
+          name: String(s.name || ""),
+          category: s?.service_categories?.name ? String(s.service_categories.name) : "Autres",
+          duration: typeof v?.duration_minutes === "number" ? v.duration_minutes : 0,
+          price: typeof v?.price_cents === "number" ? Math.round(v.price_cents / 100) : 0,
+          description: String(s.description || ""),
+          active: true,
+        }
+      })
+      setServices(mapped)
+    } catch {
+      setServices([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadServices()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const categories = useMemo(() => {
+    const set = new Set<string>()
+    for (const s of services) set.add(s.category || "Autres")
+    return Array.from(set)
+  }, [services])
+
+  async function loadCategories() {
+    try {
+      const res = await fetch(`/api/pro/service-categories`)
+      const data = await res.json().catch(() => ({}))
+      if (res.ok && Array.isArray(data?.categories)) {
+        setCategoriesApi(data.categories)
+      }
+    } catch {}
+  }
+  useEffect(() => {
+    loadCategories()
+  }, [])
+
+  async function handleCreateService() {
+    const name = newName.trim()
+    const duration = parseInt(newDuration || "0", 10)
+    const price = parseInt(newPrice || "0", 10)
+    if (!name) return alert("Nom du service requis")
+    if (!duration || duration <= 0) return alert("Durée invalide")
+    if (price < 0) return alert("Prix invalide")
+    const category_id = selectedCategoryId ? parseInt(selectedCategoryId, 10) : undefined
+    try {
+      const bid = getBusinessId()
+      const q = bid ? `?business_id=${encodeURIComponent(bid)}` : ""
+      const createRes = await fetch(`/api/pro/services${q}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, description: newDescription || null, ...(category_id ? { category_id } : {}) }),
+      })
+      const created = await createRes.json().catch(() => ({}))
+      if (!createRes.ok) throw new Error(created?.error || "Création service échouée")
+      const serviceId: string = created.id
+
+      await fetch(`/api/pro/services/${serviceId}/variants`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: null, duration_minutes: duration, price_cents: price * 100 }),
+      }).then(() => {}).catch(() => {})
+
+      setNewName("")
+      setSelectedCategoryId("")
+      setNewDuration("")
+      setNewPrice("")
+      setNewDescription("")
+      setIsServiceModalOpen(false)
+      await loadServices()
+      alert("Service ajouté")
+    } catch (e: any) {
+      alert(e?.message || "Impossible d'ajouter le service")
+    }
+  }
+
+  async function handleDeleteService(id: string) {
+    if (!confirm("Supprimer ce service ?")) return
+    try {
+      const res = await fetch(`/api/pro/services/${id}`, { method: "DELETE" })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data?.error || "Suppression impossible")
+      await loadServices()
+    } catch (e: any) {
+      alert(e?.message || "Erreur lors de la suppression")
+    }
+  }
+
+  async function handleCreateCategory() {
+    const name = newCategoryName.trim()
+    const code = newCategoryCode.trim() || undefined
+    if (!name) return alert("Nom de catégorie requis")
+    try {
+      const res = await fetch(`/api/pro/service-categories`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, code }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data?.error || "Création catégorie échouée")
+      setNewCategoryName("")
+      setNewCategoryCode("")
+      setIsCategoryModalOpen(false)
+      await loadCategories()
+      if (data?.id) setSelectedCategoryId(String(data.id))
+    } catch (e: any) {
+      alert(e?.message || "Impossible d'ajouter la catégorie")
+    }
+  }
 
   return (
     <div>
@@ -76,13 +235,85 @@ export default function ProServices() {
         <h1 className="text-2xl font-bold text-black">Mes services</h1>
         <p className="text-gray-600">Gérer vos services</p>
         </div>
-        <Button className="bg-black text-white hover:bg-gray-800">
-          <Plus className="h-4 w-4 mr-2" />
-          Ajouter un service
-        </Button>
+        <Dialog open={isServiceModalOpen} onOpenChange={setIsServiceModalOpen}>
+          <DialogTrigger asChild>
+            <Button className="bg-black text-white hover:bg-gray-800">
+              <Plus className="h-4 w-4 mr-2" />
+              Nouveau service
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Ajouter un nouveau service</DialogTitle>
+            </DialogHeader>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="serviceName">Nom du service</Label>
+                <Input id="serviceName" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Ex: COUPE + BRUSHING" />
+              </div>
+              <div>
+                <Label>Catégorie</Label>
+                <div className="flex flex-col gap-2">
+                  <Select value={selectedCategoryId} onValueChange={(v) => setSelectedCategoryId(v)}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Sélectionner une catégorie" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categoriesApi.map((cat) => (
+                        <SelectItem key={cat.id} value={String(cat.id)}>
+                          {cat.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button type="button" variant="outline" className="w-full" onClick={() => setIsCategoryModalOpen(true)}>+ Catégorie</Button>
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="serviceDuration">Durée (minutes)</Label>
+                <Input id="serviceDuration" type="number" value={newDuration} onChange={(e) => setNewDuration(e.target.value)} placeholder="30" />
+              </div>
+              <div>
+                <Label htmlFor="servicePrice">Prix (DA)</Label>
+                <Input id="servicePrice" type="number" value={newPrice} onChange={(e) => setNewPrice(e.target.value)} placeholder="200" />
+              </div>
+              <div className="md:col-span-2">
+                <Label htmlFor="serviceDescription">Description</Label>
+                <Textarea id="serviceDescription" value={newDescription} onChange={(e) => setNewDescription(e.target.value)} placeholder="Description du service..." rows={3} />
+             </div>
+           </div>
+           <div className="flex justify-end gap-2">
+             <Button variant="outline" onClick={() => setIsServiceModalOpen(false)}>Annuler</Button>
+             <Button onClick={handleCreateService} disabled={loading} className="bg-black text-white hover:bg-gray-800">Ajouter le service</Button>
+           </div>
+         </DialogContent>
+       </Dialog>
       </div>
        </div>
        </header>     
+
+      {/* Modal: Nouvelle catégorie */}
+      <Dialog open={isCategoryModalOpen} onOpenChange={setIsCategoryModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Nouvelle catégorie</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4">
+            <div>
+              <Label htmlFor="catName">Nom</Label>
+              <Input id="catName" value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} placeholder="Ex: Coiffure" />
+            </div>
+            <div>
+              <Label htmlFor="catCode">Code (optionnel)</Label>
+              <Input id="catCode" value={newCategoryCode} onChange={(e) => setNewCategoryCode(e.target.value)} placeholder="coiffure" />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setIsCategoryModalOpen(false)}>Annuler</Button>
+            <Button onClick={handleCreateCategory} className="bg-black text-white hover:bg-gray-800">Créer</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -108,7 +339,7 @@ export default function ProServices() {
               <div className="ml-4">
                 <p className="text-sm text-gray-600">Prix moyen</p>
                 <p className="text-lg font-bold text-black">
-                  {Math.round(services.reduce((acc, s) => acc + s.price, 0) / services.length)} DA
+                  {services.length ? Math.round(services.reduce((acc, s) => acc + s.price, 0) / services.length) : 0} DA
                 </p>
               </div>
             </div>
@@ -124,7 +355,7 @@ export default function ProServices() {
               <div className="ml-4">
                 <p className="text-sm text-gray-600">Durée moyenne</p>
                 <p className="text-lg font-bold text-black">
-                  {Math.round(services.reduce((acc, s) => acc + s.duration, 0) / services.length)}min
+                  {services.length ? Math.round(services.reduce((acc, s) => acc + s.duration, 0) / services.length) : 0}min
                 </p>
               </div>
             </div>
@@ -194,11 +425,17 @@ export default function ProServices() {
                     </div>
 
                     <div className="flex gap-2">
-                      <Button variant="outline" size="sm" className="flex-1 bg-transparent">
+                      <Button
+                        onClick={() => openEditModal(service.id)}
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 bg-transparent"
+                      >
                         <Edit className="h-4 w-4 mr-1" />
                         Modifier
                       </Button>
                       <Button
+                        onClick={() => handleDeleteService(service.id)}
                         variant="outline"
                         size="sm"
                         className="text-red-600 border-red-600 hover:bg-red-50 bg-transparent"
@@ -213,50 +450,59 @@ export default function ProServices() {
         </Card>
       ))}
 
-      {/* Add Service Form */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-xl font-bold text-black">Ajouter un nouveau service</CardTitle>
-        </CardHeader>
-        <CardContent>
+      {/* Le formulaire d'ajout est désormais dans le modal */}
+
+      {/* Edit Service Modal */}
+      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Modifier le service</DialogTitle>
+          </DialogHeader>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="serviceName">Nom du service</Label>
-              <Input id="serviceName" placeholder="Ex: COUPE + BRUSHING" />
+              <Label htmlFor="editServiceName">Nom du service</Label>
+              <Input id="editServiceName" value={editName} onChange={(e) => setEditName(e.target.value)} />
             </div>
             <div>
-              <Label htmlFor="serviceCategory">Catégorie</Label>
-              <Select>
-                <SelectTrigger>
-                  <SelectValue placeholder="Sélectionner une catégorie" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((cat) => (
-                    <SelectItem key={cat} value={cat.toLowerCase()}>
-                      {cat}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label>Catégorie</Label>
+              <div className="grid grid-cols-1">
+                <Select value={editCategoryId} onValueChange={(v) => setEditCategoryId(v)}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Sélectionner une catégorie" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categoriesApi.map((cat) => (
+                      <SelectItem key={cat.id} value={String(cat.id)}>
+                        {cat.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div>
-              <Label htmlFor="serviceDuration">Durée (minutes)</Label>
-              <Input id="serviceDuration" type="number" placeholder="30" />
+              <Label htmlFor="editServiceDuration">Durée (minutes)</Label>
+              <Input id="editServiceDuration" type="number" value={editDuration} onChange={(e) => setEditDuration(e.target.value)} />
             </div>
             <div>
-              <Label htmlFor="servicePrice">Prix (DA)</Label>
-              <Input id="servicePrice" type="number" placeholder="200" />
+              <Label htmlFor="editServicePrice">Prix (DA)</Label>
+              <Input id="editServicePrice" type="number" value={editPrice} onChange={(e) => setEditPrice(e.target.value)} />
             </div>
             <div className="md:col-span-2">
-              <Label htmlFor="serviceDescription">Description</Label>
-              <Textarea id="serviceDescription" placeholder="Description du service..." rows={3} />
+              <Label htmlFor="editServiceDescription">Description</Label>
+              <Textarea id="editServiceDescription" value={editDescription} onChange={(e) => setEditDescription(e.target.value)} rows={3} />
+            </div>
+            <div className="md:col-span-2 flex items-center gap-2">
+              <input id="editActive" type="checkbox" checked={editActive} onChange={(e) => setEditActive(e.target.checked)} />
+              <Label htmlFor="editActive">Actif</Label>
             </div>
           </div>
-          <div className="flex justify-end mt-4">
-            <Button className="bg-black text-white hover:bg-gray-800">Ajouter le service</Button>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setIsEditModalOpen(false)}>Annuler</Button>
+            <Button onClick={handleSaveEdit} className="bg-black text-white hover:bg-gray-800">Enregistrer</Button>
           </div>
-        </CardContent>
-      </Card>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
