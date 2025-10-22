@@ -63,6 +63,17 @@ export default function EmployeesPage() {
   const [editDays, setEditDays] = useState<Set<string>>(new Set())
   const [editStart, setEditStart] = useState<string>("09:00")
   const [editEnd, setEditEnd] = useState<string>("18:00")
+  const [timeOff, setTimeOff] = useState<any[]>([])
+  const [toStart, setToStart] = useState<string>("")
+  const [toEnd, setToEnd] = useState<string>("")
+  const [toReason, setToReason] = useState<string>("")
+  const [overrides, setOverrides] = useState<any[]>([])
+  const [ovDate, setOvDate] = useState<string>("")
+  const [ovAvailable, setOvAvailable] = useState<boolean>(false)
+  const [ovStart, setOvStart] = useState<string>("")
+  const [ovEnd, setOvEnd] = useState<string>("")
+  const [showTimeOffForm, setShowTimeOffForm] = useState<boolean>(false)
+  const [showOverrideForm, setShowOverrideForm] = useState<boolean>(false)
 
   function fmt(val: string | Date): string {
     let d: Date
@@ -79,6 +90,43 @@ export default function EmployeesPage() {
     }
     if (isNaN(d.getTime())) return ""
     return d.toISOString().substring(11, 16)
+  }
+
+  function upsertOverrideLocal(entry: { date: string; is_available: boolean; start_time?: string | null; end_time?: string | null }) {
+    setOverrides((prev) => {
+      const idx = prev.findIndex((o: any) => String(o.date).slice(0,10) === entry.date)
+      const clean = { ...entry, start_time: entry.start_time || null, end_time: entry.end_time || null }
+      if (idx >= 0) {
+        const copy = prev.slice()
+        copy[idx] = { ...prev[idx], ...clean }
+        return copy
+      }
+      return [...prev, clean]
+    })
+  }
+
+  async function handleSaveOverrides() {
+    if (!selectedEmployee?.id) return
+    try {
+      const payload = {
+        overrides: overrides.map((o: any) => ({
+          date: String(o.date).slice(0,10),
+          is_available: !!o.is_available,
+          start_time: o.start_time ? String(o.start_time).slice(0,5) : null,
+          end_time: o.end_time ? String(o.end_time).slice(0,5) : null,
+        }))
+      }
+      const res = await fetch(`/api/pro/employees/${selectedEmployee.id}/availability`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data?.error || "Enregistrement des exceptions échoué")
+      alert("Exceptions enregistrées")
+    } catch (e: any) {
+      alert(e?.message || "Impossible d'enregistrer les exceptions")
+    }
   }
 
   function weekdayName(n: number): string {
@@ -150,6 +198,23 @@ export default function EmployeesPage() {
       const parts = (selectedEmployee.workHours || "").split(" - ")
       setEditStart(parts[0] || "09:00")
       setEditEnd(parts[1] || "18:00")
+      ;(async () => {
+        try {
+          const res = await fetch(`/api/pro/employees/${selectedEmployee.id}/time-off`)
+          const data = await res.json().catch(() => ({}))
+          if (res.ok && Array.isArray(data?.items)) setTimeOff(data.items)
+        } catch {}
+      })()
+      ;(async () => {
+        try {
+          const now = new Date()
+          const from = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString().slice(0,10)
+          const to = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth()+1, 0)).toISOString().slice(0,10)
+          const res = await fetch(`/api/pro/employees/${selectedEmployee.id}/availability?from=${from}&to=${to}`)
+          const data = await res.json().catch(() => ({}))
+          if (res.ok && Array.isArray(data?.overrides)) setOverrides(data.overrides)
+        } catch {}
+      })()
     }
   }, [isEditDialogOpen, selectedEmployee])
 
@@ -334,6 +399,34 @@ export default function EmployeesPage() {
       await loadEmployees()
     } catch (e: any) {
       alert(e?.message || "Erreur lors de la mise à jour")
+    }
+  }
+
+  async function handleAddTimeOff() {
+    if (!selectedEmployee?.id) return
+    if (!toStart || !toEnd) {
+      alert("Dates requises")
+      return
+    }
+    try {
+      const res = await fetch(`/api/pro/employees/${selectedEmployee.id}/time-off`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ starts_at: toStart, ends_at: toEnd, reason: toReason || null }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data?.error || "Création congé échouée")
+      setToStart("")
+      setToEnd("")
+      setToReason("")
+      try {
+        const r = await fetch(`/api/pro/employees/${selectedEmployee.id}/time-off`)
+        const d = await r.json().catch(() => ({}))
+        if (r.ok && Array.isArray(d?.items)) setTimeOff(d.items)
+      } catch {}
+      alert("Congé ajouté")
+    } catch (e: any) {
+      alert(e?.message || "Impossible d'ajouter le congé")
     }
   }
 
@@ -688,11 +781,96 @@ export default function EmployeesPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Actif">Actif</SelectItem>
-                      <SelectItem value="En congé">En congé</SelectItem>
                       <SelectItem value="Inactif">Inactif</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
+                <div>
+                  <Label>Congés</Label>
+                  <div className="grid gap-2 mt-2">
+                    {!showTimeOffForm ? (
+                      <div className="flex justify-start">
+                        <Button variant="outline" size="sm" onClick={() => setShowTimeOffForm(true)}>Ajouter un congé</Button>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="grid grid-cols-2 gap-2">
+                          <Input type="datetime-local" value={toStart} onChange={(e) => setToStart(e.target.value)} />
+                          <Input type="datetime-local" value={toEnd} onChange={(e) => setToEnd(e.target.value)} />
+                        </div>
+                        <Input placeholder="Raison (optionnel)" value={toReason} onChange={(e) => setToReason(e.target.value)} />
+                        <div className="flex justify-end gap-2">
+                          <Button variant="ghost" size="sm" onClick={() => { setShowTimeOffForm(false); setToStart(""); setToEnd(""); setToReason("") }}>Annuler</Button>
+                          <Button variant="outline" size="sm" onClick={handleAddTimeOff}>Ajouter le congé</Button>
+                        </div>
+                      </>
+                    )}
+                    <div className="max-h-40 overflow-auto border rounded p-2 text-sm">
+                      {timeOff.length ? timeOff.map((t) => (
+                        <div key={t.id} className="flex items-center justify-between py-1">
+                          <div>
+                            <div className="font-medium">{new Date(t.starts_at).toLocaleString()} → {new Date(t.ends_at).toLocaleString()}</div>
+                            <div className="text-gray-500">{t.reason || ""}</div>
+                          </div>
+                        </div>
+                      )) : <div className="text-gray-500">Aucun congé</div>}
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <Label>Disponibilités exceptionnelles</Label>
+                  <div className="grid gap-2 mt-2">
+                    {!showOverrideForm ? (
+                      <div className="flex justify-start">
+                        <Button variant="outline" size="sm" onClick={() => setShowOverrideForm(true)}>Ajouter une disponibilité exceptionnelle</Button>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="grid grid-cols-4 gap-2 items-center">
+                          <Input type="date" value={ovDate} onChange={(e) => setOvDate(e.target.value)} />
+                          <div className="flex items-center gap-2">
+                            <Checkbox id="ovAvail" checked={ovAvailable} onCheckedChange={(v) => setOvAvailable(!!v)} />
+                            <Label htmlFor="ovAvail" className="text-sm">Disponible</Label>
+                          </div>
+                          <Input type="time" value={ovStart} onChange={(e) => setOvStart(e.target.value)} />
+                          <Input type="time" value={ovEnd} onChange={(e) => setOvEnd(e.target.value)} />
+                        </div>
+                        <div className="flex justify-end gap-2">
+                          <Button variant="ghost" size="sm" onClick={() => { setShowOverrideForm(false); setOvDate(""); setOvAvailable(false); setOvStart(""); setOvEnd("") }}>Annuler</Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              if (!ovDate) { alert("Date requise"); return }
+                              upsertOverrideLocal({ date: ovDate, is_available: ovAvailable, start_time: ovStart || null, end_time: ovEnd || null })
+                              setOvDate(""); setOvAvailable(false); setOvStart(""); setOvEnd(""); setShowOverrideForm(false)
+                            }}
+                          >Ajouter/Mettre à jour</Button>
+                        </div>
+                      </>
+                    )}
+                    <div className="max-h-40 overflow-auto border rounded p-2 text-sm space-y-1">
+                      {overrides.length ? overrides
+                        .slice()
+                        .sort((a: any, b: any) => String(a.date).localeCompare(String(b.date)))
+                        .map((o: any) => (
+                          <div key={String(o.date)} className="flex items-center justify-between">
+                            <div>
+                              <div className="font-medium">{String(o.date).slice(0,10)} • {o.is_available ? "Disponible" : "Indisponible"}</div>
+                              {(o.start_time || o.end_time) && (
+                                <div className="text-gray-500">{o.start_time?.slice(11,16) || o.start_time} → {o.end_time?.slice(11,16) || o.end_time}</div>
+                              )}
+                            </div>
+                            <Button variant="ghost" size="sm" onClick={() => setOverrides((prev) => prev.filter((x: any) => String(x.date).slice(0,10) !== String(o.date).slice(0,10)))}>Retirer</Button>
+                          </div>
+                        )) : <div className="text-gray-500">Aucune exception</div>}
+                    </div>
+                    <div className="flex justify-end">
+                      <Button className="bg-black text-white hover:bg-gray-800" size="sm" onClick={handleSaveOverrides}>Enregistrer les exceptions</Button>
+                    </div>
+                  </div>
+                </div>
+
               </div>
             )}
             <div className="flex justify-end space-x-2">
