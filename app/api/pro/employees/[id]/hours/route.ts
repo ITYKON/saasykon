@@ -39,6 +39,11 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     if (typeof it.start_time !== "string" || typeof it.end_time !== "string") return NextResponse.json({ error: "start_time/end_time required" }, { status: 400 });
   }
 
+  if (items.length === 0) {
+    await prisma.working_hours.deleteMany({ where: { employee_id: params.id } });
+    return NextResponse.json({ ok: true });
+  }
+
   await prisma.$transaction([
     prisma.working_hours.deleteMany({ where: { employee_id: params.id } }),
     prisma.working_hours.createMany({

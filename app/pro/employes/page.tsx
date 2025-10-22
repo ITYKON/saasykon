@@ -55,9 +55,31 @@ export default function EmployeesPage() {
   const [editStatus, setEditStatus] = useState<string>("Actif")
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
   const [viewEmployee, setViewEmployee] = useState<UIEmployee | null>(null)
+  // Add modal states
+  const [addServices, setAddServices] = useState<Set<string>>(new Set())
+  const [addDays, setAddDays] = useState<Set<string>>(new Set())
+  const [addStart, setAddStart] = useState<string>("09:00")
+  const [addEnd, setAddEnd] = useState<string>("18:00")
+  // Edit modal states
+  const [editServices, setEditServices] = useState<Set<string>>(new Set())
+  const [editDays, setEditDays] = useState<Set<string>>(new Set())
+  const [editStart, setEditStart] = useState<string>("09:00")
+  const [editEnd, setEditEnd] = useState<string>("18:00")
 
-  function fmt(hhmm: string | Date): string {
-    const d = typeof hhmm === "string" ? new Date(`1970-01-01T${hhmm.length === 5 ? hhmm + ":00" : hhmm}Z`) : new Date(hhmm)
+  function fmt(val: string | Date): string {
+    let d: Date
+    if (typeof val === "string") {
+      const s = val.trim()
+      if (s.includes("T")) {
+        d = new Date(s)
+      } else {
+        const base = s.length === 5 ? `${s}:00` : s
+        d = new Date(`1970-01-01T${base}Z`)
+      }
+    } else {
+      d = new Date(val)
+    }
+    if (isNaN(d.getTime())) return ""
     return d.toISOString().substring(11, 16)
   }
 
@@ -126,22 +148,35 @@ export default function EmployeesPage() {
   useEffect(() => {
     if (isEditDialogOpen && selectedEmployee) {
       setEditStatus(selectedEmployee.status || "Actif")
+      setEditServices(new Set(selectedEmployee.services || []))
+      setEditDays(new Set(selectedEmployee.workDays || []))
+      const parts = (selectedEmployee.workHours || "").split(" - ")
+      setEditStart(parts[0] || "09:00")
+      setEditEnd(parts[1] || "18:00")
     }
   }, [isEditDialogOpen, selectedEmployee])
+
+  useEffect(() => {
+    if (isAddDialogOpen) {
+      setAddServices(new Set())
+      setAddDays(new Set())
+      setAddStart("09:00")
+      setAddEnd("18:00")
+    }
+  }, [isAddDialogOpen])
 
   async function handleAddEmployee() {
     const nameEl = document.getElementById("name") as HTMLInputElement | null
     const emailEl = document.getElementById("email") as HTMLInputElement | null
     const phoneEl = document.getElementById("phone") as HTMLInputElement | null
-    const startEl = document.getElementById("startTime") as HTMLInputElement | null
-    const endEl = document.getElementById("endTime") as HTMLInputElement | null
+    // times come from controlled state
     const roleEl = document.getElementById("role") as HTMLInputElement | null
 
     const full_name = nameEl?.value?.trim() || ""
     const email = emailEl?.value?.trim() || ""
     const phone = phoneEl?.value?.trim() || ""
-    const start_time = startEl?.value || "09:00"
-    const end_time = endEl?.value || "18:00"
+    const start_time = addStart || "09:00"
+    const end_time = addEnd || "18:00"
 
     if (!full_name) {
       alert("Nom complet requis")
@@ -164,7 +199,7 @@ export default function EmployeesPage() {
       const empId: string = created.id
 
       // Gather service checkboxes
-      const selectedServiceNames = services.filter((s) => (document.getElementById(s) as HTMLInputElement | null)?.checked)
+      const selectedServiceNames = Array.from(addServices)
       // Fetch canonical services with ids
       let serviceIds: string[] = []
       try {
@@ -178,15 +213,19 @@ export default function EmployeesPage() {
       } catch {}
 
       if (serviceIds.length) {
-        await fetch(`/api/pro/employees/${empId}/services`, {
+        const svcPut = await fetch(`/api/pro/employees/${empId}/services`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ service_ids: serviceIds }),
-        }).catch(() => {})
+        })
+        if (!svcPut.ok) {
+          const j = await svcPut.json().catch(() => ({}))
+          throw new Error(j?.error || "Échec de l'affectation des services")
+        }
       }
 
       // Gather working days checkboxes -> map to weekday indexes
-      const selectedDays = workDays.filter((d) => (document.getElementById(d) as HTMLInputElement | null)?.checked)
+      const selectedDays = Array.from(addDays)
       const dayIndex: Record<string, number> = {
         "Lundi": 1,
         "Mardi": 2,
@@ -198,11 +237,15 @@ export default function EmployeesPage() {
       }
       const hours = selectedDays.map((d) => ({ weekday: dayIndex[d], start_time, end_time, breaks: [] }))
       if (hours.length) {
-        await fetch(`/api/pro/employees/${empId}/hours`, {
+        const hrsPut = await fetch(`/api/pro/employees/${empId}/hours`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ hours }),
-        }).catch(() => {})
+        })
+        if (!hrsPut.ok) {
+          const j = await hrsPut.json().catch(() => ({}))
+          throw new Error(j?.error || "Échec de l'enregistrement des horaires")
+        }
       }
 
       // Optional: store role as an internal label if provided
@@ -257,15 +300,14 @@ export default function EmployeesPage() {
     const emailEl = document.getElementById("edit-email") as HTMLInputElement | null
     const phoneEl = document.getElementById("edit-phone") as HTMLInputElement | null
     const roleEl = document.getElementById("edit-role") as HTMLInputElement | null
-    const startEl = document.getElementById("edit-startTime") as HTMLInputElement | null
-    const endEl = document.getElementById("edit-endTime") as HTMLInputElement | null
+    // times come from controlled state
 
     const full_name = nameEl?.value?.trim() || ""
     const email = emailEl?.value?.trim() || ""
     const phone = phoneEl?.value?.trim() || ""
     const roleVal = roleEl?.value?.trim() || ""
-    const start_time = startEl?.value || "09:00"
-    const end_time = endEl?.value || "18:00"
+    const start_time = editStart || "09:00"
+    const end_time = editEnd || "18:00"
 
     if (!full_name) {
       alert("Nom complet requis")
@@ -297,7 +339,7 @@ export default function EmployeesPage() {
         }).catch(() => {})
       }
 
-      const selectedServiceNames = services.filter((s) => (document.getElementById(`edit-${s}`) as HTMLInputElement | null)?.checked)
+      const selectedServiceNames = Array.from(editServices)
       let serviceIds: string[] = []
       try {
         const bidMatch = document.cookie.match(/(?:^|; )business_id=([^;]+)/)
@@ -311,20 +353,32 @@ export default function EmployeesPage() {
           serviceIds = selectedServiceNames.map((n) => byName.get(n.toLowerCase())).filter(Boolean) as string[]
         }
       } catch {}
-      await fetch(`/api/pro/employees/${selectedEmployee.id}/services`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ service_ids: serviceIds }),
-      }).catch(() => {})
+      {
+        const svcPut = await fetch(`/api/pro/employees/${selectedEmployee.id}/services`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ service_ids: serviceIds }),
+        })
+        if (!svcPut.ok) {
+          const j = await svcPut.json().catch(() => ({}))
+          throw new Error(j?.error || "Échec de l'affectation des services")
+        }
+      }
 
-      const selectedDays = workDays.filter((d) => (document.getElementById(`edit-day-${d}`) as HTMLInputElement | null)?.checked)
+      const selectedDays = Array.from(editDays)
       const dayIndex: Record<string, number> = { "Lundi": 1, "Mardi": 2, "Mercredi": 3, "Jeudi": 4, "Vendredi": 5, "Samedi": 6, "Dimanche": 0 }
       const hours = selectedDays.map((d) => ({ weekday: dayIndex[d], start_time, end_time, breaks: [] }))
-      await fetch(`/api/pro/employees/${selectedEmployee.id}/hours`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ hours }),
-      }).catch(() => {})
+      {
+        const hrsPut = await fetch(`/api/pro/employees/${selectedEmployee.id}/hours`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ hours }),
+        })
+        if (!hrsPut.ok) {
+          const j = await hrsPut.json().catch(() => ({}))
+          throw new Error(j?.error || "Échec de l'enregistrement des horaires")
+        }
+      }
 
       setIsEditDialogOpen(false)
       await loadEmployees()
@@ -417,7 +471,11 @@ export default function EmployeesPage() {
                   <div className="grid grid-cols-3 gap-2 mt-2">
                     {services.map((service) => (
                       <div key={service} className="flex items-center space-x-2">
-                        <Checkbox id={service} />
+                        <Checkbox id={service} checked={addServices.has(service)} onCheckedChange={(v) => {
+                          const next = new Set(addServices)
+                          if (v) next.add(service); else next.delete(service)
+                          setAddServices(next)
+                        }} />
                         <Label htmlFor={service} className="text-sm">
                           {service}
                         </Label>
@@ -430,7 +488,11 @@ export default function EmployeesPage() {
                   <div className="grid grid-cols-4 gap-2 mt-2">
                     {workDays.map((day) => (
                       <div key={day} className="flex items-center space-x-2">
-                        <Checkbox id={day} />
+                        <Checkbox id={day} checked={addDays.has(day)} onCheckedChange={(v) => {
+                          const next = new Set(addDays)
+                          if (v) next.add(day); else next.delete(day)
+                          setAddDays(next)
+                        }} />
                         <Label htmlFor={day} className="text-sm">
                           {day}
                         </Label>
@@ -441,11 +503,11 @@ export default function EmployeesPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="startTime">Heure de début</Label>
-                    <Input id="startTime" type="time" defaultValue="09:00" />
+                    <Input id="startTime" type="time" value={addStart} onChange={(e) => setAddStart(e.target.value)} />
                   </div>
                   <div>
                     <Label htmlFor="endTime">Heure de fin</Label>
-                    <Input id="endTime" type="time" defaultValue="18:00" />
+                    <Input id="endTime" type="time" value={addEnd} onChange={(e) => setAddEnd(e.target.value)} />
                   </div>
                 </div>
               </div>
@@ -531,9 +593,9 @@ export default function EmployeesPage() {
                       <div>
                         <div className="flex items-center gap-1 text-gray-600 mb-1">
                           <Calendar className="h-4 w-4" />
-                          Repos
+                          Jours de travail
                         </div>
-                        <p className="font-medium">{employee.restDays.join(", ")}</p>
+                        <p className="font-medium">{employee.workDays.join(", ")}</p>
                       </div>
                     </div>
                   </div>
@@ -663,7 +725,11 @@ export default function EmployeesPage() {
                   <div className="grid grid-cols-3 gap-2 mt-2">
                     {services.map((service) => (
                       <div key={service} className="flex items-center space-x-2">
-                        <Checkbox id={`edit-${service}`} defaultChecked={selectedEmployee.services.includes(service)} />
+                        <Checkbox id={`edit-${service}`} checked={editServices.has(service)} onCheckedChange={(v) => {
+                          const next = new Set(editServices)
+                          if (v) next.add(service); else next.delete(service)
+                          setEditServices(next)
+                        }} />
                         <Label htmlFor={`edit-${service}`} className="text-sm">
                           {service}
                         </Label>
@@ -676,7 +742,11 @@ export default function EmployeesPage() {
                   <div className="grid grid-cols-4 gap-2 mt-2">
                     {workDays.map((day) => (
                       <div key={day} className="flex items-center space-x-2">
-                        <Checkbox id={`edit-day-${day}`} defaultChecked={selectedEmployee.workDays.includes(day)} />
+                        <Checkbox id={`edit-day-${day}`} checked={editDays.has(day)} onCheckedChange={(v) => {
+                          const next = new Set(editDays)
+                          if (v) next.add(day); else next.delete(day)
+                          setEditDays(next)
+                        }} />
                         <Label htmlFor={`edit-day-${day}`} className="text-sm">{day}</Label>
                       </div>
                     ))}
@@ -685,11 +755,11 @@ export default function EmployeesPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="edit-startTime">Heure de début</Label>
-                    <Input id="edit-startTime" type="time" defaultValue={(selectedEmployee.workHours?.split(" - ")?.[0]) || "09:00"} />
+                    <Input id="edit-startTime" type="time" value={editStart} onChange={(e) => setEditStart(e.target.value)} />
                   </div>
                   <div>
                     <Label htmlFor="edit-endTime">Heure de fin</Label>
-                    <Input id="edit-endTime" type="time" defaultValue={(selectedEmployee.workHours?.split(" - ")?.[1]) || "18:00"} />
+                    <Input id="edit-endTime" type="time" value={editEnd} onChange={(e) => setEditEnd(e.target.value)} />
                   </div>
                 </div>
                 <div>
