@@ -13,12 +13,43 @@ export async function GET(req: NextRequest) {
   const allowed = ctx.roles.includes("ADMIN") || ctx.assignments.some((a) => a.business_id === businessId && (a.role === "PRO" || a.role === "PROFESSIONNEL"));
   if (!allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const employees = await prisma.employees.findMany({
-    where: { business_id: businessId, is_active: true },
-    orderBy: { full_name: "asc" },
-    select: { id: true, full_name: true },
-  });
-  return NextResponse.json({ employees });
+  const q = (url.searchParams.get("q") || "").trim();
+  const include = (url.searchParams.get("include") || "").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
+  const limit = Math.min(Math.max(parseInt(url.searchParams.get("limit") || "50", 10) || 50, 1), 200);
+  const offset = Math.max(parseInt(url.searchParams.get("offset") || "0", 10) || 0, 0);
+  const sort = (url.searchParams.get("sort") || "name").toLowerCase(); // name|created|updated
+
+  const where: any = { business_id: businessId };
+  if (q) {
+    where.OR = [
+      { full_name: { contains: q, mode: "insensitive" as any } },
+      { email: { contains: q, mode: "insensitive" as any } },
+      { phone: { contains: q, mode: "insensitive" as any } },
+    ];
+  }
+
+  const orderBy =
+    sort === "created"
+      ? { created_at: "desc" as const }
+      : sort === "updated"
+      ? { updated_at: "desc" as const }
+      : { full_name: "asc" as const };
+
+  const selectBase: any = { id: true, full_name: true, email: true, phone: true, is_active: true };
+  const withRoles = include.includes("roles");
+  const withServices = include.includes("services");
+  const withHours = include.includes("hours");
+
+  if (withRoles) selectBase.employee_roles = { select: { role: true } };
+  if (withServices) selectBase.employee_services = { select: { services: { select: { id: true, name: true } } } };
+  if (withHours) selectBase.working_hours = { select: { id: true, weekday: true, start_time: true, end_time: true, breaks: true } };
+
+  const [total, employees] = await Promise.all([
+    prisma.employees.count({ where }),
+    prisma.employees.findMany({ where, orderBy, skip: offset, take: limit, select: selectBase }),
+  ]);
+
+  return NextResponse.json({ items: employees, total });
 }
 
 export async function POST(req: NextRequest) {

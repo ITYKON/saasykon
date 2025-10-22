@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Plus, Search, Edit, Trash2, Calendar, Clock, Phone, Mail, User } from "lucide-react"
+import { Plus, Search, Edit, Trash2, Calendar, Clock, Phone, Mail, User, Eye } from "lucide-react"
 
 // Chargé dynamiquement depuis l'API
 type UIEmployee = {
@@ -52,6 +52,9 @@ export default function EmployeesPage() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [items, setItems] = useState<UIEmployee[]>([])
   const [loading, setLoading] = useState(false)
+  const [editStatus, setEditStatus] = useState<string>("Actif")
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
+  const [viewEmployee, setViewEmployee] = useState<UIEmployee | null>(null)
 
   function fmt(hhmm: string | Date): string {
     const d = typeof hhmm === "string" ? new Date(`1970-01-01T${hhmm.length === 5 ? hhmm + ":00" : hhmm}Z`) : new Date(hhmm)
@@ -67,18 +70,15 @@ export default function EmployeesPage() {
     try {
       const bidMatch = document.cookie.match(/(?:^|; )business_id=([^;]+)/)
       const businessId = bidMatch ? decodeURIComponent(bidMatch[1]) : ""
-      const q = businessId ? `?business_id=${encodeURIComponent(businessId)}` : ""
-      const res = await fetch(`/api/pro/employees${q}`)
+      const q = new URLSearchParams()
+      if (businessId) q.set("business_id", businessId)
+      q.set("include", "roles,services,hours")
+      q.set("limit", "200")
+      const res = await fetch(`/api/pro/employees?${q.toString()}`)
       const data = await res.json()
       if (!res.ok) throw new Error(data?.error || "Erreur de chargement")
-      const list: Array<{ id: string; full_name: string }> = data.employees || []
-
-      const out: UIEmployee[] = []
-      for (const e of list) {
-        const detRes = await fetch(`/api/pro/employees/${e.id}`)
-        const det = await detRes.json()
-        if (!detRes.ok || !det?.employee) continue
-        const emp = det.employee
+      const list = Array.isArray(data?.items) ? data.items : []
+      const out: UIEmployee[] = list.map((emp: any) => {
         const servicesNames: string[] = (emp.employee_services || []).map((x: any) => x.services?.name).filter(Boolean)
         const hours = (emp.working_hours || [])
         let minStart: string | null = null
@@ -97,7 +97,7 @@ export default function EmployeesPage() {
         const workSet = new Set(workDaysNames)
         const rest = ["Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi","Dimanche"].filter((d) => !workSet.has(d))
         const role = (emp.employee_roles?.[0]?.role as string) || ""
-        out.push({
+        return {
           id: emp.id,
           name: emp.full_name,
           email: emp.email || null,
@@ -109,8 +109,8 @@ export default function EmployeesPage() {
           restDays: rest,
           workHours: minStart && maxEnd ? `${minStart} - ${maxEnd}` : "",
           status: emp.is_active ? "Actif" : "Inactif",
-        })
-      }
+        }
+      })
       setItems(out)
     } catch (e) {
       // ignore for now
@@ -122,6 +122,12 @@ export default function EmployeesPage() {
   useEffect(() => {
     loadEmployees()
   }, [])
+
+  useEffect(() => {
+    if (isEditDialogOpen && selectedEmployee) {
+      setEditStatus(selectedEmployee.status || "Actif")
+    }
+  }, [isEditDialogOpen, selectedEmployee])
 
   async function handleAddEmployee() {
     const nameEl = document.getElementById("name") as HTMLInputElement | null
@@ -228,6 +234,11 @@ export default function EmployeesPage() {
     setIsEditDialogOpen(true)
   }
 
+  const handleViewEmployee = (employee: UIEmployee) => {
+    setViewEmployee(employee)
+    setIsViewDialogOpen(true)
+  }
+
   async function handleDeleteEmployee(id: string) {
     if (!confirm("Supprimer cet employé ?")) return
     try {
@@ -246,11 +257,15 @@ export default function EmployeesPage() {
     const emailEl = document.getElementById("edit-email") as HTMLInputElement | null
     const phoneEl = document.getElementById("edit-phone") as HTMLInputElement | null
     const roleEl = document.getElementById("edit-role") as HTMLInputElement | null
+    const startEl = document.getElementById("edit-startTime") as HTMLInputElement | null
+    const endEl = document.getElementById("edit-endTime") as HTMLInputElement | null
 
     const full_name = nameEl?.value?.trim() || ""
     const email = emailEl?.value?.trim() || ""
     const phone = phoneEl?.value?.trim() || ""
     const roleVal = roleEl?.value?.trim() || ""
+    const start_time = startEl?.value || "09:00"
+    const end_time = endEl?.value || "18:00"
 
     if (!full_name) {
       alert("Nom complet requis")
@@ -258,10 +273,11 @@ export default function EmployeesPage() {
     }
 
     try {
+      const is_active = editStatus === "Actif"
       const res = await fetch(`/api/pro/employees/${selectedEmployee.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ full_name, email: email || undefined, phone: phone || undefined }),
+        body: JSON.stringify({ full_name, email: email || undefined, phone: phone || undefined, is_active }),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data?.error || "Mise à jour impossible")
@@ -280,6 +296,35 @@ export default function EmployeesPage() {
           body: JSON.stringify({ roles: [] }),
         }).catch(() => {})
       }
+
+      const selectedServiceNames = services.filter((s) => (document.getElementById(`edit-${s}`) as HTMLInputElement | null)?.checked)
+      let serviceIds: string[] = []
+      try {
+        const bidMatch = document.cookie.match(/(?:^|; )business_id=([^;]+)/)
+        const businessId = bidMatch ? decodeURIComponent(bidMatch[1]) : ""
+        const q = businessId ? `?business_id=${encodeURIComponent(businessId)}` : ""
+        const svcRes = await fetch(`/api/pro/services${q}`)
+        const svcs = await svcRes.json()
+        if (svcRes.ok && Array.isArray(svcs?.services)) {
+          const byName = new Map<string, string>()
+          for (const s of svcs.services) byName.set(String(s.name).toLowerCase(), s.id)
+          serviceIds = selectedServiceNames.map((n) => byName.get(n.toLowerCase())).filter(Boolean) as string[]
+        }
+      } catch {}
+      await fetch(`/api/pro/employees/${selectedEmployee.id}/services`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ service_ids: serviceIds }),
+      }).catch(() => {})
+
+      const selectedDays = workDays.filter((d) => (document.getElementById(`edit-day-${d}`) as HTMLInputElement | null)?.checked)
+      const dayIndex: Record<string, number> = { "Lundi": 1, "Mardi": 2, "Mercredi": 3, "Jeudi": 4, "Vendredi": 5, "Samedi": 6, "Dimanche": 0 }
+      const hours = selectedDays.map((d) => ({ weekday: dayIndex[d], start_time, end_time, breaks: [] }))
+      await fetch(`/api/pro/employees/${selectedEmployee.id}/hours`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ hours }),
+      }).catch(() => {})
 
       setIsEditDialogOpen(false)
       await loadEmployees()
@@ -504,10 +549,13 @@ export default function EmployeesPage() {
                       </div>
                     </div>
                     <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={() => handleViewEmployee(employee)}>
+                        <Eye className="h-4 w-4" />
+                      </Button>
                       <Button variant="outline" size="sm" onClick={() => handleEditEmployee(employee)}>
                         <Edit className="h-4 w-4" />
                       </Button>
-                      <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700 bg-transparent">
+                      <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700 bg-transparent" onClick={() => handleDeleteEmployee(employee.id)}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
@@ -517,6 +565,70 @@ export default function EmployeesPage() {
             </Card>
           ))}
         </div>
+
+        {/* View Employee Dialog */}
+        <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Détails de l'employé</DialogTitle>
+            </DialogHeader>
+            {viewEmployee && (
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Nom complet</Label>
+                    <div className="mt-1 font-medium">{viewEmployee.name}</div>
+                  </div>
+                  <div>
+                    <Label>Poste</Label>
+                    <div className="mt-1">{viewEmployee.role || "-"}</div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Email</Label>
+                    <div className="mt-1">{viewEmployee.email || "-"}</div>
+                  </div>
+                  <div>
+                    <Label>Téléphone</Label>
+                    <div className="mt-1">{viewEmployee.phone || "-"}</div>
+                  </div>
+                </div>
+                <div>
+                  <Label>Services proposés</Label>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {viewEmployee.services.length ? viewEmployee.services.map((s) => (
+                      <Badge key={s} variant="outline" className="text-xs">{s}</Badge>
+                    )) : <div>-</div>}
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Horaires</Label>
+                    <div className="mt-1">{viewEmployee.workHours || "-"}</div>
+                  </div>
+                  <div>
+                    <Label>Repos</Label>
+                    <div className="mt-1">{viewEmployee.restDays.join(", ") || "-"}</div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Statut</Label>
+                    <div className="mt-1">{viewEmployee.status}</div>
+                  </div>
+                  <div>
+                    <Label>ID</Label>
+                    <div className="mt-1 text-xs text-gray-500 break-all">{viewEmployee.id}</div>
+                  </div>
+                </div>
+              </div>
+            )}
+            <div className="flex justify-end">
+              <Button variant="outline" onClick={() => setIsViewDialogOpen(false)}>Fermer</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Edit Employee Dialog */}
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
@@ -560,8 +672,29 @@ export default function EmployeesPage() {
                   </div>
                 </div>
                 <div>
+                  <Label>Jours de travail</Label>
+                  <div className="grid grid-cols-4 gap-2 mt-2">
+                    {workDays.map((day) => (
+                      <div key={day} className="flex items-center space-x-2">
+                        <Checkbox id={`edit-day-${day}`} defaultChecked={selectedEmployee.workDays.includes(day)} />
+                        <Label htmlFor={`edit-day-${day}`} className="text-sm">{day}</Label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="edit-startTime">Heure de début</Label>
+                    <Input id="edit-startTime" type="time" defaultValue={(selectedEmployee.workHours?.split(" - ")?.[0]) || "09:00"} />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-endTime">Heure de fin</Label>
+                    <Input id="edit-endTime" type="time" defaultValue={(selectedEmployee.workHours?.split(" - ")?.[1]) || "18:00"} />
+                  </div>
+                </div>
+                <div>
                   <Label>Statut</Label>
-                  <Select defaultValue={selectedEmployee.status}>
+                  <Select value={editStatus} onValueChange={setEditStatus}>
                     <SelectTrigger className="mt-2">
                       <SelectValue />
                     </SelectTrigger>
@@ -578,7 +711,7 @@ export default function EmployeesPage() {
               <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
                 Annuler
               </Button>
-              <Button className="bg-black text-white hover:bg-gray-800">Sauvegarder</Button>
+              <Button className="bg-black text-white hover:bg-gray-800" onClick={handleSaveEdit}>Sauvegarder</Button>
             </div>
           </DialogContent>
         </Dialog>
