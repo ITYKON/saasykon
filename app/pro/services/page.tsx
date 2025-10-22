@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { Plus, Edit, Trash2, Clock, DollarSign } from "lucide-react"
+import { Plus, Edit, Trash2, Clock, DollarSign, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Checkbox } from "@/components/ui/checkbox"
  
 export default function ProServices() {
   const [services, setServices] = useState<Array<{ id: string; name: string; category: string; duration: number; price: number; priceMin?: number; priceMax?: number; description: string; active: boolean }>>([])
@@ -27,6 +28,9 @@ export default function ProServices() {
   const [categoriesApi, setCategoriesApi] = useState<Array<{ id: number; name: string }>>([])
   const [newCategoryName, setNewCategoryName] = useState("")
   const [newCategoryCode, setNewCategoryCode] = useState("")
+  const [employees, setEmployees] = useState<Array<{ id: string; name: string }>>([])
+  const [addSelectedEmployeeIds, setAddSelectedEmployeeIds] = useState<Set<string>>(new Set())
+  const [serviceEmployees, setServiceEmployees] = useState<Record<string, string[]>>({})
 
   // Edit modal state
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
@@ -41,6 +45,7 @@ export default function ProServices() {
   const [editPriceMode, setEditPriceMode] = useState<"fixed" | "range">("fixed")
   const [editDescription, setEditDescription] = useState("")
   const [editActive, setEditActive] = useState<boolean>(true)
+  const [editSelectedEmployeeIds, setEditSelectedEmployeeIds] = useState<Set<string>>(new Set())
 
   function getBusinessId(): string {
     const m = typeof document !== "undefined" ? document.cookie.match(/(?:^|; )business_id=([^;]+)/) : null
@@ -73,6 +78,20 @@ export default function ProServices() {
         setEditPriceMax(max)
         setEditPriceMode("range")
       }
+      try {
+        const empRes = await fetch(`/api/pro/employees?include=services&limit=200`)
+        const empData = await empRes.json().catch(() => ({}))
+        if (empRes.ok && Array.isArray(empData?.items)) {
+          const emps = empData.items.map((e: any) => ({ id: String(e.id), name: String(e.full_name || "") , services: e.employee_services || [] }))
+          setEmployees(emps.map((e: any) => ({ id: e.id, name: e.name })))
+          const selected = new Set<string>()
+          for (const e of emps) {
+            const has = (e.services || []).some((x: any) => x?.services?.id === serviceId)
+            if (has) selected.add(e.id)
+          }
+          setEditSelectedEmployeeIds(selected)
+        }
+      } catch {}
       setIsEditModalOpen(true)
     } catch (e: any) {
       alert(e?.message || "Impossible d'ouvrir la modification")
@@ -124,8 +143,49 @@ export default function ProServices() {
         }).then(() => {}).catch(() => {})
       }
 
+      // Sync employees assigned to this service
+      try {
+        for (const emp of employees) {
+          const curRes = await fetch(`/api/pro/employees/${emp.id}/services`)
+          const cur = await curRes.json().catch(() => ({}))
+          const existing: string[] = Array.isArray(cur?.services) ? cur.services.map((s: any) => s.id) : []
+          const has = existing.includes(editServiceId)
+          const shouldHave = editSelectedEmployeeIds.has(emp.id)
+          let next = existing
+          if (shouldHave && !has) next = [...existing, editServiceId]
+          if (!shouldHave && has) next = existing.filter((id) => id !== editServiceId)
+          if (next !== existing) {
+            await fetch(`/api/pro/employees/${emp.id}/services`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ service_ids: next }),
+            }).then(() => {}).catch(() => {})
+          }
+        }
+      } catch {}
+
       setIsEditModalOpen(false)
       await loadServices()
+      // refresh employee-service mapping
+      try {
+        const empRes = await fetch(`/api/pro/employees?include=services&limit=200`)
+        const empData = await empRes.json().catch(() => ({}))
+        if (empRes.ok && Array.isArray(empData?.items)) {
+          const list = empData.items as any[]
+          const map: Record<string, string[]> = {}
+          for (const e of list) {
+            const name = String(e.full_name || "")
+            for (const es of (e.employee_services || [])) {
+              const sid = es?.services?.id
+              if (!sid) continue
+              const key = String(sid)
+              if (!map[key]) map[key] = []
+              map[key].push(name)
+            }
+          }
+          setServiceEmployees(map)
+        }
+      } catch {}
       alert("Service modifié")
     } catch (e: any) {
       alert(e?.message || "Impossible d'enregistrer")
@@ -169,6 +229,28 @@ export default function ProServices() {
 
   useEffect(() => {
     loadServices()
+    ;(async () => {
+      try {
+        const empRes = await fetch(`/api/pro/employees?include=services&limit=200`)
+        const empData = await empRes.json().catch(() => ({}))
+        if (empRes.ok && Array.isArray(empData?.items)) {
+          const list = empData.items as any[]
+          setEmployees(list.map((e: any) => ({ id: String(e.id), name: String(e.full_name || "") })))
+          const map: Record<string, string[]> = {}
+          for (const e of list) {
+            const name = String(e.full_name || "")
+            for (const es of (e.employee_services || [])) {
+              const sid = es?.services?.id
+              if (!sid) continue
+              const key = String(sid)
+              if (!map[key]) map[key] = []
+              map[key].push(name)
+            }
+          }
+          setServiceEmployees(map)
+        }
+      } catch {}
+    })()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -229,6 +311,21 @@ export default function ProServices() {
         body: JSON.stringify(variantPayload),
       }).then(() => {}).catch(() => {})
 
+      // Assign selected employees to this new service
+      try {
+        for (const empId of Array.from(addSelectedEmployeeIds)) {
+          const curRes = await fetch(`/api/pro/employees/${empId}/services`)
+          const cur = await curRes.json().catch(() => ({}))
+          const existing: string[] = Array.isArray(cur?.services) ? cur.services.map((s: any) => s.id) : []
+          const next = Array.from(new Set([...existing, serviceId]))
+          await fetch(`/api/pro/employees/${empId}/services`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ service_ids: next }),
+          }).then(() => {}).catch(() => {})
+        }
+      } catch {}
+
       setNewName("")
       setSelectedCategoryId("")
       setNewDuration("")
@@ -239,6 +336,26 @@ export default function ProServices() {
       setNewDescription("")
       setIsServiceModalOpen(false)
       await loadServices()
+      // refresh employee-service mapping
+      try {
+        const empRes = await fetch(`/api/pro/employees?include=services&limit=200`)
+        const empData = await empRes.json().catch(() => ({}))
+        if (empRes.ok && Array.isArray(empData?.items)) {
+          const list = empData.items as any[]
+          const map: Record<string, string[]> = {}
+          for (const e of list) {
+            const name = String(e.full_name || "")
+            for (const es of (e.employee_services || [])) {
+              const sid = es?.services?.id
+              if (!sid) continue
+              const key = String(sid)
+              if (!map[key]) map[key] = []
+              map[key].push(name)
+            }
+          }
+          setServiceEmployees(map)
+        }
+      } catch {}
       alert("Service ajouté")
     } catch (e: any) {
       alert(e?.message || "Impossible d'ajouter le service")
@@ -350,6 +467,21 @@ export default function ProServices() {
                 <Label htmlFor="serviceDescription">Description</Label>
                 <Textarea id="serviceDescription" value={newDescription} onChange={(e) => setNewDescription(e.target.value)} placeholder="Description du service..." rows={3} />
              </div>
+              <div className="md:col-span-2">
+                <Label>Employés</Label>
+                <div className="mt-2 max-h-40 overflow-auto border rounded p-2">
+                  {employees.map((e) => (
+                    <div key={e.id} className="flex items-center space-x-2 py-1">
+                      <Checkbox id={`add-emp-${e.id}`} checked={addSelectedEmployeeIds.has(e.id)} onCheckedChange={(v) => {
+                        const next = new Set(addSelectedEmployeeIds)
+                        if (v) next.add(e.id); else next.delete(e.id)
+                        setAddSelectedEmployeeIds(next)
+                      }} />
+                      <Label htmlFor={`add-emp-${e.id}`} className="text-sm">{e.name}</Label>
+                    </div>
+                  ))}
+                </div>
+              </div>
            </div>
            <div className="flex justify-end gap-2">
              <Button variant="outline" onClick={() => setIsServiceModalOpen(false)}>Annuler</Button>
@@ -497,6 +629,17 @@ export default function ProServices() {
                       </div>
                     </div>
 
+                    {Array.isArray(serviceEmployees[service.id]) && serviceEmployees[service.id].length > 0 && (
+                      <div className="mb-3 flex items-center gap-2 text-sm text-gray-600 flex-wrap">
+                        <Users className="h-4 w-4" />
+                        <div className="flex flex-wrap gap-1">
+                          {serviceEmployees[service.id].map((n, idx) => (
+                            <Badge key={`${service.id}-${idx}`} variant="outline" className="text-xs">{n}</Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     <div className="flex gap-2">
                       <Button
                         onClick={() => openEditModal(service.id)}
@@ -580,6 +723,21 @@ export default function ProServices() {
             <div className="md:col-span-2">
               <Label htmlFor="editServiceDescription">Description</Label>
               <Textarea id="editServiceDescription" value={editDescription} onChange={(e) => setEditDescription(e.target.value)} rows={3} />
+            </div>
+            <div className="md:col-span-2">
+              <Label>Employés</Label>
+              <div className="mt-2 max-h-40 overflow-auto border rounded p-2">
+                {employees.map((e) => (
+                  <div key={e.id} className="flex items-center space-x-2 py-1">
+                    <Checkbox id={`edit-emp-${e.id}`} checked={editSelectedEmployeeIds.has(e.id)} onCheckedChange={(v) => {
+                      const next = new Set(editSelectedEmployeeIds)
+                      if (v) next.add(e.id); else next.delete(e.id)
+                      setEditSelectedEmployeeIds(next)
+                    }} />
+                    <Label htmlFor={`edit-emp-${e.id}`} className="text-sm">{e.name}</Label>
+                  </div>
+                ))}
+              </div>
             </div>
             <div className="md:col-span-2 flex items-center gap-2">
               <input id="editActive" type="checkbox" checked={editActive} onChange={(e) => setEditActive(e.target.checked)} />

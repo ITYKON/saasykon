@@ -37,7 +37,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
       is_active: true,
       created_at: true,
       updated_at: true,
-      service_variants: { select: { id: true, name: true, duration_minutes: true, price_cents: true, currency: true, is_active: true }, orderBy: { duration_minutes: "asc" } },
+      service_variants: { select: { id: true, name: true, duration_minutes: true, price_cents: true, price_min_cents: true, price_max_cents: true, currency: true, is_active: true }, orderBy: { duration_minutes: "asc" } },
       service_addons: { select: { id: true, name: true, duration_minutes: true, price_cents: true, currency: true, is_active: true }, orderBy: { duration_minutes: "asc" } },
     },
   } as any);
