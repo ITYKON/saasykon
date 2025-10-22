@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -23,28 +23,39 @@ import { Search, MoreHorizontal, RotateCcw, Trash2, Archive, Users, Calendar, Se
 
 export default function ArchivesPage() {
   const [searchTerm, setSearchTerm] = useState("")
+  const [archivedEmployees, setArchivedEmployees] = useState<Array<{ id: string; name: string; role: string; email: string | null; status: string }>>([])
+  const [loading, setLoading] = useState(false)
 
-  // Mock data for archived items
-  const archivedEmployees = [
-    {
-      id: 1,
-      name: "Sophie Martin",
-      role: "Coiffeuse",
-      email: "sophie.martin@email.com",
-      deletedDate: "2024-01-15",
-      deletedBy: "Marie Dupont",
-      reason: "Démission",
-    },
-    {
-      id: 2,
-      name: "Lucas Bernard",
-      role: "Réceptionniste",
-      email: "lucas.bernard@email.com",
-      deletedDate: "2024-01-10",
-      deletedBy: "Marie Dupont",
-      reason: "Fin de contrat",
-    },
-  ]
+  async function loadArchivedEmployees() {
+    setLoading(true)
+    try {
+      const q = new URLSearchParams()
+      q.set("include", "roles")
+      q.set("limit", "200")
+      const res = await fetch(`/api/pro/employees?${q.toString()}`)
+      const data = await res.json()
+      if (!res.ok) throw new Error(data?.error || "Erreur de chargement")
+      const items = Array.isArray(data?.items) ? data.items : []
+      const out = items
+        .filter((e: any) => !e.is_active)
+        .map((e: any) => ({
+          id: e.id,
+          name: e.full_name,
+          email: e.email || null,
+          role: (e.employee_roles?.[0]?.role as string) || "",
+          status: "Inactif",
+        }))
+      setArchivedEmployees(out)
+    } catch (e) {
+      // ignore for now
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadArchivedEmployees()
+  }, [])
 
   const archivedReservations = [
     {
@@ -198,65 +209,58 @@ export default function ArchivesPage() {
                     <TableHead>Nom</TableHead>
                     <TableHead>Rôle</TableHead>
                     <TableHead>Email</TableHead>
-                    <TableHead>Date de suppression</TableHead>
-                    <TableHead>Supprimé par</TableHead>
-                    <TableHead>Raison</TableHead>
+                    <TableHead>Statut</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {archivedEmployees.map((employee) => (
-                    <TableRow key={employee.id}>
-                      <TableCell className="font-medium">{employee.name}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{employee.role}</Badge>
-                      </TableCell>
-                      <TableCell>{employee.email}</TableCell>
-                      <TableCell>{employee.deletedDate}</TableCell>
-                      <TableCell>{employee.deletedBy}</TableCell>
-                      <TableCell>{employee.reason}</TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 w-8 p-0">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleRestore("employee", employee.id)}>
-                              <RotateCcw className="mr-2 h-4 w-4" />
-                              Restaurer
-                            </DropdownMenuItem>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                                  <Trash2 className="mr-2 h-4 w-4" />
-                                  Supprimer définitivement
-                                </DropdownMenuItem>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Supprimer définitivement</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Cette action est irréversible. L'employé sera définitivement supprimé.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Annuler</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={() => handlePermanentDelete("employee", employee.id)}
-                                    className="bg-red-600 hover:bg-red-700"
-                                  >
-                                    Supprimer
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {archivedEmployees
+                    .filter((e) =>
+                      e.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                      (e.role || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+                      (e.email || "").toLowerCase().includes(searchTerm.toLowerCase()),
+                    )
+                    .map((employee) => (
+                      <TableRow key={employee.id}>
+                        <TableCell className="font-medium">{employee.name}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{employee.role}</Badge>
+                        </TableCell>
+                        <TableCell>{employee.email}</TableCell>
+                        <TableCell>
+                          <Badge variant="secondary">{employee.status}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-8 w-8 p-0">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem
+                                onClick={async () => {
+                                  try {
+                                    const res = await fetch(`/api/pro/employees/${employee.id}`, {
+                                      method: "PATCH",
+                                      headers: { "Content-Type": "application/json" },
+                                      body: JSON.stringify({ is_active: true }),
+                                    })
+                                    if (!res.ok) throw new Error("Restauration échouée")
+                                    await loadArchivedEmployees()
+                                  } catch (e: any) {
+                                    alert(e?.message || "Impossible de restaurer")
+                                  }
+                                }}
+                              >
+                                <RotateCcw className="mr-2 h-4 w-4" />
+                                Restaurer
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))}
                 </TableBody>
               </Table>
             </TabsContent>

@@ -266,11 +266,13 @@ export default function EmployeesPage() {
     }
   }
 
-  const filteredEmployees = items.filter(
-    (employee) =>
-      employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      employee.role.toLowerCase().includes(searchTerm.toLowerCase()),
-  )
+  const filteredEmployees = items
+    .filter((e) => e.status === "Actif")
+    .filter(
+      (employee) =>
+        employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        employee.role.toLowerCase().includes(searchTerm.toLowerCase()),
+    )
 
   const handleEditEmployee = (employee: any) => {
     setSelectedEmployee(employee)
