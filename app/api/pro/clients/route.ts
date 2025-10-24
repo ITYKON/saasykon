@@ -19,7 +19,20 @@ export async function GET(req: NextRequest) {
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const businessId = getBusinessId(req, ctx);
   if (!businessId) return NextResponse.json({ error: "business_id required" }, { status: 400 });
-  const allowed = ctx.roles.includes("ADMIN") || ctx.assignments.some((a: any) => a.business_id === businessId && (a.role === "PRO" || a.role === "PROFESSIONNEL"));
+  let allowed = ctx.roles.includes("ADMIN") || ctx.assignments.some((a: any) => a.business_id === businessId && (a.role === "PRO" || a.role === "PROFESSIONNEL"));
+  if (!allowed) {
+    try {
+      const acc = await prisma.employee_accounts.findUnique({ where: { user_id: ctx.userId } }).catch(() => null);
+      if (acc) {
+        const perms = await prisma.employee_permissions.findMany({
+          where: { employee_id: acc.employee_id, business_id: businessId },
+          include: { pro_permissions: { select: { code: true } } },
+        } as any);
+        const codes = new Set<string>(perms.map((p: any) => p.pro_permissions?.code).filter(Boolean));
+        allowed = codes.has("clients_view") || codes.has("clients_manage");
+      }
+    } catch {}
+  }
   if (!allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const url = new URL(req.url);
@@ -115,7 +128,21 @@ export async function POST(req: NextRequest) {
   const ctx = await getAuthContext();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   // Not strictly tied to a business; clients are global. But we keep auth for Pro/Admin only.
-  const allowed = ctx.roles.includes("ADMIN") || ctx.assignments.length > 0;
+  let allowed = ctx.roles.includes("ADMIN") || ctx.assignments.length > 0;
+  if (!allowed) {
+    try {
+      const acc = await prisma.employee_accounts.findUnique({ where: { user_id: ctx.userId } }).catch(() => null);
+      if (acc) {
+        // No business context here; accept if employee has any clients_manage in any assignment for safety, or skip check.
+        const perms = await prisma.employee_permissions.findMany({
+          where: { employee_id: acc.employee_id },
+          include: { pro_permissions: { select: { code: true } } },
+        } as any);
+        const codes = new Set<string>(perms.map((p: any) => p.pro_permissions?.code).filter(Boolean));
+        allowed = codes.has("clients_manage");
+      }
+    } catch {}
+  }
   if (!allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const body = await req.json().catch(() => null);

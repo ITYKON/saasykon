@@ -452,12 +452,12 @@ export default function ComptesEmployesPage() {
                   Nouveau Compte
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-5xl w-[96vw] sm:w-[92vw]">
+              <DialogContent className="max-w-lg w-[92vw] p-6 max-h-[80vh] overflow-auto">
                 <DialogHeader>
                   <DialogTitle>Créer un compte employé</DialogTitle>
                 </DialogHeader>
-                <div className="flex flex-col md:flex-row gap-6">
-                  <div className="flex-1 min-w-0 space-y-6">
+                <div className="space-y-4">
+                  <div className="rounded-lg border bg-white shadow-sm p-4 space-y-4">
                     <Label htmlFor="email">Email</Label>
                     <Input
                       id="email"
@@ -515,149 +515,61 @@ export default function ComptesEmployesPage() {
                     </div>
                   </div>
 
-                  <div className="w-full md:w-96 min-w-0 space-y-4">
-                    <div className="rounded-lg border bg-white shadow-sm p-3">
-                      <div className="flex items-center justify-between mb-2">
-                        <h3 className="text-sm font-medium text-gray-700">
-                          Rôles (permissions d'accès)
-                        </h3>
-                        <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-700">
-                          {selectedRoleCodes.length}
-                        </span>
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {roles.map((r) => (
-                          <label
-                            key={r.code}
-                            htmlFor={r.code}
-                            className="flex items-start space-x-2 cursor-pointer"
-                          >
-                            <Checkbox
-                              id={r.code}
-                              checked={selectedRoleCodes.includes(r.code)}
-                              onCheckedChange={(checked) =>
-                                handleRoleToggle(r.code, checked as boolean)
-                              }
-                            />
-                            <div className="grid gap-0.5 leading-tight">
-                              <div
-                                className="text-sm font-medium break-words"
-                                title={`${r.name} (${r.code})`}
-                              >
-                                {r.name}
-                              </div>
-                              <div className="text-xs text-muted-foreground break-words">
-                                {r.code}
-                              </div>
-                            </div>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="rounded-lg border bg-white shadow-sm p-3 flex flex-col">
-                      <div className="flex items-center justify-between mb-2">
-                        <h3 className="text-sm font-medium text-gray-700">
-                          Pages et actions (Espace Pro)
-                        </h3>
-                        <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-700">
-                          {selectedPermissionCodes.length}
-                        </span>
+                  <div className="rounded-lg border bg-white shadow-sm p-3 flex flex-col max-h-[50vh] overflow-hidden">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="font-medium text-sm text-gray-700">Pages et actions (Espace Pro)</div>
+                        <div className="ml-2 flex items-center gap-2">
+                          <Button type="button" variant="ghost" onClick={() => setSelectedPermissionCodes(proPermissions.map((p) => p.code))}>Tout sélectionner</Button>
+                          <Button type="button" variant="ghost" onClick={() => setSelectedPermissionCodes([])}>Tout désélectionner</Button>
+                        </div>
                       </div>
                       <div className="flex items-center gap-2 mb-3">
                         <Input
-                          className="flex-1 w-full min-w-0"
+                          className="flex-1"
                           placeholder="Rechercher une permission..."
                           value={createPermQuery}
                           onChange={(e) => setCreatePermQuery(e.target.value)}
                         />
                       </div>
-                      <div className="flex items-center justify-end gap-2 mb-2">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() =>
-                            setSelectedPermissionCodes(
-                              proPermissions.map((p) => p.code)
-                            )
-                          }
-                        >
-                          Tout sélectionner
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setSelectedPermissionCodes([])}
-                        >
-                          Tout désélectionner
-                        </Button>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 overflow-auto pr-1">
+                        {(proPermissions.filter((p) =>
+                          createPermQuery
+                            ? (p.code
+                                .toLowerCase()
+                                .includes(createPermQuery.toLowerCase()) ||
+                              (p.description || "")
+                                .toLowerCase()
+                                .includes(createPermQuery.toLowerCase()))
+                            : true
+                        )).map((p) => (
+                          <div key={p.code} className="flex items-start space-x-2">
+                            <Checkbox
+                              id={`perm-${p.code}`}
+                              checked={selectedPermissionCodes.includes(
+                                p.code
+                              )}
+                              onCheckedChange={(checked) =>
+                                handlePermToggle(p.code, checked as boolean)
+                              }
+                              className="mt-1"
+                            />
+                            <div className="grid gap-0.5 leading-tight min-w-0">
+                              <label
+                                htmlFor={`perm-${p.code}`}
+                                className="text-sm font-medium leading-tight truncate"
+                                title={p.description || p.code}
+                              >
+                                {p.code}
+                              </label>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[40vh] overflow-auto pr-1">
-                        {proPermissions
-                          .filter((p) =>
-                            createPermQuery
-                              ? p.code
-                                  .toLowerCase()
-                                  .includes(createPermQuery.toLowerCase()) ||
-                                (p.description || "")
-                                  .toLowerCase()
-                                  .includes(createPermQuery.toLowerCase())
-                              : true
-                          )
-                          .map((p) => (
-                            <label
-                              key={p.code}
-                              htmlFor={`perm-${p.code}`}
-                              className="flex items-start space-x-2 cursor-pointer"
-                            >
-                              <Checkbox
-                                id={`perm-${p.code}`}
-                                checked={selectedPermissionCodes.includes(
-                                  p.code
-                                )}
-                                onCheckedChange={(checked) =>
-                                  handlePermToggle(p.code, checked as boolean)
-                                }
-                              />
-                              <div className="grid gap-0.5 leading-tight">
-                                <div
-                                  className="text-sm font-medium break-words"
-                                  title={p.description || p.code}
-                                >
-                                  {p.code}
-                                </div>
-                                {p.description && (
-                                  <div
-                                    className="text-xs text-muted-foreground break-words"
-                                    title={p.description}
-                                  >
-                                    {p.description}
-                                  </div>
-                                )}
-                              </div>
-                            </label>
-                          ))}
-                      </div>
-
-                      <div className="pt-3 border-t mt-3 flex justify-end gap-2">
-                        <Button
-                          variant="outline"
-                          onClick={() => setIsCreateModalOpen(false)}
-                          className="min-w-[120px]"
-                        >
-                          Annuler
-                        </Button>
-                        <Button
-                          className="bg-black hover:bg-gray-800 min-w-[120px]"
-                          onClick={handleCreateAccount}
-                        >
-                          Créer le compte
-                        </Button>
-                      </div>
-                    </div>
                   </div>
+                </div>
+                <div className="pt-4 mt-4 border-t flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => setIsCreateModalOpen(false)} className="min-w-[120px]">Annuler</Button>
+                  <Button className="bg-black hover:bg-gray-800 min-w-[120px]" onClick={handleCreateAccount}>Créer le compte</Button>
                 </div>
               </DialogContent>
             </Dialog>
@@ -829,61 +741,94 @@ export default function ComptesEmployesPage() {
                       ? new Date(account.last_login_at).toLocaleString()
                       : "-"}
                   </TableCell>
-                  <TableCell>
-                    <div className="flex space-x-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openView(account)}
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openEdit(account)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="text-red-600 hover:text-red-700 bg-transparent"
-                        onClick={async () => {
-                          if (!confirm("Supprimer ce compte employé ?")) return;
-                          try {
-                            const bidMatch =
-                              typeof document !== "undefined"
-                                ? document.cookie.match(
-                                    /(?:^|; )business_id=([^;]+)/
-                                  )
-                                : null;
-                            const businessId = bidMatch
-                              ? decodeURIComponent(bidMatch[1])
-                              : "";
-                            const sep = businessId
-                              ? `?business_id=${encodeURIComponent(
-                                  businessId
-                                )}&hard=true`
-                              : "?hard=true";
-                            const res = await fetch(
-                              `/api/pro/employee-accounts/${account.id}${sep}`,
-                              { method: "DELETE" }
-                            );
-                            const data = await res.json().catch(() => ({}));
-                            if (!res.ok)
-                              throw new Error(
-                                data?.error || "Suppression échouée"
-                              );
-                            await loadData();
-                          } catch (e: any) {
-                            alert(e?.message || "Erreur");
+                  <TableCell className="space-x-2">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => openView(account)}
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => openEdit(account)}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={async () => {
+                        try {
+                          const bidMatch =
+                            typeof document !== "undefined"
+                              ? document.cookie.match(
+                                  /(?:^|; )business_id=([^;]+)/
+                                )
+                              : null;
+                          const businessId = bidMatch
+                            ? decodeURIComponent(bidMatch[1])
+                            : "";
+                          const sep = businessId
+                            ? `?business_id=${encodeURIComponent(
+                                businessId
+                              )}`
+                            : "";
+                          const res = await fetch(
+                            `/api/pro/employee-accounts/${account.id}/resend-invite${sep}`,
+                            { method: "POST" }
+                          );
+                          if (!res.ok) {
+                            const d = await res.json().catch(() => ({}));
+                            throw new Error(d?.error || `Erreur ${res.status}`);
                           }
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
+                          alert("Invitation renvoyée");
+                        } catch (e: any) {
+                          alert(e?.message || "Erreur envoi invitation");
+                        }
+                      }}
+                    >
+                      Renvoyer l’invitation
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-red-600 hover:text-red-700 bg-transparent"
+                      onClick={async () => {
+                        if (!confirm("Supprimer ce compte employé ?")) return;
+                        try {
+                          const bidMatch =
+                            typeof document !== "undefined"
+                              ? document.cookie.match(
+                                  /(?:^|; )business_id=([^;]+)/
+                                )
+                              : null;
+                          const businessId = bidMatch
+                            ? decodeURIComponent(bidMatch[1])
+                            : "";
+                          const sep = businessId
+                            ? `?business_id=${encodeURIComponent(
+                                businessId
+                              )}&hard=true`
+                            : "?hard=true";
+                          const res = await fetch(
+                            `/api/pro/employee-accounts/${account.id}${sep}`,
+                            { method: "DELETE" }
+                          );
+                          const data = await res.json().catch(() => ({}));
+                          if (!res.ok)
+                            throw new Error(
+                              data?.error || "Suppression échouée"
+                            );
+                          await loadData();
+                        } catch (e: any) {
+                          alert(e?.message || "Erreur");
+                        }
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))}

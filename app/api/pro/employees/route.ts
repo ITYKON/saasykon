@@ -10,7 +10,20 @@ export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const businessId = url.searchParams.get("business_id") || cookieStore.get("business_id")?.value || ctx.assignments[0]?.business_id;
   if (!businessId) return NextResponse.json({ error: "business_id required" }, { status: 400 });
-  const allowed = ctx.roles.includes("ADMIN") || ctx.assignments.some((a) => a.business_id === businessId && (a.role === "PRO" || a.role === "PROFESSIONNEL"));
+  let allowed = ctx.roles.includes("ADMIN") || ctx.assignments.some((a) => a.business_id === businessId && (a.role === "PRO" || a.role === "PROFESSIONNEL"));
+  if (!allowed) {
+    try {
+      const acc = await prisma.employee_accounts.findUnique({ where: { user_id: ctx.userId } }).catch(() => null);
+      if (acc) {
+        const perms = await prisma.employee_permissions.findMany({
+          where: { employee_id: acc.employee_id, business_id: businessId },
+          include: { pro_permissions: { select: { code: true } } },
+        } as any);
+        const codes = new Set<string>(perms.map((p: any) => p.pro_permissions?.code).filter(Boolean));
+        allowed = codes.has("employees") || codes.has("employees_manage");
+      }
+    } catch {}
+  }
   if (!allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const q = (url.searchParams.get("q") || "").trim();
@@ -59,7 +72,20 @@ export async function POST(req: NextRequest) {
   const url = new URL(req.url);
   const businessId = url.searchParams.get("business_id") || cookieStore.get("business_id")?.value || ctx.assignments[0]?.business_id;
   if (!businessId) return NextResponse.json({ error: "business_id required" }, { status: 400 });
-  const allowed = ctx.roles.includes("ADMIN") || ctx.assignments.some((a) => a.business_id === businessId && (a.role === "PRO" || a.role === "PROFESSIONNEL"));
+  let allowed = ctx.roles.includes("ADMIN") || ctx.assignments.some((a) => a.business_id === businessId && (a.role === "PRO" || a.role === "PROFESSIONNEL"));
+  if (!allowed) {
+    try {
+      const acc = await prisma.employee_accounts.findUnique({ where: { user_id: ctx.userId } }).catch(() => null);
+      if (acc) {
+        const perms = await prisma.employee_permissions.findMany({
+          where: { employee_id: acc.employee_id, business_id: businessId },
+          include: { pro_permissions: { select: { code: true } } },
+        } as any);
+        const codes = new Set<string>(perms.map((p: any) => p.pro_permissions?.code).filter(Boolean));
+        allowed = codes.has("employees_manage");
+      }
+    } catch {}
+  }
   if (!allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const body = await req.json().catch(() => null);

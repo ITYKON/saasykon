@@ -64,8 +64,8 @@ export default function InvitePage() {
         const data = await res.json().catch(() => ({}));
         throw new Error(data?.error || `Erreur ${res.status}`);
       }
-      // Success: user is created/logged and session cookie set. Redirect to Pro onboarding.
-      router.push("/pro/onboarding");
+      // Success: user is created/logged and session cookie set. Employees go directly to Pro dashboard.
+      router.push("/pro");
     } catch (err: any) {
       toast({ title: "Activation impossible", description: err?.message || "" });
     } finally {

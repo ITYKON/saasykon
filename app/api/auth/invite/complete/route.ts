@@ -69,6 +69,26 @@ export async function POST(req: NextRequest) {
   // Create session cookie response
   const res = await createSession(invite!.user_id);
 
+  // If this user is linked to an employee account, set the business_id cookie to that employee's business
+  try {
+    const acc = await prisma.employee_accounts.findUnique({ where: { user_id: invite!.user_id } });
+    const empId = acc?.employee_id;
+    if (empId) {
+      const emp = await prisma.employees.findUnique({ where: { id: empId }, select: { business_id: true } });
+      const businessId = emp?.business_id;
+      if (businessId) {
+        const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 7);
+        res.cookies.set("business_id", businessId, {
+          httpOnly: false,
+          sameSite: "lax",
+          secure: process.env.NODE_ENV === "production",
+          expires: expiresAt,
+          path: "/",
+        });
+      }
+    }
+  } catch {}
+
   await prisma.event_logs.create({
     data: {
       user_id: invite!.user_id,

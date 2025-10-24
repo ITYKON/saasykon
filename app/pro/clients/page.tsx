@@ -38,7 +38,14 @@ export default function ProClients() {
           const text = await r.text();
           let j: any = {};
           try { j = text ? JSON.parse(text) : {}; } catch {}
-          if (!r.ok) throw new Error(j?.error || `HTTP ${r.status}`);
+          if (!r.ok) {
+            if (r.status === 403) {
+              // No permission: send user back to Pro home instead of throwing
+              router.push('/pro');
+              return { items: [], total: 0 };
+            }
+            throw new Error(j?.error || `HTTP ${r.status}`);
+          }
           return j;
         })
         .then((j) => {

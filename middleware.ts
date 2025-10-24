@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server";
 
 const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME || "saas_session";
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isAuthPage = pathname.startsWith("/auth/");
   const isInvitePage = pathname.startsWith("/auth/invite");
@@ -75,6 +75,30 @@ export function middleware(request: NextRequest) {
     }
     // All other users go to client dashboard
     return NextResponse.redirect(new URL("/client/dashboard", request.url));
+  }
+
+  // Fine-grained guard for PRO area: verify permissions against employee assignments
+  if (isProPath && !isProOnboarding) {
+    try {
+      const url = new URL(request.url);
+      // Skip API calls from middleware cycle
+      if (!isApiRequest) {
+        const guardUrl = new URL("/api/pro/guard", url.origin);
+        guardUrl.searchParams.set("path", pathname);
+        const res = await fetch(guardUrl, { headers: { cookie: request.headers.get("cookie") || "" } });
+        if (!res.ok) {
+          // Unauthorized or forbidden: bounce to /pro (dashboard)
+          const redirectTo = new URL("/pro", request.url);
+          redirectTo.searchParams.set("denied", "1");
+          return NextResponse.redirect(redirectTo);
+        }
+      }
+    } catch {
+      // On error, be safe and redirect to /pro
+      const redirectTo = new URL("/pro", request.url);
+      redirectTo.searchParams.set("denied", "1");
+      return NextResponse.redirect(redirectTo);
+    }
   }
 
   return NextResponse.next();
