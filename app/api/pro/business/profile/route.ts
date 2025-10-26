@@ -301,23 +301,60 @@ export async function PUT(request: Request) {
     }
 
     // Mettre à jour les photos
+    console.log('Traitement des photos:', JSON.stringify(photos, null, 2));
     if (photos && Array.isArray(photos)) {
-      // Supprimer les anciennes photos
-      await prisma.business_media.deleteMany({
-        where: { business_id: updatedBusiness.id },
-      });
-
-      // Ajouter les nouvelles photos
-      for (let i = 0; i < photos.length; i++) {
-        const url = photos[i];
-        await prisma.business_media.create({
-          data: {
-            business_id: updatedBusiness.id,
-            url,
-            type: 'image',
-            position: i,
-          },
+      try {
+        // Vérifier s'il y a des photos à supprimer
+        const existingPhotos = await prisma.business_media.findMany({
+          where: { business_id: updatedBusiness.id },
         });
+        
+        if (existingPhotos.length > 0) {
+          console.log(`Suppression de ${existingPhotos.length} anciennes photos`);
+          await prisma.business_media.deleteMany({
+            where: { business_id: updatedBusiness.id },
+          });
+        } else {
+          console.log('Aucune ancienne photo à supprimer');
+        }
+
+        // Ajouter les nouvelles photos
+        console.log(`Ajout de ${photos.length} nouvelles photos`);
+        
+        const createdPhotos = [];
+        for (let i = 0; i < photos.length; i++) {
+          const url = photos[i];
+          if (!url) {
+            console.warn(`URL de photo manquante à la position ${i}, ignorée`);
+            continue;
+          }
+          
+          console.log(`Enregistrement de la photo ${i + 1}/${photos.length}:`, url);
+          
+          try {
+            const createdPhoto = await prisma.business_media.create({
+              data: {
+                business_id: updatedBusiness.id,
+                url: url.trim(), // Nettoyer l'URL des espaces inutiles
+                // Ne pas définir le type pour utiliser la valeur par défaut de la base de données
+                position: i,
+              },
+            });
+            createdPhotos.push(createdPhoto);
+            console.log(`Photo ${i + 1} enregistrée avec l'ID:`, createdPhoto.id);
+          } catch (error) {
+            console.error(`Erreur lors de l'enregistrement de la photo ${i + 1}:`, error);
+            throw new Error(`Échec de l'enregistrement de la photo: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
+          }
+        }
+        
+        console.log(`${createdPhotos.length} photos enregistrées avec succès`);
+        
+      } catch (error) {
+        console.error('=== ERREUR LORS DE LA MISE À JOUR DES PHOTOS ===');
+        console.error('Détails de l\'erreur:', error);
+        // On propage l'erreur avec un message clair
+        throw new Error(`Échec de la mise à jour des photos: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
       }
     }
 
