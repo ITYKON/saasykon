@@ -146,30 +146,38 @@ export default function ProfilInstitutPage() {
     setIsSaving(true)
 
     try {
+      // Préparer les données à envoyer
+      const requestData = {
+        publicName: formData.publicName,
+        description: formData.description,
+        email: formData.email,
+        phone: formData.phone,
+        website: formData.website,
+        address: formData.address,
+        workingHours: formData.horaires,
+        photos: formData.photos,
+      };
+
+      console.log('Données envoyées à l\'API:', JSON.stringify(requestData, null, 2));
+
       const response = await fetch('/api/pro/business/profile', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          publicName: formData.publicName,
-          description: formData.description,
-          email: formData.email,
-          phone: formData.phone,
-          website: formData.website,
-          address: formData.address,
-          workingHours: formData.horaires,
-          photos: formData.photos,
-        }),
+        body: JSON.stringify(requestData),
       })
 
+      const responseData = await response.json();
+      console.log('Réponse de l\'API:', responseData);
+
       if (!response.ok) {
-        throw new Error('Erreur lors de la mise à jour du profil')
+        throw new Error(responseData.error || 'Erreur lors de la mise à jour du profil');
       }
 
       toast({
         title: 'Succès',
-        description: 'Votre profil a été mis à jour avec succès',
+        description: responseData.message || 'Votre profil a été mis à jour avec succès',
       })
     } catch (error) {
       console.error('Erreur lors de la mise à jour du profil:', error)
