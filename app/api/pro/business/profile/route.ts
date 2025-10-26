@@ -228,9 +228,9 @@ export async function PUT(request: Request) {
             dimanche: 0,
           };
           
-          // S'assurer que les heures sont au format attendu par la base de données
-          const formatTimeToDate = (timeStr: string): Date => {
-            if (!timeStr) return new Date('1970-01-01T00:00:00');
+          // Convertir l'heure en format compatible avec la base de données
+          const formatTimeToDb = (timeStr: string): Date => {
+            if (!timeStr) return new Date('1970-01-01T00:00:00.000Z');
             
             // Si le temps n'a pas de deux-points, on suppose le format HHMM
             if (!timeStr.includes(':')) {
@@ -239,8 +239,8 @@ export async function PUT(request: Request) {
             
             // Créer une date avec l'heure spécifiée
             const [hours, minutes] = timeStr.split(':').map(Number);
-            const date = new Date();
-            date.setHours(hours, minutes, 0, 0);
+            // Créer une date en UTC pour éviter les problèmes de fuseau horaire
+            const date = new Date(Date.UTC(1970, 0, 1, hours, minutes, 0, 0));
             return date;
           };
           
@@ -257,8 +257,10 @@ export async function PUT(request: Request) {
           }
           
           // S'assurer que les heures sont définies
-          const startTime = hours.debut ? formatTimeToDate(hours.debut) : new Date('1970-01-01T00:00:00');
-          const endTime = hours.fin ? formatTimeToDate(hours.fin) : new Date('1970-01-01T00:00:00');
+          const startTime = hours.debut ? formatTimeToDb(hours.debut) : new Date('1970-01-01T00:00:00.000Z');
+          const endTime = hours.fin ? formatTimeToDb(hours.fin) : new Date('1970-01-01T00:00:00.000Z');
+          
+          console.log(`Création des horaires pour le jour ${weekday}: ${startTime.toISOString()} - ${endTime.toISOString()}`);
           
           return {
             business_id: updatedBusiness.id,
@@ -269,17 +271,32 @@ export async function PUT(request: Request) {
         }).filter(Boolean); // Filtrer les entrées invalides
 
         // Ajouter les horaires un par un pour éviter les problèmes de types
+        console.log(`${workingHoursData.length} jours d'ouverture à enregistrer`);
         for (const wh of workingHoursData) {
           if (wh) { // Vérification de type pour TypeScript
-            await prisma.working_hours.create({
-              data: wh,
-            });
+            try {
+              await prisma.working_hours.create({
+                data: {
+                  business_id: wh.business_id,
+                  weekday: wh.weekday,
+                  start_time: wh.start_time,
+                  end_time: wh.end_time,
+                },
+              });
+              console.log(`Horaires enregistrés pour le jour ${wh.weekday}`);
+            } catch (error) {
+              console.error(`Erreur lors de l'enregistrement des horaires pour le jour ${wh.weekday}:`, error);
+              throw error; // Propager l'erreur pour qu'elle soit gérée par le bloc catch principal
+            }
           }
         }
       } catch (error) {
-        console.error('Erreur lors de la mise à jour des horaires:', error);
-        // On ne renvoie pas d'erreur pour ne pas bloquer toute la mise à jour
-        // mais on pourrait ajouter un message d'avertissement
+        console.error('=== ERREUR LORS DE LA MISE À JOUR DES HORAIRES ===');
+        const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
+        console.error('Détails de l\'erreur:', error);
+        // On propage l'erreur pour qu'elle soit gérée par le bloc catch principal
+        // avec un message plus explicite
+        throw new Error(`Échec de la mise à jour des horaires: ${errorMessage}`);
       }
     }
 
