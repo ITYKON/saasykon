@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -10,141 +11,333 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Camera, MapPin, Clock, Phone, Star, Upload, X, Plus, Edit2 } from "lucide-react"
+import { Camera, MapPin, Clock, Phone, Star, Upload, X, Plus, Edit2, Loader2 } from "lucide-react"
+import { toast } from "@/components/ui/use-toast"
+
+interface BusinessProfile {
+  publicName: string
+  description: string
+  email: string
+  phone: string
+  website: string
+  address: {
+    line1: string
+    line2: string
+    postalCode: string
+    city: string
+    country: string
+  }
+  photos: string[]
+  horaires: {
+    [key: string]: {
+      ouvert: boolean
+      debut: string
+      fin: string
+    }
+  }
+}
 
 export default function ProfilInstitutPage() {
-  const [photos, setPhotos] = useState([
-    "/elegant-beauty-salon-interior-with-warm-lighting-a.jpg",
-    "/modern-beauty-salon-with-professional-hairstylist-.jpg",
-    "/modern-beauty-salon-with-stylish-people-getting-ha.jpg",
-  ])
-
-  const [horaires, setHoraires] = useState({
-    lundi: { ouvert: true, debut: "09:00", fin: "18:00" },
-    mardi: { ouvert: true, debut: "09:00", fin: "18:00" },
-    mercredi: { ouvert: true, debut: "09:00", fin: "18:00" },
-    jeudi: { ouvert: true, debut: "09:00", fin: "18:00" },
-    vendredi: { ouvert: true, debut: "09:00", fin: "18:00" },
-    samedi: { ouvert: true, debut: "09:00", fin: "16:00" },
-    dimanche: { ouvert: false, debut: "", fin: "" },
+  const router = useRouter()
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSaving, setIsSaving] = useState(false)
+  const [formData, setFormData] = useState<BusinessProfile>({
+    publicName: '',
+    description: '',
+    email: '',
+    phone: '',
+    website: '',
+    address: {
+      line1: '',
+      line2: '',
+      postalCode: '',
+      city: '',
+      country: 'France',
+    },
+    photos: [],
+    horaires: {
+      lundi: { ouvert: false, debut: '09:00', fin: '18:00' },
+      mardi: { ouvert: false, debut: '09:00', fin: '18:00' },
+      mercredi: { ouvert: false, debut: '09:00', fin: '18:00' },
+      jeudi: { ouvert: false, debut: '09:00', fin: '18:00' },
+      vendredi: { ouvert: false, debut: '09:00', fin: '18:00' },
+      samedi: { ouvert: false, debut: '09:00', fin: '18:00' },
+      dimanche: { ouvert: false, debut: '09:00', fin: '18:00' },
+    },
   })
 
-  const removePhoto = (index: number) => {
-    setPhotos(photos.filter((_, i) => i !== index))
+  useEffect(() => {
+    const fetchBusinessProfile = async () => {
+      try {
+        const response = await fetch('/api/pro/business/profile')
+        if (!response.ok) {
+          throw new Error('Erreur lors de la récupération du profil')
+        }
+        const data = await response.json()
+        const business = data.business
+        const primaryLocation = business.business_locations?.[0] || {}
+
+        const horaires: BusinessProfile['horaires'] = {
+          lundi: { ouvert: false, debut: '09:00', fin: '18:00' },
+          mardi: { ouvert: false, debut: '09:00', fin: '18:00' },
+          mercredi: { ouvert: false, debut: '09:00', fin: '18:00' },
+          jeudi: { ouvert: false, debut: '09:00', fin: '18:00' },
+          vendredi: { ouvert: false, debut: '09:00', fin: '18:00' },
+          samedi: { ouvert: false, debut: '09:00', fin: '18:00' },
+          dimanche: { ouvert: false, debut: '09:00', fin: '18:00' },
+        }
+
+        if (business.working_hours) {
+          const dayMap: Record<number, string> = {
+            0: 'dimanche',
+            1: 'lundi',
+            2: 'mardi',
+            3: 'mercredi',
+            4: 'jeudi',
+            5: 'vendredi',
+            6: 'samedi',
+          }
+
+          business.working_hours.forEach((wh: any) => {
+            const dayName = dayMap[wh.weekday]
+            if (dayName) {
+              horaires[dayName as keyof typeof horaires] = {
+                ouvert: wh.is_open,
+                debut: wh.start_time || '09:00',
+                fin: wh.end_time || '18:00',
+              }
+            }
+          })
+        }
+
+        setFormData({
+          publicName: business.public_name || '',
+          description: business.description || '',
+          email: business.email || '',
+          phone: business.phone || '',
+          website: business.website || '',
+          address: {
+            line1: primaryLocation.address_line1 || '',
+            line2: primaryLocation.address_line2 || '',
+            postalCode: primaryLocation.postal_code || '',
+            city: primaryLocation.city_name || '',
+            country: primaryLocation.country_name || 'France',
+          },
+          photos: business.business_media?.map((media: any) => media.url) || [],
+          horaires,
+        })
+      } catch (error) {
+        console.error('Erreur lors du chargement du profil:', error)
+        toast({
+          title: 'Erreur',
+          description: 'Impossible de charger les informations du profil',
+          variant: 'destructive',
+        })
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchBusinessProfile()
+  }, [])
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsSaving(true)
+
+    try {
+      const response = await fetch('/api/pro/business/profile', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          publicName: formData.publicName,
+          description: formData.description,
+          email: formData.email,
+          phone: formData.phone,
+          website: formData.website,
+          address: formData.address,
+          workingHours: formData.horaires,
+          photos: formData.photos,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Erreur lors de la mise à jour du profil')
+      }
+
+      toast({
+        title: 'Succès',
+        description: 'Votre profil a été mis à jour avec succès',
+      })
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour du profil:', error)
+      toast({
+        title: 'Erreur',
+        description: 'Une erreur est survenue lors de la mise à jour du profil',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsSaving(false)
+    }
   }
 
-  const updateHoraire = (jour: string, field: string, value: any) => {
-    setHoraires((prev) => ({
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target
+
+    if (name.startsWith('address.')) {
+      const field = name.split('.')[1]
+      setFormData(prev => ({
+        ...prev,
+        address: {
+          ...prev.address,
+          [field]: value,
+        },
+      }))
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value,
+      }))
+    }
+  }
+
+  const handleHoraireChange = (day: string, field: string, value: any) => {
+    setFormData(prev => ({
       ...prev,
-      [jour]: { ...prev[jour], [field]: value },
+      horaires: {
+        ...prev.horaires,
+        [day]: {
+          ...prev.horaires[day as keyof typeof prev.horaires],
+          [field]: value,
+        },
+      },
     }))
   }
 
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files || files.length === 0) return
+
+    // Ici, vous devriez implémenter la logique de téléchargement des fichiers
+    // Pour l'instant, nous allons simplement simuler un téléchargement réussi
+    const newPhotos = Array.from(files).map(file => URL.createObjectURL(file))
+    
+    setFormData(prev => ({
+      ...prev,
+      photos: [...prev.photos, ...newPhotos],
+    }))
+  }
+
+  const removePhoto = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      photos: prev.photos.filter((_, i) => i !== index),
+    }))
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Configuration du profil</h1>
-            <p className="text-gray-600 mt-1">Personnalisez l'apparence de votre institut</p>
-          </div>
-          <div className="flex gap-3">
-            <Button variant="outline">Aperçu</Button>
-            <Button className="bg-black hover:bg-gray-800">Sauvegarder</Button>
-          </div>
-        </div>
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold">Profil de l'institut</h1>
+        <Button onClick={handleSubmit} disabled={isSaving}>
+          {isSaving ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Enregistrement...
+            </>
+          ) : (
+            'Enregistrer les modifications'
+          )}
+        </Button>
       </div>
 
-      <div className="p-6">
-        <Tabs defaultValue="informations" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="informations">Informations</TabsTrigger>
-            <TabsTrigger value="photos">Photos</TabsTrigger>
-            <TabsTrigger value="horaires">Horaires</TabsTrigger>
-            <TabsTrigger value="parametres">Paramètres</TabsTrigger>
-          </TabsList>
+      <Tabs defaultValue="informations" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="informations">Informations</TabsTrigger>
+          <TabsTrigger value="photos">Photos</TabsTrigger>
+          <TabsTrigger value="horaires">Horaires</TabsTrigger>
+          <TabsTrigger value="parametres">Paramètres</TabsTrigger>
+        </TabsList>
 
-          {/* Onglet Informations */}
-          <TabsContent value="informations" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Informations générales */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Edit2 className="h-5 w-5" />
-                    Informations générales
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <Label htmlFor="nom">Nom de l'institut</Label>
-                    <Input id="nom" defaultValue="PAVANA" className="mt-1" />
-                  </div>
-                  <div>
-                    <Label htmlFor="description">Description</Label>
-                    <Textarea
-                      id="description"
-                      placeholder="Décrivez votre institut..."
-                      className="mt-1 min-h-[100px]"
-                      defaultValue="Salon de coiffure moderne situé au cœur d'Hydra, offrant des services de qualité dans un cadre élégant et professionnel."
+        <TabsContent value="informations" className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Edit2 className="h-5 w-5" />
+                  Informations générales
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="publicName">Nom de l'établissement</Label>
+                  <Input
+                    id="publicName"
+                    name="publicName"
+                    value={formData.publicName}
+                    onChange={handleInputChange}
+                    placeholder="Nom de votre institut"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="description">Description</Label>
+                  <Textarea
+                    id="description"
+                    name="description"
+                    value={formData.description}
+                    onChange={handleInputChange}
+                    placeholder="Décrivez votre établissement"
+                    rows={4}
+                  />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      name="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={handleInputChange}
+                      placeholder="contact@exemple.com"
                     />
                   </div>
-                  <div>
-                    <Label htmlFor="specialites">Spécialités</Label>
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      <Badge variant="secondary">Coiffure</Badge>
-                      <Badge variant="secondary">Coloration</Badge>
-                      <Badge variant="secondary">Brushing</Badge>
-                      <Button variant="outline" size="sm" className="h-6 bg-transparent">
-                        <Plus className="h-3 w-3 mr-1" />
-                        Ajouter
-                      </Button>
-                    </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Téléphone</Label>
+                    <Input
+                      id="phone"
+                      name="phone"
+                      type="tel"
+                      value={formData.phone}
+                      onChange={handleInputChange}
+                      placeholder="+33 1 23 45 67 89"
+                    />
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="website">Site web</Label>
+                  <Input
+                    id="website"
+                    name="website"
+                    type="url"
+                    value={formData.website}
+                    onChange={handleInputChange}
+                    placeholder="https://www.exemple.com"
+                  />
+                </div>
+              </CardContent>
+            </Card>
 
-              {/* Coordonnées */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Phone className="h-5 w-5" />
-                    Coordonnées
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <Label htmlFor="adresse">Adresse</Label>
-                    <Input id="adresse" defaultValue="24 Rue Hadj Ahmed Mohamed, 16000 Hydra" className="mt-1" />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="ville">Ville</Label>
-                      <Input id="ville" defaultValue="Hydra" className="mt-1" />
-                    </div>
-                    <div>
-                      <Label htmlFor="codePostal">Code postal</Label>
-                      <Input id="codePostal" defaultValue="16000" className="mt-1" />
-                    </div>
-                  </div>
-                  <div>
-                    <Label htmlFor="telephone">Téléphone</Label>
-                    <Input id="telephone" defaultValue="+213 555 123 456" className="mt-1" />
-                  </div>
-                  <div>
-                    <Label htmlFor="email">Email</Label>
-                    <Input id="email" defaultValue="contact@pavana.dz" className="mt-1" />
-                  </div>
-                  <div>
-                    <Label htmlFor="website">Site web</Label>
-                    <Input id="website" placeholder="https://..." className="mt-1" />
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Localisation */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -152,316 +345,252 @@ export default function ProfilInstitutPage() {
                   Localisation
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="latitude">Latitude</Label>
-                        <Input id="latitude" defaultValue="36.7538" className="mt-1" />
-                      </div>
-                      <div>
-                        <Label htmlFor="longitude">Longitude</Label>
-                        <Input id="longitude" defaultValue="3.0588" className="mt-1" />
-                      </div>
-                    </div>
-                    <div>
-                      <Label htmlFor="transport">Transports à proximité</Label>
-                      <Textarea
-                        id="transport"
-                        placeholder="Métro, bus, parking..."
-                        className="mt-1"
-                        defaultValue="Métro ligne 1 - Station Hydra (5 min à pied)\nParking gratuit disponible"
-                      />
-                    </div>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="address.line1">Adresse</Label>
+                  <Input
+                    id="address.line1"
+                    name="address.line1"
+                    value={formData.address.line1}
+                    onChange={handleInputChange}
+                    placeholder="123 rue de l'exemple"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="address.line2">Complément d'adresse</Label>
+                  <Input
+                    id="address.line2"
+                    name="address.line2"
+                    value={formData.address.line2}
+                    onChange={handleInputChange}
+                    placeholder="Bâtiment, étage, etc."
+                  />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="address.postalCode">Code postal</Label>
+                    <Input
+                      id="address.postalCode"
+                      name="address.postalCode"
+                      value={formData.address.postalCode}
+                      onChange={handleInputChange}
+                      placeholder="75000"
+                    />
                   </div>
-                  <div className="bg-gray-100 rounded-lg h-48 flex items-center justify-center">
-                    <div className="text-center text-gray-500">
-                      <MapPin className="h-8 w-8 mx-auto mb-2" />
-                      <p>Aperçu de la carte</p>
-                      <Button variant="outline" size="sm" className="mt-2 bg-transparent">
-                        Configurer la carte
-                      </Button>
-                    </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="address.city">Ville</Label>
+                    <Input
+                      id="address.city"
+                      name="address.city"
+                      value={formData.address.city}
+                      onChange={handleInputChange}
+                      placeholder="Paris"
+                    />
                   </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="address.country">Pays</Label>
+                  <Input
+                    id="address.country"
+                    name="address.country"
+                    value={formData.address.country}
+                    onChange={handleInputChange}
+                    placeholder="France"
+                  />
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
+          </div>
+        </TabsContent>
 
-          {/* Onglet Photos */}
-          <TabsContent value="photos" className="space-y-6">
+        <TabsContent value="photos" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Camera className="h-5 w-5" />
+                Galerie photos
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {formData.photos.map((photo, index) => (
+                  <div key={index} className="relative group">
+                    <img
+                      src={photo}
+                      alt={`Photo ${index + 1}`}
+                      className="w-full h-40 object-cover rounded-lg"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removePhoto(index)}
+                      className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+                <label
+                  htmlFor="photo-upload"
+                  className="flex flex-col items-center justify-center h-40 border-2 border-dashed rounded-lg cursor-pointer hover:bg-gray-50"
+                >
+                  <Upload className="h-8 w-8 text-gray-400 mb-2" />
+                  <span className="text-sm text-gray-500">Ajouter des photos</span>
+                  <input
+                    id="photo-upload"
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    onChange={handlePhotoUpload}
+                  />
+                </label>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="horaires" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Clock className="h-5 w-5" />
+                Horaires d'ouverture
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {Object.entries(formData.horaires).map(([day, horaire]) => (
+                  <div key={day} className="flex items-center justify-between p-3 border rounded-lg">
+                    <div className="flex items-center space-x-4">
+                      <Switch
+                        id={`${day}-active`}
+                        checked={horaire.ouvert}
+                        onCheckedChange={(checked) =>
+                          handleHoraireChange(day, 'ouvert', checked)
+                        }
+                      />
+                      <Label htmlFor={`${day}-active`} className="capitalize">
+                        {day}
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Input
+                        type="time"
+                        value={horaire.debut}
+                        onChange={(e) =>
+                          handleHoraireChange(day, 'debut', e.target.value)
+                        }
+                        disabled={!horaire.ouvert}
+                        className="w-28"
+                      />
+                      <span>-</span>
+                      <Input
+                        type="time"
+                        value={horaire.fin}
+                        onChange={(e) =>
+                          handleHoraireChange(day, 'fin', e.target.value)
+                        }
+                        disabled={!horaire.ouvert}
+                        className="w-28"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="parametres" className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Camera className="h-5 w-5" />
-                  Galerie photos
-                </CardTitle>
+                <CardTitle>Paramètres de réservation</CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-                  {photos.map((photo, index) => (
-                    <div key={index} className="relative group">
-                      <img
-                        src={photo || "/placeholder.svg"}
-                        alt={`Photo ${index + 1}`}
-                        className="w-full h-48 object-cover rounded-lg"
-                      />
-                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-all duration-200 rounded-lg flex items-center justify-center">
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          className="opacity-0 group-hover:opacity-100 transition-opacity"
-                          onClick={() => removePhoto(index)}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                      {index === 0 && <Badge className="absolute top-2 left-2 bg-blue-600">Photo principale</Badge>}
-                    </div>
-                  ))}
-
-                  {/* Zone d'upload */}
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg h-48 flex flex-col items-center justify-center hover:border-gray-400 transition-colors cursor-pointer">
-                    <Upload className="h-8 w-8 text-gray-400 mb-2" />
-                    <p className="text-sm text-gray-600 text-center">
-                      Cliquez pour ajouter
-                      <br />
-                      une photo
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>Activer les réservations en ligne</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Permettre aux clients de prendre rendez-vous en ligne
                     </p>
                   </div>
+                  <Switch />
                 </div>
-
-                <div className="bg-blue-50 p-4 rounded-lg">
-                  <h4 className="font-medium text-blue-900 mb-2">Conseils pour vos photos</h4>
-                  <ul className="text-sm text-blue-800 space-y-1">
-                    <li>• Utilisez des photos de haute qualité (min. 1200x800px)</li>
-                    <li>• Montrez l'intérieur de votre salon sous différents angles</li>
-                    <li>• Incluez des photos de vos réalisations</li>
-                    <li>• Maximum 10 photos recommandé</li>
-                  </ul>
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>Confirmation automatique</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Confirmer automatiquement les rendez-vous
+                    </p>
+                  </div>
+                  <Switch defaultChecked />
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Onglet Horaires */}
-          <TabsContent value="horaires" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Clock className="h-5 w-5" />
-                  Horaires d'ouverture
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {Object.entries(horaires).map(([jour, horaire]) => (
-                    <div key={jour} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center gap-4">
-                        <div className="w-20">
-                          <span className="font-medium capitalize">{jour}</span>
-                        </div>
-                        <Switch
-                          checked={horaire.ouvert}
-                          onCheckedChange={(checked) => updateHoraire(jour, "ouvert", checked)}
-                        />
-                      </div>
-
-                      {horaire.ouvert ? (
-                        <div className="flex items-center gap-2">
-                          <Input
-                            type="time"
-                            value={horaire.debut}
-                            onChange={(e) => updateHoraire(jour, "debut", e.target.value)}
-                            className="w-32"
-                          />
-                          <span className="text-gray-500">à</span>
-                          <Input
-                            type="time"
-                            value={horaire.fin}
-                            onChange={(e) => updateHoraire(jour, "fin", e.target.value)}
-                            className="w-32"
-                          />
-                        </div>
-                      ) : (
-                        <span className="text-gray-500">Fermé</span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-
-                <div className="mt-6 p-4 bg-yellow-50 rounded-lg">
-                  <h4 className="font-medium text-yellow-900 mb-2">Horaires spéciaux</h4>
-                  <p className="text-sm text-yellow-800 mb-3">
-                    Configurez des horaires différents pour les jours fériés ou événements spéciaux.
-                  </p>
-                  <Button variant="outline" size="sm">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Ajouter des horaires spéciaux
-                  </Button>
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>Paiement en ligne</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Accepter les paiements en ligne
+                    </p>
+                  </div>
+                  <Switch />
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
 
-          {/* Onglet Paramètres */}
-          <TabsContent value="parametres" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Paramètres de réservation */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Paramètres de réservation</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label>Réservation en ligne</Label>
-                      <p className="text-sm text-gray-600">Permettre aux clients de réserver en ligne</p>
-                    </div>
-                    <Switch defaultChecked />
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label>Confirmation automatique</Label>
-                      <p className="text-sm text-gray-600">Confirmer automatiquement les réservations</p>
-                    </div>
-                    <Switch defaultChecked />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="delaiAnnulation">Délai d'annulation (heures)</Label>
-                    <Select defaultValue="24">
-                      <SelectTrigger className="mt-1">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="2">2 heures</SelectItem>
-                        <SelectItem value="6">6 heures</SelectItem>
-                        <SelectItem value="12">12 heures</SelectItem>
-                        <SelectItem value="24">24 heures</SelectItem>
-                        <SelectItem value="48">48 heures</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="avanceReservation">Réservation à l'avance (jours)</Label>
-                    <Select defaultValue="30">
-                      <SelectTrigger className="mt-1">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="7">7 jours</SelectItem>
-                        <SelectItem value="14">14 jours</SelectItem>
-                        <SelectItem value="30">30 jours</SelectItem>
-                        <SelectItem value="60">60 jours</SelectItem>
-                        <SelectItem value="90">90 jours</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Paramètres d'affichage */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Paramètres d'affichage</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label>Afficher les prix</Label>
-                      <p className="text-sm text-gray-600">Montrer les prix sur votre profil public</p>
-                    </div>
-                    <Switch defaultChecked />
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label>Afficher les avis</Label>
-                      <p className="text-sm text-gray-600">Permettre l'affichage des avis clients</p>
-                    </div>
-                    <Switch defaultChecked />
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label>Profil vérifié</Label>
-                      <p className="text-sm text-gray-600">Badge de vérification sur votre profil</p>
-                    </div>
-                    <Badge variant="secondary" className="bg-green-100 text-green-800">
-                      <Star className="h-3 w-3 mr-1" />
-                      Vérifié
-                    </Badge>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="langue">Langue par défaut</Label>
-                    <Select defaultValue="fr">
-                      <SelectTrigger className="mt-1">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="fr">Français</SelectItem>
-                        <SelectItem value="ar">العربية</SelectItem>
-                        <SelectItem value="en">English</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Notifications */}
             <Card>
               <CardHeader>
                 <CardTitle>Notifications</CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-4">
-                    <h4 className="font-medium">Notifications par email</h4>
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <Label>Nouvelles réservations</Label>
-                        <Switch defaultChecked />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <Label>Annulations</Label>
-                        <Switch defaultChecked />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <Label>Nouveaux avis</Label>
-                        <Switch defaultChecked />
-                      </div>
-                    </div>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>Nouvelle réservation</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Recevoir une notification pour chaque nouvelle réservation
+                    </p>
                   </div>
-
-                  <div className="space-y-4">
-                    <h4 className="font-medium">Notifications SMS</h4>
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <Label>Rappels de RDV</Label>
-                        <Switch defaultChecked />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <Label>Confirmations</Label>
-                        <Switch />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <Label>Promotions</Label>
-                        <Switch />
-                      </div>
-                    </div>
+                  <Switch defaultChecked />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>Rappel de rendez-vous</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Envoyer un rappel aux clients avant le rendez-vous
+                    </p>
                   </div>
+                  <Switch defaultChecked />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>Newsletter</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Recevoir des actualités et des conseils
+                    </p>
+                  </div>
+                  <Switch defaultChecked />
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
-        </Tabs>
-      </div>
+          </div>
+
+          <div className="flex justify-end">
+            <Button variant="outline" className="mr-2">
+              Annuler
+            </Button>
+            <Button onClick={handleSubmit} disabled={isSaving}>
+              {isSaving ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Enregistrement...
+                </>
+              ) : (
+                'Enregistrer les paramètres'
+              )}
+            </Button>
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }
