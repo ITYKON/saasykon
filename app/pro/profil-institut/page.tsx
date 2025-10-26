@@ -13,6 +13,16 @@ import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Camera, MapPin, Clock, Phone, Star, Upload, X, Plus, Edit2, Loader2 } from "lucide-react"
 import { toast } from "@/components/ui/use-toast"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 interface BusinessProfile {
   publicName: string
@@ -41,6 +51,7 @@ export default function ProfilInstitutPage() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
+  const [photoToDelete, setPhotoToDelete] = useState<number | null>(null)
   const [formData, setFormData] = useState<BusinessProfile>({
     publicName: '',
     description: '',
@@ -239,10 +250,25 @@ export default function ProfilInstitutPage() {
   }
 
   const removePhoto = (index: number) => {
-    setFormData(prev => ({
-      ...prev,
-      photos: prev.photos.filter((_, i) => i !== index),
-    }))
+    setPhotoToDelete(index)
+  }
+
+  const confirmDeletePhoto = () => {
+    if (photoToDelete !== null) {
+      setFormData(prev => ({
+        ...prev,
+        photos: prev.photos.filter((_, i) => i !== photoToDelete),
+      }))
+      setPhotoToDelete(null)
+      toast({
+        title: "Photo supprimée",
+        description: "La photo a été supprimée avec succès.",
+      })
+    }
+  }
+
+  const cancelDeletePhoto = () => {
+    setPhotoToDelete(null)
   }
 
   if (isLoading) {
@@ -599,6 +625,24 @@ export default function ProfilInstitutPage() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Boîte de dialogue de confirmation de suppression */}
+      <AlertDialog open={photoToDelete !== null} onOpenChange={(open) => !open && setPhotoToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer cette photo ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Êtes-vous sûr de vouloir supprimer cette photo ? Cette action est irréversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={cancelDeletePhoto}>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeletePhoto} className="bg-red-600 hover:bg-red-700">
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
