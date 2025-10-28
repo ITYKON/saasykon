@@ -23,41 +23,43 @@ function requiredForPath(pathname: string): string[] | null {
 }
 
 export async function GET(req: NextRequest) {
-  const ctx = await getAuthContext();
-  if (!ctx) return NextResponse.json({ ok: false, reason: "unauth" }, { status: 401 });
-
-  const url = new URL(req.url);
-  const pathname = url.searchParams.get("path") || url.pathname.replace(/\/api\/pro\/guard$/, "").trim() || "/pro";
-
-  // ADMIN and PRO can access everything in PRO area
-  if (ctx.roles.includes("ADMIN") || ctx.roles.includes("PRO")) return NextResponse.json({ ok: true });
-
-  const needed = requiredForPath(pathname);
-  if (!needed || needed.length === 0) return NextResponse.json({ ok: true });
-
-  // For pages that require permission checks, we must have a business_id context
-  const cookieStore = cookies();
-  const businessId = cookieStore.get("business_id")?.value || "";
-  if (!businessId) return NextResponse.json({ ok: false, reason: "no_business" }, { status: 400 });
-
-  // Find employee for this user
-  const acc = await prisma.employee_accounts.findUnique({ where: { user_id: ctx.userId } }).catch(() => null);
-  if (!acc) return NextResponse.json({ ok: false, reason: "no_employee" }, { status: 403 });
-
-  // Load permissions for this employee in current business
-  let codes = new Set<string>();
   try {
+    const ctx = await getAuthContext();
+    if (!ctx) return NextResponse.json({ ok: false, reason: "unauth" }, { status: 401 });
+
+    const url = new URL(req.url);
+    const qpPath = url.searchParams.get("path") || "";
+    const rawPath = qpPath || url.pathname.replace(/\/api\/pro\/guard$/, "");
+    const pathname = (rawPath || "/pro").trim();
+
+    // ADMIN and PRO can access everything in PRO area
+    if (ctx.roles.includes("ADMIN") || ctx.roles.includes("PRO")) return NextResponse.json({ ok: true });
+
+    const needed = requiredForPath(pathname);
+    if (!needed || needed.length === 0) return NextResponse.json({ ok: true });
+
+    // For pages that require permission checks, we must have a business_id context
+    const cookieStore = cookies();
+    const businessId = cookieStore.get("business_id")?.value || "";
+    if (!businessId) return NextResponse.json({ ok: false, reason: "no_business" }, { status: 400 });
+
+    // Find employee for this user
+    const acc = await prisma.employee_accounts.findUnique({ where: { user_id: ctx.userId } }).catch(() => null);
+    if (!acc) return NextResponse.json({ ok: false, reason: "no_employee" }, { status: 403 });
+
+    // Load permissions for this employee in current business
     const perms = await prisma.employee_permissions.findMany({
       where: { employee_id: acc.employee_id, business_id: businessId },
       include: { pro_permissions: { select: { code: true } } },
     } as any);
-    codes = new Set<string>(perms.map((p: any) => p.pro_permissions?.code).filter(Boolean));
-  } catch {
-    return NextResponse.json({ ok: false, reason: "perm_query_failed" }, { status: 403 });
+    const codes = new Set<string>(perms.map((p: any) => p.pro_permissions?.code).filter(Boolean));
+
+    const allowed = needed.some((code) => codes.has(code));
+    if (!allowed) return NextResponse.json({ ok: false, reason: "forbidden", needed, have: Array.from(codes) }, { status: 403 });
+
+    return NextResponse.json({ ok: true });
+  } catch (error: any) {
+    console.error("/api/pro/guard error", { message: error?.message, stack: error?.stack });
+    return NextResponse.json({ ok: false, reason: "server_error" }, { status: 500 });
   }
-
-  const allowed = needed.some((code) => codes.has(code));
-  if (!allowed) return NextResponse.json({ ok: false, reason: "forbidden", needed, have: Array.from(codes) }, { status: 403 });
-
-  return NextResponse.json({ ok: true });
 }
