@@ -352,7 +352,9 @@ export default function ReservationsPage() {
     const matchesSearch =
       reservation.client.toLowerCase().includes(searchTerm.toLowerCase()) ||
       reservation.service.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      reservation.employe.toLowerCase().includes(searchTerm.toLowerCase())
+      reservation.employe.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (reservation.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (reservation.telephone || '').toLowerCase().includes(searchTerm.toLowerCase())
     const matchesStatus = statusFilter === "all" || reservation.status === statusFilter
     return matchesSearch && matchesStatus
   })
@@ -367,10 +369,13 @@ export default function ReservationsPage() {
           </div>
           
           <div className="flex items-center gap-4">
-            <Button variant="outline">
-              <Filter className="mr-2 h-4 w-4" />
-              Filtres
-            </Button>
+            <div className="hidden md:block w-72">
+              <Input
+                placeholder="Rechercher: client, email, téléphone, service"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
             
             {businessId && (
               <CreateReservationModal 
@@ -642,7 +647,12 @@ export default function ReservationsPage() {
             </div>
             <div>
               <label className="block text-sm mb-1">Prix (DA)</label>
-              <Input type="number" step="0.01" value={editData?.item ? (editData.item.price_cents/100).toFixed(2) : ''} onChange={(e) => setEditData(d => d && d.item ? { ...d, item: { ...d.item, price_cents: Math.round(Number(e.target.value || 0)*100) } } : d)} />
+              <Input 
+                type="number" 
+                step="1" 
+                value={editData?.item ? String(Math.floor((editData.item.price_cents || 0)/100)) : ''} 
+                onChange={(e) => setEditData(d => d && d.item ? { ...d, item: { ...d.item, price_cents: Math.max(0, Math.floor(Number(e.target.value || 0))) * 100 } } : d)} 
+              />
             </div>
             <div className="md:col-span-2">
               <label className="block text-sm mb-1">Notes</label>
