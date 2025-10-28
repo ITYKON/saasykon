@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import {
   Search,
   Filter,
@@ -14,6 +14,7 @@ import {
   CheckCircle,
   XCircle,
   AlertCircle,
+  Plus,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -28,6 +29,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import CreateReservationModal from "@/components/pro/CreateReservationModal"
+import useAuth from "@/hooks/useAuth"
 
 // Mock data for reservations
 const reservations = [
@@ -153,7 +156,35 @@ const getPaiementBadge = (paiement: string) => {
 }
 
 export default function ReservationsPage() {
+  const { auth } = useAuth()
   const [searchTerm, setSearchTerm] = useState("")
+  const [reservations, setReservations] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  
+  // Récupérer l'ID de l'entreprise à partir des assignments
+  const businessId = auth?.assignments?.[0]?.business_id
+  
+  // Fonction pour rafraîchir la liste des réservations
+  const fetchReservations = async () => {
+    if (!businessId) return
+    
+    try {
+      setLoading(true)
+      const response = await fetch(`/api/pro/reservations?business_id=${businessId}`)
+      if (!response.ok) throw new Error('Erreur lors du chargement des réservations')
+      const data = await response.json()
+      setReservations(data.reservations || [])
+    } catch (error) {
+      console.error('Erreur:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+  
+  // Charger les réservations au montage du composant
+  useEffect(() => {
+    fetchReservations()
+  }, [businessId])
   const [statusFilter, setStatusFilter] = useState("all")
   const [selectedReservation, setSelectedReservation] = useState<any>(null)
 
@@ -167,46 +198,47 @@ export default function ReservationsPage() {
   })
 
   return (
-    <div>
+    <div className="p-6">
       <div className="mb-8">
-                <header className="bg-white border-b border-gray-200">
-                            <div className="px-6 py-4">
-            <div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Gestion des réservations</h1>
-        <p className="text-gray-600">Gérez toutes les réservations de votre institut.</p>
-        </div>
-        </div>
-        </header>
-      </div>
-
-      {/* Filters and Search */}
-      <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="flex-1">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <Input
-                placeholder="Rechercher par client, service ou employé..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Gestion des réservations</h1>
+            <p className="text-gray-600">Gérez toutes les réservations de votre institut.</p>
           </div>
-          <div className="flex gap-2">
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-40">
-                <Filter className="h-4 w-4 mr-2" />
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tous les status</SelectItem>
-                <SelectItem value="Confirmé">Confirmé</SelectItem>
-                <SelectItem value="En attente">En attente</SelectItem>
-                <SelectItem value="Terminé">Terminé</SelectItem>
-                <SelectItem value="Annulé">Annulé</SelectItem>
-              </SelectContent>
-            </Select>
+          
+          <div className="flex items-center gap-4">
+            <Button variant="outline">
+              <Filter className="mr-2 h-4 w-4" />
+              Filtres
+            </Button>
+            
+            {businessId && (
+              <CreateReservationModal 
+                businessId={businessId}
+                trigger={
+                  <Button>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Nouvelle réservation
+                  </Button>
+                }
+              />
+            )}
+            
+            <div className="w-48">
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger>
+                  <Filter className="h-4 w-4 mr-2" />
+                  <SelectValue placeholder="Filtrer par statut" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tous les statuts</SelectItem>
+                  <SelectItem value="Confirmé">Confirmé</SelectItem>
+                  <SelectItem value="En attente">En attente</SelectItem>
+                  <SelectItem value="Terminé">Terminé</SelectItem>
+                  <SelectItem value="Annulé">Annulé</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
       </div>
