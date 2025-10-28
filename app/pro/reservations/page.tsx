@@ -117,7 +117,36 @@ const reservations = [
   },
 ]
 
-const getStatusBadge = (status: string) => {
+const STATUS_MAP_ENUM_FROM_FR: Record<string, string> = {
+  'Confirmé': 'CONFIRMED',
+  'En attente': 'PENDING',
+  'Terminé': 'COMPLETED',
+  'Annulé': 'CANCELLED',
+}
+
+const STATUS_MAP_FR_FROM_ENUM: Record<string, string> = {
+  CONFIRMED: 'Confirmé',
+  PENDING: 'En attente',
+  COMPLETED: 'Terminé',
+  CANCELLED: 'Annulé',
+}
+
+const statusClasses = (statusEnum: string) => {
+  switch (statusEnum) {
+    case 'CONFIRMED':
+      return 'bg-green-100 text-green-800';
+    case 'PENDING':
+      return 'bg-yellow-100 text-yellow-800';
+    case 'COMPLETED':
+      return 'bg-blue-100 text-blue-800';
+    case 'CANCELLED':
+      return 'bg-red-100 text-red-800';
+    default:
+      return 'bg-gray-100 text-gray-800';
+  }
+}
+
+const getStatusBadge = (statusFr: string) => {
   switch (status) {
     case "Confirmé":
       return (
@@ -148,7 +177,7 @@ const getStatusBadge = (status: string) => {
         </Badge>
       )
     default:
-      return <Badge variant="secondary">{status}</Badge>
+      return <Badge variant="secondary">{statusFr}</Badge>
   }
 }
 
@@ -250,6 +279,7 @@ export default function ReservationsPage() {
           employee_id: item.employee_id || null,
         } : null,
       })
+
       const vs = (s.services || []).find((x: any) => x.id === (res.reservation_items?.[0]?.service_id))?.service_variants || []
       setVariants(vs)
     })
@@ -271,6 +301,15 @@ export default function ReservationsPage() {
   const openEdit = (r: any) => {
     setEditData({ id: r.id, date: '', time: '', employee_id: null, status: 'CONFIRMED', notes: '', client: null, item: null })
     setIsEditOpen(true)
+  }
+
+  const updateStatus = async (id: string, statusEnum: string) => {
+    await fetch(`/api/pro/reservations/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: statusEnum })
+    })
+    fetchReservations()
   }
 
   const saveEdit = async () => {
@@ -418,7 +457,38 @@ export default function ReservationsPage() {
                   <div className="font-semibold">{reservation.prix}</div>
                 </TableCell>
                 <TableCell>{getPaiementBadge(reservation.paiement)}</TableCell>
-                <TableCell>{getStatusBadge(reservation.status)}</TableCell>
+                <TableCell>
+                  {(() => {
+                    const currentEnum = STATUS_MAP_ENUM_FROM_FR[reservation.status] || 'PENDING'
+                    const label = STATUS_MAP_FR_FROM_ENUM[currentEnum]
+                    return (
+                      <Select
+                        value={currentEnum}
+                        onValueChange={(v) => updateStatus(reservation.id, v)}
+                      >
+                        <SelectTrigger className="w-44 bg-transparent border-none p-0 focus:ring-0 focus:outline-none">
+                          <div className={`inline-flex items-center px-2.5 py-1 rounded-md text-sm font-medium ${statusClasses(currentEnum)}`}>
+                            {label}
+                          </div>
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="PENDING">
+                            <div className={`inline-flex items-center px-2 py-1 rounded ${statusClasses('PENDING')}`}>En attente</div>
+                          </SelectItem>
+                          <SelectItem value="CONFIRMED">
+                            <div className={`inline-flex items-center px-2 py-1 rounded ${statusClasses('CONFIRMED')}`}>Confirmé</div>
+                          </SelectItem>
+                          <SelectItem value="COMPLETED">
+                            <div className={`inline-flex items-center px-2 py-1 rounded ${statusClasses('COMPLETED')}`}>Terminé</div>
+                          </SelectItem>
+                          <SelectItem value="CANCELLED">
+                            <div className={`inline-flex items-center px-2 py-1 rounded ${statusClasses('CANCELLED')}`}>Annulé</div>
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )
+                  })()}
+                </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-2">
                     <Dialog>
@@ -501,7 +571,12 @@ export default function ReservationsPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm mb-1">Client</label>
-              <ClientSearch value={editData?.client?.name || ''} onSelect={(c: any) => setEditData(d => d ? { ...d, client: c ? { id: c.id, name: c.name } : null } : d)} />
+              <ClientSearch 
+                value={editData?.client?.name || ''}
+                onChange={() => {}}
+                businessId={businessId as string}
+                onSelect={(c: any) => setEditData(d => d ? { ...d, client: c ? { id: c.id, name: c.name } : null } : d)} 
+              />
             </div>
             <div>
               <label className="block text-sm mb-1">Statut</label>

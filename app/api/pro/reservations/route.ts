@@ -106,7 +106,7 @@ export async function GET(req: NextRequest) {
         date: reservation.starts_at,
         heure: new Date(reservation.starts_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
         duree: `${totalDuration} min`,
-        prix: (totalPrice / 100).toFixed(2) + ' DA',
+        prix: Math.round(totalPrice / 100) + ' DA',
         status: STATUS_FR[reservation.status] || reservation.status,
         notes: reservation.notes || '',
         location: location?.address_line1 || 'Adresse non spécifiée',

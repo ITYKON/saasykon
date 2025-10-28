@@ -237,7 +237,7 @@ export default function CreateReservationModal({
                               <div className="flex justify-between w-full">
                                 <span>{variant.name}</span>
                                 <span className="text-gray-500 ml-2">
-                                  {variant.duration_minutes} min • {variant.price_cents ? `${(variant.price_cents / 100).toFixed(2)} DA` : 'Prix non défini'}
+                                  {variant.duration_minutes} min • {typeof variant.price_cents === 'number' ? `${Math.round(variant.price_cents / 100)} DA` : 'Prix non défini'}
                                 </span>
                               </div>
                             </SelectItem>
@@ -310,18 +310,20 @@ export default function CreateReservationModal({
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">DA</span>
                     <Input 
                       type="number" 
-                      value={priceCents !== '' ? (Number(priceCents) / 100).toFixed(2) : ''} 
+                      value={priceCents !== '' ? String(Math.floor(Number(priceCents) / 100)) : ''} 
                       onChange={(e) => {
                         const val = e.target.value;
                         if (val === '') {
                           setPriceCents('');
                         } else {
-                          setPriceCents(String(Math.round(Number(val) * 100)));
+                          const dinars = Math.max(0, Math.floor(Number(val)) || 0);
+                          setPriceCents(String(dinars * 100));
                         }
-                      }} 
+                      }}
+                      placeholder="0"
+                      className="pl-10"
+                      step="1"
                       min="0"
-                      step="0.01"
-                      className="pl-8"
                       required
                     />
                   </div>
