@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
         booker_user_id: ctx.userId,
         starts_at: start,
         ends_at: ends,
-        status: 'CONFIRMED' as any,
+        status: 'PENDING' as any,
         notes: notes || null,
       },
     });

@@ -21,6 +21,16 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { 
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from "@/components/ui/alert-dialog"
 import {
   Dialog,
   DialogContent,
@@ -30,6 +40,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import CreateReservationModal from "@/components/pro/CreateReservationModal"
+import { ClientSearch } from "@/components/ui/client-search"
 import useAuth from "@/hooks/useAuth"
 
 // Mock data for reservations
@@ -160,6 +171,23 @@ export default function ReservationsPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [reservations, setReservations] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false)
+  const [isEditOpen, setIsEditOpen] = useState(false)
+  const [editData, setEditData] = useState<{
+    id: string;
+    date: string;
+    time: string;
+    employee_id: string | null;
+    status: string;
+    notes: string;
+    client: { id: string; name: string } | null;
+    item: { id: string; service_id: string; variant_id: string | null; price_cents: number; duration_minutes: number; employee_id: string | null } | null;
+  } | null>(null)
+  const [savingEdit, setSavingEdit] = useState(false)
+  const [employees, setEmployees] = useState<any[]>([])
+  const [services, setServices] = useState<any[]>([])
+  const [variants, setVariants] = useState<any[]>([])
   
   // Récupérer l'ID de l'entreprise à partir des assignments
   const businessId = auth?.assignments?.[0]?.business_id
@@ -185,6 +213,99 @@ export default function ReservationsPage() {
   useEffect(() => {
     fetchReservations()
   }, [businessId])
+
+  // Charger les employés lors de l'ouverture de l'édition
+  useEffect(() => {
+    if (!isEditOpen || !businessId || !editData?.id) return
+    Promise.all([
+      fetch(`/api/pro/employees?business_id=${businessId}&include=services`).then(r => r.json()).catch(() => ({ items: [] })),
+      fetch(`/api/pro/services?business_id=${businessId}`).then(r => r.json()).catch(() => ({ services: [] })),
+      fetch(`/api/pro/reservations/${editData.id}`).then(r => r.json())
+    ])
+    .then(([e, s, r]) => {
+      setEmployees(e.items || [])
+      setServices(s.services || [])
+      const res = r.reservation
+      if (!res) return
+      const d = new Date(res.starts_at)
+      const pad = (n: number) => String(n).padStart(2, '0')
+      const date = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`
+      const time = `${pad(d.getHours())}:${pad(d.getMinutes())}`
+      const item = res.reservation_items?.[0] || null
+      const client = res.clients ? { id: res.clients.id, name: [res.clients.first_name, res.clients.last_name].filter(Boolean).join(' ') } : null
+      setEditData(prev => prev && {
+        ...prev,
+        date,
+        time,
+        employee_id: res.employee_id || null,
+        status: res.status,
+        notes: res.notes || "",
+        client,
+        item: item ? {
+          id: item.id,
+          service_id: item.service_id,
+          variant_id: item.variant_id,
+          price_cents: item.price_cents || 0,
+          duration_minutes: item.duration_minutes || 0,
+          employee_id: item.employee_id || null,
+        } : null,
+      })
+      const vs = (s.services || []).find((x: any) => x.id === (res.reservation_items?.[0]?.service_id))?.service_variants || []
+      setVariants(vs)
+    })
+  }, [isEditOpen, businessId, editData?.id])
+
+  const openDelete = (id: string) => { setDeletingId(id); setIsDeleteOpen(true); }
+  const confirmDelete = async () => {
+    if (!deletingId) return
+    try {
+      await fetch(`/api/pro/reservations/${deletingId}`, { method: 'DELETE' })
+      setIsDeleteOpen(false)
+      setDeletingId(null)
+      fetchReservations()
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
+  const openEdit = (r: any) => {
+    setEditData({ id: r.id, date: '', time: '', employee_id: null, status: 'CONFIRMED', notes: '', client: null, item: null })
+    setIsEditOpen(true)
+  }
+
+  const saveEdit = async () => {
+    if (!editData) return
+    setSavingEdit(true)
+    try {
+      const starts_at = new Date(`${editData.date}T${editData.time}:00`).toISOString()
+      await fetch(`/api/pro/reservations/${editData.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          starts_at,
+          employee_id: editData.employee_id ?? undefined,
+          status: editData.status,
+          notes: editData.notes,
+          client_id: editData.client?.id || null,
+          items: editData.item ? [{
+            id: editData.item.id,
+            service_id: editData.item.service_id,
+            variant_id: editData.item.variant_id,
+            employee_id: editData.item.employee_id ?? undefined,
+            price_cents: editData.item.price_cents,
+            duration_minutes: editData.item.duration_minutes,
+          }] : [],
+        })
+      })
+      setIsEditOpen(false)
+      setEditData(null)
+      fetchReservations()
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setSavingEdit(false)
+    }
+  }
   const [statusFilter, setStatusFilter] = useState("all")
   const [selectedReservation, setSelectedReservation] = useState<any>(null)
 
@@ -341,10 +462,10 @@ export default function ReservationsPage() {
                         )}
                       </DialogContent>
                     </Dialog>
-                    <Button variant="ghost" size="sm">
+                    <Button variant="ghost" size="sm" onClick={() => openEdit(reservation)}>
                       <Edit className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700">
+                    <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700" onClick={() => openDelete(reservation.id)}>
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
@@ -354,6 +475,111 @@ export default function ReservationsPage() {
           </TableBody>
         </Table>
       </div>
+
+      {/* Confirmation de suppression */}
+      <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer cette réservation ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Cette action est irréversible. La réservation sera définitivement supprimée.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete}>Supprimer</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Édition simple de réservation (date/heure/employé) */}
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Modifier la réservation</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm mb-1">Client</label>
+              <ClientSearch value={editData?.client?.name || ''} onSelect={(c: any) => setEditData(d => d ? { ...d, client: c ? { id: c.id, name: c.name } : null } : d)} />
+            </div>
+            <div>
+              <label className="block text-sm mb-1">Statut</label>
+              <Select value={editData?.status || 'CONFIRMED'} onValueChange={(v) => setEditData(d => d ? { ...d, status: v } : d)}>
+                <SelectTrigger><SelectValue placeholder="Sélectionner" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="CONFIRMED">Confirmé</SelectItem>
+                  <SelectItem value="PENDING">En attente</SelectItem>
+                  <SelectItem value="COMPLETED">Terminé</SelectItem>
+                  <SelectItem value="CANCELLED">Annulé</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="block text-sm mb-1">Date</label>
+              <Input type="date" value={editData?.date || ''} onChange={(e) => setEditData(d => d ? { ...d, date: e.target.value } : d)} />
+            </div>
+            <div>
+              <label className="block text-sm mb-1">Heure</label>
+              <Input type="time" value={editData?.time || ''} onChange={(e) => setEditData(d => d ? { ...d, time: e.target.value } : d)} />
+            </div>
+            <div>
+              <label className="block text-sm mb-1">Service</label>
+              <Select value={editData?.item?.service_id || ''} onValueChange={(v) => {
+                const svc = services.find((s: any) => s.id === v)
+                setVariants(svc?.service_variants || [])
+                setEditData(d => d ? { ...d, item: d.item ? { ...d.item, service_id: v, variant_id: null } : d.item } : d)
+              }}>
+                <SelectTrigger><SelectValue placeholder="Sélectionner" /></SelectTrigger>
+                <SelectContent>
+                  {services.map((s: any) => (
+                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="block text-sm mb-1">Variante</label>
+              <Select value={editData?.item?.variant_id || ""} onValueChange={(v) => setEditData(d => d ? { ...d, item: d.item ? { ...d.item, variant_id: v } : d.item } : d)}>
+                <SelectTrigger><SelectValue placeholder="Sélectionner" /></SelectTrigger>
+                <SelectContent>
+                  {variants.map((v: any) => (
+                    <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="block text-sm mb-1">Employé (item)</label>
+              <Select value={editData?.item?.employee_id ?? "none"} onValueChange={(v) => setEditData(d => d ? { ...d, item: d.item ? { ...d.item, employee_id: v === 'none' ? null : v } : d.item } : d)}>
+                <SelectTrigger><SelectValue placeholder="Sélectionner" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Aucun</SelectItem>
+                  {employees.map((e: any) => (
+                    <SelectItem key={e.id} value={e.id}>{e.full_name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="block text-sm mb-1">Durée (minutes)</label>
+              <Input type="number" value={editData?.item?.duration_minutes ?? 0} onChange={(e) => setEditData(d => d && d.item ? { ...d, item: { ...d.item, duration_minutes: Number(e.target.value || 0) } } : d)} />
+            </div>
+            <div>
+              <label className="block text-sm mb-1">Prix (DA)</label>
+              <Input type="number" step="0.01" value={editData?.item ? (editData.item.price_cents/100).toFixed(2) : ''} onChange={(e) => setEditData(d => d && d.item ? { ...d, item: { ...d.item, price_cents: Math.round(Number(e.target.value || 0)*100) } } : d)} />
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm mb-1">Notes</label>
+              <Input value={editData?.notes || ''} onChange={(e) => setEditData(d => d ? { ...d, notes: e.target.value } : d)} />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button variant="outline" onClick={() => setIsEditOpen(false)}>Annuler</Button>
+            <Button onClick={saveEdit} disabled={savingEdit || !editData?.date || !editData?.time || !editData?.item?.service_id}>{savingEdit ? 'Enregistrement...' : 'Enregistrer'}</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -46,6 +46,13 @@ export async function GET(req: NextRequest) {
     } as any);
 
     // Formater les données pour le frontend
+    const STATUS_FR: Record<string, string> = {
+      CONFIRMED: 'Confirmé',
+      PENDING: 'En attente',
+      COMPLETED: 'Terminé',
+      CANCELLED: 'Annulé',
+    };
+
     const formattedReservations = reservationsList.map((reservation: any) => {
       // Calculer la durée totale et le prix total
       let totalDuration = 0;
@@ -100,7 +107,7 @@ export async function GET(req: NextRequest) {
         heure: new Date(reservation.starts_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
         duree: `${totalDuration} min`,
         prix: (totalPrice / 100).toFixed(2) + ' DA',
-        status: reservation.status,
+        status: STATUS_FR[reservation.status] || reservation.status,
         notes: reservation.notes || '',
         location: location?.address_line1 || 'Adresse non spécifiée',
       };
