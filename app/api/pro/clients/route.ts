@@ -63,14 +63,12 @@ export async function GET(req: NextRequest) {
   let clients: any[] = await prisma.clients.findMany({
     where: {
       id: { in: clientIds },
-      ...(statusFilter && { status: statusFilter as any }),
     },
     select: {
       id: true,
       first_name: true,
       last_name: true,
       phone: true,
-      status: true,
       users: { select: { email: true, first_name: true, last_name: true } },
     },
   } as any);
@@ -125,48 +123,115 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const ctx = await getAuthContext();
-  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  // Not strictly tied to a business; clients are global. But we keep auth for Pro/Admin only.
-  let allowed = ctx.roles.includes("ADMIN") || ctx.assignments.length > 0;
-  if (!allowed) {
-    try {
-      const acc = await prisma.employee_accounts.findUnique({ where: { user_id: ctx.userId } }).catch(() => null);
-      if (acc) {
-        // No business context here; accept if employee has any clients_manage in any assignment for safety, or skip check.
-        const perms = await prisma.employee_permissions.findMany({
-          where: { employee_id: acc.employee_id },
-          include: { pro_permissions: { select: { code: true } } },
-        } as any);
-        const codes = new Set<string>(perms.map((p: any) => p.pro_permissions?.code).filter(Boolean));
-        allowed = codes.has("clients_manage");
-      }
-    } catch {}
-  }
-  if (!allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-
-  const body = await req.json().catch(() => null);
-  if (!body) return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  const { first_name, last_name, email, phone, notes, status } = body;
-  if (!first_name && !last_name && !email) return NextResponse.json({ error: "first_name, last_name or email required" }, { status: 400 });
-
-  let userId: string | undefined = undefined;
-  if (email) {
-    const existing = await prisma.users.findUnique({ where: { email } });
-    if (existing) userId = existing.id;
-  }
-
-  const statusValue = typeof status === "string" ? status.toUpperCase() : undefined;
-  const created = await prisma.clients.create({
-    data: ({ first_name, last_name, phone, notes, user_id: userId, ...(statusValue ? { status: statusValue as any } : {}) } as any),
-    select: { id: true },
-  });
-  // Link to current business so it shows up in list immediately
   try {
-    const businessId = getBusinessId(req, ctx);
-    if (businessId) {
-      await prisma.client_favorites.create({ data: { client_id: created.id, business_id: businessId } }).catch(() => {});
+    const ctx = await getAuthContext();
+    if (!ctx) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+    
+    // Vérification des autorisations
+    let allowed = ctx.roles.includes("ADMIN") || ctx.assignments.length > 0;
+    if (!allowed) {
+      try {
+        const acc = await prisma.employee_accounts.findUnique({ where: { user_id: ctx.userId } }).catch(() => null);
+        if (acc) {
+          const perms = await prisma.employee_permissions.findMany({
+            where: { employee_id: acc.employee_id },
+            include: { pro_permissions: { select: { code: true } } },
+          } as any);
+          const codes = new Set<string>(perms.map((p: any) => p.pro_permissions?.code).filter(Boolean));
+          allowed = codes.has("clients_manage");
+        }
+      } catch (error) {
+        console.error("Erreur de vérification des permissions:", error);
+      }
     }
-  } catch {}
-  return NextResponse.json({ id: created.id }, { status: 201 });
+    if (!allowed) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+
+    // Validation des données
+    let body;
+    try {
+      body = await req.json();
+    } catch (error) {
+      return NextResponse.json({ error: "Données JSON invalides" }, { status: 400 });
+    }
+    
+    const { first_name, last_name, email, phone, notes, status } = body;
+    if (!first_name && !last_name && !email) {
+      return NextResponse.json({ error: "Le prénom, le nom ou l'email est requis" }, { status: 400 });
+    }
+
+    // Vérification de l'email
+    let userId: string | undefined = undefined;
+    if (email) {
+      try {
+        const existing = await prisma.users.findUnique({ where: { email } });
+        if (existing) userId = existing.id;
+      } catch (error) {
+        console.error("Erreur lors de la vérification de l'email:", error);
+        return NextResponse.json({ error: "Erreur lors de la vérification de l'email" }, { status: 500 });
+      }
+    }
+
+    // Création du client
+    try {
+      const data: any = { 
+        first_name, 
+        last_name, 
+        phone: phone || null, 
+        notes: notes || null,
+        created_at: new Date()
+      };
+      
+      // Ajout de la relation avec users si un userId est fourni
+      if (userId) {
+        data.users = {
+          connect: { id: userId }
+        };
+      }
+
+      const created = await prisma.clients.create({
+        data,
+        select: { id: true },
+      });
+
+      // Lier au business actuel si disponible
+      try {
+        const businessId = getBusinessId(req, ctx);
+        if (businessId) {
+          await prisma.client_favorites.upsert({
+            where: {
+              client_id_business_id: {
+                client_id: created.id,
+                business_id: businessId
+              }
+            },
+            update: {},
+            create: { 
+              client_id: created.id, 
+              business_id: businessId,
+              created_at: new Date()
+            }
+          }).catch(error => {
+            console.error("Erreur lors de la création du favori:", error);
+          });
+        }
+      } catch (error) {
+        console.error("Erreur lors de la liaison au business:", error);
+        // On continue même si la liaison échoue
+      }
+
+      return NextResponse.json({ id: created.id }, { status: 201 });
+      
+    } catch (error: any) {
+      console.error("Erreur lors de la création du client:", error);
+      if (error.code === 'P2002') {
+        // Violation de contrainte d'unicité
+        return NextResponse.json({ error: "Un client avec ces informations existe déjà" }, { status: 400 });
+      }
+      return NextResponse.json({ error: "Erreur lors de la création du client" }, { status: 500 });
+    }
+    
+  } catch (error) {
+    console.error("Erreur inattendue:", error);
+    return NextResponse.json({ error: "Une erreur inattendue est survenue" }, { status: 500 });
+  }
 }
