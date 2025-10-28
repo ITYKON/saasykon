@@ -23,98 +23,27 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Récupérer les réservations avec les relations nécessaires
-    const reservations = await prisma.$queryRaw`
-      SELECT 
-        r.*,
-        c.id as client_id,
-        c.first_name as client_first_name,
-        c.last_name as client_last_name,
-        c.email as client_email,
-        c.phone as client_phone,
-        e.id as employee_id,
-        e.first_name as employee_first_name,
-        e.last_name as employee_last_name,
-        ri.id as reservation_item_id,
-        ri.service_id,
-        ri.variant_id,
-        ri.price_cents,
-        ri.duration_minutes,
-        s.name as service_name,
-        sv.name as variant_name,
-        sv.duration_minutes as variant_duration,
-        sv.price_cents as variant_price,
-        bl.address_line1 as location_address
-      FROM 
-        reservations r
-      LEFT JOIN clients c ON r.client_id = c.id
-      LEFT JOIN employees e ON r.employee_id = e.id
-      LEFT JOIN reservation_items ri ON r.id = ri.reservation_id
-      LEFT JOIN services s ON ri.service_id = s.id
-      LEFT JOIN service_variants sv ON ri.variant_id = sv.id
-      LEFT JOIN business_locations bl ON r.location_id = bl.id
-      WHERE 
-        r.business_id = ${businessId}
-      ORDER BY 
-        r.starts_at DESC
-    `;
-    
-    // Grouper les éléments de réservation par réservation
-    const groupedReservations = (reservations as any[]).reduce<Record<string, any>>((acc, row) => {
-      const reservationId = row.id;
-      if (!acc[reservationId]) {
-        acc[reservationId] = {
-          id: row.id,
-          business_id: row.business_id,
-          client_id: row.client_id,
-          employee_id: row.employee_id,
-          starts_at: row.starts_at,
-          ends_at: row.ends_at,
-          status: row.status,
-          notes: row.notes,
-          client: row.client_id ? {
-            id: row.client_id,
-            first_name: row.client_first_name,
-            last_name: row.client_last_name,
-            email: row.client_email,
-            phone: row.client_phone
-          } : null,
-          employee: row.employee_id ? {
-            id: row.employee_id,
-            first_name: row.employee_first_name,
-            last_name: row.employee_last_name
-          } : null,
-          business_locations: row.location_address ? {
-            address_line1: row.location_address
-          } : null,
-          reservation_items: []
-        };
-      }
-      
-      if (row.reservation_item_id) {
-        acc[reservationId].reservation_items.push({
-          id: row.reservation_item_id,
-          service_id: row.service_id,
-          variant_id: row.variant_id,
-          price_cents: row.price_cents,
-          duration_minutes: row.duration_minutes,
-          services: row.service_id ? {
-            id: row.service_id,
-            name: row.service_name
-          } : null,
-          service_variants: row.variant_id ? {
-            id: row.variant_id,
-            name: row.variant_name,
-            duration_minutes: row.variant_duration,
-            price_cents: row.variant_price
-          } : null
-        });
-      }
-      
-      return acc;
-    }, {});
-    
-    const reservationsList = Object.values(groupedReservations);
+    // Récupérer les réservations avec Prisma ORM pour plus de fiabilité
+    const reservationsList = await prisma.reservations.findMany({
+      where: { business_id: businessId },
+      orderBy: { starts_at: 'desc' },
+      include: {
+        clients: { select: { id: true, first_name: true, last_name: true, phone: true, users: { select: { email: true } } } },
+        employees: { select: { id: true, full_name: true } },
+        business_locations: { select: { address_line1: true } },
+        reservation_items: {
+          select: {
+            id: true,
+            service_id: true,
+            variant_id: true,
+            price_cents: true,
+            duration_minutes: true,
+            services: { select: { id: true, name: true } },
+            service_variants: { select: { id: true, name: true, duration_minutes: true, price_cents: true } },
+          },
+        },
+      },
+    } as any);
 
     // Formater les données pour le frontend
     const formattedReservations = reservationsList.map((reservation: any) => {
@@ -157,7 +86,7 @@ export async function GET(req: NextRequest) {
         : 'Client non spécifié';
 
       const employeeName = employee
-        ? [employee.first_name, employee.last_name].filter(Boolean).join(' ') || 'Employé inconnu'
+        ? (employee.full_name || 'Employé inconnu')
         : 'Aucun employé';
 
       return {

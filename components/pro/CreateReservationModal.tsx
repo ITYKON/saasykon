@@ -11,9 +11,11 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 export default function CreateReservationModal({
   businessId,
   trigger,
+  onCreated,
 }: {
   businessId: string;
   trigger: React.ReactNode;
+  onCreated?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -115,13 +117,17 @@ export default function CreateReservationModal({
               service_id: serviceId,
               variant_id: variantId || null,
               price_cents: Number(priceCents || 0),
+              currency: 'DZD',
+              employee_id: employeeId === "none" ? null : employeeId || null,
               duration_minutes: Number(duration || 30),
             },
           ],
         }),
       });
-      const j = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(j?.error || "Erreur de création");
+      const text = await res.text();
+      let j: any = {};
+      try { j = JSON.parse(text); } catch {}
+      if (!res.ok) throw new Error(j?.error || text || "Erreur de création");
       
       // Réinitialiser le formulaire
       setClient(null);
@@ -133,6 +139,7 @@ export default function CreateReservationModal({
       setTime("");
       setNotes("");
       
+      if (onCreated) onCreated();
       setOpen(false);
     } catch (e) {
       alert((e as any)?.message || "Erreur de création");
