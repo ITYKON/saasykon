@@ -27,19 +27,14 @@ export function ClientSearch({
   // Recherche des clients correspondant à la saisie
   const searchClients = useCallback(
     async (query: string) => {
-      if (!query || query.length < 2) {
-        setSuggestions([]);
-        return;
-      }
-
       setLoading(true);
       try {
         const response = await fetch(
-          `/api/pro/clients/search?business_id=${businessId}&q=${encodeURIComponent(query)}`
+          `/api/pro/clients/search?business_id=${businessId}&q=${encodeURIComponent(query || "")}`
         );
         if (response.ok) {
           const data = await response.json();
-          setSuggestions(data.clients || []);
+          setSuggestions(data.items || []);
         }
       } catch (error) {
         console.error("Erreur lors de la recherche de clients:", error);
@@ -76,7 +71,7 @@ export function ClientSearch({
   const handleSelect = (client: any) => {
     onSelect({
       id: client.id,
-      name: [client.first_name, client.last_name].filter(Boolean).join(" ") || "Client",
+      name: client.name || [client.first_name, client.last_name].filter(Boolean).join(" ") || "Client",
       phone: client.phone,
       email: client.email,
     });
@@ -89,7 +84,7 @@ export function ClientSearch({
         type="text"
         value={value}
         onChange={handleChange}
-        onFocus={() => setIsOpen(true)}
+        onFocus={() => { setIsOpen(true); searchClients(value); }}
         placeholder={placeholder}
         className={className}
       />
@@ -106,7 +101,7 @@ export function ClientSearch({
                   onClick={() => handleSelect(client)}
                 >
                   <div className="font-medium">
-                    {[client.first_name, client.last_name].filter(Boolean).join(" ")}
+                    {client.name || [client.first_name, client.last_name].filter(Boolean).join(" ")}
                   </div>
                   {client.phone && (
                     <div className="text-xs text-gray-500">{client.phone}</div>

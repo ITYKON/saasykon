@@ -39,12 +39,12 @@ export default function CreateReservationModal({
     setLoading(true);
     Promise.all([
       fetch(`/api/pro/services?business_id=${businessId}`).then((r) => r.json()),
-      fetch(`/api/pro/employees?business_id=${businessId}`).then((r) => r.json()),
+      fetch(`/api/pro/employees?business_id=${businessId}&include=services&limit=200`).then((r) => r.json()),
     ])
       .then(([s, e]) => {
         setServices(s.services || []);
-        setAllEmployees(e.employees || []);
-        setFilteredEmployees(e.employees || []);
+        setAllEmployees(e.items || []);
+        setFilteredEmployees(e.items || []);
       })
       .finally(() => setLoading(false));
   }, [open, businessId]);
@@ -60,16 +60,11 @@ export default function CreateReservationModal({
     const service = services.find(s => s.id === serviceId);
     if (!service) return;
 
-    // Si le service a des employés spécifiques, on les filtre
-    if (service.employee_ids && service.employee_ids.length > 0) {
-      const filtered = allEmployees.filter(emp => 
-        service.employee_ids.includes(emp.id)
-      );
-      setFilteredEmployees(filtered);
-    } else {
-      // Sinon, on prend tous les employés
-      setFilteredEmployees(allEmployees);
-    }
+    // Filtrer les employés qui proposent ce service via employee_services
+    const filtered = allEmployees.filter((emp: any) =>
+      Array.isArray(emp.employee_services) && emp.employee_services.some((es: any) => es?.services?.id === serviceId)
+    );
+    setFilteredEmployees(filtered);
     
     // Réinitialiser la sélection d'employé
     setEmployeeId("none");
@@ -235,7 +230,7 @@ export default function CreateReservationModal({
                               <div className="flex justify-between w-full">
                                 <span>{variant.name}</span>
                                 <span className="text-gray-500 ml-2">
-                                  {variant.duration_minutes} min • {variant.price_cents ? `${(variant.price_cents / 100).toFixed(2)} €` : 'Prix non défini'}
+                                  {variant.duration_minutes} min • {variant.price_cents ? `${(variant.price_cents / 100).toFixed(2)} DA` : 'Prix non défini'}
                                 </span>
                               </div>
                             </SelectItem>
@@ -261,7 +256,7 @@ export default function CreateReservationModal({
                       <SelectItem value="none">Aucun employé spécifique</SelectItem>
                       {filteredEmployees.map((employee) => (
                         <SelectItem key={employee.id} value={employee.id}>
-                          {employee.first_name} {employee.last_name}
+                          {employee.full_name || [employee.first_name, employee.last_name].filter(Boolean).join(" ")}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -303,13 +298,20 @@ export default function CreateReservationModal({
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Prix (€) *</Label>
+                  <Label>Prix (DA) *</Label>
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">€</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">DA</span>
                     <Input 
                       type="number" 
-                      value={priceCents ? (Number(priceCents) / 100).toFixed(2) : ''} 
-                      onChange={(e) => setPriceCents(String(Math.round(Number(e.target.value) * 100)))} 
+                      value={priceCents !== '' ? (Number(priceCents) / 100).toFixed(2) : ''} 
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === '') {
+                          setPriceCents('');
+                        } else {
+                          setPriceCents(String(Math.round(Number(val) * 100)));
+                        }
+                      }} 
                       min="0"
                       step="0.01"
                       className="pl-8"
