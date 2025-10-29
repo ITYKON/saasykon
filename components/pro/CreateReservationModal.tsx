@@ -69,7 +69,7 @@ export default function CreateReservationModal({
 
   // Ouvrir sur demande externe avec pré-remplissage
   useEffect(() => {
-    if (typeof forceOpenSignal === 'number') {
+    if (typeof forceOpenSignal === 'number' && forceOpenSignal > 0) {
       if (defaultDate) setDate(defaultDate);
       if (defaultTime) setTime(defaultTime);
       if (typeof defaultEmployeeId !== 'undefined') setEmployeeId(defaultEmployeeId || "none");

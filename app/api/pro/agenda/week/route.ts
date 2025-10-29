@@ -1,0 +1,108 @@
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { getAuthContext } from "@/lib/authorization";
+import { cookies } from "next/headers";
+
+function startOfDay(d: Date) { const x = new Date(d); x.setHours(0,0,0,0); return x }
+function endOfDay(d: Date) { const x = startOfDay(d); x.setDate(x.getDate()+1); return x }
+function startOfWeek(d: Date) { const x = startOfDay(d); const day = x.getDay() || 7; x.setDate(x.getDate() - day + 1); return x }
+
+export async function GET(req: NextRequest) {
+  const ctx = await getAuthContext();
+  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const cookieStore = cookies();
+  const url = new URL(req.url);
+  const businessId = url.searchParams.get("business_id") || cookieStore.get("business_id")?.value || ctx.assignments[0]?.business_id;
+  if (!businessId) return NextResponse.json({ error: "business_id required" }, { status: 400 });
+  const allowed = ctx.roles.includes("ADMIN") || ctx.assignments.some((a) => a.business_id === businessId && (a.role === "PRO" || a.role === "PROFESSIONNEL"));
+  if (!allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  const dateParam = url.searchParams.get("date"); // yyyy-mm-dd
+  const base = dateParam ? new Date(dateParam + "T00:00:00") : new Date();
+  const weekStart = startOfWeek(base);
+  const weekEnd = new Date(weekStart); weekEnd.setDate(weekEnd.getDate() + 7);
+
+  // Parse filters
+  const employeeIds = url.searchParams.getAll("employee_id").filter(Boolean)
+  const statuses = url.searchParams.getAll("status").filter(Boolean)
+  const search = url.searchParams.get("search") || ""
+  const categories = url.searchParams.getAll("category").filter(Boolean)
+  const nameFilters = [search, ...categories].filter(Boolean)
+
+  const reservations = await prisma.reservations.findMany({
+    where: {
+      business_id: businessId,
+      starts_at: { gte: weekStart, lt: weekEnd },
+      ...(employeeIds.length ? { employee_id: { in: employeeIds } } : {}),
+      ...(statuses.length ? { status: { in: statuses as any } } : {}),
+      ...(nameFilters.length ? {
+        OR: [
+          { reservation_items: { some: { services: { name: { contains: nameFilters[0], mode: 'insensitive' } } } } },
+          { reservation_items: { some: { service_variants: { name: { contains: nameFilters[0], mode: 'insensitive' } } } } },
+          { clients: { OR: [
+            { first_name: { contains: nameFilters[0], mode: 'insensitive' } },
+            { last_name: { contains: nameFilters[0], mode: 'insensitive' } },
+          ]}},
+          ...nameFilters.slice(1).flatMap((q)=> ([
+            { reservation_items: { some: { services: { name: { contains: q, mode: 'insensitive' } } } } },
+            { reservation_items: { some: { service_variants: { name: { contains: q, mode: 'insensitive' } } } } },
+          ] as any))
+        ]
+      } : {}),
+    },
+    orderBy: { starts_at: "asc" },
+    include: {
+      employees: { select: { id: true, full_name: true } },
+      clients: { select: { first_name: true, last_name: true } },
+      reservation_items: {
+        select: {
+          price_cents: true,
+          duration_minutes: true,
+          services: { select: { name: true } },
+          service_variants: { select: { name: true, duration_minutes: true, price_cents: true } },
+        },
+      },
+    },
+  }) as any[];
+
+  const dayMap: Record<string, { date: string; employees: Array<{ employee_id: string | null; employee_name: string; items: any[] }> }> = {};
+
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(weekStart); d.setDate(d.getDate() + i);
+    const key = d.toISOString().slice(0,10);
+    dayMap[key] = { date: key, employees: [] };
+  }
+
+  // Group by day then employee
+  for (const r of reservations) {
+    const dKey = new Date(r.starts_at).toISOString().slice(0,10);
+    const bucket = dayMap[dKey]; if (!bucket) continue;
+    const employeeId = r.employee_id || "none";
+    const employeeName = r.employees?.full_name || "Aucun";
+    const duration = r.reservation_items.reduce((s: number, it: any) => s + (it.duration_minutes ?? it.service_variants?.duration_minutes ?? 0), 0);
+    const price = r.reservation_items.reduce((s: number, it: any) => s + (it.price_cents ?? it.service_variants?.price_cents ?? 0), 0);
+    const titleParts = r.reservation_items.map((it: any) => {
+      const sname = it.services?.name || "Service";
+      const vname = it.service_variants?.name ? ` - ${it.service_variants.name}` : "";
+      return sname + vname;
+    }).filter(Boolean);
+    const client = [r.clients?.first_name || "", r.clients?.last_name || ""].join(" ").trim();
+
+    let emp = bucket.employees.find(e => (e.employee_id || "none") === employeeId);
+    if (!emp) { emp = { employee_id: r.employee_id || null, employee_name: employeeName, items: [] }; bucket.employees.push(emp); }
+    emp.items.push({
+      id: r.id,
+      start: r.starts_at,
+      end: r.ends_at,
+      status: r.status,
+      title: titleParts.join(" + ") || "Rendez-vous",
+      client,
+      duration_minutes: duration,
+      price_cents: price,
+      notes: r.notes || "",
+    });
+  }
+
+  const days = Object.values(dayMap).sort((a,b)=> a.date.localeCompare(b.date));
+  return NextResponse.json({ week_start: weekStart.toISOString().slice(0,10), days });
+}

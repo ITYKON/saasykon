@@ -1,83 +1,403 @@
-"use client"
- 
-import { useState, useEffect } from "react"
-import { Plus, ChevronLeft, ChevronRight } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Input } from "@/components/ui/input"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Checkbox } from "@/components/ui/checkbox"
-import CreateReservationModal from "@/components/pro/CreateReservationModal"
+"use client";
+
+import { useState, useEffect, useMemo } from "react";
+import { Plus, ChevronLeft, ChevronRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
+import CreateReservationModal from "@/components/pro/CreateReservationModal";
+
+type Appointment = {
+  start: string; // HH:mm
+  end: string; // HH:mm
+  title: string;
+  color?: string;
+  client?: string;
+  _start?: number; // internal use
+  _end?: number; // internal use
+};
+
+type Employee = {
+  name: string;
+  avatar: string;
+  slots: Appointment[];
+};
+
+type MonthEvent = {
+  time?: string;
+  title: string;
+  color: string;
+  employee?: string;
+  service?: string;
+  durationMin?: number;
+  priceDA?: number;
+};
+
+// Hook personnalisé pour le debounce
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+}
 
 export default function ProAgenda() {
   // Single-day agenda view with employee columns
   const [view, setView] = useState<"day" | "week" | "month">("day")
-  const [currentDate, setCurrentDate] = useState(new Date())
-  const [selectedEmployees, setSelectedEmployees] = useState<string[]>([])
-  const [search, setSearch] = useState("")
-  const [step, setStep] = useState<15 | 30>(15)
-  const [availabilityOpen, setAvailabilityOpen] = useState(false)
-  const [hideEmpty, setHideEmpty] = useState(false)
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([])
+  
+  // Valeurs debouncées pour éviter les appels API trop fréquents (déclarées plus bas)
+;
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
+  const [search, setSearch] = useState("");
+  const [step, setStep] = useState<15 | 30>(15);
+  const [availabilityOpen, setAvailabilityOpen] = useState(false);
+  const [hideEmpty, setHideEmpty] = useState(false);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
 
   // Read business_id from cookies on the client so we can pass it to CreateReservationModal
-  const [businessId, setBusinessId] = useState<string>("")
+  const [businessId, setBusinessId] = useState<string>("");
   // Prefill reservation modal controls
-  const [prefillDate, setPrefillDate] = useState<string>("") // yyyy-mm-dd
-  const [prefillTime, setPrefillTime] = useState<string>("") // HH:mm
-  const [prefillEmployeeId, setPrefillEmployeeId] = useState<string | "none" | undefined>("none")
-  const [openSignal, setOpenSignal] = useState<number>(0)
-  const [refreshKey, setRefreshKey] = useState<number>(0)
-  const [filtersOpen, setFiltersOpen] = useState(false)
-  const [isMobile, setIsMobile] = useState<boolean>(false)
+  const [prefillDate, setPrefillDate] = useState<string>(""); // yyyy-mm-dd
+  const [prefillTime, setPrefillTime] = useState<string>(""); // HH:mm
+  const [prefillEmployeeId, setPrefillEmployeeId] = useState<
+    string | "none" | undefined
+  >("none");
+  const [openSignal, setOpenSignal] = useState<number>(0);
+  const [refreshKey, setRefreshKey] = useState<number>(0);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState<boolean>(false);
   useEffect(() => {
-    const mql = window.matchMedia('(max-width: 767px)')
-    const apply = () => setIsMobile(mql.matches)
-    apply()
-    mql.addEventListener('change', apply)
-    return () => mql.removeEventListener('change', apply)
-  }, [])
+    const mql = window.matchMedia("(max-width: 767px)");
+    const apply = () => setIsMobile(mql.matches);
+    apply();
+    mql.addEventListener("change", apply);
+    return () => mql.removeEventListener("change", apply);
+  }, []);
 
   // Real employees for mapping name -> id (used only to prefill modal)
-  const [empMap, setEmpMap] = useState<Record<string, string>>({})
+  const [empMap, setEmpMap] = useState<Record<string, string>>({});
+  // Live employees for Day view fetched from backend
+  const [liveEmployees, setLiveEmployees] = useState<Employee[] | null>(null);
+  // All employees from API to always render columns
+  const [allEmployees, setAllEmployees] = useState<Employee[]>([]);
+  // Live slots mapped by employee_id for robust overlay
+  const [liveSlotsById, setLiveSlotsById] = useState<
+    Record<string, Appointment[]>
+  >({});
+  const [liveSlotsByName, setLiveSlotsByName] = useState<
+    Record<string, Appointment[]>
+  >({});
+  // Live data for Week and Month
+  const [liveWeekDays, setLiveWeekDays] = useState<Record<
+    string,
+    Appointment[]
+  > | null>(null);
+  const [liveMonthDays, setLiveMonthDays] = useState<Record<
+    string,
+    MonthEvent[]
+  > | null>(null);
 
   // Month day events dialog
-  const [dayListOpen, setDayListOpen] = useState(false)
-  const [dayListDate, setDayListDate] = useState<Date | null>(null)
-  const [dayListEvents, setDayListEvents] = useState<MonthEvent[]>([])
+  const [dayListOpen, setDayListOpen] = useState(false);
+  const [dayListDate, setDayListDate] = useState<Date | null>(null);
+  const [dayListEvents, setDayListEvents] = useState<MonthEvent[]>([]);
 
   // Event details dialog
-  type EventDetail = { dateStr: string; time?: string; title: string; employee?: string; service?: string; durationMin?: number; priceDA?: number; color?: string }
-  const [detailOpen, setDetailOpen] = useState(false)
-  const [detail, setDetail] = useState<EventDetail | null>(null)
+  type EventDetail = {
+    dateStr: string;
+    time?: string;
+    title: string;
+    employee?: string;
+    service?: string;
+    durationMin?: number;
+    priceDA?: number;
+    color?: string;
+    client?: string;
+  };
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [detail, setDetail] = useState<EventDetail | null>(null);
+  const norm = (s: string | undefined) => (s || '').toLowerCase().trim()
+
+  // Color palette and mapping per employee (stable by order)
+  const palette = ['#2563eb','#16a34a','#ea580c','#9333ea','#e11d48','#0ea5e9','#f59e0b','#22c55e','#8b5cf6','#ef4444']
+  const colorMap = useMemo(() => {
+    const map: Record<string,string> = {}
+    const base = (allEmployees.length > 0 ? allEmployees : [])
+    base.forEach((e, i) => { map[norm(e.name)] = palette[i % palette.length] })
+    return map
+  }, [allEmployees])
 
   useEffect(() => {
-    if (typeof document === 'undefined') return
-    const m = document.cookie.match(/(?:^|; )business_id=([^;]+)/)
-    if (m) setBusinessId(decodeURIComponent(m[1]))
-  }, [])
+    if (typeof document === "undefined") return;
+    const m = document.cookie.match(/(?:^|; )business_id=([^;]+)/);
+    if (m) setBusinessId(decodeURIComponent(m[1]));
+  }, []);
 
   useEffect(() => {
-    if (!businessId) return
+    if (!businessId) return;
     fetch(`/api/pro/employees?business_id=${businessId}&limit=200`)
       .then((r) => r.json())
       .then((j) => {
-        const map: Record<string, string> = {}
-        ;(j.items || []).forEach((e: any) => {
-          const name = e.full_name || [e.first_name, e.last_name].filter(Boolean).join(' ')
-          if (name) map[name] = e.id
-        })
-        setEmpMap(map)
+        const map: Record<string, string> = {};
+        const list: Employee[] = [];
+        (j.items || []).forEach((e: any) => {
+          const name =
+            e.full_name ||
+            [e.first_name, e.last_name].filter(Boolean).join(" ");
+          if (name) map[norm(name)] = e.id;
+          if (name)
+            list.push({
+              name,
+              avatar: e.avatar_url || e.avatar || "https://i.pravatar.cc/48",
+              slots: [],
+            });
+        });
+        setEmpMap(map);
+        setAllEmployees(list);
       })
-      .catch(() => {})
-  }, [businessId])
+      .catch(() => {});
+  }, [businessId]);
+
+  // Fonction utilitaire de debounce
+  const useDebounce = (value: any, delay: number) => {
+    const [debouncedValue, setDebouncedValue] = useState(value);
+
+    useEffect(() => {
+      const handler = setTimeout(() => {
+        setDebouncedValue(value);
+      }, delay);
+
+      return () => {
+        clearTimeout(handler);
+      };
+    }, [value, delay]);
+
+    return debouncedValue;
+  };
+
+  // Valeurs debounced pour éviter les appels API trop fréquents
+  const debouncedSearch = useDebounce(search, 500);
+  const debouncedDate = useDebounce(currentDate, 300);
+
+  // Fetch Day agenda from backend and map to Employee[] used by the grid
+  useEffect(() => {
+    let throttleTimeout: NodeJS.Timeout | null = null;
+
+    const fetchData = () => {
+      if (!businessId) return;
+
+      const toDateStr = (d: Date) =>
+        `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, "0")}-${d
+          .getDate()
+          .toString()
+          .padStart(2, "0")}`;
+
+      const hhmm = (iso: string) => {
+        const dt = new Date(iso);
+        return `${dt.getHours().toString().padStart(2, "0")}:${dt
+          .getMinutes()
+          .toString()
+          .padStart(2, "0")}`;
+      };
+
+      const qs = new URLSearchParams({
+        business_id: businessId,
+        date: toDateStr(debouncedDate || currentDate),
+      });
+
+      // Obtenir les IDs des employés
+      const mappedEmployees = selectedEmployees
+        .map((n) => empMap[norm(n)])
+        .filter(Boolean) as string[];
+
+      if (mappedEmployees.length > 0) {
+        mappedEmployees.forEach((id) => qs.append("employee_id", id));
+      }
+
+      if (selectedCategories.length > 0) {
+        selectedCategories.forEach((c) => qs.append("category", c));
+      }
+
+      if (debouncedSearch) {
+        qs.set("search", debouncedSearch);
+      }
+
+      // Exécuter la requête avec un délai
+      if (throttleTimeout) {
+        clearTimeout(throttleTimeout);
+      }
+
+      throttleTimeout = setTimeout(() => {
+        fetch(`/api/pro/agenda/day?${qs.toString()}`)
+          .then((r) => r.json())
+          .then((data) => {
+            const liveMap: Record<string, Appointment[]> = {};
+            const liveByName: Record<string, Appointment[]> = {};
+            const emps: Employee[] = (data.employees || []).map((e: any) => {
+              const slots: Appointment[] = (e.items || []).map((it: any) => ({
+                start: hhmm(it.start),
+                end: hhmm(it.end),
+                title: it.title || 'Rendez-vous',
+                color: '#3b82f6',
+                client: it.client || undefined,
+              }));
+              if (e.employee_id) liveMap[e.employee_id] = slots;
+              if (e.employee_name) liveByName[norm(e.employee_name)] = slots;
+              return { name: e.employee_name || 'Aucun', avatar: e.avatar_url || e.avatar || 'https://i.pravatar.cc/48', slots };
+            });
+
+            setLiveEmployees(emps);
+            setLiveSlotsById(liveMap);
+            setLiveSlotsByName(liveByName);
+
+            // Update empMap from response if ids are present
+            const map: Record<string, string> = {};
+            (data.employees || []).forEach((e: any) => {
+              if (e.employee_id && e.employee_name) map[norm(e.employee_name)] = e.employee_id;
+            });
+            if (Object.keys(map).length) setEmpMap((prev) => ({ ...prev, ...map }));
+          })
+          .catch(() => {
+            setLiveEmployees(null);
+          });
+      }, 1000); // Délai d'une seconde entre les appels
+    };
+
+    fetchData();
+
+    // Nettoyage lors du démontage du composant
+    return () => {
+      if (throttleTimeout) {
+        clearTimeout(throttleTimeout);
+      }
+    };
+  }, [businessId, debouncedDate, selectedEmployees, selectedCategories, debouncedSearch]); 
+  // Fetch Week agenda
+  useEffect(() => {
+    if (!businessId) return;
+    const toDateStr = (d: Date) =>
+      `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, "0")}-${d
+        .getDate()
+        .toString()
+        .padStart(2, "0")}`;
+    const hhmm = (iso: string) => {
+      const dt = new Date(iso);
+      return `${dt.getHours().toString().padStart(2, "0")}:${dt
+        .getMinutes()
+        .toString()
+        .padStart(2, "0")}`;
+    };
+    const qs = new URLSearchParams({
+      business_id: businessId,
+      date: toDateStr(currentDate),
+    });
+    selectedEmployees
+      .map((n) => empMap[n])
+      .filter(Boolean)
+      .forEach((id) => qs.append("employee_id", id as string));
+    selectedCategories.forEach((c) => qs.append("category", c));
+    if (search) qs.set("search", search);
+    fetch(`/api/pro/agenda/week?${qs.toString()}`)
+      .then((r) => r.json())
+      .then((data) => {
+        const map: Record<string, Appointment[]> = {};
+        (data.days || []).forEach((day: any) => {
+          const items: Appointment[] = [];
+          (day.employees || []).forEach((e: any) => {
+            (e.items || []).forEach((it: any) => {
+              items.push({
+                start: hhmm(it.start),
+                end: hhmm(it.end),
+                title: it.title || "Rendez-vous",
+                color: "#3b82f6",
+                client: it.client || undefined,
+              });
+            });
+          });
+          map[day.date] = items;
+        });
+        setLiveWeekDays(map);
+      })
+      .catch(() => setLiveWeekDays(null));
+  }, [
+    businessId,
+    currentDate,
+    selectedEmployees,
+    selectedCategories,
+    search,
+    empMap,
+    refreshKey,
+  ]);
+
+  // Fetch Month agenda
+  useEffect(() => {
+    if (!businessId) return;
+    const toDateStr = (d: Date) =>
+      `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, "0")}-${d
+        .getDate()
+        .toString()
+        .padStart(2, "0")}`;
+    const qs = new URLSearchParams({
+      business_id: businessId,
+      date: toDateStr(currentDate),
+    });
+    selectedEmployees
+      .map((n) => empMap[n])
+      .filter(Boolean)
+      .forEach((id) => qs.append("employee_id", id as string));
+    selectedCategories.forEach((c) => qs.append("category", c));
+    if (search) qs.set("search", search);
+    fetch(`/api/pro/agenda/month?${qs.toString()}`)
+      .then((r) => r.json())
+      .then((data) => {
+        setLiveMonthDays(data.days || null);
+      })
+      .catch(() => setLiveMonthDays(null));
+  }, [
+    businessId,
+    currentDate,
+    selectedEmployees,
+    selectedCategories,
+    search,
+    empMap,
+    refreshKey,
+  ]);
 
   const dateTitle = new Intl.DateTimeFormat("fr-FR", {
     weekday: "long",
     day: "2-digit",
     month: "long",
-  }).format(currentDate)
+  }).format(currentDate);
   const times = [
     "08:00",
     "09:00",
@@ -90,66 +410,82 @@ export default function ProAgenda() {
     "16:00",
     "17:00",
     "18:00",
-  ]
+  ];
 
   // --- Month view data mocks & utils ---
-  type MonthEvent = { time?: string; title: string; color: string; employee?: string; service?: string; durationMin?: number; priceDA?: number }
-  const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`)
-  const fmtKey = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
-  const palette = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#06b6d4", "#8b5cf6", "#0ea5e9", "#84cc16"]
-  const categories = ["Coupe", "Barbe", "Coloration", "Soin", "Shampoing"]
+  type MonthEvent = {
+    time?: string;
+    title: string;
+    color: string;
+    employee?: string;
+    service?: string;
+    durationMin?: number;
+    priceDA?: number;
+  };
+  const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`);
+  const fmtKey = (d: Date) =>
+    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const categories = ["Coupe", "Barbe", "Coloration", "Soin", "Shampoing"];
   // Generate a few deterministic fake events per day for month view visualization
-  const getMonthEvents = (visibleDays: Date[]): Record<string, MonthEvent[]> => {
-    const out: Record<string, MonthEvent[]> = {}
+  const getMonthEvents = (
+    visibleDays: Date[]
+  ): Record<string, MonthEvent[]> => {
+    const out: Record<string, MonthEvent[]> = {};
     visibleDays.forEach((d) => {
-      const key = fmtKey(d)
-      const seed = d.getDate() + d.getMonth() * 31
+      const key = fmtKey(d);
+      const seed = d.getDate() + d.getMonth() * 31;
       // Ensure at least 1 event per day; sometimes overflow to demo '+X autres'
-      let count = (seed % 3) + 1 // 1..3 events
-      if (seed % 5 === 0) count += 3 // some days have 4-6 events
-      const list: MonthEvent[] = []
+      let count = (seed % 3) + 1; // 1..3 events
+      if (seed % 5 === 0) count += 3; // some days have 4-6 events
+      const list: MonthEvent[] = [];
       for (let i = 0; i < count; i++) {
-        const color = palette[(seed + i) % palette.length]
-        const hh = 9 + ((seed + i) % 8) // between 9..16
-        const time = `${pad(hh)}:${i % 2 === 0 ? "00" : "30"}`
-        const services = ["Coupe", "Barbe", "Coloration", "Soin", "Shampoing"]
-        const employeesNames = ["Jean Charles", "Julie", "Marc"]
-        const duration = ((seed + i) % 2 === 0) ? 30 : 60
-        const price = 1500 + (((seed + i) % 7) * 500)
-        list.push({ time, title: `RDV ${i + 1}`, color, service: services[(seed + i) % services.length], employee: employeesNames[(seed + i) % employeesNames.length], durationMin: duration, priceDA: price })
+        const color = palette[(seed + i) % palette.length];
+        const hh = 9 + ((seed + i) % 8); // between 9..16
+        const time = `${pad(hh)}:${i % 2 === 0 ? "00" : "30"}`;
+        const services = ["Coupe", "Barbe", "Coloration", "Soin", "Shampoing"];
+        const employeesNames = ["Jean Charles", "Julie", "Marc"];
+        const duration = (seed + i) % 2 === 0 ? 30 : 60;
+        const price = 1500 + ((seed + i) % 7) * 500;
+        list.push({
+          time,
+          title: `RDV ${i + 1}`,
+          color,
+          service: services[(seed + i) % services.length],
+          employee: employeesNames[(seed + i) % employeesNames.length],
+          durationMin: duration,
+          priceDA: price,
+        });
       }
-      out[key] = list
-    })
-    return out
-  }
+      out[key] = list;
+    });
+    return out;
+  };
 
   // Date helpers (placed here so they are available to mocks below)
-  const addDays = (d: Date, n: number) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n)
-  const addMonths = (d: Date, n: number) => new Date(d.getFullYear(), d.getMonth() + n, 1)
+  const addDays = (d: Date, n: number) =>
+    new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+  const addMonths = (d: Date, n: number) =>
+    new Date(d.getFullYear(), d.getMonth() + n, 1);
 
-  // All-day events (for Week and Month views)
-  type AllDayEvent = { start: Date; end: Date; title: string; color: string }
-  const sampleAllDay: AllDayEvent[] = [
-    // Spans Tue→Thu of current week
-    { start: addDays(currentDate, -((currentDate.getDay() || 7) - 2)), end: addDays(currentDate, -((currentDate.getDay() || 7) - 4)), title: "Formation équipe", color: "#0ea5e9" },
-    // Single day on Fri
-    { start: addDays(currentDate, -((currentDate.getDay() || 7) - 5)), end: addDays(currentDate, -((currentDate.getDay() || 7) - 5)), title: "Audit interne", color: "#f97316" },
-  ]
+  // Remove mock all-day events in week view
+  type AllDayEvent = { start: Date; end: Date; title: string; color: string };
+  const sampleAllDay: AllDayEvent[] = [];
 
   type Appointment = {
-    start: string // HH:mm
-    end: string   // HH:mm
-    title: string
-    notes?: string
-    span?: number // number of time slots tall
-    color?: string
-  }
+    start: string; // HH:mm
+    end: string; // HH:mm
+    title: string;
+    notes?: string;
+    span?: number; // number of time slots tall
+    color?: string;
+    client?: string;
+  };
 
   type Employee = {
-    name: string
-    avatar: string
-    slots: Array<Appointment | null>
-  }
+    name: string;
+    avatar: string;
+    slots: Array<Appointment | null>;
+  };
 
   // Mock data to mirror the screenshot
   const employees: Employee[] = [
@@ -157,11 +493,31 @@ export default function ProAgenda() {
       name: "Jean Charles",
       avatar: "https://i.pravatar.cc/48?img=3",
       slots: [
-        { start: "10:00", end: "11:00", title: "Coupe + Barbe + Soin complet", color: "#3b82f6" },
-        { start: "11:00", end: "12:00", title: "Coupe + Barbe + Soin complet + Épilation complète", color: "#10b981" },
+        {
+          start: "10:00",
+          end: "11:00",
+          title: "Coupe + Barbe + Soin complet",
+          color: "#3b82f6",
+        },
+        {
+          start: "11:00",
+          end: "12:00",
+          title: "Coupe + Barbe + Soin complet + Épilation complète",
+          color: "#10b981",
+        },
         null,
-        { start: "14:00", end: "15:00", title: "Coupe ciseau + Barbe + Shampoing + Coiffage", color: "#ef4444" },
-        { start: "15:00", end: "16:00", title: "Coupe + Taille barbe simple (tondeuse)", color: "#f59e0b" },
+        {
+          start: "14:00",
+          end: "15:00",
+          title: "Coupe ciseau + Barbe + Shampoing + Coiffage",
+          color: "#ef4444",
+        },
+        {
+          start: "15:00",
+          end: "16:00",
+          title: "Coupe + Taille barbe simple (tondeuse)",
+          color: "#f59e0b",
+        },
         null,
         null,
       ],
@@ -170,11 +526,26 @@ export default function ProAgenda() {
       name: "Julie",
       avatar: "https://i.pravatar.cc/48?img=5",
       slots: [
-        { start: "10:00", end: "10:45", title: "Coupe homme", color: "#06b6d4" },
+        {
+          start: "10:00",
+          end: "10:45",
+          title: "Coupe homme",
+          color: "#06b6d4",
+        },
         null,
-        { start: "11:00", end: "13:00", title: "Couleur • Shampoing Coupe Brushing • Cheveux Longs", color: "#8b5cf6" },
+        {
+          start: "11:00",
+          end: "13:00",
+          title: "Couleur • Shampoing Coupe Brushing • Cheveux Longs",
+          color: "#8b5cf6",
+        },
         null,
-        { start: "15:00", end: "16:00", title: "Coloration Sans Ammoniaque • Shampoing Brushing", color: "#22c55e" },
+        {
+          start: "15:00",
+          end: "16:00",
+          title: "Coloration Sans Ammoniaque • Shampoing Brushing",
+          color: "#22c55e",
+        },
         null,
         null,
       ],
@@ -183,35 +554,91 @@ export default function ProAgenda() {
       name: "Marc",
       avatar: "https://i.pravatar.cc/48?img=8",
       slots: [
-        { start: "10:00", end: "11:00", title: "Taille de barbe et contours tondeuse", color: "#f97316" },
-        { start: "11:00", end: "13:00", title: "Taille de barbe et contours rasoir", color: "#0ea5e9" },
+        {
+          start: "10:00",
+          end: "11:00",
+          title: "Taille de barbe et contours tondeuse",
+          color: "#f97316",
+        },
+        {
+          start: "11:00",
+          end: "13:00",
+          title: "Taille de barbe et contours rasoir",
+          color: "#0ea5e9",
+        },
         null,
-        { start: "14:00", end: "15:00", title: "Rasage de crâne et/ou barbe à l'ancienne", color: "#84cc16" },
-        { start: "15:00", end: "16:00", title: "Taille de barbe", color: "#e11d48" },
+        {
+          start: "14:00",
+          end: "15:00",
+          title: "Rasage de crâne et/ou barbe à l'ancienne",
+          color: "#84cc16",
+        },
+        {
+          start: "15:00",
+          end: "16:00",
+          title: "Taille de barbe",
+          color: "#e11d48",
+        },
         null,
         null,
       ],
     },
-  ]
+  ];
 
   // Config for time-grid (Google Calendar-like)
-  const hourHeight = 44 // px per hour (more compact)
-  const pxPerMinute = hourHeight / 60
-  const workingStart = 9 // 09:00
-  const workingEnd = 18 // 18:00
+  const hourHeight = 44; // px per hour (more compact)
+  const pxPerMinute = hourHeight / 60;
+  const [workingStart, setWorkingStart] = useState<number>(9);
+  const [workingEnd, setWorkingEnd] = useState<number>(18);
+  const [workingStartMin, setWorkingStartMin] = useState<number>(9*60);
+  const [workingEndMin, setWorkingEndMin] = useState<number>(18*60);
+
+  // Sync working hours with business profile
+  useEffect(() => {
+    const fetchHours = async () => {
+      try {
+        const res = await fetch('/api/pro/business/profile');
+        const data = await res.json();
+        const wh = data?.business?.working_hours || {};
+        const dayNames = ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
+        const key = dayNames[currentDate.getDay()];
+        const today = wh[key];
+        const parseMin = (hhmm: string) => {
+          if (!hhmm || typeof hhmm !== 'string') return undefined as number | undefined;
+          const [h, m] = hhmm.split(':').map((x: string) => parseInt(x, 10));
+          if (Number.isNaN(h) || Number.isNaN(m)) return undefined;
+          return h*60 + m;
+        };
+        const startM = parseMin(today?.debut);
+        const endM = parseMin(today?.fin);
+        if (typeof startM === 'number' && typeof endM === 'number' && endM > startM) {
+          setWorkingStart(Math.floor(startM/60));
+          setWorkingEnd(Math.ceil(endM/60));
+          setWorkingStartMin(startM);
+          setWorkingEndMin(endM);
+        }
+      } catch {}
+    };
+    fetchHours();
+  }, [currentDate]);
 
   const toMinutes = (hhmm: string) => {
-    const [h, m] = hhmm.split(":" ).map(Number)
-    return h * 60 + m
-  }
+    const [h, m] = hhmm.split(":").map(Number);
+    return h * 60 + m;
+  };
   const rangeMinutes = (start: number, end: number, step: number) => {
-    const out: number[] = []
-    for (let t = start; t <= end; t += step) out.push(t)
-    return out
-  }
+    const out: number[] = [];
+    for (let t = start; t <= end; t += step) out.push(t);
+    return out;
+  };
 
   // Overlap layout: assign each event a column index and total columns for that cluster
-  type Positioned = Appointment & { top: number; height: number; col: number; cols: number }
+  type Positioned = Appointment & {
+    top: number;
+    height: number;
+    col: number;
+    cols: number;
+  };
   function layoutEvents(apts: Appointment[]): Positioned[] {
     const items = apts
       .filter(Boolean as any)
@@ -220,97 +647,129 @@ export default function ProAgenda() {
         _start: toMinutes(a.start),
         _end: toMinutes(a.end),
       }))
-      .sort((a, b) => a._start - b._start || a._end - b._end)
+      .sort((a, b) => a._start - b._start || a._end - b._end);
 
-    const result: Positioned[] = []
-    let active: Array<{ _end: number; col: number; id: number }> = []
-    let nextCol = 0
+    const result: Positioned[] = [];
+    let active: Array<{ _end: number; col: number; id: number }> = [];
+    let nextCol = 0;
     items.forEach((it, idx) => {
       // remove finished
-      active = active.filter((x) => x._end > it._start)
-      const used = new Set(active.map((x) => x.col))
-      let col = 0
-      while (used.has(col)) col++
-      active.push({ _end: it._end, col, id: idx })
-      const cols = Math.max(...active.map((x) => x.col)) + 1
-      const top = (it._start - workingStart * 60) * pxPerMinute
-      const height = Math.max(20, (it._end - it._start) * pxPerMinute)
-      result.push({ ...it, top, height, col, cols })
-      nextCol = Math.max(nextCol, cols)
-    })
+      active = active.filter((x) => x._end > it._start);
+      const used = new Set(active.map((x) => x.col));
+      let col = 0;
+      while (used.has(col)) col++;
+      active.push({ _end: it._end, col, id: idx });
+      const cols = Math.max(...active.map((x) => x.col)) + 1;
+      const top = (it._start - workingStartMin) * pxPerMinute;
+      const height = Math.max(20, (it._end - it._start) * pxPerMinute);
+      result.push({ ...it, top, height, col, cols });
+      nextCol = Math.max(nextCol, cols);
+    });
     // Normalize cols per cluster: recompute based on overlaps window (simple pass acceptable for mock)
-    return result.map((r) => ({ ...r, cols: Math.max(r.cols, 1) }))
+    return result.map((r) => ({ ...r, cols: Math.max(r.cols, 1) }));
   }
 
   const onPrev = () => {
-    if (view === "day") setCurrentDate(addDays(currentDate, -1))
-    else if (view === "week") setCurrentDate(addDays(currentDate, -7))
-    else setCurrentDate(addMonths(currentDate, -1))
-  }
+    if (view === "day") setCurrentDate(addDays(currentDate, -1));
+    else if (view === "week") setCurrentDate(addDays(currentDate, -7));
+    else setCurrentDate(addMonths(currentDate, -1));
+  };
   const onNext = () => {
-    if (view === "day") setCurrentDate(addDays(currentDate, 1))
-    else if (view === "week") setCurrentDate(addDays(currentDate, 7))
-    else setCurrentDate(addMonths(currentDate, 1))
-  }
+    if (view === "day") setCurrentDate(addDays(currentDate, 1));
+    else if (view === "week") setCurrentDate(addDays(currentDate, 7));
+    else setCurrentDate(addMonths(currentDate, 1));
+  };
 
   const filteredEmployees = (list: Employee[]) => {
-    const hasSelection = selectedEmployees.length > 0
-    let base = hasSelection ? list.filter((e) => selectedEmployees.includes(e.name)) : list
+    const hasSelection = selectedEmployees.length > 0;
+    let base = hasSelection
+      ? list.filter((e) => selectedEmployees.includes(e.name))
+      : list;
     base = base.map((e) => ({
       ...e,
-      slots: e.slots.map((s) => (s && (search || selectedCategories.length>0) ? { ...s } : s)).filter((s) => {
-        if (!s) return true
-        const t = s.title.toLowerCase()
-        const searchOk = !search || t.includes(search.toLowerCase())
-        const catOk = selectedCategories.length === 0 || selectedCategories.some((c) => t.includes(c.toLowerCase()))
-        return searchOk && catOk
-      }) as Array<Appointment | null>,
-    }))
+      slots: e.slots
+        .map((s) =>
+          s && (search || selectedCategories.length > 0) ? { ...s } : s
+        )
+        .filter((s) => {
+          if (!s) return true;
+          const t = s.title.toLowerCase();
+          const searchOk = !search || t.includes(search.toLowerCase());
+          const catOk =
+            selectedCategories.length === 0 ||
+            selectedCategories.some((c) => t.includes(c.toLowerCase()));
+          return searchOk && catOk;
+        }) as Array<Appointment | null>,
+    }));
     // Optionally hide employees with no visible items when search applied
     if (hideEmpty) {
-      base = base.filter((e) => (e.slots as (Appointment | null)[]).some((s) => s))
+      base = base.filter((e) =>
+        (e.slots as (Appointment | null)[]).some((s) => s)
+      );
     }
-    return base
-  }
+    return base;
+  };
 
   const renderDayView = () => {
-    const startMin = workingStart * 60
-    const endMin = workingEnd * 60
-    const gridHours = rangeMinutes(startMin, endMin, 60).map((m) => `${pad(Math.floor(m / 60))}:00`)
-    const gutter = 48
-    const colMin = 180 // smaller min width to fit more columns
+    const startMin = workingStartMin;
+    const endMin = workingEndMin;
+    const gridHours = rangeMinutes(startMin, endMin, 60).map(
+      (m) => `${pad(Math.floor(m / 60))}:00`
+    );
+    const gutter = 48;
+    const colMin = 180; // smaller min width to fit more columns
 
-    const toDateStr = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`
+    const toDateStr = (d: Date) =>
+      `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
     const roundToStep = (m: number) => {
-      const s = step
-      const r = Math.max(0, Math.min(m, endMin - startMin))
-      const rel = Math.round(r / s) * s
-      return rel
-    }
-    const openAt = (clientY: number, container: HTMLElement, empName?: string) => {
-      const rect = container.getBoundingClientRect()
-      const y = clientY - rect.top
-      const minutesFromStart = y / pxPerMinute
-      const rounded = roundToStep(minutesFromStart)
-      const total = startMin + rounded
-      const hh = Math.floor(total / 60)
-      const mm = total % 60
-      setPrefillDate(toDateStr(currentDate))
-      setPrefillTime(`${pad(hh)}:${pad(mm)}`)
-      if (empName) setPrefillEmployeeId(empMap[empName] || 'none')
-      setOpenSignal((s) => s + 1)
-    }
+      const s = step;
+      const r = Math.max(0, Math.min(m, endMin - startMin));
+      const rel = Math.round(r / s) * s;
+      return rel;
+    };
+    const openAt = (
+      clientY: number,
+      container: HTMLElement,
+      empName?: string
+    ) => {
+      const rect = container.getBoundingClientRect();
+      const y = clientY - rect.top;
+      const minutesFromStart = y / pxPerMinute;
+      const rounded = roundToStep(minutesFromStart);
+      const total = startMin + rounded;
+      const hh = Math.floor(total / 60);
+      const mm = total % 60;
+      setPrefillDate(toDateStr(currentDate));
+      setPrefillTime(`${pad(hh)}:${pad(mm)}`);
+      if (empName) setPrefillEmployeeId(empMap[empName] || "none");
+      setOpenSignal((s) => s + 1);
+    };
+    // Always render using real API employees only (no mock fallback)
+    const base = allEmployees;
+    const sourceEmployees: Employee[] = base.map((e) => {
+      const id = empMap[norm(e.name)];
+      let slots = id && liveSlotsById[id] ? liveSlotsById[id] : [];
+      if ((!slots || slots.length === 0) && liveSlotsByName[norm(e.name)])
+        slots = liveSlotsByName[norm(e.name)];
+      return { ...e, slots };
+    });
     return (
       <div className="bg-white rounded-xl p-3 border border-gray-200">
-        {/* Header employees (compact) */}
-        <div className="mb-2 overflow-x-auto">
-          <div className="grid" style={{ gridTemplateColumns: `${gutter}px repeat(${filteredEmployees(employees).length}, minmax(${colMin}px, 1fr))` }}>
-            <div></div>
-            {filteredEmployees(employees).map((emp) => (
+        {/* Employees header chips above grid to avoid overlapping 09:00 */}
+        <div className="mb-2 overflow-x-auto no-scrollbar">
+          <div className="grid" style={{ gridTemplateColumns: `${gutter}px repeat(${sourceEmployees.length}, minmax(${colMin}px, 1fr))` }}>
+            <div />
+            {sourceEmployees.map((emp) => (
               <div key={emp.name} className="px-1">
                 <div className="bg-white rounded-full shadow-sm border border-gray-200 px-2 py-0.5 inline-flex items-center gap-2">
                   <img src={emp.avatar} alt={emp.name} className="h-5 w-5 rounded-full object-cover" />
-                  <span className="text-[11px] font-medium text-gray-900">{emp.name}</span>
+                  <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: colorMap[norm(emp.name)] || '#3b82f6' }} />
+                  <span className="text-[12px] font-medium text-gray-900">{emp.name}</span>
+                  {Array.isArray(emp.slots) && emp.slots.filter(Boolean).length > 0 && (
+                    <span className="ml-1 text-[10px] text-white bg-black/80 rounded-full px-1.5 py-0.5">
+                      {emp.slots.filter(Boolean).length}
+                    </span>
+                  )}
                 </div>
               </div>
             ))}
@@ -318,133 +777,287 @@ export default function ProAgenda() {
         </div>
 
         {/* Time grid */}
-        <div className="overflow-x-auto">
-          <div className="grid" style={{ gridTemplateColumns: `${gutter}px repeat(${filteredEmployees(employees).length}, minmax(${colMin}px, 1fr))` }}>
+        <div className="overflow-x-auto no-scrollbar">
+          <div className="grid" style={{ gridTemplateColumns: `${gutter}px repeat(${sourceEmployees.length}, minmax(${colMin}px, 1fr))` }}>
             {/* gutter */}
             <div className="relative">
-              <div style={{ height: (endMin - startMin) * pxPerMinute }} className="relative">
+              <div
+                style={{ height: (endMin - startMin) * pxPerMinute }}
+                className="relative"
+              >
                 {gridHours.map((label, i) => (
-                  <div key={label} className="absolute left-0 right-0" style={{ top: i * hourHeight }}>
-                    <div className="text-[10px] text-gray-500 pr-2 h-4 leading-4 text-right">{label}</div>
+                  <div
+                    key={label}
+                    className="absolute left-0 right-0"
+                    style={{ top: i * hourHeight }}
+                  >
+                    <div className="text-[12px] font-medium text-neutral-600 pr-2 h-5 leading-5 text-right">
+                      {label}
+                    </div>
                   </div>
                 ))}
               </div>
             </div>
 
             {/* columns per employee */}
-            {filteredEmployees(employees).map((emp) => {
-              const filtered = (emp.slots.filter(Boolean) as Appointment[])
-              const events = layoutEvents(filtered)
+            {sourceEmployees.map((emp) => {
+              const filtered = emp.slots.filter(
+                (slot): slot is Appointment => slot !== null
+              );
+              const events = layoutEvents(filtered);
               return (
                 <div key={emp.name} className="px-1">
                   <div
                     className="relative bg-white rounded border overflow-hidden cursor-crosshair"
                     style={{ height: (endMin - startMin) * pxPerMinute }}
-                    onDoubleClick={(e) => openAt(e.clientY, e.currentTarget as unknown as HTMLElement, emp.name)}
+                    onDoubleClick={(e) =>
+                      openAt(
+                        e.clientY,
+                        e.currentTarget as unknown as HTMLElement,
+                        emp.name
+                      )
+                    }
                   >
-                    {/* sticky header label for column */}
-                    <div className="sticky top-0 z-10 pointer-events-none">
-                      <div className="absolute left-1 top-1 text-[10px] bg-white/70 backdrop-blur px-1 rounded">{emp.name}</div>
-                    </div>
+                    {/* background tint like mock */}
+                    <div className="absolute inset-0 bg-stone-100" />
                     {/* hour lines */}
                     {rangeMinutes(startMin, endMin - 60, 60).map((m, i) => (
-                      <div key={m} className="absolute left-0 right-0 border-t border-gray-200" style={{ top: i * hourHeight }} />
+                      <div
+                        key={m}
+                        className="absolute left-0 right-0 border-t border-gray-200"
+                        style={{ top: i * hourHeight }}
+                      />
                     ))}
                     {/* 15-min minor lines */}
-                    {rangeMinutes(startMin + step, endMin - step, step).map((m) => (
-                      <div key={m} className="absolute left-0 right-0 border-t border-gray-100" style={{ top: (m - startMin) * pxPerMinute }} />
-                    ))}
+                    {rangeMinutes(startMin + step, endMin - step, step).map(
+                      (m) => (
+                        <div
+                          key={m}
+                          className="absolute left-0 right-0 border-t border-gray-100"
+                          style={{ top: (m - startMin) * pxPerMinute }}
+                        />
+                      )
+                    )}
                     {/* non-working stripes */}
-                    {workingStart > 0 &&
-                      <div className="absolute left-0 right-0 bg-gray-50/70" style={{ top: 0, height: Math.max(0, (Math.min(startMin, 24*60) - 0) * pxPerMinute) }} />
-                    }
+                    {workingStartMin > 0 && (
+                      <div
+                        className="absolute left-0 right-0 bg-gray-50/70"
+                        style={{
+                          top: 0,
+                          height: Math.max(0, (Math.min(startMin, 24 * 60) - 0) * pxPerMinute),
+                        }}
+                      />
+                    )}
+                    {/* Events */}
+                    {events.map((ev, i) => (
+                      <div
+                        key={i}
+                        className="absolute left-0 right-0 mx-1"
+                        style={{
+                          top: ev.top,
+                          height: ev.height,
+                          left: `${(ev.col * 100) / ev.cols}%`,
+                          width: `${100 / ev.cols}%`,
+                        }}
+                      >
+                        <div
+                          className="h-full rounded px-2 py-1 overflow-hidden cursor-pointer"
+                          style={{ backgroundColor: colorMap[norm(emp.name)] || ev.color || "#3b82f6" }}
+                          onClick={() => {
+                            setDetail({
+                              dateStr: toDateStr(currentDate),
+                              time: `${ev.start}-${ev.end}`,
+                              title: ev.title,
+                              color: ev.color,
+                              client: ev.client,
+                            });
+                            setDetailOpen(true);
+                          }}
+                        >
+                          <div className="text-[11px] font-medium text-white truncate">
+                            {ev.start} - {ev.end}
+                          </div>
+                          <div className="text-[11px] text-white/90 truncate">
+                            {ev.title}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              )
+              );
             })}
           </div>
         </div>
       </div>
-    )
-  }
+    );
+  };
 
   const getWeekDays = (d: Date) => {
-    const day = d.getDay() || 7
-    const monday = addDays(d, -day + 1)
-    return Array.from({ length: 7 }, (_, i) => addDays(monday, i))
-  }
+    const day = d.getDay() || 7;
+    const monday = addDays(d, -day + 1);
+    return Array.from({ length: 7 }, (_, i) => addDays(monday, i));
+  };
 
   const renderWeekView = () => {
-    const weekDays = getWeekDays(currentDate)
-    const startMin = workingStart * 60
-    const endMin = workingEnd * 60
-    const toDateStr = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`
+    const weekDays = getWeekDays(currentDate);
+    const startMin = workingStartMin;
+    const endMin = workingEndMin;
+    const toDateStr = (d: Date) =>
+      `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
     const openAtWeek = (clientY: number, container: HTMLElement, day: Date) => {
-      const rect = container.getBoundingClientRect()
-      const y = clientY - rect.top
-      const minutesFromStart = y / pxPerMinute
-      const stepSize = step
-      const clamped = Math.max(0, Math.min(minutesFromStart, endMin - startMin))
-      const rounded = Math.round(clamped / stepSize) * stepSize
-      const total = startMin + rounded
-      const hh = Math.floor(total / 60)
-      const mm = total % 60
-      setPrefillDate(toDateStr(day))
-      setPrefillTime(`${pad(hh)}:${pad(mm)}`)
-      setPrefillEmployeeId('none')
-      setOpenSignal((s)=>s+1)
-    }
+      const rect = container.getBoundingClientRect();
+      const y = clientY - rect.top;
+      const minutesFromStart = y / pxPerMinute;
+      const stepSize = step;
+      const clamped = Math.max(
+        0,
+        Math.min(minutesFromStart, endMin - startMin)
+      );
+      const rounded = Math.round(clamped / stepSize) * stepSize;
+      const total = startMin + rounded;
+      const hh = Math.floor(total / 60);
+      const mm = total % 60;
+      setPrefillDate(toDateStr(day));
+      setPrefillTime(`${pad(hh)}:${pad(mm)}`);
+      setPrefillEmployeeId("none");
+      setOpenSignal((s) => s + 1);
+    };
     return (
       <div className="bg-white rounded-xl p-4 border border-gray-200">
         {/* Header days */}
-        <div className="mb-2 grid" style={{ gridTemplateColumns: `72px repeat(${weekDays.length}, minmax(0, 1fr))` }}>
+        <div
+          className="mb-2 grid"
+          style={{
+            gridTemplateColumns: `72px repeat(${weekDays.length}, minmax(0, 1fr))`,
+          }}
+        >
           <div></div>
           {weekDays.map((d, i) => (
             <div key={i} className="px-2">
-              <div className={`flex items-center gap-2 ${fmtKey(d)===fmtKey(new Date())? 'text-black' : ''}`}>
-                <div className="text-sm font-medium capitalize">{new Intl.DateTimeFormat('fr-FR',{ weekday:'short', day:'2-digit', month:'short'}).format(d)}</div>
+              <div
+                className={`flex items-center gap-2 ${
+                  fmtKey(d) === fmtKey(new Date()) ? "text-black" : ""
+                }`}
+              >
+                <div className="text-sm font-medium capitalize">
+                  {new Intl.DateTimeFormat("fr-FR", {
+                    weekday: "short",
+                    day: "2-digit",
+                    month: "short",
+                  }).format(d)}
+                </div>
               </div>
             </div>
           ))}
         </div>
 
         {/* All-day row with spanning events */}
-        <div className="mb-3 grid items-stretch" style={{ gridTemplateColumns: `72px repeat(${weekDays.length}, minmax(0, 1fr))` }}>
-          <div className="text-[11px] text-gray-500 pr-2 h-7 leading-7 text-right">Toute la journée</div>
+        <div
+          className="mb-3 grid items-stretch"
+          style={{
+            gridTemplateColumns: `72px repeat(${weekDays.length}, minmax(0, 1fr))`,
+          }}
+        >
+          <div className="text-[11px] text-gray-500 pr-2 h-7 leading-7 text-right">
+            Toute la journée
+          </div>
           {/* All-day grid */}
           <div className="col-span-7 grid grid-cols-7 gap-px bg-gray-200 rounded-md overflow-hidden">
             {weekDays.map((d, i) => (
-              <div key={i} className={`h-7 bg-white ${[6,0].includes(d.getDay()) ? 'bg-gray-50' : ''}`} />
+              <div
+                key={i}
+                className={`h-7 bg-white ${
+                  [6, 0].includes(d.getDay()) ? "bg-gray-50" : ""
+                }`}
+              />
             ))}
           </div>
           {/* Bars positioned using CSS grid with col-span */}
           <div className="col-span-7 -mt-7 grid grid-cols-7 gap-0 pointer-events-none">
             {sampleAllDay.map((e, idx) => {
               // compute span within this week
-              const startIdx = Math.max(0, weekDays.findIndex((d) => fmtKey(d) >= fmtKey(new Date(e.start.getFullYear(), e.start.getMonth(), e.start.getDate()))))
-              const endIdx = Math.min(6, weekDays.findIndex((d) => fmtKey(d) >= fmtKey(new Date(e.end.getFullYear(), e.end.getMonth(), e.end.getDate()))) )
-              const from = Math.max(0, weekDays.findIndex((d)=> d.toDateString() === new Date(e.start).toDateString()))
-              const to = Math.max(from, weekDays.findIndex((d)=> d.toDateString() === new Date(e.end).toDateString()))
-              const colStart = (from === -1 ? 0 : from) + 1
-              const span = (to === -1 ? 6 : to) - (from === -1 ? 0 : from) + 1
+              const startIdx = Math.max(
+                0,
+                weekDays.findIndex(
+                  (d) =>
+                    fmtKey(d) >=
+                    fmtKey(
+                      new Date(
+                        e.start.getFullYear(),
+                        e.start.getMonth(),
+                        e.start.getDate()
+                      )
+                    )
+                )
+              );
+              const endIdx = Math.min(
+                6,
+                weekDays.findIndex(
+                  (d) =>
+                    fmtKey(d) >=
+                    fmtKey(
+                      new Date(
+                        e.end.getFullYear(),
+                        e.end.getMonth(),
+                        e.end.getDate()
+                      )
+                    )
+                )
+              );
+              const from = Math.max(
+                0,
+                weekDays.findIndex(
+                  (d) => d.toDateString() === new Date(e.start).toDateString()
+                )
+              );
+              const to = Math.max(
+                from,
+                weekDays.findIndex(
+                  (d) => d.toDateString() === new Date(e.end).toDateString()
+                )
+              );
+              const colStart = (from === -1 ? 0 : from) + 1;
+              const span = (to === -1 ? 6 : to) - (from === -1 ? 0 : from) + 1;
               return (
-                <div key={idx} className="h-7 px-1" style={{ gridColumn: `${colStart} / span ${span}` }}>
-                  <div className="pointer-events-auto h-full rounded-md text-xs flex items-center px-2 shadow-sm" style={{ background: e.color, color: 'white' }}>
+                <div
+                  key={idx}
+                  className="h-7 px-1"
+                  style={{ gridColumn: `${colStart} / span ${span}` }}
+                >
+                  <div
+                    className="pointer-events-auto h-full rounded-md text-xs flex items-center px-2 shadow-sm"
+                    style={{ background: e.color, color: "white" }}
+                  >
                     {e.title}
                   </div>
                 </div>
-              )
+              );
             })}
           </div>
         </div>
 
-        <div className="grid" style={{ gridTemplateColumns: `72px repeat(${weekDays.length}, minmax(0, 1fr))` }}>
+        <div
+          className="grid"
+          style={{
+            gridTemplateColumns: `72px repeat(${weekDays.length}, minmax(0, 1fr))`,
+          }}
+        >
           {/* gutter */}
           <div className="relative">
-            <div style={{ height: (endMin - startMin) * pxPerMinute }} className="relative">
+            <div
+              style={{ height: (endMin - startMin) * pxPerMinute }}
+              className="relative"
+            >
               {rangeMinutes(startMin, endMin - 60, 60).map((m, i) => (
-                <div key={m} className="absolute left-0 right-0" style={{ top: i * hourHeight }}>
-                  <div className="text-[11px] text-gray-500 pr-2 h-4 leading-4 text-right">{pad(Math.floor(m/60))}:00</div>
+                <div
+                  key={m}
+                  className="absolute left-0 right-0"
+                  style={{ top: i * hourHeight }}
+                >
+                  <div className="text-[11px] text-gray-500 pr-2 h-4 leading-4 text-right">
+                    {pad(Math.floor(m / 60))}:00
+                  </div>
                 </div>
               ))}
             </div>
@@ -452,97 +1065,135 @@ export default function ProAgenda() {
 
           {/* day columns */}
           {weekDays.map((d, dayIdx) => {
-            // create timed fake events for each day
-            const seed = d.getDate() + d.getMonth() * 31
-            const timed: Appointment[] = []
-            const make = (s: number, e: number, idx: number) => ({ start: `${pad(Math.floor(s/60))}:${pad(s%60)}`, end: `${pad(Math.floor(e/60))}:${pad(e%60)}`, title: `Client ${idx+1}`, color: palette[(seed + idx) % palette.length] })
-            if (seed % 2 === 0) timed.push(make(10*60, 11*60, 0))
-            if (seed % 3 !== 0) timed.push(make(11*60 + 15, 12*60, 1))
-            if (seed % 5 !== 0) timed.push(make(14*60, 15*60, 2))
-            if (seed % 7 === 0) timed.push(make(15*60, 16*60, 3))
-            const positioned = layoutEvents(timed)
+            // real data from API for this day
+            const key = fmtKey(d);
+            const timed: Appointment[] =
+              liveWeekDays && liveWeekDays[key] ? liveWeekDays[key] : [];
+            const positioned = layoutEvents(timed);
             return (
-            <div key={dayIdx} className="px-2">
-              <div
-                className={`relative rounded-md border overflow-hidden ${[6,0].includes(d.getDay()) ? 'bg-gray-50' : 'bg-white'}`}
-                style={{ height: (endMin - startMin) * pxPerMinute }}
-                onDoubleClick={(e)=>openAtWeek(e.clientY, e.currentTarget as unknown as HTMLElement, d)}
-              >
-                {/* hour lines */}
-                {rangeMinutes(startMin, endMin - 60, 60).map((m, i) => (
-                  <div key={m} className="absolute left-0 right-0 border-t border-gray-200" style={{ top: i * hourHeight }} />
-                ))}
-                {rangeMinutes(startMin + step, endMin - step, step).map((m) => (
-                  <div key={m} className="absolute left-0 right-0 border-t border-gray-100" style={{ top: (m - startMin) * pxPerMinute }} />
-                ))}
-                {/* Current time indicator if today */}
-                {fmtKey(d) === fmtKey(new Date()) && (
-                  <div className="absolute left-0 right-0" style={{ top: (toMinutes(new Date().getHours()+":"+pad(new Date().getMinutes())) - startMin) * pxPerMinute }}>
-                    <div className="h-px bg-red-500"></div>
-                    <div className="w-2 h-2 bg-red-500 rounded-full -mt-1"></div>
-                  </div>
-                )}
-                {/* fake events */}
-                {positioned.map((ev, i) => {
-                  const widthPct = 100 / ev.cols
-                  const leftPct = ev.col * widthPct
-                  return (
+              <div key={dayIdx} className="px-2">
+                <div
+                  className={`relative rounded-md border overflow-hidden ${
+                    [6, 0].includes(d.getDay()) ? "bg-gray-50" : "bg-white"
+                  }`}
+                  style={{ height: (endMin - startMin) * pxPerMinute }}
+                  onDoubleClick={(e) =>
+                    openAtWeek(
+                      e.clientY,
+                      e.currentTarget as unknown as HTMLElement,
+                      d
+                    )
+                  }
+                >
+                  {/* hour lines */}
+                  {rangeMinutes(startMin, endMin - 60, 60).map((m, i) => (
                     <div
-                      key={i}
-                      className="absolute rounded-md shadow-sm border text-[11px] bg-white overflow-hidden"
+                      key={m}
+                      className="absolute left-0 right-0 border-t border-gray-200"
+                      style={{ top: i * hourHeight }}
+                    />
+                  ))}
+                  {rangeMinutes(startMin + step, endMin - step, step).map(
+                    (m) => (
+                      <div
+                        key={m}
+                        className="absolute left-0 right-0 border-t border-gray-100"
+                        style={{ top: (m - startMin) * pxPerMinute }}
+                      />
+                    )
+                  )}
+                  {/* Current time indicator if today */}
+                  {fmtKey(d) === fmtKey(new Date()) && (
+                    <div
+                      className="absolute left-0 right-0"
                       style={{
-                        top: ev.top,
-                        left: `${leftPct}%`,
-                        width: `calc(${widthPct}% - 3px)`,
-                        height: ev.height,
-                        borderLeft: `3px solid ${ev.color || '#3b82f6'}`,
-                      }}
-                      onClick={() => {
-                        setDetail({
-                          dateStr: `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`,
-                          time: ev.start,
-                          title: ev.title,
-                          durationMin: toMinutes(ev.end) - toMinutes(ev.start),
-                          color: ev.color,
-                        })
-                        setDetailOpen(true)
+                        top:
+                          (toMinutes(
+                            new Date().getHours() +
+                              ":" +
+                              pad(new Date().getMinutes())
+                          ) -
+                            startMin) *
+                          pxPerMinute,
                       }}
                     >
-                      <div className="px-2 py-1">
-                        <div className="text-[10px] text-gray-600 font-medium">{ev.start} - {ev.end}</div>
-                        <div className="text-[12px] text-gray-900 leading-snug">{ev.title}</div>
-                      </div>
+                      <div className="h-px bg-red-500"></div>
+                      <div className="w-2 h-2 bg-red-500 rounded-full -mt-1"></div>
                     </div>
-                  )
-                })}
+                  )}
+                  {/* fake events */}
+                  {positioned.map((ev, i) => {
+                    const widthPct = 100 / ev.cols;
+                    const leftPct = ev.col * widthPct;
+                    return (
+                      <div
+                        key={i}
+                        className="absolute rounded-md shadow-sm border text-[11px] bg-white overflow-hidden"
+                        style={{
+                          top: ev.top,
+                          left: `${leftPct}%`,
+                          width: `calc(${widthPct}% - 3px)`,
+                          height: ev.height,
+                          borderLeft: `3px solid ${colorMap[norm("Jean Charles")] || "#3b82f6"}`,
+                        }}
+                        onClick={() => {
+                          setDetail({
+                            dateStr: `${d.getFullYear()}-${pad(
+                              d.getMonth() + 1
+                            )}-${pad(d.getDate())}`,
+                            time: ev.start,
+                            title: ev.title,
+                            durationMin:
+                              toMinutes(ev.end) - toMinutes(ev.start),
+                            color: ev.color,
+                            client: ev.client,
+                          });
+                          setDetailOpen(true);
+                        }}
+                      >
+                        <div className="px-2 py-1">
+                          <div className="text-[10px] text-gray-600 font-medium">
+                            {ev.start} - {ev.end}
+                          </div>
+                          <div className="text-[12px] text-gray-900 leading-snug">
+                            {ev.title}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          )})}
+            );
+          })}
         </div>
       </div>
-    )
-  }
+    );
+  };
 
   const getMonthMatrix = (d: Date) => {
-    const first = new Date(d.getFullYear(), d.getMonth(), 1)
-    const startDay = (first.getDay() || 7) - 1
-    const start = addDays(first, -startDay)
-    return Array.from({ length: 42 }, (_, i) => addDays(start, i))
-  }
+    const first = new Date(d.getFullYear(), d.getMonth(), 1);
+    const startDay = (first.getDay() || 7) - 1;
+    const start = addDays(first, -startDay);
+    return Array.from({ length: 42 }, (_, i) => addDays(start, i));
+  };
 
   const renderMonthView = () => {
-    const days = getMonthMatrix(currentDate)
-    const month = currentDate.getMonth()
-    const todayKey = fmtKey(new Date())
-    const maxVisible = 3 // show up to 3 events per day cell
-    const monthEvents = getMonthEvents(days)
+    const days = getMonthMatrix(currentDate);
+    const month = currentDate.getMonth();
+    const todayKey = fmtKey(new Date());
+    const maxVisible = 3; // show up to 3 events per day cell
+    const monthEvents = liveMonthDays || getMonthEvents(days);
 
     return (
       <div className="bg-white rounded-xl p-4 border border-gray-200">
         {/* Weekday header */}
         <div className="grid grid-cols-7 gap-0">
-          {["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"].map((n) => (
-            <div key={n} className="text-[11px] font-medium text-gray-500 text-center py-2 uppercase tracking-wide">
+          {["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"].map((n) => (
+            <div
+              key={n}
+              className="text-[11px] font-medium text-gray-500 text-center py-2 uppercase tracking-wide"
+            >
               {n}
             </div>
           ))}
@@ -551,22 +1202,28 @@ export default function ProAgenda() {
         {/* Month grid */}
         <div className="grid grid-cols-7 gap-px bg-gray-200 rounded-lg overflow-hidden">
           {days.map((d, idx) => {
-            const key = fmtKey(d)
-            const isOther = d.getMonth() !== month
-            const isToday = key === todayKey
-            const evts = monthEvents[key] ?? []
-            const visible = evts.slice(0, maxVisible)
-            const overflow = Math.max(0, evts.length - visible.length)
+            const key = fmtKey(d);
+            const isOther = d.getMonth() !== month;
+            const isToday = key === todayKey;
+            const evts = monthEvents[key] ?? [];
+            const visible = evts.slice(0, maxVisible);
+            const overflow = Math.max(0, evts.length - visible.length);
 
             return (
               <div
                 key={key}
-                className={`relative min-h-[112px] bg-white ${isOther ? 'opacity-50' : ''}`}
+                className={`relative min-h-[112px] bg-white ${
+                  isOther ? "opacity-50" : ""
+                }`}
                 onDoubleClick={() => {
-                  setPrefillDate(`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`)
-                  setPrefillTime(`${pad(workingStart)}:00`)
-                  setPrefillEmployeeId('none')
-                  setOpenSignal((s)=>s+1)
+                  setPrefillDate(
+                    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(
+                      d.getDate()
+                    )}`
+                  );
+                  setPrefillTime(`${pad(Math.floor(workingStartMin/60))}:${pad(workingStartMin%60)}`);
+                  setPrefillEmployeeId("none");
+                  setOpenSignal((s) => s + 1);
                 }}
               >
                 <div className="h-full p-2">
@@ -574,11 +1231,17 @@ export default function ProAgenda() {
                   <div className="flex items-center justify-between">
                     <button
                       className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                        isToday ? "bg-black text-white" : isOther ? "text-gray-400" : "text-gray-700"
+                        isToday
+                          ? "bg-black text-white"
+                          : isOther
+                          ? "text-gray-400"
+                          : "text-gray-700"
                       }`}
                       onClick={() => {
-                        setCurrentDate(new Date(d.getFullYear(), d.getMonth(), d.getDate()))
-                        setView("day")
+                        setCurrentDate(
+                          new Date(d.getFullYear(), d.getMonth(), d.getDate())
+                        );
+                        setView("day");
                       }}
                     >
                       {d.getDate()}
@@ -593,7 +1256,9 @@ export default function ProAgenda() {
                         className="w-full flex items-center gap-2 rounded-md border px-2 py-1 text-xs shadow-sm hover:bg-gray-50 cursor-pointer text-left"
                         onClick={() => {
                           setDetail({
-                            dateStr: `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`,
+                            dateStr: `${d.getFullYear()}-${pad(
+                              d.getMonth() + 1
+                            )}-${pad(d.getDate())}`,
                             time: e.time,
                             title: e.title,
                             employee: e.employee,
@@ -601,13 +1266,17 @@ export default function ProAgenda() {
                             durationMin: e.durationMin,
                             priceDA: e.priceDA,
                             color: e.color,
-                          })
-                          setDetailOpen(true)
+                          });
+                          setDetailOpen(true);
                         }}
                       >
-                        <span className="h-3 w-1.5 rounded-sm" style={{ backgroundColor: e.color }} />
+                        <span
+                          className="h-3 w-1.5 rounded-sm"
+                          style={{ backgroundColor: e.color }}
+                        />
                         <div className="truncate text-gray-800">
-                          {e.time ? `${e.time} ` : ""}{e.title}
+                          {e.time ? `${e.time} ` : ""}
+                          {e.title}
                         </div>
                       </button>
                     ))}
@@ -615,9 +1284,9 @@ export default function ProAgenda() {
                       <button
                         className="text-[11px] text-blue-600 hover:underline"
                         onClick={() => {
-                          setDayListDate(d)
-                          setDayListEvents(evts)
-                          setDayListOpen(true)
+                          setDayListDate(d);
+                          setDayListEvents(evts);
+                          setDayListOpen(true);
                         }}
                       >
                         +{overflow} autres
@@ -626,12 +1295,12 @@ export default function ProAgenda() {
                   </div>
                 </div>
               </div>
-            )
+            );
           })}
         </div>
       </div>
-    )
-  }
+    );
+  };
 
   return (
     <div className="min-h-screen bg-neutral-50">
@@ -640,26 +1309,65 @@ export default function ProAgenda() {
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             {/* Left: navigation + date */}
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="icon" className="rounded-lg" onClick={onPrev}>
+              <Button
+                variant="outline"
+                size="icon"
+                className="rounded-lg"
+                onClick={onPrev}
+              >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
-              <Button variant="outline" className="rounded-lg" onClick={() => setCurrentDate(new Date())}>Aujourd'hui</Button>
-              <Button variant="outline" size="icon" className="rounded-lg" onClick={onNext}>
+              <Button
+                variant="outline"
+                className="rounded-lg"
+                onClick={() => setCurrentDate(new Date())}
+              >
+                Aujourd'hui
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                className="rounded-lg"
+                onClick={onNext}
+              >
                 <ChevronRight className="h-4 w-4" />
               </Button>
-              <h2 className="ml-3 text-lg md:text-xl font-semibold text-black capitalize tracking-tight">{dateTitle}</h2>
+              <h2 className="ml-3 text-lg md:text-xl font-semibold text-black capitalize tracking-tight">
+                {dateTitle}
+              </h2>
             </div>
 
             {/* Right: view switch + filters popover + primary action */}
             <div className="flex items-center gap-2">
               <div className="bg-neutral-100 rounded-lg p-1 inline-flex">
-                <Button variant={view === "day" ? "default" : "ghost"} className="rounded-md px-3" onClick={() => setView("day")}>Jour</Button>
-                <Button variant={view === "week" ? "default" : "ghost"} className="rounded-md px-3" onClick={() => setView("week")}>Semaine</Button>
-                <Button variant={view === "month" ? "default" : "ghost"} className="rounded-md px-3" onClick={() => setView("month")}>Mois</Button>
+                <Button
+                  variant={view === "day" ? "default" : "ghost"}
+                  className="rounded-md px-3"
+                  onClick={() => setView("day")}
+                >
+                  Jour
+                </Button>
+                <Button
+                  variant={view === "week" ? "default" : "ghost"}
+                  className="rounded-md px-3"
+                  onClick={() => setView("week")}
+                >
+                  Semaine
+                </Button>
+                <Button
+                  variant={view === "month" ? "default" : "ghost"}
+                  className="rounded-md px-3"
+                  onClick={() => setView("month")}
+                >
+                  Mois
+                </Button>
               </div>
 
               {/* Filters collapsed */}
-              <Popover open={!isMobile && filtersOpen} onOpenChange={setFiltersOpen}>
+              <Popover
+                open={!isMobile && filtersOpen}
+                onOpenChange={setFiltersOpen}
+              >
                 <PopoverTrigger asChild>
                   <Button
                     type="button"
@@ -668,67 +1376,124 @@ export default function ProAgenda() {
                     aria-expanded={filtersOpen}
                   >
                     Filtres
-                    {(selectedEmployees.length>0 || search || step !== 15 || hideEmpty || selectedCategories.length>0) && (
+                    {(selectedEmployees.length > 0 ||
+                      search ||
+                      step !== 15 ||
+                      hideEmpty ||
+                      selectedCategories.length > 0) && (
                       <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-black text-white text-[10px] px-1">
-                        {Number(selectedEmployees.length>0) + Number(Boolean(search)) + Number(step !== 15) + Number(hideEmpty) + Number(selectedCategories.length>0)}
+                        {Number(selectedEmployees.length > 0) +
+                          Number(Boolean(search)) +
+                          Number(step !== 15) +
+                          Number(hideEmpty) +
+                          Number(selectedCategories.length > 0)}
                       </span>
                     )}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent side="bottom" align="end" sideOffset={8} className="hidden md:block w-80 z-50">
+                <PopoverContent
+                  side="bottom"
+                  align="end"
+                  sideOffset={8}
+                  className="hidden md:block w-80 z-50"
+                >
                   <div className="space-y-3">
                     <div className="text-sm font-medium">Filtres</div>
                     <div className="space-y-2">
                       <div className="text-xs text-gray-600">Employés</div>
                       <div className="max-h-40 overflow-auto rounded border p-2">
                         {employees.map((e) => {
-                          const checked = selectedEmployees.includes(e.name)
+                          const checked = selectedEmployees.includes(e.name);
                           return (
-                            <label key={e.name} className="flex items-center gap-2 py-1">
-                              <Checkbox checked={checked} onCheckedChange={(v)=>{
-                                setSelectedEmployees((prev)=>{
-                                  const on = Boolean(v)
-                                  if (on && !prev.includes(e.name)) return [...prev, e.name]
-                                  if (!on) return prev.filter((x)=>x!==e.name)
-                                  return prev
-                                })
-                              }} />
+                            <label
+                              key={e.name}
+                              className="flex items-center gap-2 py-1"
+                            >
+                              <Checkbox
+                                checked={checked}
+                                onCheckedChange={(v) => {
+                                  setSelectedEmployees((prev) => {
+                                    const on = Boolean(v);
+                                    if (on && !prev.includes(e.name))
+                                      return [...prev, e.name];
+                                    if (!on)
+                                      return prev.filter((x) => x !== e.name);
+                                    return prev;
+                                  });
+                                }}
+                              />
                               <span className="text-sm">{e.name}</span>
                             </label>
-                          )
+                          );
                         })}
                       </div>
                       <div className="flex gap-2">
-                        <Button size="sm" variant="outline" onClick={()=>setSelectedEmployees(employees.map(e=>e.name))}>Tout</Button>
-                        <Button size="sm" variant="outline" onClick={()=>setSelectedEmployees([])}>Aucun</Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() =>
+                            setSelectedEmployees(employees.map((e) => e.name))
+                          }
+                        >
+                          Tout
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setSelectedEmployees([])}
+                        >
+                          Aucun
+                        </Button>
                       </div>
                     </div>
                     <div className="space-y-2">
                       <div className="text-xs text-gray-600">Catégories</div>
                       <div className="max-h-32 overflow-auto rounded border p-2">
                         {categories.map((c) => {
-                          const checked = selectedCategories.includes(c)
+                          const checked = selectedCategories.includes(c);
                           return (
-                            <label key={c} className="flex items-center gap-2 py-1">
-                              <Checkbox checked={checked} onCheckedChange={(v)=>{
-                                setSelectedCategories((prev)=>{
-                                  const on = Boolean(v)
-                                  if (on && !prev.includes(c)) return [...prev, c]
-                                  if (!on) return prev.filter((x)=>x!==c)
-                                  return prev
-                                })
-                              }} />
+                            <label
+                              key={c}
+                              className="flex items-center gap-2 py-1"
+                            >
+                              <Checkbox
+                                checked={checked}
+                                onCheckedChange={(v) => {
+                                  setSelectedCategories((prev) => {
+                                    const on = Boolean(v);
+                                    if (on && !prev.includes(c))
+                                      return [...prev, c];
+                                    if (!on) return prev.filter((x) => x !== c);
+                                    return prev;
+                                  });
+                                }}
+                              />
                               <span className="text-sm">{c}</span>
                             </label>
-                          )
+                          );
                         })}
                       </div>
                       <div className="flex gap-2">
-                        <Button size="sm" variant="outline" onClick={()=>setSelectedCategories(categories)}>Tout</Button>
-                        <Button size="sm" variant="outline" onClick={()=>setSelectedCategories([])}>Aucun</Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setSelectedCategories(categories)}
+                        >
+                          Tout
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setSelectedCategories([])}
+                        >
+                          Aucun
+                        </Button>
                       </div>
                     </div>
-                    <Select value={String(step)} onValueChange={(v) => setStep(Number(v) as 15 | 30)}>
+                    <Select
+                      value={String(step)}
+                      onValueChange={(v) => setStep(Number(v) as 15 | 30)}
+                    >
                       <SelectTrigger>
                         <SelectValue placeholder="Pas" />
                       </SelectTrigger>
@@ -739,20 +1504,42 @@ export default function ProAgenda() {
                         </SelectGroup>
                       </SelectContent>
                     </Select>
-                    <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher..." />
+                    <Input
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      placeholder="Rechercher..."
+                    />
                     <label className="flex items-center gap-2 text-sm">
-                      <Checkbox checked={hideEmpty} onCheckedChange={(v)=>setHideEmpty(Boolean(v))} />
+                      <Checkbox
+                        checked={hideEmpty}
+                        onCheckedChange={(v) => setHideEmpty(Boolean(v))}
+                      />
                       Masquer les colonnes vides
                     </label>
                     <div className="flex justify-end">
-                      <Button variant="outline" size="sm" onClick={() => { setSelectedEmployees([]); setSelectedCategories([]); setSearch(''); setStep(15); setHideEmpty(false); }}>Réinitialiser</Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedEmployees([]);
+                          setSelectedCategories([]);
+                          setSearch("");
+                          setStep(15);
+                          setHideEmpty(false);
+                        }}
+                      >
+                        Réinitialiser
+                      </Button>
                     </div>
                   </div>
                 </PopoverContent>
               </Popover>
 
               {/* Mobile fallback: Dialog for filters */}
-              <Dialog open={isMobile && filtersOpen} onOpenChange={setFiltersOpen}>
+              <Dialog
+                open={isMobile && filtersOpen}
+                onOpenChange={setFiltersOpen}
+              >
                 <DialogContent className="md:hidden max-w-sm">
                   <DialogHeader>
                     <DialogTitle>Filtres</DialogTitle>
@@ -762,53 +1549,97 @@ export default function ProAgenda() {
                       <div className="text-xs text-gray-600">Employés</div>
                       <div className="max-h-40 overflow-auto rounded border p-2">
                         {employees.map((e) => {
-                          const checked = selectedEmployees.includes(e.name)
+                          const checked = selectedEmployees.includes(e.name);
                           return (
-                            <label key={e.name} className="flex items-center gap-2 py-1">
-                              <Checkbox checked={checked} onCheckedChange={(v)=>{
-                                setSelectedEmployees((prev)=>{
-                                  const on = Boolean(v)
-                                  if (on && !prev.includes(e.name)) return [...prev, e.name]
-                                  if (!on) return prev.filter((x)=>x!==e.name)
-                                  return prev
-                                })
-                              }} />
+                            <label
+                              key={e.name}
+                              className="flex items-center gap-2 py-1"
+                            >
+                              <Checkbox
+                                checked={checked}
+                                onCheckedChange={(v) => {
+                                  setSelectedEmployees((prev) => {
+                                    const on = Boolean(v);
+                                    if (on && !prev.includes(e.name))
+                                      return [...prev, e.name];
+                                    if (!on)
+                                      return prev.filter((x) => x !== e.name);
+                                    return prev;
+                                  });
+                                }}
+                              />
                               <span className="text-sm">{e.name}</span>
                             </label>
-                          )
+                          );
                         })}
                       </div>
                       <div className="flex gap-2">
-                        <Button size="sm" variant="outline" onClick={()=>setSelectedEmployees(employees.map(e=>e.name))}>Tout</Button>
-                        <Button size="sm" variant="outline" onClick={()=>setSelectedEmployees([])}>Aucun</Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() =>
+                            setSelectedEmployees(employees.map((e) => e.name))
+                          }
+                        >
+                          Tout
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setSelectedEmployees([])}
+                        >
+                          Aucun
+                        </Button>
                       </div>
                     </div>
                     <div className="space-y-2">
                       <div className="text-xs text-gray-600">Catégories</div>
                       <div className="max-h-32 overflow-auto rounded border p-2">
                         {categories.map((c) => {
-                          const checked = selectedCategories.includes(c)
+                          const checked = selectedCategories.includes(c);
                           return (
-                            <label key={c} className="flex items-center gap-2 py-1">
-                              <Checkbox checked={checked} onCheckedChange={(v)=>{
-                                setSelectedCategories((prev)=>{
-                                  const on = Boolean(v)
-                                  if (on && !prev.includes(c)) return [...prev, c]
-                                  if (!on) return prev.filter((x)=>x!==c)
-                                  return prev
-                                })
-                              }} />
+                            <label
+                              key={c}
+                              className="flex items-center gap-2 py-1"
+                            >
+                              <Checkbox
+                                checked={checked}
+                                onCheckedChange={(v) => {
+                                  setSelectedCategories((prev) => {
+                                    const on = Boolean(v);
+                                    if (on && !prev.includes(c))
+                                      return [...prev, c];
+                                    if (!on) return prev.filter((x) => x !== c);
+                                    return prev;
+                                  });
+                                }}
+                              />
                               <span className="text-sm">{c}</span>
                             </label>
-                          )
+                          );
                         })}
                       </div>
                       <div className="flex gap-2">
-                        <Button size="sm" variant="outline" onClick={()=>setSelectedCategories(categories)}>Tout</Button>
-                        <Button size="sm" variant="outline" onClick={()=>setSelectedCategories([])}>Aucun</Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setSelectedCategories(categories)}
+                        >
+                          Tout
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setSelectedCategories([])}
+                        >
+                          Aucun
+                        </Button>
                       </div>
                     </div>
-                    <Select value={String(step)} onValueChange={(v) => setStep(Number(v) as 15 | 30)}>
+                    <Select
+                      value={String(step)}
+                      onValueChange={(v) => setStep(Number(v) as 15 | 30)}
+                    >
                       <SelectTrigger>
                         <SelectValue placeholder="Pas" />
                       </SelectTrigger>
@@ -819,14 +1650,35 @@ export default function ProAgenda() {
                         </SelectGroup>
                       </SelectContent>
                     </Select>
-                    <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher..." />
+                    <Input
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      placeholder="Rechercher..."
+                    />
                     <label className="flex items-center gap-2 text-sm">
-                      <Checkbox checked={hideEmpty} onCheckedChange={(v)=>setHideEmpty(Boolean(v))} />
+                      <Checkbox
+                        checked={hideEmpty}
+                        onCheckedChange={(v) => setHideEmpty(Boolean(v))}
+                      />
                       Masquer les colonnes vides
                     </label>
                     <div className="flex justify-end gap-2">
-                      <Button variant="outline" size="sm" onClick={() => { setSelectedEmployees([]); setSelectedCategories([]); setSearch(''); setStep(15); setHideEmpty(false); }}>Réinitialiser</Button>
-                      <Button size="sm" onClick={()=>setFiltersOpen(false)}>Appliquer</Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedEmployees([]);
+                          setSelectedCategories([]);
+                          setSearch("");
+                          setStep(15);
+                          setHideEmpty(false);
+                        }}
+                      >
+                        Réinitialiser
+                      </Button>
+                      <Button size="sm" onClick={() => setFiltersOpen(false)}>
+                        Appliquer
+                      </Button>
                     </div>
                   </div>
                 </DialogContent>
@@ -838,13 +1690,13 @@ export default function ProAgenda() {
                 defaultTime={prefillTime}
                 defaultEmployeeId={prefillEmployeeId}
                 forceOpenSignal={openSignal}
-                onCreated={() => setRefreshKey((k)=>k+1)}
-                trigger={(
+                onCreated={() => setRefreshKey((k) => k + 1)}
+                trigger={
                   <Button className="bg-black text-white hover:bg-neutral-800 rounded-lg px-4">
                     <Plus className="h-4 w-4 mr-2" />
                     Nouveau rendez-vous
                   </Button>
-                )}
+                }
               />
             </div>
           </div>
@@ -864,21 +1716,31 @@ export default function ProAgenda() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {dayListDate ? new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: '2-digit', month: 'long' }).format(dayListDate) : 'Cette journée'}
+              {dayListDate
+                ? new Intl.DateTimeFormat("fr-FR", {
+                    weekday: "long",
+                    day: "2-digit",
+                    month: "long",
+                  }).format(dayListDate)
+                : "Cette journée"}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-2 max-h-[60vh] overflow-auto">
             {dayListEvents.length === 0 && (
-              <div className="text-sm text-gray-600">Aucun rendez-vous ce jour.</div>
+              <div className="text-sm text-gray-600">
+                Aucun rendez-vous ce jour.
+              </div>
             )}
             {dayListEvents.map((e, i) => (
               <button
                 key={i}
                 className="w-full flex items-start gap-3 rounded-md border px-3 py-2 text-left hover:bg-gray-50"
                 onClick={() => {
-                  if (!dayListDate) return
+                  if (!dayListDate) return;
                   setDetail({
-                    dateStr: `${dayListDate.getFullYear()}-${pad(dayListDate.getMonth()+1)}-${pad(dayListDate.getDate())}`,
+                    dateStr: `${dayListDate.getFullYear()}-${pad(
+                      dayListDate.getMonth() + 1
+                    )}-${pad(dayListDate.getDate())}`,
                     time: e.time,
                     title: e.title,
                     employee: e.employee,
@@ -886,15 +1748,26 @@ export default function ProAgenda() {
                     durationMin: e.durationMin,
                     priceDA: e.priceDA,
                     color: e.color,
-                  })
-                  setDetailOpen(true)
+                  });
+                  setDetailOpen(true);
                 }}
               >
-                <span className="mt-1 h-3 w-1.5 rounded-sm" style={{ backgroundColor: e.color }} />
+                <span
+                  className="mt-1 h-3 w-1.5 rounded-sm"
+                  style={{ backgroundColor: e.color }}
+                />
                 <div className="min-w-0">
-                  <div className="text-sm text-gray-900 truncate">{e.time ? `${e.time} ` : ''}{e.title}</div>
+                  <div className="text-sm text-gray-900 truncate">
+                    {e.time ? `${e.time} ` : ""}
+                    {e.title}
+                  </div>
                   <div className="text-xs text-gray-600 truncate">
-                    {(e.employee || "Employé")}{e.service ? ` • ${e.service}` : ''}{typeof e.durationMin === 'number' ? ` • ${e.durationMin} min` : ''}{typeof e.priceDA === 'number' ? ` • ${e.priceDA} DA` : ''}
+                    {e.employee || "Employé"}
+                    {e.service ? ` • ${e.service}` : ""}
+                    {typeof e.durationMin === "number"
+                      ? ` • ${e.durationMin} min`
+                      : ""}
+                    {typeof e.priceDA === "number" ? ` • ${e.priceDA} DA` : ""}
                   </div>
                 </div>
               </button>
@@ -904,22 +1777,32 @@ export default function ProAgenda() {
             <Button
               variant="outline"
               onClick={() => {
-                if (!dayListDate) return
-                setCurrentDate(new Date(dayListDate.getFullYear(), dayListDate.getMonth(), dayListDate.getDate()))
-                setView("day")
-                setDayListOpen(false)
+                if (!dayListDate) return;
+                setCurrentDate(
+                  new Date(
+                    dayListDate.getFullYear(),
+                    dayListDate.getMonth(),
+                    dayListDate.getDate()
+                  )
+                );
+                setView("day");
+                setDayListOpen(false);
               }}
             >
               Voir la journée
             </Button>
             <Button
               onClick={() => {
-                if (!dayListDate) return
-                setPrefillDate(`${dayListDate.getFullYear()}-${pad(dayListDate.getMonth()+1)}-${pad(dayListDate.getDate())}`)
-                setPrefillTime(`${pad(workingStart)}:00`)
-                setPrefillEmployeeId('none')
-                setDayListOpen(false)
-                setOpenSignal((s)=>s+1)
+                if (!dayListDate) return;
+                setPrefillDate(
+                  `${dayListDate.getFullYear()}-${pad(
+                    dayListDate.getMonth() + 1
+                  )}-${pad(dayListDate.getDate())}`
+                );
+                setPrefillTime(`${pad(workingStart)}:00`);
+                setPrefillEmployeeId("none");
+                setDayListOpen(false);
+                setOpenSignal((s) => s + 1);
               }}
             >
               Nouveau rendez-vous ce jour
@@ -937,15 +1820,33 @@ export default function ProAgenda() {
           {detail && (
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-sm">
-                <span className="h-3 w-1.5 rounded-sm" style={{ backgroundColor: detail.color || '#3b82f6' }} />
-                <span className="font-medium text-gray-900">{detail.title}</span>
+                <span
+                  className="h-3 w-1.5 rounded-sm"
+                  style={{ backgroundColor: detail.color || "#3b82f6" }}
+                />
+                <span className="font-medium text-gray-900">
+                  {detail.title}
+                </span>
               </div>
-              <div className="text-sm text-gray-700">{new Date(detail.dateStr).toLocaleDateString('fr-FR', { weekday:'long', day:'2-digit', month:'long' })} {detail.time ? `• ${detail.time}` : ''}</div>
               <div className="text-sm text-gray-700">
-                {detail.employee ? `Employé: ${detail.employee}` : ''}{detail.service ? ` • Service: ${detail.service}` : ''}
+                {new Date(detail.dateStr).toLocaleDateString("fr-FR", {
+                  weekday: "long",
+                  day: "2-digit",
+                  month: "long",
+                })}{" "}
+                {detail.time ? `• ${detail.time}` : ""}
               </div>
               <div className="text-sm text-gray-700">
-                {typeof detail.durationMin === 'number' ? `${detail.durationMin} min` : ''}{typeof detail.priceDA === 'number' ? ` • ${detail.priceDA} DA` : ''}
+                {detail.employee ? `Employé: ${detail.employee}` : ""}
+                {detail.service ? ` • Service: ${detail.service}` : ""}
+              </div>
+              <div className="text-sm text-gray-700">
+                {typeof detail.durationMin === "number"
+                  ? `${detail.durationMin} min`
+                  : ""}
+                {typeof detail.priceDA === "number"
+                  ? ` • ${detail.priceDA} DA`
+                  : ""}
               </div>
             </div>
           )}
@@ -953,23 +1854,25 @@ export default function ProAgenda() {
             <Button
               variant="outline"
               onClick={() => {
-                if (!detail) return
-                const d = new Date(detail.dateStr)
-                setCurrentDate(new Date(d.getFullYear(), d.getMonth(), d.getDate()))
-                setView("day")
-                setDetailOpen(false)
+                if (!detail) return;
+                const d = new Date(detail.dateStr);
+                setCurrentDate(
+                  new Date(d.getFullYear(), d.getMonth(), d.getDate())
+                );
+                setView("day");
+                setDetailOpen(false);
               }}
             >
               Voir dans la journée
             </Button>
             <Button
               onClick={() => {
-                if (!detail) return
-                setPrefillDate(detail.dateStr)
-                setPrefillTime(detail.time || `${pad(workingStart)}:00`)
-                setPrefillEmployeeId('none')
-                setDetailOpen(false)
-                setOpenSignal((s)=>s+1)
+                if (!detail) return;
+                setPrefillDate(detail.dateStr);
+                setPrefillTime(detail.time || `${pad(Math.floor(workingStartMin/60))}:${pad(workingStartMin%60)}`);
+                setPrefillEmployeeId("none");
+                setDetailOpen(false);
+                setOpenSignal((s) => s + 1);
               }}
             >
               Créer un RDV similaire
@@ -986,16 +1889,24 @@ export default function ProAgenda() {
           </DialogHeader>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <Select>
-              <SelectTrigger><SelectValue placeholder="Employé" /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue placeholder="Employé" />
+              </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  {employees.map((e) => (<SelectItem key={e.name} value={e.name}>{e.name}</SelectItem>))}
+                  {allEmployees.map((e) => (
+                    <SelectItem key={e.name} value={e.name}>
+                      {e.name}
+                    </SelectItem>
+                  ))}
                 </SelectGroup>
               </SelectContent>
             </Select>
             <Input type="date" />
             <Select>
-              <SelectTrigger><SelectValue placeholder="Statut" /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue placeholder="Statut" />
+              </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
                   <SelectItem value="open">Disponible</SelectItem>
@@ -1006,10 +1917,12 @@ export default function ProAgenda() {
             </Select>
           </div>
           <DialogFooter>
-            <Button onClick={() => setAvailabilityOpen(false)}>Enregistrer</Button>
+            <Button onClick={() => setAvailabilityOpen(false)}>
+              Enregistrer
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
-  )
+  );
 }
