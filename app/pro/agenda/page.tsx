@@ -1,6 +1,6 @@
 "use client"
  
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Plus, ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { Input } from "@/components/ui/input"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Checkbox } from "@/components/ui/checkbox"
+import CreateReservationModal from "@/components/pro/CreateReservationModal"
 
 export default function ProAgenda() {
   // Single-day agenda view with employee columns
@@ -16,9 +17,61 @@ export default function ProAgenda() {
   const [selectedEmployees, setSelectedEmployees] = useState<string[]>([])
   const [search, setSearch] = useState("")
   const [step, setStep] = useState<15 | 30>(15)
-  const [createOpen, setCreateOpen] = useState(false)
   const [availabilityOpen, setAvailabilityOpen] = useState(false)
   const [hideEmpty, setHideEmpty] = useState(false)
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([])
+
+  // Read business_id from cookies on the client so we can pass it to CreateReservationModal
+  const [businessId, setBusinessId] = useState<string>("")
+  // Prefill reservation modal controls
+  const [prefillDate, setPrefillDate] = useState<string>("") // yyyy-mm-dd
+  const [prefillTime, setPrefillTime] = useState<string>("") // HH:mm
+  const [prefillEmployeeId, setPrefillEmployeeId] = useState<string | "none" | undefined>("none")
+  const [openSignal, setOpenSignal] = useState<number>(0)
+  const [refreshKey, setRefreshKey] = useState<number>(0)
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const [isMobile, setIsMobile] = useState<boolean>(false)
+  useEffect(() => {
+    const mql = window.matchMedia('(max-width: 767px)')
+    const apply = () => setIsMobile(mql.matches)
+    apply()
+    mql.addEventListener('change', apply)
+    return () => mql.removeEventListener('change', apply)
+  }, [])
+
+  // Real employees for mapping name -> id (used only to prefill modal)
+  const [empMap, setEmpMap] = useState<Record<string, string>>({})
+
+  // Month day events dialog
+  const [dayListOpen, setDayListOpen] = useState(false)
+  const [dayListDate, setDayListDate] = useState<Date | null>(null)
+  const [dayListEvents, setDayListEvents] = useState<MonthEvent[]>([])
+
+  // Event details dialog
+  type EventDetail = { dateStr: string; time?: string; title: string; employee?: string; service?: string; durationMin?: number; priceDA?: number; color?: string }
+  const [detailOpen, setDetailOpen] = useState(false)
+  const [detail, setDetail] = useState<EventDetail | null>(null)
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return
+    const m = document.cookie.match(/(?:^|; )business_id=([^;]+)/)
+    if (m) setBusinessId(decodeURIComponent(m[1]))
+  }, [])
+
+  useEffect(() => {
+    if (!businessId) return
+    fetch(`/api/pro/employees?business_id=${businessId}&limit=200`)
+      .then((r) => r.json())
+      .then((j) => {
+        const map: Record<string, string> = {}
+        ;(j.items || []).forEach((e: any) => {
+          const name = e.full_name || [e.first_name, e.last_name].filter(Boolean).join(' ')
+          if (name) map[name] = e.id
+        })
+        setEmpMap(map)
+      })
+      .catch(() => {})
+  }, [businessId])
 
   const dateTitle = new Intl.DateTimeFormat("fr-FR", {
     weekday: "long",
@@ -40,10 +93,11 @@ export default function ProAgenda() {
   ]
 
   // --- Month view data mocks & utils ---
-  type MonthEvent = { time?: string; title: string; color: string }
+  type MonthEvent = { time?: string; title: string; color: string; employee?: string; service?: string; durationMin?: number; priceDA?: number }
   const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`)
   const fmtKey = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
   const palette = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#06b6d4", "#8b5cf6", "#0ea5e9", "#84cc16"]
+  const categories = ["Coupe", "Barbe", "Coloration", "Soin", "Shampoing"]
   // Generate a few deterministic fake events per day for month view visualization
   const getMonthEvents = (visibleDays: Date[]): Record<string, MonthEvent[]> => {
     const out: Record<string, MonthEvent[]> = {}
@@ -58,7 +112,11 @@ export default function ProAgenda() {
         const color = palette[(seed + i) % palette.length]
         const hh = 9 + ((seed + i) % 8) // between 9..16
         const time = `${pad(hh)}:${i % 2 === 0 ? "00" : "30"}`
-        list.push({ time, title: `RDV ${i + 1}`, color })
+        const services = ["Coupe", "Barbe", "Coloration", "Soin", "Shampoing"]
+        const employeesNames = ["Jean Charles", "Julie", "Marc"]
+        const duration = ((seed + i) % 2 === 0) ? 30 : 60
+        const price = 1500 + (((seed + i) % 7) * 500)
+        list.push({ time, title: `RDV ${i + 1}`, color, service: services[(seed + i) % services.length], employee: employeesNames[(seed + i) % employeesNames.length], durationMin: duration, priceDA: price })
       }
       out[key] = list
     })
@@ -200,10 +258,12 @@ export default function ProAgenda() {
     let base = hasSelection ? list.filter((e) => selectedEmployees.includes(e.name)) : list
     base = base.map((e) => ({
       ...e,
-      slots: e.slots.map((s) => (s && search ? { ...s } : s)).filter((s) => {
+      slots: e.slots.map((s) => (s && (search || selectedCategories.length>0) ? { ...s } : s)).filter((s) => {
         if (!s) return true
-        if (!search) return true
-        return s.title.toLowerCase().includes(search.toLowerCase())
+        const t = s.title.toLowerCase()
+        const searchOk = !search || t.includes(search.toLowerCase())
+        const catOk = selectedCategories.length === 0 || selectedCategories.some((c) => t.includes(c.toLowerCase()))
+        return searchOk && catOk
       }) as Array<Appointment | null>,
     }))
     // Optionally hide employees with no visible items when search applied
@@ -219,6 +279,27 @@ export default function ProAgenda() {
     const gridHours = rangeMinutes(startMin, endMin, 60).map((m) => `${pad(Math.floor(m / 60))}:00`)
     const gutter = 48
     const colMin = 180 // smaller min width to fit more columns
+
+    const toDateStr = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`
+    const roundToStep = (m: number) => {
+      const s = step
+      const r = Math.max(0, Math.min(m, endMin - startMin))
+      const rel = Math.round(r / s) * s
+      return rel
+    }
+    const openAt = (clientY: number, container: HTMLElement, empName?: string) => {
+      const rect = container.getBoundingClientRect()
+      const y = clientY - rect.top
+      const minutesFromStart = y / pxPerMinute
+      const rounded = roundToStep(minutesFromStart)
+      const total = startMin + rounded
+      const hh = Math.floor(total / 60)
+      const mm = total % 60
+      setPrefillDate(toDateStr(currentDate))
+      setPrefillTime(`${pad(hh)}:${pad(mm)}`)
+      if (empName) setPrefillEmployeeId(empMap[empName] || 'none')
+      setOpenSignal((s) => s + 1)
+    }
     return (
       <div className="bg-white rounded-xl p-3 border border-gray-200">
         {/* Header employees (compact) */}
@@ -256,7 +337,11 @@ export default function ProAgenda() {
               const events = layoutEvents(filtered)
               return (
                 <div key={emp.name} className="px-1">
-                  <div className="relative bg-white rounded border overflow-hidden" style={{ height: (endMin - startMin) * pxPerMinute }}>
+                  <div
+                    className="relative bg-white rounded border overflow-hidden cursor-crosshair"
+                    style={{ height: (endMin - startMin) * pxPerMinute }}
+                    onDoubleClick={(e) => openAt(e.clientY, e.currentTarget as unknown as HTMLElement, emp.name)}
+                  >
                     {/* sticky header label for column */}
                     <div className="sticky top-0 z-10 pointer-events-none">
                       <div className="absolute left-1 top-1 text-[10px] bg-white/70 backdrop-blur px-1 rounded">{emp.name}</div>
@@ -270,35 +355,9 @@ export default function ProAgenda() {
                       <div key={m} className="absolute left-0 right-0 border-t border-gray-100" style={{ top: (m - startMin) * pxPerMinute }} />
                     ))}
                     {/* non-working stripes */}
-                    {workingStart > 0 && (
+                    {workingStart > 0 &&
                       <div className="absolute left-0 right-0 bg-gray-50/70" style={{ top: 0, height: Math.max(0, (Math.min(startMin, 24*60) - 0) * pxPerMinute) }} />
-                    )}
-                    {workingEnd < 24 && (
-                      <div className="absolute left-0 right-0 bg-gray-50/70" style={{ top: (endMin - startMin) * pxPerMinute - Math.max(0, (24*60 - endMin) * pxPerMinute), height: Math.max(0, (24*60 - endMin) * pxPerMinute) }} />
-                    )}
-                    {/* events */}
-                    {events.map((ev, i) => {
-                      const widthPct = 100 / ev.cols
-                      const leftPct = ev.col * widthPct
-                      return (
-                        <div
-                          key={i}
-                          className="absolute rounded-md shadow-sm border text-[11px] bg-white overflow-hidden"
-                          style={{
-                            top: ev.top,
-                            left: `${leftPct}%`,
-                            width: `calc(${widthPct}% - 2px)`,
-                            height: ev.height,
-                            borderLeft: `3px solid ${ev.color || '#3b82f6'}`,
-                          }}
-                        >
-                          <div className="px-1.5 py-0.5">
-                            <div className="text-[10px] text-gray-600 font-medium">{ev.start} - {ev.end}</div>
-                            <div className="text-[11.5px] text-gray-900 leading-snug line-clamp-3">{ev.title}</div>
-                          </div>
-                        </div>
-                      )
-                    })}
+                    }
                   </div>
                 </div>
               )
@@ -319,6 +378,22 @@ export default function ProAgenda() {
     const weekDays = getWeekDays(currentDate)
     const startMin = workingStart * 60
     const endMin = workingEnd * 60
+    const toDateStr = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`
+    const openAtWeek = (clientY: number, container: HTMLElement, day: Date) => {
+      const rect = container.getBoundingClientRect()
+      const y = clientY - rect.top
+      const minutesFromStart = y / pxPerMinute
+      const stepSize = step
+      const clamped = Math.max(0, Math.min(minutesFromStart, endMin - startMin))
+      const rounded = Math.round(clamped / stepSize) * stepSize
+      const total = startMin + rounded
+      const hh = Math.floor(total / 60)
+      const mm = total % 60
+      setPrefillDate(toDateStr(day))
+      setPrefillTime(`${pad(hh)}:${pad(mm)}`)
+      setPrefillEmployeeId('none')
+      setOpenSignal((s)=>s+1)
+    }
     return (
       <div className="bg-white rounded-xl p-4 border border-gray-200">
         {/* Header days */}
@@ -388,7 +463,11 @@ export default function ProAgenda() {
             const positioned = layoutEvents(timed)
             return (
             <div key={dayIdx} className="px-2">
-              <div className={`relative rounded-md border overflow-hidden ${[6,0].includes(d.getDay()) ? 'bg-gray-50' : 'bg-white'}`} style={{ height: (endMin - startMin) * pxPerMinute }}>
+              <div
+                className={`relative rounded-md border overflow-hidden ${[6,0].includes(d.getDay()) ? 'bg-gray-50' : 'bg-white'}`}
+                style={{ height: (endMin - startMin) * pxPerMinute }}
+                onDoubleClick={(e)=>openAtWeek(e.clientY, e.currentTarget as unknown as HTMLElement, d)}
+              >
                 {/* hour lines */}
                 {rangeMinutes(startMin, endMin - 60, 60).map((m, i) => (
                   <div key={m} className="absolute left-0 right-0 border-t border-gray-200" style={{ top: i * hourHeight }} />
@@ -417,6 +496,16 @@ export default function ProAgenda() {
                         width: `calc(${widthPct}% - 3px)`,
                         height: ev.height,
                         borderLeft: `3px solid ${ev.color || '#3b82f6'}`,
+                      }}
+                      onClick={() => {
+                        setDetail({
+                          dateStr: `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`,
+                          time: ev.start,
+                          title: ev.title,
+                          durationMin: toMinutes(ev.end) - toMinutes(ev.start),
+                          color: ev.color,
+                        })
+                        setDetailOpen(true)
                       }}
                     >
                       <div className="px-2 py-1">
@@ -472,7 +561,13 @@ export default function ProAgenda() {
             return (
               <div
                 key={key}
-                className={`min-h-28 bg-white ${isOther ? "bg-gray-50" : "bg-white"} ${[5,6].includes(new Date(d).getDay()) ? 'bg-gray-50' : ''}`}
+                className={`relative min-h-[112px] bg-white ${isOther ? 'opacity-50' : ''}`}
+                onDoubleClick={() => {
+                  setPrefillDate(`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`)
+                  setPrefillTime(`${pad(workingStart)}:00`)
+                  setPrefillEmployeeId('none')
+                  setOpenSignal((s)=>s+1)
+                }}
               >
                 <div className="h-full p-2">
                   {/* Day number */}
@@ -493,22 +588,36 @@ export default function ProAgenda() {
                   {/* Events */}
                   <div className="mt-2 space-y-1">
                     {visible.map((e, i) => (
-                      <div
+                      <button
                         key={i}
-                        className="flex items-center gap-2 rounded-md border px-2 py-1 text-xs shadow-sm hover:bg-gray-50 cursor-pointer"
+                        className="w-full flex items-center gap-2 rounded-md border px-2 py-1 text-xs shadow-sm hover:bg-gray-50 cursor-pointer text-left"
+                        onClick={() => {
+                          setDetail({
+                            dateStr: `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`,
+                            time: e.time,
+                            title: e.title,
+                            employee: e.employee,
+                            service: e.service,
+                            durationMin: e.durationMin,
+                            priceDA: e.priceDA,
+                            color: e.color,
+                          })
+                          setDetailOpen(true)
+                        }}
                       >
                         <span className="h-3 w-1.5 rounded-sm" style={{ backgroundColor: e.color }} />
                         <div className="truncate text-gray-800">
                           {e.time ? `${e.time} ` : ""}{e.title}
                         </div>
-                      </div>
+                      </button>
                     ))}
                     {overflow > 0 && (
                       <button
                         className="text-[11px] text-blue-600 hover:underline"
                         onClick={() => {
-                          setCurrentDate(new Date(d.getFullYear(), d.getMonth(), d.getDate()))
-                          setView("day")
+                          setDayListDate(d)
+                          setDayListEvents(evts)
+                          setDayListOpen(true)
                         }}
                       >
                         +{overflow} autres
@@ -525,8 +634,8 @@ export default function ProAgenda() {
   }
 
   return (
-    <div className="min-h-screen">
-      <div className="bg-white border-b border-gray-200">
+    <div className="min-h-screen bg-neutral-50">
+      <div className="sticky top-0 z-30 bg-white/70 supports-[backdrop-filter]:bg-white/60 backdrop-blur border-b border-neutral-200">
         <div className="px-6 py-4">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             {/* Left: navigation + date */}
@@ -538,30 +647,35 @@ export default function ProAgenda() {
               <Button variant="outline" size="icon" className="rounded-lg" onClick={onNext}>
                 <ChevronRight className="h-4 w-4" />
               </Button>
-              <h2 className="ml-3 text-xl font-semibold text-black capitalize">{dateTitle}</h2>
+              <h2 className="ml-3 text-lg md:text-xl font-semibold text-black capitalize tracking-tight">{dateTitle}</h2>
             </div>
 
             {/* Right: view switch + filters popover + primary action */}
             <div className="flex items-center gap-2">
-              <div className="bg-gray-100 rounded-lg p-1 inline-flex">
+              <div className="bg-neutral-100 rounded-lg p-1 inline-flex">
                 <Button variant={view === "day" ? "default" : "ghost"} className="rounded-md px-3" onClick={() => setView("day")}>Jour</Button>
                 <Button variant={view === "week" ? "default" : "ghost"} className="rounded-md px-3" onClick={() => setView("week")}>Semaine</Button>
                 <Button variant={view === "month" ? "default" : "ghost"} className="rounded-md px-3" onClick={() => setView("month")}>Mois</Button>
               </div>
 
               {/* Filters collapsed */}
-              <Popover>
+              <Popover open={!isMobile && filtersOpen} onOpenChange={setFiltersOpen}>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" className="rounded-lg px-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="rounded-lg px-2 md:px-3 text-sm"
+                    aria-expanded={filtersOpen}
+                  >
                     Filtres
-                    {(selectedEmployees.length>0 || search || step !== 15 || hideEmpty) && (
+                    {(selectedEmployees.length>0 || search || step !== 15 || hideEmpty || selectedCategories.length>0) && (
                       <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-black text-white text-[10px] px-1">
-                        {Number(selectedEmployees.length>0) + Number(Boolean(search)) + Number(step !== 15) + Number(hideEmpty)}
+                        {Number(selectedEmployees.length>0) + Number(Boolean(search)) + Number(step !== 15) + Number(hideEmpty) + Number(selectedCategories.length>0)}
                       </span>
                     )}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent align="end" className="w-80">
+                <PopoverContent side="bottom" align="end" sideOffset={8} className="hidden md:block w-80 z-50">
                   <div className="space-y-3">
                     <div className="text-sm font-medium">Filtres</div>
                     <div className="space-y-2">
@@ -589,6 +703,31 @@ export default function ProAgenda() {
                         <Button size="sm" variant="outline" onClick={()=>setSelectedEmployees([])}>Aucun</Button>
                       </div>
                     </div>
+                    <div className="space-y-2">
+                      <div className="text-xs text-gray-600">Catégories</div>
+                      <div className="max-h-32 overflow-auto rounded border p-2">
+                        {categories.map((c) => {
+                          const checked = selectedCategories.includes(c)
+                          return (
+                            <label key={c} className="flex items-center gap-2 py-1">
+                              <Checkbox checked={checked} onCheckedChange={(v)=>{
+                                setSelectedCategories((prev)=>{
+                                  const on = Boolean(v)
+                                  if (on && !prev.includes(c)) return [...prev, c]
+                                  if (!on) return prev.filter((x)=>x!==c)
+                                  return prev
+                                })
+                              }} />
+                              <span className="text-sm">{c}</span>
+                            </label>
+                          )
+                        })}
+                      </div>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" onClick={()=>setSelectedCategories(categories)}>Tout</Button>
+                        <Button size="sm" variant="outline" onClick={()=>setSelectedCategories([])}>Aucun</Button>
+                      </div>
+                    </div>
                     <Select value={String(step)} onValueChange={(v) => setStep(Number(v) as 15 | 30)}>
                       <SelectTrigger>
                         <SelectValue placeholder="Pas" />
@@ -606,49 +745,235 @@ export default function ProAgenda() {
                       Masquer les colonnes vides
                     </label>
                     <div className="flex justify-end">
-                      <Button variant="outline" size="sm" onClick={() => { setSelectedEmployees([]); setSearch(''); setStep(15); setHideEmpty(false); }}>Réinitialiser</Button>
+                      <Button variant="outline" size="sm" onClick={() => { setSelectedEmployees([]); setSelectedCategories([]); setSearch(''); setStep(15); setHideEmpty(false); }}>Réinitialiser</Button>
                     </div>
                   </div>
                 </PopoverContent>
               </Popover>
 
-              <Button className="bg-black text-white hover:bg-gray-800 rounded-lg px-4" onClick={() => setCreateOpen(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Nouveau rendez-vous
-              </Button>
+              {/* Mobile fallback: Dialog for filters */}
+              <Dialog open={isMobile && filtersOpen} onOpenChange={setFiltersOpen}>
+                <DialogContent className="md:hidden max-w-sm">
+                  <DialogHeader>
+                    <DialogTitle>Filtres</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-3">
+                    <div className="space-y-2">
+                      <div className="text-xs text-gray-600">Employés</div>
+                      <div className="max-h-40 overflow-auto rounded border p-2">
+                        {employees.map((e) => {
+                          const checked = selectedEmployees.includes(e.name)
+                          return (
+                            <label key={e.name} className="flex items-center gap-2 py-1">
+                              <Checkbox checked={checked} onCheckedChange={(v)=>{
+                                setSelectedEmployees((prev)=>{
+                                  const on = Boolean(v)
+                                  if (on && !prev.includes(e.name)) return [...prev, e.name]
+                                  if (!on) return prev.filter((x)=>x!==e.name)
+                                  return prev
+                                })
+                              }} />
+                              <span className="text-sm">{e.name}</span>
+                            </label>
+                          )
+                        })}
+                      </div>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" onClick={()=>setSelectedEmployees(employees.map(e=>e.name))}>Tout</Button>
+                        <Button size="sm" variant="outline" onClick={()=>setSelectedEmployees([])}>Aucun</Button>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="text-xs text-gray-600">Catégories</div>
+                      <div className="max-h-32 overflow-auto rounded border p-2">
+                        {categories.map((c) => {
+                          const checked = selectedCategories.includes(c)
+                          return (
+                            <label key={c} className="flex items-center gap-2 py-1">
+                              <Checkbox checked={checked} onCheckedChange={(v)=>{
+                                setSelectedCategories((prev)=>{
+                                  const on = Boolean(v)
+                                  if (on && !prev.includes(c)) return [...prev, c]
+                                  if (!on) return prev.filter((x)=>x!==c)
+                                  return prev
+                                })
+                              }} />
+                              <span className="text-sm">{c}</span>
+                            </label>
+                          )
+                        })}
+                      </div>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" onClick={()=>setSelectedCategories(categories)}>Tout</Button>
+                        <Button size="sm" variant="outline" onClick={()=>setSelectedCategories([])}>Aucun</Button>
+                      </div>
+                    </div>
+                    <Select value={String(step)} onValueChange={(v) => setStep(Number(v) as 15 | 30)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Pas" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          <SelectItem value="15">Pas 15 min</SelectItem>
+                          <SelectItem value="30">Pas 30 min</SelectItem>
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                    <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher..." />
+                    <label className="flex items-center gap-2 text-sm">
+                      <Checkbox checked={hideEmpty} onCheckedChange={(v)=>setHideEmpty(Boolean(v))} />
+                      Masquer les colonnes vides
+                    </label>
+                    <div className="flex justify-end gap-2">
+                      <Button variant="outline" size="sm" onClick={() => { setSelectedEmployees([]); setSelectedCategories([]); setSearch(''); setStep(15); setHideEmpty(false); }}>Réinitialiser</Button>
+                      <Button size="sm" onClick={()=>setFiltersOpen(false)}>Appliquer</Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+
+              <CreateReservationModal
+                businessId={businessId}
+                defaultDate={prefillDate}
+                defaultTime={prefillTime}
+                defaultEmployeeId={prefillEmployeeId}
+                forceOpenSignal={openSignal}
+                onCreated={() => setRefreshKey((k)=>k+1)}
+                trigger={(
+                  <Button className="bg-black text-white hover:bg-neutral-800 rounded-lg px-4">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Nouveau rendez-vous
+                  </Button>
+                )}
+              />
             </div>
           </div>
         </div>
       </div>
 
-      <div className="p-6">
+      <div className="p-6" key={refreshKey}>
         {view === "day" && renderDayView()}
         {view === "week" && renderWeekView()}
         {view === "month" && renderMonthView()}
       </div>
 
-      {/* Create appointment dialog */}
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+      {/* Create appointment handled by CreateReservationModal */}
+
+      {/* Month day events list dialog */}
+      <Dialog open={dayListOpen} onOpenChange={setDayListOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Nouveau rendez-vous</DialogTitle>
+            <DialogTitle>
+              {dayListDate ? new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: '2-digit', month: 'long' }).format(dayListDate) : 'Cette journée'}
+            </DialogTitle>
           </DialogHeader>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Select>
-              <SelectTrigger><SelectValue placeholder="Employé" /></SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {employees.map((e) => (<SelectItem key={e.name} value={e.name}>{e.name}</SelectItem>))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-            <Input placeholder="Client" />
-            <Input type="time" defaultValue="10:00" />
-            <Input type="time" defaultValue="11:00" />
-            <Input placeholder="Service / Notes" className="sm:col-span-2" />
+          <div className="space-y-2 max-h-[60vh] overflow-auto">
+            {dayListEvents.length === 0 && (
+              <div className="text-sm text-gray-600">Aucun rendez-vous ce jour.</div>
+            )}
+            {dayListEvents.map((e, i) => (
+              <button
+                key={i}
+                className="w-full flex items-start gap-3 rounded-md border px-3 py-2 text-left hover:bg-gray-50"
+                onClick={() => {
+                  if (!dayListDate) return
+                  setDetail({
+                    dateStr: `${dayListDate.getFullYear()}-${pad(dayListDate.getMonth()+1)}-${pad(dayListDate.getDate())}`,
+                    time: e.time,
+                    title: e.title,
+                    employee: e.employee,
+                    service: e.service,
+                    durationMin: e.durationMin,
+                    priceDA: e.priceDA,
+                    color: e.color,
+                  })
+                  setDetailOpen(true)
+                }}
+              >
+                <span className="mt-1 h-3 w-1.5 rounded-sm" style={{ backgroundColor: e.color }} />
+                <div className="min-w-0">
+                  <div className="text-sm text-gray-900 truncate">{e.time ? `${e.time} ` : ''}{e.title}</div>
+                  <div className="text-xs text-gray-600 truncate">
+                    {(e.employee || "Employé")}{e.service ? ` • ${e.service}` : ''}{typeof e.durationMin === 'number' ? ` • ${e.durationMin} min` : ''}{typeof e.priceDA === 'number' ? ` • ${e.priceDA} DA` : ''}
+                  </div>
+                </div>
+              </button>
+            ))}
           </div>
           <DialogFooter>
-            <Button onClick={() => setCreateOpen(false)}>Enregistrer</Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (!dayListDate) return
+                setCurrentDate(new Date(dayListDate.getFullYear(), dayListDate.getMonth(), dayListDate.getDate()))
+                setView("day")
+                setDayListOpen(false)
+              }}
+            >
+              Voir la journée
+            </Button>
+            <Button
+              onClick={() => {
+                if (!dayListDate) return
+                setPrefillDate(`${dayListDate.getFullYear()}-${pad(dayListDate.getMonth()+1)}-${pad(dayListDate.getDate())}`)
+                setPrefillTime(`${pad(workingStart)}:00`)
+                setPrefillEmployeeId('none')
+                setDayListOpen(false)
+                setOpenSignal((s)=>s+1)
+              }}
+            >
+              Nouveau rendez-vous ce jour
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Event Detail dialog */}
+      <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Détails du rendez-vous</DialogTitle>
+          </DialogHeader>
+          {detail && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-sm">
+                <span className="h-3 w-1.5 rounded-sm" style={{ backgroundColor: detail.color || '#3b82f6' }} />
+                <span className="font-medium text-gray-900">{detail.title}</span>
+              </div>
+              <div className="text-sm text-gray-700">{new Date(detail.dateStr).toLocaleDateString('fr-FR', { weekday:'long', day:'2-digit', month:'long' })} {detail.time ? `• ${detail.time}` : ''}</div>
+              <div className="text-sm text-gray-700">
+                {detail.employee ? `Employé: ${detail.employee}` : ''}{detail.service ? ` • Service: ${detail.service}` : ''}
+              </div>
+              <div className="text-sm text-gray-700">
+                {typeof detail.durationMin === 'number' ? `${detail.durationMin} min` : ''}{typeof detail.priceDA === 'number' ? ` • ${detail.priceDA} DA` : ''}
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (!detail) return
+                const d = new Date(detail.dateStr)
+                setCurrentDate(new Date(d.getFullYear(), d.getMonth(), d.getDate()))
+                setView("day")
+                setDetailOpen(false)
+              }}
+            >
+              Voir dans la journée
+            </Button>
+            <Button
+              onClick={() => {
+                if (!detail) return
+                setPrefillDate(detail.dateStr)
+                setPrefillTime(detail.time || `${pad(workingStart)}:00`)
+                setPrefillEmployeeId('none')
+                setDetailOpen(false)
+                setOpenSignal((s)=>s+1)
+              }}
+            >
+              Créer un RDV similaire
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

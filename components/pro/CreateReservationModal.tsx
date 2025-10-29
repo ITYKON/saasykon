@@ -12,10 +12,18 @@ export default function CreateReservationModal({
   businessId,
   trigger,
   onCreated,
+  defaultDate,
+  defaultTime,
+  defaultEmployeeId,
+  forceOpenSignal,
 }: {
   businessId: string;
   trigger: React.ReactNode;
   onCreated?: () => void;
+  defaultDate?: string; // yyyy-mm-dd
+  defaultTime?: string; // HH:mm
+  defaultEmployeeId?: string | "none";
+  forceOpenSignal?: number;
 }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -50,6 +58,25 @@ export default function CreateReservationModal({
       })
       .finally(() => setLoading(false));
   }, [open, businessId]);
+
+  // Appliquer des valeurs par défaut à l'ouverture
+  useEffect(() => {
+    if (!open) return;
+    if (defaultDate) setDate(defaultDate);
+    if (defaultTime) setTime(defaultTime);
+    if (typeof defaultEmployeeId !== 'undefined') setEmployeeId(defaultEmployeeId || "none");
+  }, [open]);
+
+  // Ouvrir sur demande externe avec pré-remplissage
+  useEffect(() => {
+    if (typeof forceOpenSignal === 'number') {
+      if (defaultDate) setDate(defaultDate);
+      if (defaultTime) setTime(defaultTime);
+      if (typeof defaultEmployeeId !== 'undefined') setEmployeeId(defaultEmployeeId || "none");
+      setOpen(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [forceOpenSignal]);
 
   // Filtrer les employés en fonction du service sélectionné
   useEffect(() => {
