@@ -98,13 +98,22 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     ends_at = new Date(startDate.getTime() + totalMinutes * 60000);
   }
 
+  // Compute status update and cancelled_at toggle
+  const statusEnum = typeof status === 'string' && STATUS_MAP[status] ? STATUS_MAP[status] as any : undefined;
+  const cancelFields: any = {};
+  if (typeof statusEnum === 'string') {
+    if (statusEnum === 'CANCELLED') cancelFields.cancelled_at = new Date();
+    else cancelFields.cancelled_at = null;
+  }
+
   const updated = await prisma.reservations.update({
     where: { id },
     data: {
       ...(startDate ? { starts_at: startDate } : {}),
       ...(ends_at ? { ends_at } : {}),
       ...(typeof employee_id !== 'undefined' ? { employee_id: employee_id || null } : {}),
-      ...(typeof status === 'string' && STATUS_MAP[status] ? { status: STATUS_MAP[status] as any } : {}),
+      ...(typeof statusEnum !== 'undefined' ? { status: statusEnum } : {}),
+      ...(Object.prototype.hasOwnProperty.call(cancelFields, 'cancelled_at') ? { cancelled_at: cancelFields.cancelled_at } : {}),
       ...(typeof notes !== 'undefined' ? { notes: notes || null } : {}),
       ...(typeof client_id !== 'undefined' ? { client_id: client_id || null } : {}),
     },

@@ -230,7 +230,9 @@ export default function ReservationsPage() {
       const response = await fetch(`/api/pro/reservations?business_id=${businessId}`)
       if (!response.ok) throw new Error('Erreur lors du chargement des réservations')
       const data = await response.json()
-      setReservations(data.reservations || [])
+      // Exclure les réservations annulées de l'interface principale
+      const list = Array.isArray(data.reservations) ? data.reservations : []
+      setReservations(list.filter((r: any) => r?.status !== 'CANCELLED'))
     } catch (error) {
       console.error('Erreur:', error)
     } finally {
@@ -289,7 +291,11 @@ export default function ReservationsPage() {
   const confirmDelete = async () => {
     if (!deletingId) return
     try {
-      await fetch(`/api/pro/reservations/${deletingId}`, { method: 'DELETE' })
+      await fetch(`/api/pro/reservations/${deletingId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'CANCELLED' })
+      })
       setIsDeleteOpen(false)
       setDeletingId(null)
       fetchReservations()
@@ -355,6 +361,8 @@ export default function ReservationsPage() {
       reservation.employe.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (reservation.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (reservation.telephone || '').toLowerCase().includes(searchTerm.toLowerCase())
+    // Sécurité: ne pas afficher les annulées même si un filtre serait mal configuré
+    if (reservation.status === 'CANCELLED' || reservation.status === 'Annulé') return false
     const matchesStatus = statusFilter === "all" || reservation.status === statusFilter
     return matchesSearch && matchesStatus
   })
@@ -555,9 +563,9 @@ export default function ReservationsPage() {
       <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Supprimer cette réservation ?</AlertDialogTitle>
+            <AlertDialogTitle>Annuler cette réservation ?</AlertDialogTitle>
             <AlertDialogDescription>
-              Cette action est irréversible. La réservation sera définitivement supprimée.
+              L'annulation archive la réservation (elle apparaîtra dans les archives). Vous pourrez la restaurer depuis la page Archives.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

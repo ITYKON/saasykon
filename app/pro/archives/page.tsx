@@ -24,6 +24,37 @@ import { Search, MoreHorizontal, RotateCcw, Trash2, Archive, Users, Calendar, Se
 export default function ArchivesPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [archivedEmployees, setArchivedEmployees] = useState<Array<{ id: string; name: string; role: string; email: string | null; status: string }>>([])
+  const [archivedReservations, setArchivedReservations] = useState<Array<{
+    id: string
+    client: string
+    service: string
+    employee: string
+    date: string
+    time: string
+    price: string
+    deletedDate?: string
+    reason?: string
+  }>>([])
+  const [archivedServices, setArchivedServices] = useState<Array<{
+    id: string
+    name: string
+    category?: string
+    price?: string
+    duration?: string
+    deletedDate?: string
+    deletedBy?: string
+    reason?: string
+  }>>([])
+  const [archivedAccounts, setArchivedAccounts] = useState<Array<{
+    id: string
+    name: string
+    email: string | null
+    role: string | null
+    permissions?: string[]
+    deletedDate?: string
+    deletedBy?: string
+    reason?: string
+  }>>([])
   const [loading, setLoading] = useState(false)
 
   async function loadArchivedEmployees() {
@@ -55,77 +86,154 @@ export default function ArchivesPage() {
 
   useEffect(() => {
     loadArchivedEmployees()
+    ;(async () => {
+      try {
+        // Reservations
+        const r = await fetch(`/api/pro/archives/reservations`)
+        const rj = await r.json()
+        if (r.ok && Array.isArray(rj?.items)) {
+          const formatted = rj.items.map((reservation: any) => {
+            let totalPrice = 0
+            const serviceNames: string[] = []
+            if (Array.isArray(reservation?.reservation_items)) {
+              reservation.reservation_items.forEach((it: any) => {
+                totalPrice += Number(it.price_cents || 0)
+                const sName = it?.services?.name || "Service"
+                const vName = it?.service_variants?.name ? ` - ${it.service_variants.name}` : ""
+                serviceNames.push(`${sName}${vName}`)
+              })
+            }
+            const starts = new Date(reservation.starts_at)
+            return {
+              id: reservation.id,
+              client: [reservation?.clients?.first_name, reservation?.clients?.last_name].filter(Boolean).join(" ") || "Client",
+              service: serviceNames.join(" + ") || "",
+              employee: reservation?.employees?.full_name || "",
+              date: starts.toISOString().slice(0, 10),
+              time: starts.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
+              price: Math.round(totalPrice / 100) + " DA",
+              deletedDate: reservation?.cancelled_at ? new Date(reservation.cancelled_at).toISOString().slice(0, 10) : undefined,
+              reason: reservation?.status === "CANCELLED" ? "Annulation" : undefined,
+            }
+          })
+          setArchivedReservations(formatted)
+        }
+      } catch {}
+
+      try {
+        // Services
+        const s = await fetch(`/api/pro/archives/services`)
+        const sj = await s.json()
+        if (s.ok && Array.isArray(sj?.items)) {
+          setArchivedServices(
+            sj.items.map((svc: any) => {
+              const variants = Array.isArray(svc?.service_variants) ? svc.service_variants : []
+              const durations = variants.map((v: any) => Number(v.duration_minutes || 0)).filter((n: number) => n > 0)
+              const pricesCandidates = variants.flatMap((v: any) => [v.price_cents, v.price_min_cents, v.price_max_cents].filter((x: any) => typeof x === 'number')) as number[]
+              const minDuration = durations.length ? Math.min(...durations) : undefined
+              const maxDuration = durations.length ? Math.max(...durations) : undefined
+              const minPrice = pricesCandidates.length ? Math.min(...pricesCandidates) : undefined
+              const maxPrice = pricesCandidates.length ? Math.max(...pricesCandidates) : undefined
+              const duration = typeof minDuration !== 'undefined' ? (minDuration === maxDuration ? `${minDuration} min` : `${minDuration}-${maxDuration} min`) : undefined
+              const price = typeof minPrice !== 'undefined' ? (minPrice === maxPrice ? `${Math.round(minPrice/100)} DA` : `${Math.round(minPrice/100)}–${Math.round((maxPrice||0)/100)} DA`) : undefined
+              return {
+                id: svc.id,
+                name: svc.name,
+                category: svc?.service_categories?.name,
+                price,
+                duration,
+                deletedDate: new Date(svc.updated_at).toISOString().slice(0, 10),
+              }
+            })
+          )
+        }
+      } catch {}
+
+      try {
+        // Accounts (employés inactifs avec comptes)
+        const a = await fetch(`/api/pro/archives/accounts`)
+        const aj = await a.json()
+        if (a.ok && Array.isArray(aj?.items)) {
+          setArchivedAccounts(
+            aj.items.map((acc: any) => ({
+              id: acc.id,
+              name: acc.name,
+              email: acc.email || null,
+              role: acc.role || null,
+            }))
+          )
+        }
+      } catch {}
+    })()
   }, [])
 
-  const archivedReservations = [
-    {
-      id: 1,
-      client: "Emma Rousseau",
-      service: "Coupe + Brushing",
-      employee: "Sophie Martin",
-      date: "2024-01-20",
-      time: "14:30",
-      price: "2,500 DA",
-      deletedDate: "2024-01-18",
-      reason: "Annulation client",
-    },
-    {
-      id: 2,
-      client: "Thomas Leroy",
-      service: "Barbe",
-      employee: "Lucas Bernard",
-      date: "2024-01-22",
-      time: "16:00",
-      price: "1,200 DA",
-      deletedDate: "2024-01-19",
-      reason: "No-show",
-    },
-  ]
-
-  const archivedServices = [
-    {
-      id: 1,
-      name: "Coloration Fantaisie",
-      category: "Coiffure",
-      price: "4,500 DA",
-      duration: "120 min",
-      deletedDate: "2024-01-12",
-      deletedBy: "Marie Dupont",
-      reason: "Service discontinué",
-    },
-    {
-      id: 2,
-      name: "Massage Relaxant",
-      category: "Bien-être",
-      price: "3,000 DA",
-      duration: "60 min",
-      deletedDate: "2024-01-08",
-      deletedBy: "Marie Dupont",
-      reason: "Manque de demande",
-    },
-  ]
-
-  const archivedAccounts = [
-    {
-      id: 1,
-      name: "Julie Moreau",
-      email: "julie.moreau@email.com",
-      role: "Esthéticienne",
-      permissions: ["Agenda", "Clients"],
-      deletedDate: "2024-01-14",
-      deletedBy: "Marie Dupont",
-      reason: "Changement d'équipe",
-    },
-  ]
-
-  const handleRestore = (type: string, id: number) => {
-    console.log(`Restoring ${type} with id ${id}`)
-    // Logic to restore item
+  const handleRestore = async (type: string, id: string) => {
+    try {
+      if (type === "reservation") {
+        const res = await fetch(`/api/pro/archives/reservations`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) })
+        if (!res.ok) throw new Error("Restauration échouée")
+        // refresh
+        const r = await fetch(`/api/pro/archives/reservations`)
+        const rj = await r.json()
+        if (r.ok) setArchivedReservations((rj?.items || []).map((reservation: any) => ({
+          id: reservation.id,
+          client: [reservation?.clients?.first_name, reservation?.clients?.last_name].filter(Boolean).join(" ") || "Client",
+          service: (reservation?.reservation_items || []).map((it: any) => `${it?.services?.name || "Service"}${it?.service_variants?.name ? ` - ${it.service_variants.name}` : ""}`).join(" + "),
+          employee: reservation?.employees?.full_name || "",
+          date: new Date(reservation.starts_at).toISOString().slice(0, 10),
+          time: new Date(reservation.starts_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
+          price: Math.round(((reservation?.reservation_items || []).reduce((s: number, it: any) => s + Number(it.price_cents || 0), 0)) / 100) + " DA",
+          deletedDate: reservation?.cancelled_at ? new Date(reservation.cancelled_at).toISOString().slice(0, 10) : undefined,
+          reason: reservation?.status === "CANCELLED" ? "Annulation" : undefined,
+        })))
+      } else if (type === "service") {
+        const res = await fetch(`/api/pro/archives/services`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) })
+        if (!res.ok) throw new Error("Restauration échouée")
+        const s = await fetch(`/api/pro/archives/services`)
+        const sj = await s.json()
+        if (s.ok) setArchivedServices((sj?.items || []).map((svc: any) => {
+          const variants = Array.isArray(svc?.service_variants) ? svc.service_variants : []
+          const durations = variants.map((v: any) => Number(v.duration_minutes || 0)).filter((n: number) => n > 0)
+          const pricesCandidates = variants.flatMap((v: any) => [v.price_cents, v.price_min_cents, v.price_max_cents].filter((x: any) => typeof x === 'number')) as number[]
+          const minDuration = durations.length ? Math.min(...durations) : undefined
+          const maxDuration = durations.length ? Math.max(...durations) : undefined
+          const minPrice = pricesCandidates.length ? Math.min(...pricesCandidates) : undefined
+          const maxPrice = pricesCandidates.length ? Math.max(...pricesCandidates) : undefined
+          const duration = typeof minDuration !== 'undefined' ? (minDuration === maxDuration ? `${minDuration} min` : `${minDuration}-${maxDuration} min`) : undefined
+          const price = typeof minPrice !== 'undefined' ? (minPrice === maxPrice ? `${Math.round(minPrice/100)} DA` : `${Math.round(minPrice/100)}–${Math.round((maxPrice||0)/100)} DA`) : undefined
+          return { id: svc.id, name: svc.name, category: svc?.service_categories?.name, price, duration, deletedDate: new Date(svc.updated_at).toISOString().slice(0, 10) }
+        }))
+      } else if (type === "account") {
+        const res = await fetch(`/api/pro/archives/accounts`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) })
+        if (!res.ok) throw new Error("Restauration échouée")
+        const a = await fetch(`/api/pro/archives/accounts`)
+        const aj = await a.json()
+        if (a.ok) setArchivedAccounts((aj?.items || []).map((acc: any) => ({ id: acc.id, name: acc.name, email: acc.email || null, role: acc.role || null })))
+      }
+    } catch (e: any) {
+      alert(e?.message || "Impossible de restaurer")
+    }
   }
 
-  const handlePermanentDelete = (type: string, id: number) => {
-    console.log(`Permanently deleting ${type} with id ${id}`)
-    // Logic to permanently delete item
+  const handlePermanentDelete = async (type: string, id: string) => {
+    try {
+      if (type === "reservation") {
+        // Option produit: supprimer définitivement une réservation via route existante
+        const res = await fetch(`/api/pro/reservations/${id}`, { method: "DELETE" })
+        if (!res.ok) throw new Error("Suppression échouée")
+        setArchivedReservations((prev) => prev.filter((r) => r.id !== id))
+      } else if (type === "service") {
+        const res = await fetch(`/api/pro/archives/services?id=${encodeURIComponent(id)}`, { method: "DELETE" })
+        if (!res.ok) throw new Error("Suppression échouée")
+        setArchivedServices((prev) => prev.filter((s) => s.id !== id))
+      } else if (type === "account") {
+        const res = await fetch(`/api/pro/archives/accounts?id=${encodeURIComponent(id)}`, { method: "DELETE" })
+        if (!res.ok) throw new Error("Suppression échouée")
+        setArchivedAccounts((prev) => prev.filter((a) => a.id !== id))
+      }
+    } catch (e: any) {
+      alert(e?.message || "Action impossible")
+    }
   }
 
   const getArchiveStats = () => {
@@ -438,7 +546,7 @@ export default function ArchivesPage() {
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-1">
-                          {account.permissions.map((permission, index) => (
+                          {(account.permissions ?? []).map((permission, index) => (
                             <Badge key={index} variant="secondary" className="text-xs">
                               {permission}
                             </Badge>
