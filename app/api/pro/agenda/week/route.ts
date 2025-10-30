@@ -28,6 +28,7 @@ export async function GET(req: NextRequest) {
   const search = url.searchParams.get("search") || ""
   const categories = url.searchParams.getAll("category").filter(Boolean)
   const nameFilters = [search, ...categories].filter(Boolean)
+  const serviceFilters = url.searchParams.getAll("service").filter(Boolean)
 
   const reservations = await prisma.reservations.findMany({
     where: {
@@ -49,11 +50,17 @@ export async function GET(req: NextRequest) {
           ] as any))
         ]
       } : {}),
+      ...(serviceFilters.length ? {
+        OR: [
+          ...serviceFilters.map((q)=> ({ reservation_items: { some: { services: { name: { contains: q, mode: 'insensitive' } } } } })),
+          ...serviceFilters.map((q)=> ({ reservation_items: { some: { service_variants: { name: { contains: q, mode: 'insensitive' } } } } })),
+        ]
+      } : {}),
     },
     orderBy: { starts_at: "asc" },
     include: {
       employees: { select: { id: true, full_name: true } },
-      clients: { select: { first_name: true, last_name: true } },
+      clients: { select: { first_name: true, last_name: true, phone: true, users: { select: { email: true } } } },
       reservation_items: {
         select: {
           price_cents: true,
@@ -97,6 +104,8 @@ export async function GET(req: NextRequest) {
       status: r.status,
       title: titleParts.join(" + ") || "Rendez-vous",
       client,
+      client_phone: r.clients?.phone || undefined,
+      client_email: (r.clients as any)?.users?.email || undefined,
       duration_minutes: duration,
       price_cents: price,
       notes: r.notes || "",

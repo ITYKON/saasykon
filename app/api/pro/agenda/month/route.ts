@@ -27,6 +27,7 @@ export async function GET(req: NextRequest) {
   const search = url.searchParams.get("search") || ""
   const categories = url.searchParams.getAll("category").filter(Boolean)
   const nameFilters = [search, ...categories].filter(Boolean)
+  const serviceFilters = url.searchParams.getAll("service").filter(Boolean)
 
   const reservations = await prisma.reservations.findMany({
     where: {
@@ -38,16 +39,27 @@ export async function GET(req: NextRequest) {
         OR: [
           { reservation_items: { some: { services: { name: { contains: nameFilters[0], mode: 'insensitive' } } } } },
           { reservation_items: { some: { service_variants: { name: { contains: nameFilters[0], mode: 'insensitive' } } } } },
+          { clients: { OR: [
+            { first_name: { contains: nameFilters[0], mode: 'insensitive' } },
+            { last_name: { contains: nameFilters[0], mode: 'insensitive' } },
+          ]}},
           ...nameFilters.slice(1).flatMap((q)=> ([
             { reservation_items: { some: { services: { name: { contains: q, mode: 'insensitive' } } } } },
             { reservation_items: { some: { service_variants: { name: { contains: q, mode: 'insensitive' } } } } },
           ] as any))
         ]
       } : {}),
+      ...(serviceFilters.length ? {
+        OR: [
+          ...serviceFilters.map((q)=> ({ reservation_items: { some: { services: { name: { contains: q, mode: 'insensitive' } } } } })),
+          ...serviceFilters.map((q)=> ({ reservation_items: { some: { service_variants: { name: { contains: q, mode: 'insensitive' } } } } })),
+        ]
+      } : {}),
     },
     orderBy: { starts_at: "asc" },
     include: {
       employees: { select: { id: true, full_name: true } },
+      clients: { select: { first_name: true, last_name: true, phone: true, users: { select: { email: true } } } },
       reservation_items: {
         select: {
           price_cents: true,
@@ -59,7 +71,7 @@ export async function GET(req: NextRequest) {
     },
   }) as any[];
 
-  const days: Record<string, Array<{ time?: string; title: string; employee?: string; duration_minutes?: number; price_cents?: number; reservation_id: string }>> = {};
+  const days: Record<string, Array<{ time?: string; title: string; employee?: string; duration_minutes?: number; price_cents?: number; reservation_id: string; client?: string; client_phone?: string; client_email?: string }>> = {};
 
   for (const r of reservations) {
     const dKey = new Date(r.starts_at).toISOString().slice(0,10);
@@ -74,6 +86,7 @@ export async function GET(req: NextRequest) {
       const vname = it.service_variants?.name ? ` - ${it.service_variants.name}` : "";
       return sname + vname;
     }).filter(Boolean);
+    const client = [r.clients?.first_name || "", r.clients?.last_name || ""].join(" ").trim();
 
     if (!days[dKey]) days[dKey] = [];
     days[dKey].push({
@@ -83,6 +96,9 @@ export async function GET(req: NextRequest) {
       duration_minutes: duration,
       price_cents: price,
       reservation_id: r.id,
+      client,
+      client_phone: r.clients?.phone || undefined,
+      client_email: (r.clients as any)?.users?.email || undefined,
     });
   }
 

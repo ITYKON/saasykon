@@ -28,6 +28,7 @@ export async function GET(req: NextRequest) {
   const categories = url.searchParams.getAll("category").filter(Boolean)
 
   const nameFilters = [search, ...categories].filter(Boolean)
+  const serviceFilters = url.searchParams.getAll("service").filter(Boolean)
 
   // Fetch reservations for the day with employee and items
   const reservations = await prisma.reservations.findMany({
@@ -48,6 +49,12 @@ export async function GET(req: NextRequest) {
             { reservation_items: { some: { services: { name: { contains: q, mode: 'insensitive' } } } } },
             { reservation_items: { some: { service_variants: { name: { contains: q, mode: 'insensitive' } } } } },
           ] as any))
+        ]
+      } : {}),
+      ...(serviceFilters.length ? {
+        OR: [
+          ...serviceFilters.map((q)=> ({ reservation_items: { some: { services: { name: { contains: q, mode: 'insensitive' } } } } })),
+          ...serviceFilters.map((q)=> ({ reservation_items: { some: { service_variants: { name: { contains: q, mode: 'insensitive' } } } } })),
         ]
       } : {}),
     },
