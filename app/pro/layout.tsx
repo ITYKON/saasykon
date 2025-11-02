@@ -60,7 +60,7 @@ export default function ProLayout({
       {/* Sidebar Navigation */}
       <aside className="fixed inset-y-0 left-0 w-64 bg-white shadow-lg border-r h-screen overflow-y-auto z-30">
         <div className="p-6 border-b">
-          <h2 className="text-xl font-bold text-gray-900">PLANITY PRO</h2>
+          <h2 className="text-xl font-bold text-gray-900">YOKA</h2>
           {/* Hide employee identity for PRO/ADMIN accounts */}
           {me.employee && !(roles.includes('PRO') || roles.includes('ADMIN')) && (
             <div className="mt-2 text-sm text-gray-700">

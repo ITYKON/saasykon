@@ -62,7 +62,7 @@ export default function HomePage() {
             </div>
             <div className="text-center p-6 border border-gray-200 rounded-lg">
               <div className="text-4xl font-bold text-black mb-2">5 RDV</div>
-              <p className="text-gray-600">pris chaque seconde sur Planity</p>
+              <p className="text-gray-600">pris chaque seconde sur YOKA</p>
             </div>
             <div className="text-center p-6 border border-gray-200 rounded-lg">
               <div className="text-4xl font-bold text-black mb-2">&gt; 5 milliards €</div>
@@ -114,7 +114,7 @@ export default function HomePage() {
             <div className="relative">
               <Image
                 src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/image-x9lTtvwl7uc5C2Gq2GPQM93sJTWOqG.png"
-                alt="Équipe Planity"
+                alt="Équipe YOKA"
                 width={600}
                 height={400}
                 className="rounded-lg"
@@ -123,7 +123,7 @@ export default function HomePage() {
             <div>
               <div className="text-sm font-semibold text-blue-600 mb-2 tracking-wide">PROFESSIONNEL</div>
               <h3 className="text-3xl font-bold text-black mb-4 text-balance">
-                Planity recherche des profils dans toute la France pour digitaliser le secteur de la beauté
+                YOKA recherche des profils dans toute la France pour digitaliser le secteur de la beauté
               </h3>
               <p className="text-gray-600 mb-6 italic">Antoine Puymirat - CEO</p>
               <Link href="/offres">
@@ -312,11 +312,11 @@ export default function HomePage() {
 
           <div className="space-y-4">
             {[
-              "Qu'est-ce que Planity ?",
-              "Comment prendre rendez-vous sur Planity ?",
-              "Est-ce que je dois payer en ligne sur Planity ?",
-              "Comment gérer mes rendez-vous sur Planity ?",
-              "Comment faire apparaître mon salon ou institut sur Planity ?",
+              "Qu'est-ce que YOKA ?",
+              "Comment prendre rendez-vous sur YOKA ?",
+              "Est-ce que je dois payer en ligne sur YOKA ?",
+              "Comment gérer mes rendez-vous sur YOKA ?",
+              "Comment faire apparaître mon salon ou institut sur YOKA ?",
             ].map((question, index) => (
               <div key={index} className="bg-white rounded-lg border border-gray-200">
                 <button className="w-full px-6 py-4 text-left flex items-center justify-between hover:bg-gray-50">
@@ -334,13 +334,13 @@ export default function HomePage() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <div className="mb-8">
             <div className="text-2xl font-bold text-black tracking-wide mb-2">
-              PLANITY
+              YOKA
               <span className="text-sm ml-1 text-gray-500">PRO</span>
             </div>
           </div>
 
           <h2 className="text-4xl md:text-5xl font-bold text-black mb-6 text-balance">
-            Devenir partenaire Planity Pro
+            Devenir partenaire YOKA Pro
           </h2>
           <p className="text-xl text-gray-600 mb-8 text-pretty">
             Soyez visibles auprès de <strong>14 millions d'utilisateurs</strong>.

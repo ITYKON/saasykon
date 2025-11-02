@@ -27,7 +27,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   if (!cityName) return { title: "Ville non trouvée" }
 
   return {
-    title: `Barbier ${cityName} - Réservation en ligne | Planity`,
+    title: `Barbier ${cityName} - Réservation en ligne | YOKA`,
     description: `Trouvez et réservez votre barbier à ${cityName}. Les meilleurs barbershops avec réservation en ligne 24h/24.`,
   }
 }

@@ -125,7 +125,7 @@ export default function SalonPage({ params }: { params: { id: string } }) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <Link href="/" className="text-2xl font-bold text-black tracking-wide">
-              PLANITY
+              YOKA
             </Link>
             <div className="flex items-center space-x-4">
               <Button variant="outline" size="sm" className="hidden sm:flex bg-transparent">

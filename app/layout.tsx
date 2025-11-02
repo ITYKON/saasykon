@@ -8,10 +8,10 @@ import { Toaster } from "@/components/ui/toaster"
 import "./globals.css"
 
 export const metadata: Metadata = {
-  title: "Planity - Réservez en beauté",
+  title: "YOKA - Réservez en beauté",
   description:
     "Trouvez rapidement un salon de coiffure, institut de beauté, un barbier près de chez vous. RDV en ligne 24/7. Confirmation immédiate.",
-  generator: "Planity Clone",
+  generator: "YOKA",
 }
 
 export default function RootLayout({

@@ -30,13 +30,13 @@ export default function RegisterPage() {
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
             <Link href="/" className="text-2xl font-bold text-black tracking-wide">
-              PLANITY
+              YOKA
             </Link>
           </div>
 
           <Card className="border-0 shadow-lg">
             <CardHeader className="text-center pb-6">
-              <CardTitle className="text-xl font-semibold">Nouveau sur Planity ?</CardTitle>
+              <CardTitle className="text-xl font-semibold">Nouveau sur YOKA ?</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-4">
@@ -77,7 +77,7 @@ export default function RegisterPage() {
                       placeholder="Entrez votre numéro..."
                     />
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">J'accepte les CGU de Planity</p>
+                  <p className="text-xs text-gray-500 mt-1">J'accepte les CGU de YOKA</p>
                 </div>
 
                 <div>
@@ -152,7 +152,7 @@ export default function RegisterPage() {
               </Button>
 
               <div className="text-xs text-gray-500 leading-relaxed">
-                Mes informations sont traitées par Planity, consultez notre{" "}
+                Mes informations sont traitées par YOKA, consultez notre{" "}
                 <Link href="/privacy" className="text-blue-600 hover:underline">
                   Politique de Confidentialité
                 </Link>{" "}

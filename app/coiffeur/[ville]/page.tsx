@@ -27,7 +27,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   if (!cityName) return { title: "Ville non trouvée" }
 
   return {
-    title: `Coiffeur ${cityName} - Réservation en ligne | Planity`,
+    title: `Coiffeur ${cityName} - Réservation en ligne | YOKA`,
     description: `Trouvez et réservez votre coiffeur à ${cityName}. Les meilleurs salons de coiffure avec réservation en ligne 24h/24.`,
   }
 }

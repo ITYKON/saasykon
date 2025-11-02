@@ -106,7 +106,7 @@ export default function BookingWizard({ salon, onClose }: BookingWizardProps) {
 
         <div className="space-y-4">
           <div className="text-center">
-            <p className="text-lg font-medium mb-4">Nouveau sur Planity ?</p>
+            <p className="text-lg font-medium mb-4">Nouveau sur YOKA ?</p>
             <Button className="w-full bg-gray-100 text-black hover:bg-gray-200">Créer mon compte</Button>
           </div>
 
@@ -115,7 +115,7 @@ export default function BookingWizard({ salon, onClose }: BookingWizardProps) {
           </div>
 
           <div className="text-center">
-            <p className="text-lg font-medium mb-4">Vous avez déjà utilisé Planity ?</p>
+            <p className="text-lg font-medium mb-4">Vous avez déjà utilisé YOKA ?</p>
             <Button className="w-full bg-black text-white hover:bg-gray-800">Se connecter</Button>
           </div>
         </div>
@@ -150,7 +150,7 @@ export default function BookingWizard({ salon, onClose }: BookingWizardProps) {
       <Button className="w-full bg-black text-white hover:bg-gray-800">Créer mon compte</Button>
 
       <div className="text-xs text-gray-500 leading-relaxed">
-        Mes informations sont traitées par Planity, consultez notre{" "}
+        Mes informations sont traitées par YOKA, consultez notre{" "}
         <Link href="/privacy" className="text-blue-600 hover:underline">
           Politique de Confidentialité
         </Link>{" "}
@@ -178,7 +178,7 @@ export default function BookingWizard({ salon, onClose }: BookingWizardProps) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <Link href="/" className="text-2xl font-bold text-black tracking-wide">
-              PLANITY
+              YOKA
             </Link>
             <Button variant="ghost" size="sm" onClick={onClose}>
               <X className="h-4 w-4" />

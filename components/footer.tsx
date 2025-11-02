@@ -6,7 +6,7 @@ export function Footer() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid md:grid-cols-4 gap-8">
           <div>
-            <div className="text-2xl font-bold text-black tracking-wide mb-4">PLANITY</div>
+            <div className="text-2xl font-bold text-black tracking-wide mb-4">YOKA</div>
             <p className="text-gray-600">La plateforme de réservation beauté n°1 en France</p>
           </div>
           <div>
@@ -76,7 +76,7 @@ export function Footer() {
           </div>
         </div>
         <div className="border-t border-gray-200 mt-8 pt-8 text-center text-gray-600">
-          <p>&copy; 2024 Planity. Tous droits réservés.</p>
+          <p>&copy; 2024 YOKA. Tous droits réservés.</p>
         </div>
       </div>
     </footer>

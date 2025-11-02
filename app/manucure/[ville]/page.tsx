@@ -28,7 +28,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   if (!cityName) return { title: "Ville non trouvée" }
 
   return {
-    title: `Manucure ${cityName} - Réservation en ligne | Planity`,
+    title: `Manucure ${cityName} - Réservation en ligne | YOKA`,
     description: `Trouvez et réservez votre manucure à ${cityName}. Les meilleurs salons de manucure avec réservation en ligne 24h/24.`,
   }
 }

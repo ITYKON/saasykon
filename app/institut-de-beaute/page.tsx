@@ -206,7 +206,7 @@ export default async function InstitutDeBeautePage({
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-3xl font-bold text-gray-900 mb-4">Vous êtes propriétaire d'un institut de beauté ?</h2>
           <p className="text-lg text-gray-600 mb-8">
-            Rejoignez Planity et développez votre clientèle grâce à notre plateforme de réservation en ligne
+            Rejoignez YOKA et développez votre clientèle grâce à notre plateforme de réservation en ligne
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button size="lg" className="bg-black hover:bg-gray-800 text-white">

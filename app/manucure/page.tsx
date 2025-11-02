@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma"
 import { redirect } from "next/navigation"
 
 export const metadata: Metadata = {
-  title: "Manucure - Réservez votre rendez-vous en ligne | Planity",
+  title: "Manucure - Réservez votre rendez-vous en ligne | YOKA",
   description:
     "Trouvez et réservez votre manucure partout en France. Réservation en ligne 24h/24, gratuite et confirmation immédiate.",
 }
@@ -180,7 +180,7 @@ export default async function ManucurePage({
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-3xl font-bold text-gray-900 mb-4">Vous êtes prothésiste ongulaire ?</h2>
           <p className="text-xl text-gray-600 mb-8">
-            Rejoignez Planity et développez votre clientèle grâce à la réservation en ligne
+            Rejoignez YOKA et développez votre clientèle grâce à la réservation en ligne
           </p>
           <Button size="lg" className="bg-black hover:bg-gray-800 text-white">
             Découvrir nos offres

@@ -25,13 +25,13 @@ export default function LoginPage() {
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
             <Link href="/" className="text-2xl font-bold text-black tracking-wide">
-              PLANITY
+              YOKA
             </Link>
           </div>
 
           <Card className="border-0 shadow-lg">
             <CardHeader className="text-center pb-6">
-              <CardTitle className="text-2xl font-semibold">Vous avez déjà utilisé Planity ?</CardTitle>
+              <CardTitle className="text-2xl font-semibold">Vous avez déjà utilisé YOKA ?</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-4">
@@ -95,7 +95,7 @@ export default function LoginPage() {
 
                       const me = await fetch("/api/auth/me").then((r) => r.json()).catch(() => null)
                       const roles = me?.user?.roles || []
-                      // Prefer explicit ADMIN role to determine admin access. The API /api/auth/me
+                      // Prefer explicit YOKA ADMIN role to determine admin access. The API /api/auth/me
                       // now returns permissions and assignments; do not trust the business_id cookie
                       // alone to grant full admin access to avoid over-privilege for sub-admins.
                       if (roles.includes("ADMIN")) return router.push("/admin/dashboard")
@@ -115,7 +115,7 @@ export default function LoginPage() {
               </div>
 
               <div className="text-center">
-                <p className="text-gray-600 mb-4">Nouveau sur Planity ?</p>
+                <p className="text-gray-600 mb-4">Nouveau sur YOKA ?</p>
                 <Button variant="outline" className="w-full bg-transparent" asChild>
                   <Link href="/auth/register">Créer mon compte</Link>
                 </Button>
