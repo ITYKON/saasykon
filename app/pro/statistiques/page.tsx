@@ -1,11 +1,54 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { TrendingUp, TrendingDown, Users, Calendar, DollarSign, Star, Target, Download } from "lucide-react"
+import { TrendingUp, TrendingDown, Users, Calendar, DollarSign, Star, Target, Loader2 } from "lucide-react"
+
+interface ServiceStat {
+  name: string
+  count: number
+  revenue: number
+}
+
+interface EmployeeStat {
+  name: string
+  count: number
+  revenue: number
+}
+
+interface DailyStat {
+  date: string
+  count: number
+  revenue: number
+}
+
+interface RecentAppointment {
+  id: string
+  customerName: string
+  date: string
+  time: string
+  services: string
+  status: string
+  total: number
+}
+
+interface StatisticsData {
+  overview: {
+    totalAppointments: number
+    completedAppointments: number
+    cancelledAppointments: number
+    noShowAppointments: number
+    totalRevenue: number
+    averageRevenuePerAppointment: number
+  }
+  dailyStats: DailyStat[]
+  serviceStats: ServiceStat[]
+  employeeStats: EmployeeStat[]
+  recentAppointments: RecentAppointment[]
+}
 import {
   LineChart,
   Line,
@@ -62,38 +105,148 @@ const topClients = [
 ]
 
 export default function StatistiquesPage() {
-  const [period, setPeriod] = useState("6months")
+  const [period, setPeriod] = useState("1month")
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [stats, setStats] = useState<StatisticsData | null>(null)
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        console.log('Début du chargement des statistiques...')
+        setIsLoading(true)
+        setError(null)
+        
+        const response = await fetch('/api/pro/dashboard/statistics')
+        const data = await response.json()
+        
+        console.log('Réponse de l\'API:', { status: response.status, data })
+        
+        if (!response.ok) {
+          const errorMessage = data?.error || 'Erreur inconnue'
+          const errorDetails = data?.details || ''
+          console.error('Erreur API:', { status: response.status, errorMessage, errorDetails })
+          throw new Error(`${errorMessage}${errorDetails ? ` (${errorDetails})` : ''}`)
+        }
+        
+        if (!data) {
+          throw new Error('Aucune donnée reçue du serveur')
+        }
+        
+        console.log('Données reçues:', {
+          overview: data.overview,
+          dailyStatsCount: data.dailyStats?.length || 0,
+          serviceStatsCount: data.serviceStats?.length || 0,
+          employeeStatsCount: data.employeeStats?.length || 0,
+          recentAppointmentsCount: data.recentAppointments?.length || 0
+        })
+        
+        setStats(data)
+      } catch (err) {
+        console.error('Erreur lors de la récupération des statistiques:', err)
+        setError(err instanceof Error ? err.message : 'Une erreur est survenue')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchStats()
+  }, [period])
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('fr-DZ', {
+      style: 'decimal',
+      maximumFractionDigits: 0
+    }).format(amount) + ' DA'
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
+        <span className="ml-2">Chargement des statistiques...</span>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-4xl mx-auto p-6">
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative" role="alert">
+          <strong className="font-bold">Erreur lors du chargement des statistiques</strong>
+          <p className="mt-1">{error}</p>
+          <p className="mt-2 text-sm">
+            Veuillez rafraîchir la page ou réessayer plus tard. Si le problème persiste, contactez le support.
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-3 bg-red-100 hover:bg-red-200 text-red-800 font-medium py-1 px-3 rounded text-sm"
+          >
+            Réessayer
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  if (!stats) {
+    return (
+      <div className="max-w-4xl mx-auto p-6 text-center">
+        <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded">
+          <p>Aucune donnée statistique disponible pour le moment.</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-2 bg-yellow-100 hover:bg-yellow-200 text-yellow-800 font-medium py-1 px-3 rounded text-sm"
+          >
+            Actualiser
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  const { overview, dailyStats, serviceStats, employeeStats, recentAppointments } = stats
+
+  // Formatage des données pour les graphiques
+  const chartData = dailyStats.map(day => ({
+    date: new Date(day.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }),
+    revenue: day.revenue,
+    count: day.count
+  }))
+
+  const serviceChartData = serviceStats.map(service => ({
+    name: service.name,
+    value: service.count,
+    revenue: service.revenue,
+    color: `#${Math.floor(Math.random()*16777215).toString(16).padStart(6, '0')}`
+  }))
 
   return (
     <div>
       {/* Header */}
-              <header className="bg-white border-b border-gray-200">
-          <div className="px-6 py-4">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Statistiques Avancées</h1>
-          <p className="text-gray-600">Analysez les performances de votre institut</p>
+      <header className="bg-white border-b border-gray-200">
+        <div className="px-6 py-4">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Statistiques Avancées</h1>
+              <p className="text-gray-600">Analysez les performances de votre institut</p>
+            </div>
+            <div className="flex gap-3">
+              <Select value={period} onValueChange={setPeriod}>
+                <SelectTrigger className="w-40">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1month">1 mois</SelectItem>
+                  <SelectItem value="3months">3 mois</SelectItem>
+                  <SelectItem value="6months">6 mois</SelectItem>
+                  <SelectItem value="1year">1 an</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </div>
-        <div className="flex gap-3">
-          <Select value={period} onValueChange={setPeriod}>
-            <SelectTrigger className="w-40">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="1month">1 mois</SelectItem>
-              <SelectItem value="3months">3 mois</SelectItem>
-              <SelectItem value="6months">6 mois</SelectItem>
-              <SelectItem value="1year">1 an</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button variant="outline" className="flex items-center gap-2 bg-transparent">
-            <Download className="h-4 w-4" />
-            Exporter
-          </Button>
-        </div>
-      </div>
-                </div>
-        </header>
+      </header>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -102,10 +255,9 @@ export default function StatistiquesPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Chiffre d'affaires</p>
-                <p className="text-2xl font-bold">348,000 DA</p>
-                <p className="text-xs text-green-600 flex items-center mt-1">
-                  <TrendingUp className="h-3 w-3 mr-1" />
-                  +12.5% vs mois dernier
+                <p className="text-2xl font-bold">{formatCurrency(overview.totalRevenue)}</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  {overview.completedAppointments} réservations
                 </p>
               </div>
               <div className="h-12 w-12 bg-green-100 rounded-lg flex items-center justify-center">
@@ -120,11 +272,11 @@ export default function StatistiquesPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Réservations</p>
-                <p className="text-2xl font-bold">892</p>
-                <p className="text-xs text-green-600 flex items-center mt-1">
-                  <TrendingUp className="h-3 w-3 mr-1" />
-                  +8.3% vs mois dernier
-                </p>
+                <p className="text-2xl font-bold">{overview.totalAppointments}</p>
+                <div className="flex gap-2 text-xs mt-1">
+                  <span className="text-green-600">✓ {overview.completedAppointments} terminées</span>
+                  <span className="text-red-600">✗ {overview.cancelledAppointments + overview.noShowAppointments} annulées</span>
+                </div>
               </div>
               <div className="h-12 w-12 bg-blue-100 rounded-lg flex items-center justify-center">
                 <Calendar className="h-6 w-6 text-blue-600" />
@@ -137,15 +289,14 @@ export default function StatistiquesPage() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Taux d'occupation</p>
-                <p className="text-2xl font-bold">87%</p>
-                <p className="text-xs text-red-600 flex items-center mt-1">
-                  <TrendingDown className="h-3 w-3 mr-1" />
-                  -2.1% vs mois dernier
+                <p className="text-sm font-medium text-gray-600">Moyenne par réservation</p>
+                <p className="text-2xl font-bold">{formatCurrency(overview.averageRevenuePerAppointment)}</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  {overview.completedAppointments} réservations terminées
                 </p>
               </div>
-              <div className="h-12 w-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                <Target className="h-6 w-6 text-orange-600" />
+              <div className="h-12 w-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                <Users className="h-6 w-6 text-purple-600" />
               </div>
             </div>
           </CardContent>
@@ -155,15 +306,16 @@ export default function StatistiquesPage() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Note moyenne</p>
-                <p className="text-2xl font-bold">4.8</p>
-                <p className="text-xs text-green-600 flex items-center mt-1">
-                  <Star className="h-3 w-3 mr-1" />
-                  +0.2 vs mois dernier
+                <p className="text-sm font-medium text-gray-600">Taux d'occupation</p>
+                <p className="text-2xl font-bold">
+                  {Math.round((overview.completedAppointments / Math.max(1, overview.totalAppointments)) * 100)}%
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  {overview.completedAppointments} / {overview.totalAppointments} réservations
                 </p>
               </div>
-              <div className="h-12 w-12 bg-yellow-100 rounded-lg flex items-center justify-center">
-                <Star className="h-6 w-6 text-yellow-600" />
+              <div className="h-12 w-12 bg-orange-100 rounded-lg flex items-center justify-center">
+                <Target className="h-6 w-6 text-orange-600" />
               </div>
             </div>
           </CardContent>
@@ -172,27 +324,48 @@ export default function StatistiquesPage() {
 
       {/* Charts Section */}
       <Tabs defaultValue="revenue" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="revenue">Revenus</TabsTrigger>
           <TabsTrigger value="services">Services</TabsTrigger>
-          <TabsTrigger value="schedule">Horaires</TabsTrigger>
-          <TabsTrigger value="clients">Clients</TabsTrigger>
+          <TabsTrigger value="clients">Dernières réservations</TabsTrigger>
         </TabsList>
 
         <TabsContent value="revenue" className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 gap-6">
             <Card>
               <CardHeader>
                 <CardTitle>Évolution du chiffre d'affaires</CardTitle>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
-                  <AreaChart data={revenueData}>
+                  <AreaChart data={chartData}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="month" />
+                    <XAxis dataKey="date" />
                     <YAxis />
-                    <Tooltip formatter={(value) => [`${value} DA`, "Chiffre d'affaires"]} />
-                    <Area type="monotone" dataKey="revenue" stroke="#000000" fill="#000000" fillOpacity={0.1} />
+                    <Tooltip 
+                      formatter={(value, name) => {
+                        if (name === 'revenue') {
+                          return [formatCurrency(Number(value)), "Chiffre d'affaires"]
+                        }
+                        return [value, 'Nombre de réservations']
+                      }}
+                      labelFormatter={(label) => `Date: ${label}`}
+                    />
+                    <Area 
+                      type="monotone" 
+                      dataKey="revenue" 
+                      name="Chiffre d'affaires"
+                      stroke="#000000" 
+                      fill="#000000" 
+                      fillOpacity={0.1} 
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="count" 
+                      name="Réservations"
+                      stroke="#8884d8" 
+                      dot={false}
+                    />
                   </AreaChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -224,93 +397,117 @@ export default function StatistiquesPage() {
                 <CardTitle>Répartition des services</CardTitle>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <PieChart>
-                    <Pie
-                      data={servicesData}
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={100}
-                      dataKey="value"
-                      label={({ name, value }) => `${name}: ${value}%`}
-                    >
-                      {servicesData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
+                <div className="h-[300px] flex items-center justify-center">
+                  {serviceChartData.length > 0 ? (
+                    <PieChart width={300} height={300}>
+                      <Pie
+                        data={serviceChartData}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                        outerRadius={80}
+                        fill="#8884d8"
+                        dataKey="value"
+                      >
+                        {serviceChartData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        formatter={(value, name, props) => {
+                          if (props && props.payload) {
+                            const data = props.payload as any
+                            return [
+                              `${data.revenue ? formatCurrency(data.revenue) : value}`, 
+                              data.name
+                            ]
+                          }
+                          return [value, name]
+                        }} 
+                      />
+                    </PieChart>
+                  ) : (
+                    <div className="text-gray-500">Aucune donnée de service disponible</div>
+                  )}
+                </div>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader>
-                <CardTitle>Services les plus populaires</CardTitle>
+                <CardTitle>Top services par revenu</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {servicesData.map((service, index) => (
-                    <div key={service.name} className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: service.color }} />
-                        <span className="font-medium">{service.name}</span>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-bold">{service.value}%</p>
-                        <p className="text-sm text-gray-500">{Math.round(service.value * 8.92)} réservations</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                {serviceChartData.length > 0 ? (
+                  <div className="space-y-4">
+                    {serviceChartData
+                      .sort((a, b) => b.revenue - a.revenue)
+                      .slice(0, 5)
+                      .map((service) => (
+                        <div key={service.name} className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <p className="text-sm font-medium">{service.name}</p>
+                            <div className="w-full bg-gray-200 h-2 rounded-full overflow-hidden">
+                              <div 
+                                className="h-full bg-black" 
+                                style={{ 
+                                  width: `${(service.revenue / Math.max(1, serviceChartData.reduce((a, b) => a + b.revenue, 0))) * 100}%` 
+                                }}
+                              />
+                            </div>
+                          </div>
+                          <p className="ml-4 font-medium">{formatCurrency(service.revenue)}</p>
+                        </div>
+                      ))}
+                  </div>
+                ) : (
+                  <div className="text-gray-500">Aucun service avec revenu disponible</div>
+                )}
               </CardContent>
             </Card>
           </div>
         </TabsContent>
 
-        <TabsContent value="schedule" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Répartition des réservations par heure</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={400}>
-                <BarChart data={hourlyData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="hour" />
-                  <YAxis />
-                  <Tooltip />
-                  <Bar dataKey="bookings" fill="#000000" />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
         <TabsContent value="clients" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Top 5 des clients fidèles</CardTitle>
+              <CardTitle>Dernières réservations</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {topClients.map((client, index) => (
-                  <div key={client.name} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
-                        <Users className="h-5 w-5 text-gray-600" />
-                      </div>
+              <div className="space-y-3">
+                {recentAppointments.length > 0 ? (
+                  recentAppointments.map((appointment) => (
+                    <div 
+                      key={appointment.id} 
+                      className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 transition-colors"
+                    >
                       <div>
-                        <p className="font-medium">{client.name}</p>
-                        <p className="text-sm text-gray-500">Dernière visite: {client.lastVisit}</p>
+                        <p className="font-medium">{appointment.customerName}</p>
+                        <p className="text-sm text-gray-500">
+                          {appointment.date} à {appointment.time} • {appointment.services}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-medium">{formatCurrency(appointment.total)}</p>
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          appointment.status === 'COMPLETED' 
+                            ? 'bg-green-100 text-green-800' 
+                            : appointment.status === 'CANCELLED' 
+                              ? 'bg-red-100 text-red-800' 
+                              : 'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          {appointment.status === 'COMPLETED' ? 'Terminé' : 
+                           appointment.status === 'CANCELLED' ? 'Annulé' : 'À venir'}
+                        </span>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="font-bold">{client.revenue.toLocaleString()} DA</p>
-                      <p className="text-sm text-gray-500">{client.visits} visites</p>
-                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    Aucune réservation récente
                   </div>
-                ))}
+                )}
               </div>
             </CardContent>
           </Card>
