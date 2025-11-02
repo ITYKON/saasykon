@@ -261,13 +261,30 @@ export default function ProServices() {
   }, [services])
 
   async function loadCategories() {
+    console.log('Chargement des catégories...');
     try {
-      const res = await fetch(`/api/pro/service-categories`)
-      const data = await res.json().catch(() => ({}))
-      if (res.ok && Array.isArray(data?.categories)) {
-        setCategoriesApi(data.categories)
+      const res = await fetch(`/api/pro/service-categories`);
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error('Erreur lors du chargement des catégories:', res.status, errorText);
+        return;
       }
-    } catch {}
+      const data = await res.json().catch(e => {
+        console.error('Erreur lors du parsing de la réponse:', e);
+        return { categories: [] };
+      });
+      
+      console.log('Catégories chargées:', data.categories);
+      if (Array.isArray(data?.categories)) {
+        setCategoriesApi(data.categories);
+      } else {
+        console.error('Format de données inattendu:', data);
+        setCategoriesApi([]);
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement des catégories:', error);
+      setCategoriesApi([]);
+    }
   }
   useEffect(() => {
     loadCategories()
@@ -377,22 +394,48 @@ export default function ProServices() {
   async function handleCreateCategory() {
     const name = newCategoryName.trim()
     const code = newCategoryCode.trim() || undefined
-    if (!name) return alert("Nom de catégorie requis")
+    
+    if (!name) {
+      alert("Veuillez saisir un nom pour la catégorie")
+      return
+    }
+
+    console.log('Création d\'une nouvelle catégorie:', { name, code });
+    
     try {
-      const res = await fetch(`/api/pro/service-categories`, {
+      const response = await fetch(`/api/pro/service-categories`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, code }),
-      })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data?.error || "Création catégorie échouée")
-      setNewCategoryName("")
-      setNewCategoryCode("")
-      setIsCategoryModalOpen(false)
-      await loadCategories()
-      if (data?.id) setSelectedCategoryId(String(data.id))
-    } catch (e: any) {
-      alert(e?.message || "Impossible d'ajouter la catégorie")
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData?.error || `Erreur HTTP: ${response.status}`;
+        console.error('Erreur lors de la création de la catégorie:', errorMessage);
+        throw new Error(errorMessage);
+      }
+
+      const data = await response.json();
+      console.log('Catégorie créée avec succès:', data);
+      
+      // Réinitialiser le formulaire
+      setNewCategoryName("");
+      setNewCategoryCode("");
+      setIsCategoryModalOpen(false);
+      
+      // Recharger la liste des catégories
+      await loadCategories();
+      
+      // Sélectionner automatiquement la nouvelle catégorie
+      if (data?.id) {
+        const newCategoryId = String(data.id);
+        console.log('Nouvelle catégorie sélectionnée:', newCategoryId);
+        setSelectedCategoryId(newCategoryId);
+      }
+    } catch (error) {
+      console.error('Erreur lors de la création de la catégorie:', error);
+      alert(error instanceof Error ? error.message : "Une erreur inattendue est survenue");
     }
   }
 
