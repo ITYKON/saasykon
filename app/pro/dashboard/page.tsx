@@ -2,75 +2,33 @@ import { Calendar, Clock, Users, TrendingUp, DollarSign, Settings, Plus, Eye } f
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { prisma } from "@/lib/prisma"
-import { cookies } from "next/headers"
 import Link from "next/link"
 import CreateReservationModal from "@/components/pro/CreateReservationModal"
+import { headers } from "next/headers"
 
 export default async function ProDashboard() {
-  // Load current business from cookie, fallback to first owned business
-  const cookieStore = cookies();
-  const businessId = cookieStore.get("business_id")?.value;
-  let business: { public_name: string; legal_name: string; id: string } | null = null;
-  let address: { address_line1?: string | null } | null = null;
-  if (businessId) {
-    business = await prisma.businesses.findUnique({ where: { id: businessId }, select: { id: true, public_name: true, legal_name: true } });
-    const loc = await prisma.business_locations.findFirst({ where: { business_id: businessId, is_primary: true }, select: { address_line1: true } });
-    address = loc as any;
-  } else {
-    // Fallback: pick any business of the logged-in user via session cookie
-    const sessionToken = cookieStore.get(process.env.SESSION_COOKIE_NAME || "saas_session")?.value;
-    if (sessionToken) {
-      const session = await prisma.sessions.findUnique({ where: { token: sessionToken } });
-      if (session) {
-        const owned = await prisma.businesses.findFirst({ where: { owner_user_id: session.user_id }, select: { id: true, public_name: true, legal_name: true } });
-        business = owned as any;
-        if (owned) {
-          const loc = await prisma.business_locations.findFirst({ where: { business_id: owned.id, is_primary: true }, select: { address_line1: true } });
-          address = loc as any;
-        }
-      }
-    }
+  // Fetch unified dashboard data from API (server-side)
+  const h = headers();
+  const host = h.get("x-forwarded-host") || h.get("host");
+  const proto = h.get("x-forwarded-proto") || "http";
+  const origin = `${proto}://${host}`;
+  const resp = await fetch(`${origin}/api/pro/dashboard`, { cache: "no-store", headers: { cookie: h.get("cookie") || "" } });
+  if (!resp.ok) {
+    return (
+      <div className="p-6">
+        <h2 className="text-xl font-semibold text-red-600">Erreur de chargement du tableau de bord</h2>
+      </div>
+    )
   }
-  // Compute real stats and today's agenda directly via Prisma (no fetch needed)
-  let todayItems: Array<{ id: string; starts_at: Date; status: string; client: string; service: string; duration_minutes: number; price_cents: number }> = []
-  let stats: { revenueCents: number; bookings: number; newClients: number; rating: number } = { revenueCents: 0, bookings: 0, newClients: 0, rating: 0 }
-  if (business?.id) {
-    const bizId = business.id
-    // Day range
-    const start = new Date(); start.setHours(0,0,0,0); const end = new Date(start); end.setDate(end.getDate()+1)
-    // Week range (Mon..Sun)
-    const now = new Date(); const day = now.getDay(); const diff = (day === 0 ? -6 : 1) - day; const weekStart = new Date(now); weekStart.setDate(now.getDate()+diff); weekStart.setHours(0,0,0,0); const weekEnd = new Date(weekStart); weekEnd.setDate(weekEnd.getDate()+7)
-
-    const [reservations, paymentsAgg, bookingsCount, firsts, ratingAgg] = await Promise.all([
-      prisma.reservations.findMany({
-        where: { business_id: bizId, starts_at: { gte: start, lt: end } },
-        orderBy: { starts_at: "asc" },
-        select: {
-          id: true, starts_at: true, ends_at: true, status: true,
-          clients: { select: { first_name: true, last_name: true } },
-          reservation_items: { select: { price_cents: true, duration_minutes: true, services: { select: { name: true } } } },
-        },
-      }),
-      prisma.payments.aggregate({ _sum: { amount_cents: true }, where: { business_id: bizId, status: { in: ["CAPTURED", "AUTHORIZED"] as any }, created_at: { gte: weekStart, lt: weekEnd } } }),
-      prisma.reservations.count({ where: { business_id: bizId, starts_at: { gte: weekStart, lt: weekEnd }, status: { in: ["CONFIRMED", "COMPLETED"] as any } } }),
-      prisma.reservations.groupBy({ by: ["client_id"], where: { business_id: bizId, client_id: { not: null } }, _min: { starts_at: true } }),
-      prisma.ratings_aggregates.findUnique({ where: { business_id: bizId } }).catch(() => null as any),
-    ])
-
-    todayItems = reservations.map((r) => {
-      const priceCents = r.reservation_items.reduce((s, it) => s + (it.price_cents || 0), 0)
-      const duration = r.reservation_items.reduce((s, it) => s + (it.duration_minutes || 0), 0)
-      const serviceNames = r.reservation_items.map((it) => it.services?.name).filter(Boolean).join(" + ")
-      const client = [r.clients?.first_name || "", r.clients?.last_name || ""].join(" ").trim() || "Client"
-      return { id: r.id, starts_at: r.starts_at, status: r.status as any, client, service: serviceNames, duration_minutes: duration, price_cents: priceCents }
-    })
-
-    const newClients = firsts.filter((g) => g._min.starts_at && g._min.starts_at >= weekStart && g._min.starts_at < weekEnd).length
-    const rating = ratingAgg?.rating_avg ? Number(ratingAgg.rating_avg) : 0
-    stats = { revenueCents: paymentsAgg._sum.amount_cents || 0, bookings: bookingsCount, newClients, rating }
+  const { kpis, todayAgenda, notifications, business, address } = await resp.json();
+  const stats = {
+    revenueCents: kpis?.revenueCents || 0,
+    bookings: kpis?.bookings || 0,
+    newClients: kpis?.newClients || 0,
+    rating: kpis?.rating || 0,
   }
-  const formatMoney = (cents: number) => new Intl.NumberFormat("fr-FR", { style: "currency", currency: "DZD" }).format((cents || 0) / 100)
+  const todayItems: Array<{ id: string; starts_at: Date; status: string; client: string; service: string; duration_minutes: number; price_cents: number }> = todayAgenda || []
+  const formatMoney = (cents: number) => new Intl.NumberFormat("fr-FR", { style: "currency", currency: kpis?.currency || "DZD" }).format((cents || 0) / 100)
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -265,15 +223,21 @@ export default async function ProDashboard() {
                 <div className="pt-4 border-t border-gray-200">
                   <h4 className="font-semibold text-black mb-3">Notifications récentes</h4>
                   <div className="space-y-2 text-sm">
-                    <div className="p-2 bg-blue-50 rounded">
-                      <p className="text-blue-800">Nouveau RDV confirmé pour demain 14h</p>
-                    </div>
-                    <div className="p-2 bg-green-50 rounded">
-                      <p className="text-green-800">Paiement reçu: 200 DA</p>
-                    </div>
-                    <div className="p-2 bg-orange-50 rounded">
-                      <p className="text-orange-800">RDV annulé: Sarah B. - 16h</p>
-                    </div>
+                    {(notifications || []).length === 0 && (
+                      <div className="p-2 bg-gray-50 rounded">
+                        <p className="text-gray-700">Aucune notification récente</p>
+                      </div>
+                    )}
+                    {(notifications || []).map((n: any) => {
+                      const t = (n.type || "").toLowerCase();
+                      const color = t.includes("payment") ? { bg: "bg-green-50", text: "text-green-800" } : t.includes("cancel") ? { bg: "bg-orange-50", text: "text-orange-800" } : { bg: "bg-blue-50", text: "text-blue-800" };
+                      const message = typeof n.payload?.message === "string" ? n.payload.message : n.type;
+                      return (
+                        <div key={n.id} className={`p-2 rounded ${color.bg}`}>
+                          <p className={`${color.text}`}>{message}</p>
+                        </div>
+                      )
+                    })}
                   </div>
                 </div>
               </CardContent>

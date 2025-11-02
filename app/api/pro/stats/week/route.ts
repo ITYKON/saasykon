@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
   // Revenue: sum payments CAPTURED this week
   const payments = await prisma.payments.aggregate({
     _sum: { amount_cents: true },
-    where: { business_id: businessId, status: { in: ["CAPTURED", "AUTHORIZED"] as any }, created_at: { gte: weekStart, lt: weekEnd } },
+    where: { business_id: businessId, status: { in: ["CAPTURED"] as any }, created_at: { gte: weekStart, lt: weekEnd } },
   });
 
   // Bookings this week

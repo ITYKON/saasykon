@@ -3,8 +3,39 @@ import { prisma } from "@/lib/prisma";
 import { getAuthContext } from "@/lib/authorization";
 import { cookies } from "next/headers";
 
-function startOfDay(d: Date) { const x = new Date(d); x.setHours(0,0,0,0); return x }
-function endOfDay(d: Date) { const x = startOfDay(d); x.setDate(x.getDate()+1); return x }
+function zonedDate(date: Date, timeZone: string) {
+  const fmt = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
+  const parts = fmt.formatToParts(date).reduce<Record<string, string>>((acc, p) => {
+    if (p.type !== "literal") acc[p.type] = p.value;
+    return acc;
+  }, {});
+  const y = Number(parts.year);
+  const m = Number(parts.month);
+  const d = Number(parts.day);
+  const h = Number(parts.hour || "0");
+  const min = Number(parts.minute || "0");
+  const s = Number(parts.second || "0");
+  return new Date(Date.UTC(y, m - 1, d, h, min, s));
+}
+function startOfDayTZ(date: Date, timeZone: string) {
+  const z = zonedDate(date, timeZone);
+  return new Date(Date.UTC(z.getUTCFullYear(), z.getUTCMonth(), z.getUTCDate(), 0, 0, 0));
+}
+function endOfDayTZ(date: Date, timeZone: string) {
+  const start = startOfDayTZ(date, timeZone);
+  const x = new Date(start);
+  x.setUTCDate(x.getUTCDate() + 1);
+  return x;
+}
 
 export async function GET(req: NextRequest) {
   const ctx = await getAuthContext();
@@ -17,9 +48,11 @@ export async function GET(req: NextRequest) {
   if (!allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const dateParam = url.searchParams.get("date"); // yyyy-mm-dd
-  const base = dateParam ? new Date(dateParam + "T00:00:00") : new Date();
-  const from = startOfDay(base);
-  const to = endOfDay(base);
+  const base = dateParam ? new Date(dateParam + "T00:00:00Z") : new Date();
+  const primaryLoc = await prisma.business_locations.findFirst({ where: { business_id: businessId, is_primary: true }, select: { timezone: true } });
+  const tz = primaryLoc?.timezone || "Europe/Paris";
+  const from = startOfDayTZ(base, tz);
+  const to = endOfDayTZ(base, tz);
 
   // Parse filters
   const employeeIds = url.searchParams.getAll("employee_id").filter(Boolean)

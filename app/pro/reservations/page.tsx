@@ -310,12 +310,23 @@ export default function ReservationsPage() {
   }
 
   const updateStatus = async (id: string, statusEnum: string) => {
-    await fetch(`/api/pro/reservations/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: statusEnum })
-    })
-    fetchReservations()
+    try {
+      if (statusEnum === 'COMPLETED') {
+        await fetch(`/api/pro/reservations/complete`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reservation_id: id })
+        })
+      } else {
+        await fetch(`/api/pro/reservations/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: statusEnum })
+        })
+      }
+    } finally {
+      fetchReservations()
+    }
   }
 
   const saveEdit = async () => {
@@ -342,6 +353,13 @@ export default function ReservationsPage() {
           }] : [],
         })
       })
+      if (editData.status === 'COMPLETED') {
+        await fetch(`/api/pro/reservations/complete`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reservation_id: editData.id })
+        })
+      }
       setIsEditOpen(false)
       setEditData(null)
       fetchReservations()
