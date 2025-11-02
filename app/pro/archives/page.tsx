@@ -19,7 +19,103 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { Search, MoreHorizontal, RotateCcw, Trash2, Archive, Users, Calendar, Settings, UserCheck } from "lucide-react"
+import { Search, MoreHorizontal, RotateCcw, Trash2, Archive, Users, Calendar, Settings, UserCheck, Eye } from "lucide-react"
+
+// Composant pour afficher les détails d'un élément archivé
+function ArchiveDetailsDialog({ item, type, onClose }: { item: any, type: string, onClose: () => void }) {
+  const renderContent = () => {
+    switch (type) {
+      case 'employee':
+        return (
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-lg font-medium">Détails de l'employé</h3>
+              <div className="mt-2 space-y-2">
+                <p><span className="font-medium">Nom :</span> {item.name}</p>
+                <p><span className="font-medium">Rôle :</span> {item.role}</p>
+                <p><span className="font-medium">Email :</span> {item.email || 'Non spécifié'}</p>
+                <p><span className="font-medium">Statut :</span> <Badge variant="secondary">{item.status}</Badge></p>
+              </div>
+            </div>
+          </div>
+        )
+      case 'reservation':
+        return (
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-lg font-medium">Détails de la réservation</h3>
+              <div className="mt-2 space-y-2">
+                <p><span className="font-medium">Client :</span> {item.client}</p>
+                <p><span className="font-medium">Service :</span> {item.service}</p>
+                <p><span className="font-medium">Employé :</span> {item.employee || 'Non attribué'}</p>
+                <p><span className="font-medium">Date :</span> {item.date} à {item.time}</p>
+                <p><span className="font-medium">Prix :</span> {item.price}</p>
+                {item.reason && <p><span className="font-medium">Raison :</span> {item.reason}</p>}
+              </div>
+            </div>
+          </div>
+        )
+      case 'service':
+        return (
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-lg font-medium">Détails du service</h3>
+              <div className="mt-2 space-y-2">
+                <p><span className="font-medium">Nom :</span> {item.name}</p>
+                <p><span className="font-medium">Catégorie :</span> {item.category || 'Non spécifiée'}</p>
+                <p><span className="font-medium">Prix :</span> {item.price || 'Non spécifié'}</p>
+                <p><span className="font-medium">Durée :</span> {item.duration || 'Non spécifiée'}</p>
+                {item.deletedDate && <p><span className="font-medium">Date de suppression :</span> {item.deletedDate}</p>}
+              </div>
+            </div>
+          </div>
+        )
+      case 'account':
+        return (
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-lg font-medium">Détails du compte</h3>
+              <div className="mt-2 space-y-2">
+                <p><span className="font-medium">Nom :</span> {item.name}</p>
+                <p><span className="font-medium">Email :</span> {item.email || 'Non spécifié'}</p>
+                <p><span className="font-medium">Rôle :</span> {item.role || 'Non spécifié'}</p>
+                {item.permissions?.length > 0 && (
+                  <div>
+                    <p className="font-medium">Permissions :</p>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {item.permissions.map((p: string, i: number) => (
+                        <Badge key={i} variant="secondary" className="text-xs">
+                          {p}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )
+      default:
+        return null
+    }
+  }
+
+  return (
+    <AlertDialog open={true} onOpenChange={onClose}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Détails de l'élément archivé</AlertDialogTitle>
+        </AlertDialogHeader>
+        <div className="py-4">
+          {renderContent()}
+        </div>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Fermer</AlertDialogCancel>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  )
+}
 
 export default function ArchivesPage() {
   const [searchTerm, setSearchTerm] = useState("")
@@ -56,6 +152,7 @@ export default function ArchivesPage() {
     reason?: string
   }>>([])
   const [loading, setLoading] = useState(false)
+  const [selectedItem, setSelectedItem] = useState<{item: any, type: string} | null>(null)
 
   async function loadArchivedEmployees() {
     setLoading(true)
@@ -84,7 +181,24 @@ export default function ArchivesPage() {
     }
   }
 
+  // Fonction pour nettoyer automatiquement les archives de plus de 30 jours
+  const cleanupOldArchives = async () => {
+    try {
+      await fetch('/api/pro/archives/cleanup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ days: 30 })
+      });
+    } catch (error) {
+      console.error('Erreur lors du nettoyage des archives:', error);
+    }
+  };
+
   useEffect(() => {
+    // Nettoyage automatique au chargement de la page
+    cleanupOldArchives();
+    
+    // Chargement des données
     loadArchivedEmployees()
     ;(async () => {
       try {
@@ -169,7 +283,15 @@ export default function ArchivesPage() {
 
   const handleRestore = async (type: string, id: string) => {
     try {
-      if (type === "reservation") {
+      if (type === "employee") {
+        const res = await fetch(`/api/pro/employees/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ is_active: true }),
+        })
+        if (!res.ok) throw new Error("Restauration échouée")
+        await loadArchivedEmployees()
+      } else if (type === "reservation") {
         const res = await fetch(`/api/pro/archives/reservations`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) })
         if (!res.ok) throw new Error("Restauration échouée")
         // refresh
@@ -338,34 +460,25 @@ export default function ArchivesPage() {
                         <TableCell>
                           <Badge variant="secondary">{employee.status}</Badge>
                         </TableCell>
-                        <TableCell>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" className="h-8 w-8 p-0">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem
-                                onClick={async () => {
-                                  try {
-                                    const res = await fetch(`/api/pro/employees/${employee.id}`, {
-                                      method: "PATCH",
-                                      headers: { "Content-Type": "application/json" },
-                                      body: JSON.stringify({ is_active: true }),
-                                    })
-                                    if (!res.ok) throw new Error("Restauration échouée")
-                                    await loadArchivedEmployees()
-                                  } catch (e: any) {
-                                    alert(e?.message || "Impossible de restaurer")
-                                  }
-                                }}
-                              >
-                                <RotateCcw className="mr-2 h-4 w-4" />
-                                Restaurer
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                        <TableCell className="space-x-1">
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8"
+                            onClick={() => setSelectedItem({ item: employee, type: 'employee' })}
+                            title="Voir les détails"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8"
+                            onClick={() => handleRestore("employee", employee.id)}
+                            title="Restaurer l'employé"
+                          >
+                            <RotateCcw className="h-4 w-4" />
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -402,45 +515,25 @@ export default function ArchivesPage() {
                       <TableCell>
                         <Badge variant="outline">{reservation.reason}</Badge>
                       </TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 w-8 p-0">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleRestore("reservation", reservation.id)}>
-                              <RotateCcw className="mr-2 h-4 w-4" />
-                              Restaurer
-                            </DropdownMenuItem>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                                  <Trash2 className="mr-2 h-4 w-4" />
-                                  Supprimer définitivement
-                                </DropdownMenuItem>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Supprimer définitivement</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Cette action est irréversible. La réservation sera définitivement supprimée.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Annuler</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={() => handlePermanentDelete("reservation", reservation.id)}
-                                    className="bg-red-600 hover:bg-red-700"
-                                  >
-                                    Supprimer
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                      <TableCell className="space-x-1">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8"
+                          onClick={() => setSelectedItem({ item: reservation, type: 'reservation' })}
+                          title="Voir les détails"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8"
+                          onClick={() => handleRestore("reservation", reservation.id)}
+                          title="Restaurer la réservation"
+                        >
+                          <RotateCcw className="h-4 w-4" />
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -475,45 +568,25 @@ export default function ArchivesPage() {
                       <TableCell>{service.deletedDate}</TableCell>
                       <TableCell>{service.deletedBy}</TableCell>
                       <TableCell>{service.reason}</TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 w-8 p-0">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleRestore("service", service.id)}>
-                              <RotateCcw className="mr-2 h-4 w-4" />
-                              Restaurer
-                            </DropdownMenuItem>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                                  <Trash2 className="mr-2 h-4 w-4" />
-                                  Supprimer définitivement
-                                </DropdownMenuItem>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Supprimer définitivement</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Cette action est irréversible. Le service sera définitivement supprimé.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Annuler</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={() => handlePermanentDelete("service", service.id)}
-                                    className="bg-red-600 hover:bg-red-700"
-                                  >
-                                    Supprimer
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                      <TableCell className="space-x-1">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8"
+                          onClick={() => setSelectedItem({ item: service, type: 'service' })}
+                          title="Voir les détails"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8"
+                          onClick={() => handleRestore("service", service.id)}
+                          title="Restaurer le service"
+                        >
+                          <RotateCcw className="h-4 w-4" />
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -556,45 +629,25 @@ export default function ArchivesPage() {
                       <TableCell>{account.deletedDate}</TableCell>
                       <TableCell>{account.deletedBy}</TableCell>
                       <TableCell>{account.reason}</TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 w-8 p-0">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleRestore("account", account.id)}>
-                              <RotateCcw className="mr-2 h-4 w-4" />
-                              Restaurer
-                            </DropdownMenuItem>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                                  <Trash2 className="mr-2 h-4 w-4" />
-                                  Supprimer définitivement
-                                </DropdownMenuItem>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Supprimer définitivement</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Cette action est irréversible. Le compte sera définitivement supprimé.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Annuler</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={() => handlePermanentDelete("account", account.id)}
-                                    className="bg-red-600 hover:bg-red-700"
-                                  >
-                                    Supprimer
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                      <TableCell className="space-x-1">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8"
+                          onClick={() => setSelectedItem({ item: account, type: 'account' })}
+                          title="Voir les détails"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8"
+                          onClick={() => handleRestore("account", account.id)}
+                          title="Restaurer le compte"
+                        >
+                          <RotateCcw className="h-4 w-4" />
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -604,6 +657,15 @@ export default function ArchivesPage() {
           </Tabs>
         </CardContent>
       </Card>
+
+      {/* Dialogue de détails */}
+      {selectedItem && (
+        <ArchiveDetailsDialog
+          item={selectedItem.item}
+          type={selectedItem.type}
+          onClose={() => setSelectedItem(null)}
+        />
+      )}
     </div>
   )
 }
