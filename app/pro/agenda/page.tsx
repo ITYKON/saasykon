@@ -33,24 +33,29 @@ type Appointment = {
   title: string;
   color?: string;
   client?: string;
+  clientPhone?: string;
+  employee?: string;
   _start?: number; // internal use
   _end?: number; // internal use
+  durationMin?: number;
 };
 
 type Employee = {
   name: string;
   avatar: string;
-  slots: Appointment[];
+  slots: Array<Appointment | null>;
 };
 
 type MonthEvent = {
   time?: string;
   title: string;
-  color: string;
+  color?: string;
   employee?: string;
   service?: string;
   durationMin?: number;
   priceDA?: number;
+  client?: string;
+  clientPhone?: string;
 };
 
 // Hook personnalisé pour le debounce
@@ -83,6 +88,12 @@ export default function ProAgenda() {
   const [availabilityOpen, setAvailabilityOpen] = useState(false);
   const [hideEmpty, setHideEmpty] = useState(false);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedServices, setSelectedServices] = useState<string[]>([]);
+  const [servicesOptions, setServicesOptions] = useState<string[]>([]);
+  const [categoriesOptions, setCategoriesOptions] = useState<string[]>([]);
+  const [openEmp, setOpenEmp] = useState<boolean>(true);
+  const [openSvc, setOpenSvc] = useState<boolean>(true);
+  const [openCat, setOpenCat] = useState<boolean>(true);
 
   // Read business_id from cookies on the client so we can pass it to CreateReservationModal
   const [businessId, setBusinessId] = useState<string>("");
@@ -117,6 +128,28 @@ export default function ProAgenda() {
   const [liveSlotsByName, setLiveSlotsByName] = useState<
     Record<string, Appointment[]>
   >({});
+
+  // Load real services for dropdown
+  useEffect(() => {
+    if (!businessId) return;
+    const qs = new URLSearchParams();
+    qs.set("business_id", businessId);
+    fetch(`/api/pro/filters/services?${qs.toString()}`)
+      .then((r) => r.json())
+      .then((data) => setServicesOptions(data.services || []))
+      .catch(() => setServicesOptions([]));
+  }, [businessId]);
+
+  // Load real categories for dropdown
+  useEffect(() => {
+    if (!businessId) return;
+    const qs = new URLSearchParams();
+    qs.set("business_id", businessId);
+    fetch(`/api/pro/filters/categories?${qs.toString()}`)
+      .then((r) => r.json())
+      .then((data) => setCategoriesOptions(data.categories || []))
+      .catch(() => setCategoriesOptions([]));
+  }, [businessId]);
   // Live data for Week and Month
   const [liveWeekDays, setLiveWeekDays] = useState<Record<
     string,
@@ -143,6 +176,7 @@ export default function ProAgenda() {
     priceDA?: number;
     color?: string;
     client?: string;
+    clientPhone?: string;
   };
   const [detailOpen, setDetailOpen] = useState(false);
   const [detail, setDetail] = useState<EventDetail | null>(null);
@@ -229,6 +263,24 @@ export default function ProAgenda() {
           .toString()
           .padStart(2, "0")}`;
       };
+      const addMinutesHHMM = (
+        iso: string,
+        mins?: number,
+        fallbackIso?: string
+      ) => {
+        if (typeof mins === "number" && isFinite(mins) && mins > 0) {
+          const dt = new Date(iso);
+          if (!isNaN(dt.getTime())) {
+            dt.setMinutes(dt.getMinutes() + mins);
+            return `${dt.getHours().toString().padStart(2, "0")}:${dt
+              .getMinutes()
+              .toString()
+              .padStart(2, "0")}`;
+          }
+        }
+        if (fallbackIso) return hhmm(fallbackIso);
+        return hhmm(iso);
+      };
 
       const qs = new URLSearchParams({
         business_id: businessId,
@@ -246,6 +298,10 @@ export default function ProAgenda() {
 
       if (selectedCategories.length > 0) {
         selectedCategories.forEach((c) => qs.append("category", c));
+      }
+
+      if (selectedServices.length > 0) {
+        selectedServices.forEach((s) => qs.append("service", s));
       }
 
       if (debouncedSearch) {
@@ -266,10 +322,12 @@ export default function ProAgenda() {
             const emps: Employee[] = (data.employees || []).map((e: any) => {
               const slots: Appointment[] = (e.items || []).map((it: any) => ({
                 start: hhmm(it.start),
-                end: hhmm(it.end),
+                end: addMinutesHHMM(it.start, Number(it.duration_minutes), it.end),
                 title: it.title || 'Rendez-vous',
                 color: '#3b82f6',
                 client: it.client || undefined,
+                clientPhone: it.client_phone || undefined,
+                durationMin: typeof it.duration_minutes !== 'undefined' ? Number(it.duration_minutes) : undefined,
               }));
               if (e.employee_id) liveMap[e.employee_id] = slots;
               if (e.employee_name) liveByName[norm(e.employee_name)] = slots;
@@ -301,7 +359,7 @@ export default function ProAgenda() {
         clearTimeout(throttleTimeout);
       }
     };
-  }, [businessId, debouncedDate, selectedEmployees, selectedCategories, debouncedSearch]); 
+  }, [businessId, debouncedDate, selectedEmployees, selectedCategories, selectedServices, debouncedSearch]); 
   // Fetch Week agenda
   useEffect(() => {
     if (!businessId) return;
@@ -316,6 +374,24 @@ export default function ProAgenda() {
         .getMinutes()
         .toString()
         .padStart(2, "0")}`;
+    };
+    const addMinutesHHMM = (
+      iso: string,
+      mins?: number,
+      fallbackIso?: string
+    ) => {
+      if (typeof mins === "number" && isFinite(mins) && mins > 0) {
+        const dt = new Date(iso);
+        if (!isNaN(dt.getTime())) {
+          dt.setMinutes(dt.getMinutes() + mins);
+          return `${dt.getHours().toString().padStart(2, "0")}:${dt
+            .getMinutes()
+            .toString()
+            .padStart(2, "0")}`;
+        }
+      }
+      if (fallbackIso) return hhmm(fallbackIso);
+      return hhmm(iso);
     };
     const qs = new URLSearchParams({
       business_id: businessId,
@@ -337,10 +413,13 @@ export default function ProAgenda() {
             (e.items || []).forEach((it: any) => {
               items.push({
                 start: hhmm(it.start),
-                end: hhmm(it.end),
+                end: addMinutesHHMM(it.start, Number(it.duration_minutes), it.end),
                 title: it.title || "Rendez-vous",
                 color: "#3b82f6",
                 client: it.client || undefined,
+                clientPhone: it.client_phone || undefined,
+                employee: e.employee_name || undefined,
+                durationMin: typeof it.duration_minutes !== 'undefined' ? Number(it.duration_minutes) : undefined,
               });
             });
           });
@@ -354,6 +433,7 @@ export default function ProAgenda() {
     currentDate,
     selectedEmployees,
     selectedCategories,
+    selectedServices,
     search,
     empMap,
     refreshKey,
@@ -471,7 +551,7 @@ export default function ProAgenda() {
   type AllDayEvent = { start: Date; end: Date; title: string; color: string };
   const sampleAllDay: AllDayEvent[] = [];
 
-  type Appointment = {
+  type LegacyAppointment = {
     start: string; // HH:mm
     end: string; // HH:mm
     title: string;
@@ -481,14 +561,14 @@ export default function ProAgenda() {
     client?: string;
   };
 
-  type Employee = {
+  type LegacyEmployee = {
     name: string;
     avatar: string;
-    slots: Array<Appointment | null>;
+    slots: Array<LegacyAppointment | null>;
   };
 
   // Mock data to mirror the screenshot
-  const employees: Employee[] = [
+  const employees: LegacyEmployee[] = [
     {
       name: "Jean Charles",
       avatar: "https://i.pravatar.cc/48?img=3",
@@ -639,7 +719,7 @@ export default function ProAgenda() {
     col: number;
     cols: number;
   };
-  function layoutEvents(apts: Appointment[]): Positioned[] {
+  function layoutEvents(apts: Appointment[], baseStartMin?: number): Positioned[] {
     const items = apts
       .filter(Boolean as any)
       .map((a) => ({
@@ -660,7 +740,8 @@ export default function ProAgenda() {
       while (used.has(col)) col++;
       active.push({ _end: it._end, col, id: idx });
       const cols = Math.max(...active.map((x) => x.col)) + 1;
-      const top = (it._start - workingStartMin) * pxPerMinute;
+      const base = typeof baseStartMin === 'number' ? baseStartMin : workingStartMin;
+      const top = (it._start - base) * pxPerMinute;
       const height = Math.max(20, (it._end - it._start) * pxPerMinute);
       result.push({ ...it, top, height, col, cols });
       nextCol = Math.max(nextCol, cols);
@@ -870,12 +951,15 @@ export default function ProAgenda() {
                               title: ev.title,
                               color: ev.color,
                               client: ev.client,
+                              clientPhone: ev.clientPhone,
+                              durationMin: ev.durationMin,
                             });
                             setDetailOpen(true);
                           }}
                         >
                           <div className="text-[11px] font-medium text-white truncate">
                             {ev.start} - {ev.end}
+                            {typeof ev.durationMin === 'number' ? ` • ${ev.durationMin} min` : ''}
                           </div>
                           <div className="text-[11px] text-white/90 truncate">
                             {ev.title}
@@ -901,8 +985,21 @@ export default function ProAgenda() {
 
   const renderWeekView = () => {
     const weekDays = getWeekDays(currentDate);
-    const startMin = workingStartMin;
-    const endMin = workingEndMin;
+    // Determine dynamic week baseline from actual events so the grid isn't stuck at 09:00
+    let minStart = workingStartMin;
+    let maxEnd = workingEndMin;
+    const allDayKeys = weekDays.map((d) => fmtKey(d));
+    allDayKeys.forEach((key) => {
+      const list = (liveWeekDays && liveWeekDays[key]) || [];
+      list.forEach((ev) => {
+        const s = toMinutes(ev.start);
+        const e = toMinutes(ev.end);
+        if (s < minStart) minStart = s;
+        if (e > maxEnd) maxEnd = e;
+      });
+    });
+    const startMin = minStart;
+    const endMin = Math.max(startMin + 60, maxEnd);
     const toDateStr = (d: Date) =>
       `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
     const openAtWeek = (clientY: number, container: HTMLElement, day: Date) => {
@@ -952,90 +1049,92 @@ export default function ProAgenda() {
           ))}
         </div>
 
-        {/* All-day row with spanning events */}
-        <div
-          className="mb-3 grid items-stretch"
-          style={{
-            gridTemplateColumns: `72px repeat(${weekDays.length}, minmax(0, 1fr))`,
-          }}
-        >
-          <div className="text-[11px] text-gray-500 pr-2 h-7 leading-7 text-right">
-            Toute la journée
-          </div>
-          {/* All-day grid */}
-          <div className="col-span-7 grid grid-cols-7 gap-px bg-gray-200 rounded-md overflow-hidden">
-            {weekDays.map((d, i) => (
-              <div
-                key={i}
-                className={`h-7 bg-white ${
-                  [6, 0].includes(d.getDay()) ? "bg-gray-50" : ""
-                }`}
-              />
-            ))}
-          </div>
-          {/* Bars positioned using CSS grid with col-span */}
-          <div className="col-span-7 -mt-7 grid grid-cols-7 gap-0 pointer-events-none">
-            {sampleAllDay.map((e, idx) => {
-              // compute span within this week
-              const startIdx = Math.max(
-                0,
-                weekDays.findIndex(
-                  (d) =>
-                    fmtKey(d) >=
-                    fmtKey(
-                      new Date(
-                        e.start.getFullYear(),
-                        e.start.getMonth(),
-                        e.start.getDate()
-                      )
-                    )
-                )
-              );
-              const endIdx = Math.min(
-                6,
-                weekDays.findIndex(
-                  (d) =>
-                    fmtKey(d) >=
-                    fmtKey(
-                      new Date(
-                        e.end.getFullYear(),
-                        e.end.getMonth(),
-                        e.end.getDate()
-                      )
-                    )
-                )
-              );
-              const from = Math.max(
-                0,
-                weekDays.findIndex(
-                  (d) => d.toDateString() === new Date(e.start).toDateString()
-                )
-              );
-              const to = Math.max(
-                from,
-                weekDays.findIndex(
-                  (d) => d.toDateString() === new Date(e.end).toDateString()
-                )
-              );
-              const colStart = (from === -1 ? 0 : from) + 1;
-              const span = (to === -1 ? 6 : to) - (from === -1 ? 0 : from) + 1;
-              return (
+        {/* All-day row with spanning events (render only if needed) */}
+        {sampleAllDay.length > 0 && (
+          <div
+            className="mb-3 grid items-stretch"
+            style={{
+              gridTemplateColumns: `72px repeat(${weekDays.length}, minmax(0, 1fr))`,
+            }}
+          >
+            <div className="text-[11px] text-gray-500 pr-2 h-7 leading-7 text-right">
+              Toute la journée
+            </div>
+            {/* All-day grid */}
+            <div className="col-span-7 grid grid-cols-7 gap-px bg-gray-200 rounded-md overflow-hidden">
+              {weekDays.map((d, i) => (
                 <div
-                  key={idx}
-                  className="h-7 px-1"
-                  style={{ gridColumn: `${colStart} / span ${span}` }}
-                >
+                  key={i}
+                  className={`h-7 bg-white ${
+                    [6, 0].includes(d.getDay()) ? "bg-gray-50" : ""
+                  }`}
+                />
+              ))}
+            </div>
+            {/* Bars positioned using CSS grid with col-span */}
+            <div className="col-span-7 -mt-7 grid grid-cols-7 gap-0 pointer-events-none">
+              {sampleAllDay.map((e, idx) => {
+                // compute span within this week
+                const startIdx = Math.max(
+                  0,
+                  weekDays.findIndex(
+                    (d) =>
+                      fmtKey(d) >=
+                      fmtKey(
+                        new Date(
+                          e.start.getFullYear(),
+                          e.start.getMonth(),
+                          e.start.getDate()
+                        )
+                      )
+                  )
+                );
+                const endIdx = Math.min(
+                  6,
+                  weekDays.findIndex(
+                    (d) =>
+                      fmtKey(d) >=
+                      fmtKey(
+                        new Date(
+                          e.end.getFullYear(),
+                          e.end.getMonth(),
+                          e.end.getDate()
+                        )
+                      )
+                  )
+                );
+                const from = Math.max(
+                  0,
+                  weekDays.findIndex(
+                    (d) => d.toDateString() === new Date(e.start).toDateString()
+                  )
+                );
+                const to = Math.max(
+                  from,
+                  weekDays.findIndex(
+                    (d) => d.toDateString() === new Date(e.end).toDateString()
+                  )
+                );
+                const colStart = (from === -1 ? 0 : from) + 1;
+                const span = (to === -1 ? 6 : to) - (from === -1 ? 0 : from) + 1;
+                return (
                   <div
-                    className="pointer-events-auto h-full rounded-md text-xs flex items-center px-2 shadow-sm"
-                    style={{ background: e.color, color: "white" }}
+                    key={idx}
+                    className="h-7 px-1"
+                    style={{ gridColumn: `${colStart} / span ${span}` }}
                   >
-                    {e.title}
+                    <div
+                      className="pointer-events-auto h-full rounded-md text-xs flex items-center px-2 shadow-sm"
+                      style={{ background: e.color, color: "white" }}
+                    >
+                      {e.title}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
-        </div>
+        )}
 
         <div
           className="grid"
@@ -1069,7 +1168,7 @@ export default function ProAgenda() {
             const key = fmtKey(d);
             const timed: Appointment[] =
               liveWeekDays && liveWeekDays[key] ? liveWeekDays[key] : [];
-            const positioned = layoutEvents(timed);
+            const positioned = layoutEvents(timed, startMin);
             return (
               <div key={dayIdx} className="px-2">
                 <div
@@ -1125,6 +1224,7 @@ export default function ProAgenda() {
                   {positioned.map((ev, i) => {
                     const widthPct = 100 / ev.cols;
                     const leftPct = ev.col * widthPct;
+                    const empColor = colorMap[norm(ev.employee || "")] || ev.color || "#3b82f6";
                     return (
                       <div
                         key={i}
@@ -1134,28 +1234,31 @@ export default function ProAgenda() {
                           left: `${leftPct}%`,
                           width: `calc(${widthPct}% - 3px)`,
                           height: ev.height,
-                          borderLeft: `3px solid ${colorMap[norm("Jean Charles")] || "#3b82f6"}`,
+                          borderLeft: `3px solid ${empColor}`,
                         }}
                         onClick={() => {
                           setDetail({
                             dateStr: `${d.getFullYear()}-${pad(
                               d.getMonth() + 1
                             )}-${pad(d.getDate())}`,
-                            time: ev.start,
+                            time: `${ev.start}-${ev.end}`,
                             title: ev.title,
-                            durationMin:
-                              toMinutes(ev.end) - toMinutes(ev.start),
+                            durationMin: typeof ev.durationMin === 'number' ? ev.durationMin : (toMinutes(ev.end) - toMinutes(ev.start)),
                             color: ev.color,
                             client: ev.client,
+                            clientPhone: ev.clientPhone,
+                            employee: ev.employee,
                           });
                           setDetailOpen(true);
                         }}
                       >
                         <div className="px-2 py-1">
-                          <div className="text-[10px] text-gray-600 font-medium">
-                            {ev.start} - {ev.end}
+                          <div className="flex items-center gap-1 text-[10px] text-gray-600 font-medium">
+                            <span className="inline-block h-1.5 w-1.5 rounded-sm" style={{ backgroundColor: empColor }} />
+                            <span>{ev.start} - {ev.end}</span>
+                            {typeof ev.durationMin === 'number' ? <span>• {ev.durationMin} min</span> : null}
                           </div>
-                          <div className="text-[12px] text-gray-900 leading-snug">
+                          <div className="text-[12px] text-gray-900 leading-snug truncate">
                             {ev.title}
                           </div>
                         </div>
@@ -1250,36 +1353,43 @@ export default function ProAgenda() {
 
                   {/* Events */}
                   <div className="mt-2 space-y-1">
-                    {visible.map((e, i) => (
-                      <button
-                        key={i}
-                        className="w-full flex items-center gap-2 rounded-md border px-2 py-1 text-xs shadow-sm hover:bg-gray-50 cursor-pointer text-left"
-                        onClick={() => {
-                          setDetail({
-                            dateStr: `${d.getFullYear()}-${pad(
-                              d.getMonth() + 1
-                            )}-${pad(d.getDate())}`,
-                            time: e.time,
-                            title: e.title,
-                            employee: e.employee,
-                            service: e.service,
-                            durationMin: e.durationMin,
-                            priceDA: e.priceDA,
-                            color: e.color,
-                          });
-                          setDetailOpen(true);
-                        }}
-                      >
-                        <span
-                          className="h-3 w-1.5 rounded-sm"
-                          style={{ backgroundColor: e.color }}
-                        />
-                        <div className="truncate text-gray-800">
-                          {e.time ? `${e.time} ` : ""}
-                          {e.title}
-                        </div>
-                      </button>
-                    ))}
+                    {visible.map((e, i) => {
+                      const badgeColor = e.color || colorMap[norm(e.employee || "")] || "#3b82f6";
+                      const duration = typeof e.durationMin === 'number' ? e.durationMin : (e as any)?.duration_minutes;
+                      const price = typeof e.priceDA === 'number' ? e.priceDA : Math.round(((e as any)?.price_cents || 0) / 100);
+                      return (
+                        <button
+                          key={i}
+                          className="w-full flex items-center gap-2 rounded-md border px-2 py-1 text-xs shadow-sm hover:bg-gray-50 cursor-pointer text-left"
+                          onClick={() => {
+                            setDetail({
+                              dateStr: `${d.getFullYear()}-${pad(
+                                d.getMonth() + 1
+                              )}-${pad(d.getDate())}`,
+                              time: e.time,
+                              title: e.title,
+                              employee: e.employee,
+                              service: e.service,
+                              durationMin: typeof duration === 'number' ? duration : undefined,
+                              priceDA: typeof price === 'number' && isFinite(price) ? price : undefined,
+                              color: badgeColor,
+                              client: (e as any)?.client,
+                              clientPhone: (e as any)?.client_phone,
+                            });
+                            setDetailOpen(true);
+                          }}
+                        >
+                          <span
+                            className="h-3 w-1.5 rounded-sm"
+                            style={{ backgroundColor: badgeColor }}
+                          />
+                          <div className="truncate text-gray-800">
+                            {e.time ? `${e.time} ` : ""}
+                            {e.title}
+                          </div>
+                        </button>
+                      );
+                    })}
                     {overflow > 0 && (
                       <button
                         className="text-[11px] text-blue-600 hover:underline"
@@ -1364,45 +1474,45 @@ export default function ProAgenda() {
               </div>
 
               {/* Filters collapsed */}
-              <Popover
-                open={!isMobile && filtersOpen}
-                onOpenChange={setFiltersOpen}
-              >
+              {!isMobile && (
+              <Popover>
                 <PopoverTrigger asChild>
-                  <Button
+                  <button
                     type="button"
-                    variant="outline"
-                    className="rounded-lg px-2 md:px-3 text-sm"
+                    className="inline-flex items-center justify-center whitespace-nowrap rounded-lg border border-input bg-background px-2 md:px-3 py-2 text-sm font-medium shadow-sm hover:bg-accent hover:text-accent-foreground"
                     aria-expanded={filtersOpen}
+                    onClick={() => setFiltersOpen(true)}
                   >
                     Filtres
                     {(selectedEmployees.length > 0 ||
                       search ||
                       step !== 15 ||
                       hideEmpty ||
-                      selectedCategories.length > 0) && (
+                      selectedCategories.length > 0 || selectedServices.length > 0) && (
                       <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-black text-white text-[10px] px-1">
                         {Number(selectedEmployees.length > 0) +
                           Number(Boolean(search)) +
                           Number(step !== 15) +
                           Number(hideEmpty) +
-                          Number(selectedCategories.length > 0)}
+                          Number(selectedCategories.length > 0) +
+                          Number(selectedServices.length > 0)}
                       </span>
                     )}
-                  </Button>
+                  </button>
                 </PopoverTrigger>
                 <PopoverContent
                   side="bottom"
                   align="end"
                   sideOffset={8}
-                  className="hidden md:block w-80 z-50"
+                  className="w-80 z-50"
                 >
                   <div className="space-y-3">
                     <div className="text-sm font-medium">Filtres</div>
                     <div className="space-y-2">
-                      <div className="text-xs text-gray-600">Employés</div>
+                      <button type="button" className="text-xs text-gray-600 w-full text-left" onClick={() => setOpenEmp(v=>!v)}>Employés</button>
+                      {openEmp && (
                       <div className="max-h-40 overflow-auto rounded border p-2">
-                        {employees.map((e) => {
+                        {allEmployees.map((e) => {
                           const checked = selectedEmployees.includes(e.name);
                           return (
                             <label
@@ -1427,13 +1537,12 @@ export default function ProAgenda() {
                           );
                         })}
                       </div>
+                      )}
                       <div className="flex gap-2">
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() =>
-                            setSelectedEmployees(employees.map((e) => e.name))
-                          }
+                          onClick={() => setSelectedEmployees(allEmployees.map((e) => e.name))}
                         >
                           Tout
                         </Button>
@@ -1447,9 +1556,44 @@ export default function ProAgenda() {
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <div className="text-xs text-gray-600">Catégories</div>
+                      <button type="button" className="text-xs text-gray-600 w-full text-left" onClick={() => setOpenSvc(v=>!v)}>Services</button>
+                      {openSvc && (
                       <div className="max-h-32 overflow-auto rounded border p-2">
-                        {categories.map((c) => {
+                        {servicesOptions.map((s) => {
+                          const checked = selectedServices.includes(s);
+                          return (
+                            <label key={s} className="flex items-center gap-2 py-1">
+                              <Checkbox
+                                checked={checked}
+                                onCheckedChange={(v) => {
+                                  setSelectedServices((prev) => {
+                                    const on = Boolean(v);
+                                    if (on && !prev.includes(s)) return [...prev, s];
+                                    if (!on) return prev.filter((x) => x !== s);
+                                    return prev;
+                                  });
+                                }}
+                              />
+                              <span className="text-sm">{s}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                      )}
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" onClick={() => setSelectedServices(servicesOptions)}>
+                          Tout
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => setSelectedServices([])}>
+                          Aucun
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <button type="button" className="text-xs text-gray-600 w-full text-left" onClick={() => setOpenCat(v=>!v)}>Catégories</button>
+                      {openCat && (
+                      <div className="max-h-32 overflow-auto rounded border p-2">
+                        {categoriesOptions.map((c) => {
                           const checked = selectedCategories.includes(c);
                           return (
                             <label
@@ -1473,11 +1617,12 @@ export default function ProAgenda() {
                           );
                         })}
                       </div>
+                      )}
                       <div className="flex gap-2">
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => setSelectedCategories(categories)}
+                          onClick={() => setSelectedCategories(categoriesOptions)}
                         >
                           Tout
                         </Button>
@@ -1523,6 +1668,7 @@ export default function ProAgenda() {
                         onClick={() => {
                           setSelectedEmployees([]);
                           setSelectedCategories([]);
+                          setSelectedServices([]);
                           setSearch("");
                           setStep(15);
                           setHideEmpty(false);
@@ -1534,21 +1680,21 @@ export default function ProAgenda() {
                   </div>
                 </PopoverContent>
               </Popover>
+              )}
 
               {/* Mobile fallback: Dialog for filters */}
-              <Dialog
-                open={isMobile && filtersOpen}
-                onOpenChange={setFiltersOpen}
-              >
+              {isMobile && (
+              <Dialog open={filtersOpen} onOpenChange={setFiltersOpen}>
                 <DialogContent className="md:hidden max-w-sm">
                   <DialogHeader>
                     <DialogTitle>Filtres</DialogTitle>
                   </DialogHeader>
                   <div className="space-y-3">
                     <div className="space-y-2">
-                      <div className="text-xs text-gray-600">Employés</div>
+                      <button type="button" className="text-xs text-gray-600 w-full text-left" onClick={() => setOpenEmp(v=>!v)}>Employés</button>
+                      {openEmp && (
                       <div className="max-h-40 overflow-auto rounded border p-2">
-                        {employees.map((e) => {
+                        {allEmployees.map((e) => {
                           const checked = selectedEmployees.includes(e.name);
                           return (
                             <label
@@ -1573,12 +1719,13 @@ export default function ProAgenda() {
                           );
                         })}
                       </div>
+                      )}
                       <div className="flex gap-2">
                         <Button
                           size="sm"
                           variant="outline"
                           onClick={() =>
-                            setSelectedEmployees(employees.map((e) => e.name))
+                            setSelectedEmployees(allEmployees.map((e) => e.name))
                           }
                         >
                           Tout
@@ -1593,9 +1740,56 @@ export default function ProAgenda() {
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <div className="text-xs text-gray-600">Catégories</div>
+                      <button type="button" className="text-xs text-gray-600 w-full text-left" onClick={() => setOpenSvc(v=>!v)}>Services</button>
+                      {openSvc && (
                       <div className="max-h-32 overflow-auto rounded border p-2">
-                        {categories.map((c) => {
+                        {servicesOptions.map((s) => {
+                          const checked = selectedServices.includes(s);
+                          return (
+                            <label
+                              key={s}
+                              className="flex items-center gap-2 py-1"
+                            >
+                              <Checkbox
+                                checked={checked}
+                                onCheckedChange={(v) => {
+                                  setSelectedServices((prev) => {
+                                    const on = Boolean(v);
+                                    if (on && !prev.includes(s))
+                                      return [...prev, s];
+                                    if (!on) return prev.filter((x) => x !== s);
+                                    return prev;
+                                  });
+                                }}
+                              />
+                              <span className="text-sm">{s}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                      )}
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setSelectedServices(servicesOptions)}
+                        >
+                          Tout
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setSelectedServices([])}
+                        >
+                          Aucun
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <button type="button" className="text-xs text-gray-600 w-full text-left" onClick={() => setOpenCat(v=>!v)}>Catégories</button>
+                      {openCat && (
+                      <div className="max-h-32 overflow-auto rounded border p-2">
+                        {categoriesOptions.map((c) => {
                           const checked = selectedCategories.includes(c);
                           return (
                             <label
@@ -1619,11 +1813,12 @@ export default function ProAgenda() {
                           );
                         })}
                       </div>
+                      )}
                       <div className="flex gap-2">
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => setSelectedCategories(categories)}
+                          onClick={() => setSelectedCategories(categoriesOptions)}
                         >
                           Tout
                         </Button>
@@ -1669,6 +1864,8 @@ export default function ProAgenda() {
                         onClick={() => {
                           setSelectedEmployees([]);
                           setSelectedCategories([]);
+                          setSelectedServices([]);
+                          setServicesText("");
                           setSearch("");
                           setStep(15);
                           setHideEmpty(false);
@@ -1683,6 +1880,7 @@ export default function ProAgenda() {
                   </div>
                 </DialogContent>
               </Dialog>
+              )}
 
               <CreateReservationModal
                 businessId={businessId}
@@ -1737,29 +1935,53 @@ export default function ProAgenda() {
                 className="w-full flex items-start gap-3 rounded-md border px-3 py-2 text-left hover:bg-gray-50"
                 onClick={() => {
                   if (!dayListDate) return;
+                  const badgeColor = e.color || colorMap[norm(e.employee || "")] || "#3b82f6";
                   setDetail({
                     dateStr: `${dayListDate.getFullYear()}-${pad(
                       dayListDate.getMonth() + 1
                     )}-${pad(dayListDate.getDate())}`,
-                    time: e.time,
+                    time: (() => {
+                      const mins = (typeof e.durationMin === 'number' ? e.durationMin : (e as any)?.duration_minutes) as number | undefined;
+                      if (!e.time) return undefined;
+                      if (!mins || !isFinite(mins) || mins <= 0) return e.time;
+                      const [hh, mm] = e.time.split(":").map(Number);
+                      const startTotal = hh * 60 + mm;
+                      const endTotal = startTotal + mins;
+                      const eh = Math.floor((endTotal % (24*60)) / 60);
+                      const em = endTotal % 60;
+                      const pad2 = (n: number) => n.toString().padStart(2, '0');
+                      return `${e.time}-${pad2(eh)}:${pad2(em)}`;
+                    })(),
                     title: e.title,
                     employee: e.employee,
                     service: e.service,
                     durationMin: e.durationMin,
                     priceDA: e.priceDA,
-                    color: e.color,
+                    color: badgeColor,
+                    client: (e as any)?.client,
+                    clientPhone: (e as any)?.client_phone,
                   });
                   setDetailOpen(true);
                 }}
               >
                 <span
                   className="mt-1 h-3 w-1.5 rounded-sm"
-                  style={{ backgroundColor: e.color }}
+                  style={{ backgroundColor: e.color || colorMap[norm(e.employee || "")] || "#3b82f6" }}
                 />
                 <div className="min-w-0">
                   <div className="text-sm text-gray-900 truncate">
-                    {e.time ? `${e.time} ` : ""}
-                    {e.title}
+                    {(() => {
+                      const mins = (typeof e.durationMin === 'number' ? e.durationMin : (e as any)?.duration_minutes) as number | undefined;
+                      if (!e.time) return e.title;
+                      if (!mins || !isFinite(mins) || mins <= 0) return `${e.time} ${e.title}`;
+                      const [hh, mm] = e.time.split(":").map(Number);
+                      const startTotal = hh * 60 + mm;
+                      const endTotal = startTotal + mins;
+                      const eh = Math.floor((endTotal % (24*60)) / 60);
+                      const em = endTotal % 60;
+                      const pad2 = (n: number) => n.toString().padStart(2, '0');
+                      return `${e.time}-${pad2(eh)}:${pad2(em)} ${e.title}`;
+                    })()}
                   </div>
                   <div className="text-xs text-gray-600 truncate">
                     {e.employee || "Employé"}
@@ -1767,7 +1989,11 @@ export default function ProAgenda() {
                     {typeof e.durationMin === "number"
                       ? ` • ${e.durationMin} min`
                       : ""}
-                    {typeof e.priceDA === "number" ? ` • ${e.priceDA} DA` : ""}
+                    {typeof e.priceDA === "number" ? ` • ${e.priceDA} DA` : ((e as any)?.price_cents ? ` • ${Math.round(((e as any).price_cents)/100)} DA` : "")}
+                  </div>
+                  <div className="text-xs text-gray-600 truncate">
+                    {(e as any)?.client ? `Client: ${(e as any).client}` : ""}
+                    {(e as any)?.client_phone ? ` • 📞 ${(e as any).client_phone}` : ""}
                   </div>
                 </div>
               </button>
@@ -1839,6 +2065,10 @@ export default function ProAgenda() {
               <div className="text-sm text-gray-700">
                 {detail.employee ? `Employé: ${detail.employee}` : ""}
                 {detail.service ? ` • Service: ${detail.service}` : ""}
+              </div>
+              <div className="text-sm text-gray-700">
+                {detail.client ? `Client: ${detail.client}` : ""}
+                {detail.clientPhone ? ` • 📞 ${detail.clientPhone}` : ""}
               </div>
               <div className="text-sm text-gray-700">
                 {typeof detail.durationMin === "number"
