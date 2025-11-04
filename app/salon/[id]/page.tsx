@@ -11,6 +11,12 @@ import BookingWizard from "@/components/booking-wizard"
 
 export default function SalonPage({ params }: { params: { id: string } }) {
   const [showBooking, setShowBooking] = useState(false)
+  const [selectedServiceForBooking, setSelectedServiceForBooking] = useState<{
+    id: string
+    name: string
+    duration_minutes: number
+    price_cents?: number | null
+  } | null>(null)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const [isFavorite, setIsFavorite] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -55,18 +61,22 @@ export default function SalonPage({ params }: { params: { id: string } }) {
         id: it.id,
         name: it.name,
         description: it.description || "",
+        // Raw fields preserved for booking
+        duration_minutes: it.duration_minutes || 30,
+        price_cents: it.price_cents ?? null,
+        // Display fields
         duration: `${it.duration_minutes || 30}min`,
         price: it.price_cents != null ? `${Math.round(it.price_cents / 100)} DA` : "—",
       })),
     }))
-    const hours = {
-      Lundi: "09:00 - 18:00",
-      Mardi: "09:00 - 18:00",
-      Mercredi: "09:00 - 18:00",
-      Jeudi: "09:00 - 18:00",
-      Vendredi: "09:00 - 18:00",
-      Samedi: "09:00 - 18:00",
-      Dimanche: "09:00 - 18:00",
+    const hours: Record<string, string> = (data.hours as Record<string, string>) || {
+      Lundi: "Fermé",
+      Mardi: "Fermé",
+      Mercredi: "Fermé",
+      Jeudi: "Fermé",
+      Vendredi: "Fermé",
+      Samedi: "Fermé",
+      Dimanche: "Fermé",
     }
     const reviews = (data.reviews || []).map((r: any) => ({
       id: r.id,
@@ -103,7 +113,7 @@ export default function SalonPage({ params }: { params: { id: string } }) {
   }
 
   if (showBooking && salon) {
-    return <BookingWizard salon={salon} onClose={() => setShowBooking(false)} />
+    return <BookingWizard salon={salon} initialService={selectedServiceForBooking} onClose={() => setShowBooking(false)} />
   }
 
   if (loading) {
@@ -259,7 +269,15 @@ export default function SalonPage({ params }: { params: { id: string } }) {
                               <Button
                                 size="sm"
                                 className="bg-black hover:bg-gray-800 text-white"
-                                onClick={() => setShowBooking(true)}
+                                onClick={() => {
+                                  setSelectedServiceForBooking({
+                                    id: service.id,
+                                    name: service.name,
+                                    duration_minutes: Number(service.duration_minutes || 30),
+                                    price_cents: service.price_cents ?? null,
+                                  })
+                                  setShowBooking(true)
+                                }}
                               >
                                 Choisir
                               </Button>
@@ -345,7 +363,7 @@ export default function SalonPage({ params }: { params: { id: string } }) {
                   Horaires d'ouverture
                 </h3>
                 <div className="space-y-2">
-                  {Object.entries(salon?.hours || {}).map(([day, hours]) => (
+                  {Object.entries((salon?.hours || {}) as Record<string, string>).map(([day, hours]) => (
                     <div key={day} className="flex justify-between text-sm">
                       <span className="font-medium text-gray-700">{day}</span>
                       <span className={hours === "Fermé" ? "text-red-600" : "text-gray-600"}>{hours}</span>

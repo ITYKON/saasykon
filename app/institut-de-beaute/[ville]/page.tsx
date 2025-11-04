@@ -33,11 +33,27 @@ export default async function CityInstitutePage({ params }: PageProps) {
   }
 
   // Fetch business locations in this city with their businesses
-  const locations = await prisma.business_locations.findMany({
+  let locations = await prisma.business_locations.findMany({
     where: { city_id: city.id },
     include: { businesses: true },
     orderBy: { created_at: "desc" },
   })
+
+  // Fallback: if no locations for the exact city, include all cities in same wilaya_number
+  if (locations.length === 0 && city.wilaya_number != null) {
+    const sameWilayaCities = await prisma.cities.findMany({
+      where: { wilaya_number: city.wilaya_number },
+      select: { id: true },
+    })
+    const cityIds = sameWilayaCities.map(c => c.id)
+    if (cityIds.length > 0) {
+      locations = await prisma.business_locations.findMany({
+        where: { city_id: { in: cityIds } },
+        include: { businesses: true },
+        orderBy: { created_at: "desc" },
+      })
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">

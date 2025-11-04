@@ -16,6 +16,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
         business_locations: { where: { is_primary: true }, take: 1, select: { address_line1: true, address_line2: true, postal_code: true } },
         business_media: { orderBy: { position: "asc" }, select: { url: true } },
         ratings_aggregates: { select: { rating_avg: true, rating_count: true } },
+        working_hours: { select: { weekday: true, start_time: true, end_time: true } },
         services: {
           where: { is_active: true },
           select: {
@@ -54,6 +55,32 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     // Reviews simplified
     const reviews = (business.reviews || []).map((r) => ({ id: r.id, rating: r.rating, date: r.created_at, comment: r.comment, author: "Client" }));
 
+    // Hours formatted
+    const pad = (n: number) => String(n).padStart(2, '0')
+    const fmt = (d: Date | string | null) => {
+      if (!d) return ''
+      const dt = new Date(d)
+      if (isNaN(dt.getTime())) return ''
+      // Use UTC parts to avoid local timezone offset (+1h)
+      return `${pad(dt.getUTCHours())}:${pad(dt.getUTCMinutes())}`
+    }
+    const dayNames: Record<number, string> = { 0: 'Dimanche', 1: 'Lundi', 2: 'Mardi', 3: 'Mercredi', 4: 'Jeudi', 5: 'Vendredi', 6: 'Samedi' }
+    // Initialize all days as 'Fermé'
+    const hours: Record<string, string> = {
+      Lundi: 'Fermé',
+      Mardi: 'Fermé',
+      Mercredi: 'Fermé',
+      Jeudi: 'Fermé',
+      Vendredi: 'Fermé',
+      Samedi: 'Fermé',
+      Dimanche: 'Fermé',
+    }
+    for (const wh of (business.working_hours || [])) {
+      const key = dayNames[wh.weekday] ?? String(wh.weekday)
+      const value = `${fmt(wh.start_time)} - ${fmt(wh.end_time)}`.trim()
+      hours[key] = value === ' - ' ? 'Fermé' : value
+    }
+
     return NextResponse.json({
       id: business.id,
       name: business.public_name || business.legal_name,
@@ -65,6 +92,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
       images,
       services: Array.from(categoriesMap.values()),
       reviews,
+      hours,
     });
   } catch (e) {
     return NextResponse.json({ error: "Server error" }, { status: 500 });

@@ -1,91 +1,325 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { X, ChevronLeft, Star } from "lucide-react"
+import { X, ChevronLeft, ChevronRight, Star, Plus } from "lucide-react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
+import { useAuth } from "@/hooks/useAuth"
 
 interface BookingWizardProps {
   salon: any
   onClose: () => void
+  initialService?: {
+    id: string
+    name: string
+    duration_minutes: number
+    price_cents?: number | null
+  } | null
 }
 
-export default function BookingWizard({ salon, onClose }: BookingWizardProps) {
+export default function BookingWizard({ salon, onClose, initialService = null }: BookingWizardProps) {
+  const router = useRouter()
+  const { auth, loading: authLoading } = useAuth()
   const [currentStep, setCurrentStep] = useState(1)
-  const [selectedService, setSelectedService] = useState<any>(null)
+  const [selectedService, setSelectedService] = useState<any>(initialService)
   const [selectedDate, setSelectedDate] = useState<string>("")
   const [selectedTime, setSelectedTime] = useState<string>("")
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [employees, setEmployees] = useState<Array<{ id: string; full_name: string; color?: string | null }>>([])
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null)
+  const [slots, setSlots] = useState<Array<{ date: string; slots: string[] }>>([])
+  const [loadingSlots, setLoadingSlots] = useState(false)
+  const [startDate, setStartDate] = useState<string>(() => new Date().toISOString().split('T')[0])
+  const [showInfo, setShowInfo] = useState(false)
+  const [identMode, setIdentMode] = useState<'none' | 'login' | 'signup'>('none')
+  const [authOverride, setAuthOverride] = useState(false)
+  const [loginEmail, setLoginEmail] = useState('')
+  const [loginPassword, setLoginPassword] = useState('')
+  const [signupPhone, setSignupPhone] = useState('')
+  const [signupEmail, setSignupEmail] = useState('')
+  const [signupPassword, setSignupPassword] = useState('')
+  const [signupCGU, setSignupCGU] = useState(false)
+  const [signupOkMsg, setSignupOkMsg] = useState<string | null>(null)
+  const [authSubmitting, setAuthSubmitting] = useState(false)
+  const [ticketOpen, setTicketOpen] = useState(false)
+  const [ticketData, setTicketData] = useState<any>(null)
 
-  const steps = ["Prestation sélectionnée", "Choix de la date & heure", "Identification"]
+  // removed unused constants to avoid TS noUnusedLocals issues
 
-  const timeSlots = ["10:00", "10:30", "11:00", "11:30", "12:00", "12:30", "13:00", "13:30"]
+  // Fetch employees when a service is selected
+  useEffect(() => {
+    let ignore = false
+    async function run() {
+      if (!selectedService) { setEmployees([]); setSelectedEmployeeId(null); return }
+      try {
+        const url = `/api/salon/${salon.id}/employees?serviceId=${selectedService.id}`
+        const res = await fetch(url, { cache: 'no-store' })
+        const j = await res.json().catch(() => ({ employees: [] }))
+        if (ignore) return
+        const list = Array.isArray(j?.employees) ? j.employees : []
+        setEmployees(list)
+        // Reset selection if not in list
+        setSelectedEmployeeId((prev) => (list.find((e: any) => e.id === prev) ? prev : null))
+      } catch {
+        if (!ignore) { setEmployees([]); setSelectedEmployeeId(null) }
+      }
+    }
+    run()
+    return () => { ignore = true }
+  }, [selectedService, salon.id])
 
-  const weekDays = [
-    { day: "mardi", date: "17 sept", available: true },
-    { day: "mercredi", date: "18 sept", available: true },
-    { day: "jeudi", date: "19 sept", available: true },
-    { day: "vendredi", date: "20 sept", available: false },
-    { day: "samedi", date: "21 sept", available: true },
-    { day: "dimanche", date: "22 sept", available: false },
-    { day: "lundi", date: "23 sept", available: true },
-  ]
+  // Fetch time slots when service, employee or startDate changes
+  useEffect(() => {
+    let ignore = false
+    async function loadSlots() {
+      if (!selectedService) { setSlots([]); return }
+      setLoadingSlots(true)
+      try {
+        const p = new URLSearchParams()
+        p.set('serviceId', selectedService.id)
+        if (selectedEmployeeId) p.set('employeeId', selectedEmployeeId)
+        p.set('days', '7')
+        p.set('start', startDate)
+        const res = await fetch(`/api/salon/${salon.id}/timeslots?` + p.toString(), { cache: 'no-store' })
+        const j = await res.json().catch(() => ({ days: [] }))
+        if (ignore) return
+        const days = Array.isArray(j?.days) ? j.days : []
+        setSlots(days.map((d: any) => ({ date: d.date, slots: (d.slots || []).map((s: any) => s.time) })))
+      } catch {
+        if (!ignore) setSlots([])
+      } finally {
+        if (!ignore) setLoadingSlots(false)
+      }
+    }
+    loadSlots()
+    return () => { ignore = true }
+  }, [selectedService, selectedEmployeeId, salon.id, startDate])
 
   const renderStep1 = () => (
     <div className="space-y-6">
-      <div className="bg-gray-50 p-4 rounded-lg">
-        <div className="flex justify-between items-start">
-          <div>
-            <h3 className="font-semibold">COUPE 2,200 DA</h3>
-            <p className="text-sm text-gray-600">30min - avec SOUSOU HAMICHE</p>
-          </div>
-          <Button variant="link" className="text-blue-600 p-0">
-            Supprimer
-          </Button>
+      {/* Section 1 header */}
+      <h2 className="text-base font-semibold text-black"><span className="text-blue-600 mr-2">1.</span> Prestation sélectionnée</h2>
+      <div className="bg-white border rounded-xl p-4 shadow-sm">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <h3 className="font-semibold truncate">{selectedService ? selectedService.name : "Sélectionner une prestation"}</h3>
+            {selectedService && (
+              <p className="text-sm text-gray-600">{selectedService.duration_minutes}min • {(selectedService.price_cents ?? 0) / 100} DA</p>
+            )}
+            {/* Information modal shown after slot selection */}
+      <AlertDialog open={showInfo} onOpenChange={setShowInfo}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Informations</AlertDialogTitle>
+            <AlertDialogDescription>
+              Merci d'avoir réservé votre rendez-vous chez {salon?.name || 'notre institut'} ! Votre confirmation est bien enregistrée et nous sommes impatients de vous accueillir.
+              Si vous avez besoin de modifier ou annuler votre rendez-vous, n'hésitez pas à nous contacter.
+              <br />
+              <br />TEAM {salon?.name || 'YOKA'}
+              <br />Nous avons hâte de vous offrir une expérience de beauté exceptionnelle !
+              <br />À très bientôt,
+              <br />L'équipe {salon?.name || 'Yoka'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => { setShowInfo(false); setCurrentStep(2) }}>J'ai compris</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Ticket modal after successful reservation */}
+      <AlertDialog open={ticketOpen} onOpenChange={setTicketOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Ticket de réservation</AlertDialogTitle>
+            <AlertDialogDescription>
+              {ticketData ? (
+                <div id="ticket">
+                  <div className="font-medium">{ticketData.salonName}</div>
+                  <div className="text-sm text-gray-600">{ticketData.date} • à {ticketData.time}</div>
+                  <div className="mt-2 text-sm">Prestation: {ticketData.serviceName}</div>
+                  <div className="text-sm">Avec: {ticketData.employee}</div>
+                  <div className="mt-2 text-xs text-gray-500">Référence: {ticketData.id}</div>
+                </div>
+              ) : null}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex flex-wrap gap-2 justify-between">
+            <AlertDialogAction onClick={() => {
+              const w = window.open('', 'PRINT', 'height=600,width=800')
+              if (!w) return
+              const html = document.getElementById('ticket')?.outerHTML || ''
+              w.document.write('<html><head><title>Ticket</title></head><body>' + html + '</body></html>')
+              w.document.close(); w.focus(); w.print(); w.close();
+            }}>Télécharger</AlertDialogAction>
+            <AlertDialogAction onClick={() => { setTicketOpen(false); router.push(`/client/dashboard`) }}>Mon espace</AlertDialogAction>
+            <AlertDialogAction onClick={() => { setTicketOpen(false); router.push(`/salon/${salon?.id}`) }}>Retour au salon</AlertDialogAction>
+            <AlertDialogAction onClick={() => { setTicketOpen(false); onClose() }}>Fermer</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+          {selectedService && (
+            <div className="w-56 shrink-0">
+              <Label className="text-xs text-gray-500">Avec qui ?</Label>
+              <div className="mt-1">
+                {employees.length <= 1 ? (
+                  <div className="text-sm text-gray-600 border rounded-md h-9 px-3 flex items-center bg-gray-50">{employees.length === 1 ? employees[0].full_name : "Sans préférence"}</div>
+                ) : (
+                  <Select value={selectedEmployeeId ?? "none"} onValueChange={(v) => setSelectedEmployeeId(v === 'none' ? null : v)}>
+                    <SelectTrigger className="w-full h-9">
+                      <SelectValue placeholder="Sans préférence" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Sans préférence</SelectItem>
+                      {employees.map((e) => (
+                        <SelectItem key={e.id} value={e.id}>{e.full_name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+            </div>
+          )}
+          {selectedService && (
+            <button className="text-sm text-blue-600 hover:underline shrink-0 ml-auto">Supprimer</button>
+          )}
         </div>
-        <Button variant="outline" size="sm" className="mt-3 bg-transparent">
+        {!selectedService && (
+          <div className="mt-3">
+            <div className="text-sm text-gray-700 mb-2">Choisir une prestation</div>
+            <div className="space-y-2 max-h-60 overflow-auto">
+              {(salon?.services || []).flatMap((c: any) => c.items || []).map((svc: any) => (
+                <button
+                  key={svc.id}
+                  className="w-full text-left p-2 border rounded hover:bg-gray-100 flex justify-between items-center"
+                  onClick={() => setSelectedService({
+                    id: svc.id,
+                    name: svc.name,
+                    duration_minutes: svc.duration_minutes || 30,
+                    price_cents: svc.price_cents ?? 0,
+                  })}
+                >
+                  <div className="flex justify-between w-full">
+                    <span className="font-medium">{svc.name}</span>
+                    <span className="text-sm text-gray-600">{(svc.price_cents ?? 0) / 100} DA</span>
+                  </div>
+                  <div className="text-xs text-gray-500">{svc.duration_minutes || 30} min</div>
+                  {employees.length > 0 && (
+                    <div className="w-56 shrink-0">
+                      <Label className="text-xs text-gray-500">Avec qui ?</Label>
+                      <div className="mt-1">
+                        {employees.length <= 1 ? (
+                          <div className="text-sm text-gray-600 border rounded-md h-9 px-3 flex items-center bg-gray-50">{employees.length === 1 ? employees[0].full_name : "Sans préférence"}</div>
+                        ) : (
+                          <Select value={selectedEmployeeId ?? "none"} onValueChange={(v) => setSelectedEmployeeId(v === 'none' ? null : v)}>
+                            <SelectTrigger className="w-full h-9">
+                              <SelectValue placeholder="Sans préférence" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">Sans préférence</SelectItem>
+                              {employees.map((e) => (
+                                <SelectItem key={e.id} value={e.id}>{e.full_name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        {selectedService && (
+          <div className="mt-6">
+            {/* Section 2 header */}
+            <h2 className="text-base font-semibold text-black mb-3"><span className="text-blue-600 mr-2">2.</span> Choix de la date & heure</h2>
+            {loadingSlots ? (
+              <div className="text-sm text-gray-500">Chargement des créneaux…</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <div className="flex items-center justify-between mb-2">
+                  <Button variant="ghost" size="sm" className="bg-transparent" onClick={() => {
+                    const d = new Date(startDate); d.setDate(d.getDate() - 7); setStartDate(d.toISOString().split('T')[0])
+                  }}>
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="sm" className="bg-transparent" onClick={() => {
+                    const d = new Date(startDate); d.setDate(d.getDate() + 7); setStartDate(d.toISOString().split('T')[0])
+                  }}>
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="grid grid-cols-7 gap-4 min-w-[1040px] bg-gray-50 border rounded-2xl p-4 shadow-sm">
+                  {slots.map((d) => (
+                    <div key={d.date} className="">
+                      <div className="text-xs font-medium text-gray-700 mb-3 capitalize">{new Date(d.date).toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: 'short' })}</div>
+                      <div className="flex flex-col gap-2">
+                        {d.slots.length === 0 && (
+                          <div className="text-xs text-gray-400">Aucun créneau</div>
+                        )}
+                        {d.slots.map((t) => (
+                          <button
+                            key={`${d.date}-${t}`}
+                            className={`text-sm h-9 border rounded-full px-3 py-1 bg-white hover:bg-gray-100 transition font-medium ${selectedDate === d.date && selectedTime === t ? 'bg-black text-white hover:bg-black' : ''}`}
+                            onClick={() => { setSelectedDate(d.date); setSelectedTime(t); setShowInfo(true) }}
+                          >
+                            {t}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+        {!selectedService && (
+          <div className="mt-3">
+            <div className="text-sm text-gray-700 mb-2">Choisir une prestation</div>
+            <div className="space-y-2 max-h-60 overflow-auto">
+              {(salon?.services || []).flatMap((c: any) => c.items || []).map((svc: any) => (
+                <button
+                  key={svc.id}
+                  className="w-full text-left p-2 border rounded hover:bg-gray-100"
+                  onClick={() => setSelectedService({
+                    id: svc.id,
+                    name: svc.name,
+                    duration_minutes: svc.duration_minutes || 30,
+                    price_cents: svc.price_cents ?? 0,
+                  })}
+                >
+                  <div className="flex justify-between">
+                    <span className="font-medium">{svc.name}</span>
+                    <span className="text-sm text-gray-600">{(svc.price_cents ?? 0) / 100} DA</span>
+                  </div>
+                  <div className="text-xs text-gray-500">{svc.duration_minutes || 30} min</div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Ajouter une prestation à la suite */}
+      <div className="mt-3">
+        <Button variant="default" className="bg-black hover:bg-gray-800 text-white">
+          <Plus className="h-4 w-4 mr-2" />
           Ajouter une prestation à la suite
         </Button>
       </div>
 
-      <div>
-        <h3 className="font-semibold mb-4">2. Choix de la date & heure</h3>
-        <div className="grid grid-cols-7 gap-2 mb-4">
-          {weekDays.map((day, index) => (
-            <button
-              key={index}
-              className={`p-2 text-center rounded-lg border ${
-                day.available
-                  ? "border-gray-200 hover:border-blue-500 hover:bg-blue-50"
-                  : "border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed"
-              }`}
-              disabled={!day.available}
-            >
-              <div className="text-xs font-medium">{day.day}</div>
-              <div className="text-xs">{day.date}</div>
-            </button>
-          ))}
-        </div>
-
-        <div className="grid grid-cols-4 gap-2">
-          {timeSlots.map((time) => (
-            <Button
-              key={time}
-              variant="outline"
-              size="sm"
-              className="text-sm bg-transparent"
-              onClick={() => {
-                setSelectedTime(time)
-                setCurrentStep(2)
-              }}
-            >
-              {time}
-            </Button>
-          ))}
-        </div>
-      </div>
+      {/* Bloc manuel masqué pour coller au rendu Planity */}
     </div>
   )
 
@@ -94,80 +328,126 @@ export default function BookingWizard({ salon, onClose }: BookingWizardProps) {
       <div className="bg-gray-50 p-4 rounded-lg">
         <h3 className="font-semibold mb-2">2. Date et heure sélectionnées</h3>
         <div className="flex justify-between items-center">
-          <span>samedi 20 septembre 2025 à 10:30</span>
-          <Button variant="link" className="text-blue-600 p-0">
+          <span>
+            {selectedDate && selectedTime
+              ? `${new Date(selectedDate).toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })} à ${selectedTime}`
+              : '—'}
+          </span>
+          <Button variant="link" className="text-blue-600 p-0" onClick={() => setCurrentStep(1)}>
             Modifier
           </Button>
         </div>
       </div>
 
-      <div>
-        <h3 className="font-semibold mb-4">3. Identification</h3>
-
+      {/* If authenticated, show direct confirmation here and hide Identification section */}
+      {(auth || authOverride) && (
         <div className="space-y-4">
-          <div className="text-center">
-            <p className="text-lg font-medium mb-4">Nouveau sur YOKA ?</p>
-            <Button className="w-full bg-gray-100 text-black hover:bg-gray-200">Créer mon compte</Button>
-          </div>
-
-          <div className="text-center">
-            <span className="text-gray-500">OU</span>
-          </div>
-
-          <div className="text-center">
-            <p className="text-lg font-medium mb-4">Vous avez déjà utilisé YOKA ?</p>
-            <Button className="w-full bg-black text-white hover:bg-gray-800">Se connecter</Button>
-          </div>
+          {error && <div className="text-sm text-red-600 text-center">{error}</div>}
+          <Button
+            className="w-full bg-black text-white hover:bg-gray-800"
+            disabled={authLoading || submitting || !selectedService || !selectedDate || !selectedTime}
+            onClick={async () => {
+              setSubmitting(true)
+              setError(null)
+              try {
+                const starts_at = new Date(`${selectedDate}T${selectedTime}:00`)
+                const payload = {
+                  business_id: salon.id,
+                  starts_at: starts_at.toISOString(),
+                  employee_id: selectedEmployeeId || undefined,
+                  items: [
+                    {
+                      service_id: selectedService.id,
+                      duration_minutes: Number(selectedService.duration_minutes || 30),
+                      price_cents: Number(selectedService.price_cents ?? 0),
+                      currency: 'DZD',
+                      employee_id: selectedEmployeeId || undefined,
+                    },
+                  ],
+                }
+                const res = await fetch('/api/client/bookings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+                const j = await res.json().catch(() => ({}))
+                if (!res.ok) throw new Error(j?.error || 'Impossible de créer la réservation')
+                // Open ticket modal with data
+                setTicketData({
+                  id: j?.booking?.id,
+                  salonName: salon?.name,
+                  date: new Date(selectedDate).toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }),
+                  time: selectedTime,
+                  serviceName: selectedService?.name,
+                  employee: employees.find(e => e.id === selectedEmployeeId)?.full_name || 'Sans préférence',
+                })
+                setTicketOpen(true)
+              } catch (e: any) {
+                setError(e?.message || 'Erreur de création')
+              } finally {
+                setSubmitting(false)
+              }
+            }}
+          >
+            {submitting ? 'Création…' : 'Confirmer la réservation'}
+          </Button>
         </div>
-      </div>
-    </div>
-  )
-
-  const renderStep3 = () => (
-    <div className="space-y-6">
-      <div className="space-y-4">
+      )}
+      {!(auth || authOverride) && (
         <div>
-          <Label htmlFor="phone">Téléphone portable *</Label>
-          <div className="flex mt-1">
-            <div className="flex items-center px-3 border border-r-0 border-gray-300 bg-gray-50 rounded-l-md">
-              <span className="text-sm">🇩🇿</span>
+          <h3 className="font-semibold mb-4">3. Identification</h3>
+
+          {identMode === 'login' && (
+            <div className="bg-white border rounded-xl p-6 shadow-sm space-y-4">
+              {error && <div className="text-sm text-red-600">{error}</div>}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label>Email *</Label>
+                  <Input type="email" placeholder="Email" className="mt-1" value={loginEmail} onChange={e=>setLoginEmail(e.target.value)} />
+                </div>
+                <div>
+                  <Label>Mot de passe *</Label>
+                  <Input type="password" placeholder="Mot de passe" className="mt-1" value={loginPassword} onChange={e=>setLoginPassword(e.target.value)} />
+                </div>
+              </div>
+              <div>
+                <Link href="/auth/forgot-password" className="text-sm text-blue-600">Mot de passe oublié ?</Link>
+              </div>
+              <div className="grid grid-cols-1 gap-3">
+                <Button className="w-full bg-black text-white hover:bg-gray-800" disabled={authSubmitting} onClick={async ()=>{
+                  try{
+                    setAuthSubmitting(true)
+                    setError(null)
+                    console.log('[Login] start', { email: loginEmail })
+                    const res = await fetch('/api/auth/login', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({email: loginEmail, password: loginPassword})})
+                    console.log('[Login] response status', res.status)
+                    if(!res.ok){ const body = await res.text(); console.error('[Login] error body', body); throw new Error(`[Login ${res.status}] ${body}`) }
+                    setAuthOverride(true); setIdentMode('none'); setSignupOkMsg(null)
+                    console.log('[Login] success')
+                  }catch(e:any){ setError(e?.message||'Erreur de connexion') }
+                  finally { setAuthSubmitting(false) }
+                }}>Se connecter</Button>
+                <div className="flex items-center gap-3 text-gray-400 text-sm">
+                  <div className="flex-1 h-px bg-gray-200"/>
+                  <span>ou</span>
+                  <div className="flex-1 h-px bg-gray-200"/>
+                </div>
+                <Button variant="outline" className="w-full" onClick={() => setIdentMode('signup')}>Créer mon compte</Button>
+              </div>
             </div>
-            <Input id="phone" type="tel" className="rounded-l-none" placeholder="Entrez votre numéro..." />
-          </div>
+          )}
+
+          {identMode === 'none' && (
+            <div className="bg-white border rounded-xl p-6 shadow-sm space-y-6">
+              <div className="text-center font-medium">Nouveau sur YOKA ?</div>
+              <Button className="w-full bg-black text-white hover:bg-gray-800" onClick={() => setIdentMode('signup')}>Créer mon compte</Button>
+              <div className="flex items-center gap-3 text-gray-400 text-sm">
+                <div className="flex-1 h-px bg-gray-200"/>
+                <span>ou</span>
+                <div className="flex-1 h-px bg-gray-200"/>
+              </div>
+              <div className="text-center font-medium">Vous avez déjà utilisé YOKA ?</div>
+              <Button variant="outline" className="w-full" onClick={() => setIdentMode('login')}>Se connecter</Button>
+            </div>
+          )}
         </div>
-
-        <div>
-          <Label htmlFor="email">Email *</Label>
-          <Input id="email" type="email" className="mt-1" placeholder="Email" />
-        </div>
-
-        <div>
-          <Label htmlFor="password">Mot de passe *</Label>
-          <Input id="password" type="password" className="mt-1" placeholder="Mot de passe" />
-        </div>
-      </div>
-
-      <Button className="w-full bg-black text-white hover:bg-gray-800">Créer mon compte</Button>
-
-      <div className="text-xs text-gray-500 leading-relaxed">
-        Mes informations sont traitées par YOKA, consultez notre{" "}
-        <Link href="/privacy" className="text-blue-600 hover:underline">
-          Politique de Confidentialité
-        </Link>{" "}
-        et nos{" "}
-        <Link href="/terms" className="text-blue-600 hover:underline">
-          Conditions d'Utilisations
-        </Link>{" "}
-        de Google.
-      </div>
-
-      <div className="text-center">
-        <span className="text-gray-500">OU</span>
-      </div>
-
-      <Button variant="outline" className="w-full bg-transparent">
-        Se connecter
-      </Button>
+      )}
     </div>
   )
 
@@ -208,9 +488,8 @@ export default function BookingWizard({ salon, onClose }: BookingWizardProps) {
                 </div>
               </CardHeader>
               <CardContent>
-                {currentStep === 1 && renderStep1()}
-                {currentStep === 2 && renderStep2()}
-                {currentStep === 3 && renderStep3()}
+                {renderStep1()}
+                {currentStep >= 2 && renderStep2()}
               </CardContent>
             </Card>
           </div>
@@ -259,7 +538,7 @@ export default function BookingWizard({ salon, onClose }: BookingWizardProps) {
               <CardContent className="p-6">
                 <h3 className="font-semibold mb-4">Horaires d'ouverture</h3>
                 <div className="space-y-1 text-sm">
-                  {Object.entries(salon.hours).map(([day, hours]) => (
+                  {Object.entries((salon?.hours || {}) as Record<string, string>).map(([day, hours]) => (
                     <div key={day} className="flex justify-between">
                       <span className="font-medium">{day}</span>
                       <span className={hours === "Fermé" ? "text-red-600" : "text-gray-600"}>{hours}</span>

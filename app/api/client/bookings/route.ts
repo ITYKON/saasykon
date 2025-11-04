@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getAuthUserFromCookies } from "@/lib/auth"
+import { sendEmail } from "@/lib/email"
 
 export async function GET(request: Request) {
   const user = await getAuthUserFromCookies()
@@ -58,6 +59,105 @@ export async function GET(request: Request) {
 
   // Retourne à la fois la nouvelle forme et l'ancienne clé 'bookings'
   return NextResponse.json({ items: bookings, total, page, pageSize, bookings })
+}
+
+// Créer une réservation par le client
+export async function POST(request: Request) {
+  const user = await getAuthUserFromCookies()
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  let body: any
+  try { body = await request.json() } catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }) }
+
+  const { business_id, starts_at, items, notes, employee_id, location_id } = body || {}
+  if (!business_id) return NextResponse.json({ error: "business_id required" }, { status: 400 })
+  if (!Array.isArray(items) || items.length === 0) return NextResponse.json({ error: "items required" }, { status: 400 })
+  if (!starts_at) return NextResponse.json({ error: "starts_at required" }, { status: 400 })
+
+  // Retrouver le client lié à l'utilisateur (créer s'il n'existe pas)
+  let client = await prisma.clients.findFirst({ where: { user_id: user.id } })
+  if (!client) {
+    const u = await prisma.users.findUnique({ where: { id: user.id }, select: { first_name: true, last_name: true, phone: true } })
+    client = await prisma.clients.create({
+      data: {
+        user_id: user.id,
+        first_name: u?.first_name || null,
+        last_name: u?.last_name || null,
+        phone: u?.phone || null,
+        status: 'NOUVEAU' as any,
+      },
+    })
+  }
+
+  const start = new Date(starts_at)
+  if (isNaN(start.getTime())) return NextResponse.json({ error: "Invalid starts_at" }, { status: 400 })
+
+  // Calculer la fin en fonction des durées d'items
+  const durations: number[] = items.map((i: any) => Number(i?.duration_minutes || 0))
+  const totalMinutes = durations.reduce((s, x) => s + (isFinite(x) ? x : 0), 0)
+  const ends = new Date(start.getTime() + totalMinutes * 60000)
+
+  // Créer la réservation + items dans une transaction
+  const created = await prisma.$transaction(async (tx) => {
+    const reservation = await tx.reservations.create({
+      data: {
+        business_id,
+        client_id: client.id,
+        employee_id: employee_id || null,
+        location_id: location_id || null,
+        booker_user_id: user.id,
+        starts_at: start,
+        ends_at: ends,
+        status: 'PENDING' as any,
+        notes: notes || null,
+        source: 'WEB',
+      },
+    })
+
+    for (const it of items) {
+      await tx.reservation_items.create({
+        data: {
+          reservation_id: reservation.id,
+          service_id: it.service_id,
+          variant_id: it.variant_id || null,
+          employee_id: it.employee_id || employee_id || null,
+          price_cents: Number(it.price_cents || 0),
+          currency: it.currency || 'DZD',
+          duration_minutes: Number(it.duration_minutes || 0),
+        },
+      })
+    }
+
+    return reservation
+  })
+
+  // Fire-and-forget email notification
+  ;(async () => {
+    try {
+      const u = await prisma.users.findUnique({ where: { id: user.id }, select: { email: true, first_name: true } })
+      if (!u?.email) return
+      const business = await prisma.businesses.findUnique({ where: { id: body.business_id }, select: { public_name: true, legal_name: true } })
+      const name = business?.public_name || business?.legal_name || 'Votre institut'
+      const date = new Date(starts_at)
+      const dateStr = date.toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })
+      const timeStr = `${String(date.getHours()).padStart(2,'0')}:${String(date.getMinutes()).padStart(2,'0')}`
+      await sendEmail({
+        to: u.email,
+        subject: `Merci pour votre réservation chez ${name}`,
+        html: `<div style="font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;line-height:1.6">
+          <p>${u.first_name ? `Bonjour ${u.first_name},` : 'Bonjour,'}</p>
+          <p>Merci pour votre réservation chez <strong>${name}</strong>.</p>
+          <p>Votre rendez-vous est prévu le <strong>${dateStr}</strong> à <strong>${timeStr}</strong>.</p>
+          <p>Si vous devez modifier ou annuler votre rendez-vous, répondez à cet email.</p>
+          <p>À très bientôt,</p>
+          <p>L'équipe ${name}</p>
+        </div>`,
+        category: 'booking-confirmation',
+      })
+    } catch {}
+  })()
+
+  return NextResponse.json({ booking: { id: created.id } }, { status: 201 })
 }
 
 // Modifier une réservation par le client (reprogrammer)

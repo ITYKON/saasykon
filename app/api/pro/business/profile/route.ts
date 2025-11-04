@@ -1,20 +1,25 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAuthUserFromCookies } from '@/lib/auth';
+import { getAuthContext } from '@/lib/authorization';
 
 export async function GET() {
   try {
-    // Récupérer l'utilisateur à partir des cookies
+    // Auth: accepter owner OU utilisateur assigné (PRO/PROFESSIONNEL)
     const user = await getAuthUserFromCookies();
-    if (!user) {
+    const ctx = await getAuthContext().catch(() => null);
+    if (!user && !ctx) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
     }
 
-    // Trouver l'entreprise de l'utilisateur avec les relations nécessaires
+    let businessId: string | null = null;
+    if (ctx && ctx.assignments && ctx.assignments.length > 0) {
+      businessId = ctx.assignments[0]?.business_id || null;
+    }
+
+    // Trouver l'entreprise de l'utilisateur (par businessId si assigné, sinon par owner_user_id)
     const business = await prisma.businesses.findFirst({
-      where: {
-        owner_user_id: user.id,
-      },
+      where: businessId ? { id: businessId } : { owner_user_id: user!.id },
       include: {
         business_locations: {
           where: { is_primary: true },
@@ -35,7 +40,50 @@ export async function GET() {
       return NextResponse.json({ error: 'Aucun établissement trouvé' }, { status: 404 });
     }
 
-    return NextResponse.json({ business });
+    // Formater la localisation primaire pour exposer city_name et country_name attendus par le front
+    const primary = business.business_locations?.[0] || null as any;
+    const pad = (n: number) => String(n).padStart(2, '0')
+    const fmt = (d: Date | string | null) => {
+      if (!d) return ''
+      const dt = new Date(d)
+      if (isNaN(dt.getTime())) return ''
+      // Use UTC parts to avoid local timezone offset (+1h)
+      return `${pad(dt.getUTCHours())}:${pad(dt.getUTCMinutes())}`
+    }
+    // Mapper les horaires pour fournir un tableau complet 0..6 avec is_open
+    const base: Array<{ weekday: number; start_time: string; end_time: string; is_open: boolean }> = [
+      { weekday: 0, start_time: '', end_time: '', is_open: false }, // Dimanche
+      { weekday: 1, start_time: '', end_time: '', is_open: false }, // Lundi
+      { weekday: 2, start_time: '', end_time: '', is_open: false }, // Mardi
+      { weekday: 3, start_time: '', end_time: '', is_open: false }, // Mercredi
+      { weekday: 4, start_time: '', end_time: '', is_open: false }, // Jeudi
+      { weekday: 5, start_time: '', end_time: '', is_open: false }, // Vendredi
+      { weekday: 6, start_time: '', end_time: '', is_open: false }, // Samedi
+    ]
+    for (const wh of (business.working_hours || [])) {
+      const idx = base.findIndex((d) => d.weekday === wh.weekday)
+      if (idx >= 0) {
+        base[idx] = {
+          weekday: wh.weekday,
+          start_time: fmt(wh.start_time),
+          end_time: fmt(wh.end_time),
+          is_open: true,
+        }
+      }
+    }
+    const mappedWorkingHours = base
+
+    const formatted = {
+      ...business,
+      business_locations: primary ? [{
+        ...primary,
+        city_name: primary?.cities?.name || null,
+        country_name: primary?.countries?.name || null,
+      }] : [],
+      working_hours: mappedWorkingHours,
+    } as any;
+
+    return NextResponse.json({ business: formatted });
   } catch (error) {
     console.error('Erreur lors de la récupération du profil:', error);
     return NextResponse.json(
@@ -86,10 +134,19 @@ export async function PUT(request: Request) {
       photos,
     } = data;
 
-    // Récupérer l'entreprise de l'utilisateur
-    const business = await prisma.businesses.findFirst({
-      where: { owner_user_id: user.id },
-    });
+    // Récupérer le contexte d'auth et déterminer le business ciblé
+    const ctx = await getAuthContext().catch(() => null);
+    let business: any = null;
+    if (ctx && ctx.assignments && ctx.assignments.length > 0) {
+      const bizId = ctx.assignments[0]?.business_id;
+      if (bizId) {
+        business = await prisma.businesses.findUnique({ where: { id: bizId } });
+      }
+    }
+    if (!business) {
+      // fallback: propriétaire
+      business = await prisma.businesses.findFirst({ where: { owner_user_id: user.id } });
+    }
 
     if (!business) {
       return NextResponse.json({ error: 'Aucun établissement trouvé' }, { status: 404 });
@@ -142,24 +199,46 @@ export async function PUT(request: Request) {
         });
       }
 
-      // 2. Vérifier si la ville existe, sinon la créer
-      let city = await prisma.cities.findFirst({
-        where: { 
-          name: address.city,
-          country_code: country.code
-        }
-      });
+      // 2. Résoudre la ville selon notation des wilayas (Algérie)
+      //    - Si la valeur fournie est un code wilaya (ex: "06"), on résout via wilaya_number
+      //    - Sinon on résout via le nom de ville normalisé (slug)
+      const norm = (s: string) => s
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/\p{Diacritic}/gu, '')
+        .trim();
 
-      if (!city) {
-        console.log(`Création de la ville: ${address.city}, ${country.name}`);
-        city = await prisma.cities.create({
-          data: {
-            name: address.city,
-            country_code: country.code,
-            // Le champ wilaya_number est optionnel dans le schéma
-            wilaya_number: 6, // Valeur par défaut, à adapter selon vos besoins
-          },
+      const rawCity = String(address.city || '').trim();
+      const numericWilayaMatch = rawCity.match(/^\d{1,2}$/); // ex: "06", "6"
+      let city = null as any;
+
+      if (numericWilayaMatch) {
+        const wilayaNum = parseInt(rawCity, 10);
+        // contrainte simple: 1..58
+        if (!Number.isFinite(wilayaNum) || wilayaNum < 1 || wilayaNum > 58) {
+          return NextResponse.json({ error: `Code wilaya invalide: ${rawCity}` }, { status: 400 });
+        }
+        city = await prisma.cities.findFirst({
+          where: { country_code: country.code, wilaya_number: wilayaNum },
         });
+        if (!city) {
+          return NextResponse.json({ error: `Aucune ville trouvée pour la wilaya ${String(wilayaNum).padStart(2,'0')}` }, { status: 400 });
+        }
+      } else if (rawCity) {
+        // Recherche par nom normalisé (fallback exact puis approx.)
+        city = await prisma.cities.findFirst({
+          where: { country_code: country.code, name: rawCity },
+        });
+        if (!city) {
+          const allCities = await prisma.cities.findMany({ where: { country_code: country.code } });
+          const targetSlug = norm(rawCity);
+          city = allCities.find((c: any) => norm(c.name) === targetSlug) || null;
+        }
+        if (!city) {
+          return NextResponse.json({ error: `Ville inconnue: ${rawCity}. Merci d'utiliser un nom de ville existant ou un code wilaya (ex: 06).` }, { status: 400 });
+        }
+      } else {
+        return NextResponse.json({ error: 'Ville non fournie' }, { status: 400 });
       }
       
       // 3. Vérifier si une adresse principale existe déjà
