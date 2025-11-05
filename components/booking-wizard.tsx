@@ -106,7 +106,7 @@ export default function BookingWizard({ salon, onClose, initialService = null }:
     <div className="space-y-6">
       {/* Section 1 header */}
       <h2 className="text-base font-semibold text-black"><span className="text-blue-600 mr-2">1.</span> Prestation sélectionnée</h2>
-      <div className="bg-white border rounded-xl p-4 shadow-sm">
+      <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-100">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <h3 className="font-semibold truncate">{selectedService ? selectedService.name : "Sélectionner une prestation"}</h3>
@@ -194,48 +194,40 @@ export default function BookingWizard({ salon, onClose, initialService = null }:
         </div>
         {!selectedService && (
           <div className="mt-3">
-            <div className="text-sm text-gray-700 mb-2">Choisir une prestation</div>
-            <div className="space-y-2 max-h-60 overflow-auto">
-              {(salon?.services || []).flatMap((c: any) => c.items || []).map((svc: any) => (
-                <button
-                  key={svc.id}
-                  className="w-full text-left p-2 border rounded hover:bg-gray-100 flex justify-between items-center"
-                  onClick={() => setSelectedService({
-                    id: svc.id,
-                    name: svc.name,
-                    duration_minutes: svc.duration_minutes || 30,
-                    price_cents: svc.price_cents ?? 0,
-                  })}
-                >
-                  <div className="flex justify-between w-full">
-                    <span className="font-medium">{svc.name}</span>
-                    <span className="text-sm text-gray-600">{(svc.price_cents ?? 0) / 100} DA</span>
-                  </div>
-                  <div className="text-xs text-gray-500">{svc.duration_minutes || 30} min</div>
-                  {employees.length > 0 && (
-                    <div className="w-56 shrink-0">
-                      <Label className="text-xs text-gray-500">Avec qui ?</Label>
-                      <div className="mt-1">
-                        {employees.length <= 1 ? (
-                          <div className="text-sm text-gray-600 border rounded-md h-9 px-3 flex items-center bg-gray-50">{employees.length === 1 ? employees[0].full_name : "Sans préférence"}</div>
-                        ) : (
-                          <Select value={selectedEmployeeId ?? "none"} onValueChange={(v) => setSelectedEmployeeId(v === 'none' ? null : v)}>
-                            <SelectTrigger className="w-full h-9">
-                              <SelectValue placeholder="Sans préférence" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="none">Sans préférence</SelectItem>
-                              {employees.map((e) => (
-                                <SelectItem key={e.id} value={e.id}>{e.full_name}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        )}
-                      </div>
+            <div className="text-sm text-gray-700 mb-4">Choisir une prestation</div>
+            <div className="space-y-6">
+              {(salon?.services || []).map((category: any, catIndex: number) => {
+                if (!category.items?.length) return null;
+                return (
+                  <div key={catIndex} className="space-y-2">
+                    <h3 className="font-medium text-gray-900 text-base mb-2">
+                      {category.category || 'Autres prestations'}
+                    </h3>
+                    <div className="space-y-2">
+                      {category.items.map((svc: any) => (
+                        <button
+                          key={svc.id}
+                          className="w-full text-left p-3 border rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-between"
+                          onClick={() => setSelectedService({
+                            id: svc.id,
+                            name: svc.name,
+                            duration_minutes: svc.duration_minutes || 30,
+                            price_cents: svc.price_cents ?? 0,
+                          })}
+                        >
+                          <div className="flex-1">
+                            <div className="font-medium text-gray-900">{svc.name}</div>
+                            <div className="text-sm text-gray-500">
+                              {svc.duration_minutes || 30} min • {(svc.price_cents ?? 0) / 100} DA
+                            </div>
+                          </div>
+                          <ChevronRight className="h-4 w-4 text-gray-400 ml-4" />
+                        </button>
+                      ))}
                     </div>
-                  )}
-                </button>
-              ))}
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
@@ -259,10 +251,19 @@ export default function BookingWizard({ salon, onClose, initialService = null }:
                     <ChevronRight className="h-4 w-4" />
                   </Button>
                 </div>
-                <div className="grid grid-cols-7 gap-4 min-w-[1040px] bg-gray-50 border rounded-2xl p-4 shadow-sm">
+                <div className="grid grid-cols-7 gap-4 w-full bg-white border rounded-2xl p-6 shadow-sm">
+                {/* En-têtes des jours */}
+                {slots.slice(0, 7).map((d) => (
+                  <div key={`header-${d.date}`} className="text-center font-medium text-sm text-gray-600 pb-2">
+                    {new Date(d.date).toLocaleDateString('fr-FR', { weekday: 'short' }).toUpperCase()}
+                  </div>
+                ))}
+                {/* Contenu des jours */}
                   {slots.map((d) => (
-                    <div key={d.date} className="">
-                      <div className="text-xs font-medium text-gray-700 mb-3 capitalize">{new Date(d.date).toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: 'short' })}</div>
+                    <div key={d.date} className="border-l border-gray-100 pl-3">
+                      <div className="text-sm font-medium text-gray-800 mb-3">
+                        {new Date(d.date).toLocaleDateString('fr-FR', { day: '2-digit' })} {new Date(d.date).toLocaleDateString('fr-FR', { month: 'short' })}
+                      </div>
                       <div className="flex flex-col gap-2">
                         {d.slots.length === 0 && (
                           <div className="text-xs text-gray-400">Aucun créneau</div>
@@ -270,7 +271,7 @@ export default function BookingWizard({ salon, onClose, initialService = null }:
                         {d.slots.map((t) => (
                           <button
                             key={`${d.date}-${t}`}
-                            className={`text-sm h-9 border rounded-full px-3 py-1 bg-white hover:bg-gray-100 transition font-medium ${selectedDate === d.date && selectedTime === t ? 'bg-black text-white hover:bg-black' : ''}`}
+                            className={`text-sm h-10 border rounded-lg px-3 py-2 bg-white hover:bg-gray-50 transition font-medium ${selectedDate === d.date && selectedTime === t ? 'bg-black text-white hover:bg-black' : 'hover:border-gray-300'}`}
                             onClick={() => { setSelectedDate(d.date); setSelectedTime(t); setShowInfo(true) }}
                           >
                             {t}
@@ -282,31 +283,6 @@ export default function BookingWizard({ salon, onClose, initialService = null }:
                 </div>
               </div>
             )}
-          </div>
-        )}
-        {!selectedService && (
-          <div className="mt-3">
-            <div className="text-sm text-gray-700 mb-2">Choisir une prestation</div>
-            <div className="space-y-2 max-h-60 overflow-auto">
-              {(salon?.services || []).flatMap((c: any) => c.items || []).map((svc: any) => (
-                <button
-                  key={svc.id}
-                  className="w-full text-left p-2 border rounded hover:bg-gray-100"
-                  onClick={() => setSelectedService({
-                    id: svc.id,
-                    name: svc.name,
-                    duration_minutes: svc.duration_minutes || 30,
-                    price_cents: svc.price_cents ?? 0,
-                  })}
-                >
-                  <div className="flex justify-between">
-                    <span className="font-medium">{svc.name}</span>
-                    <span className="text-sm text-gray-600">{(svc.price_cents ?? 0) / 100} DA</span>
-                  </div>
-                  <div className="text-xs text-gray-500">{svc.duration_minutes || 30} min</div>
-                </button>
-              ))}
-            </div>
           </div>
         )}
       </div>
@@ -324,8 +300,8 @@ export default function BookingWizard({ salon, onClose, initialService = null }:
   )
 
   const renderStep2 = () => (
-    <div className="space-y-6">
-      <div className="bg-gray-50 p-4 rounded-lg">
+    <div className="space-y-8">
+      <div className="space-y-6 bg-white p-8 rounded-xl shadow-sm border">
         <h3 className="font-semibold mb-2">2. Date et heure sélectionnées</h3>
         <div className="flex justify-between items-center">
           <span>
@@ -467,10 +443,10 @@ export default function BookingWizard({ salon, onClose, initialService = null }:
         </div>
       </header>
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid lg:grid-cols-3 gap-8">
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="grid lg:grid-cols-12 gap-8">
           {/* Main Content */}
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-8">
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -495,7 +471,7 @@ export default function BookingWizard({ salon, onClose, initialService = null }:
           </div>
 
           {/* Sidebar */}
-          <div className="space-y-6">
+          <div className="lg:col-span-4 space-y-6 lg:sticky lg:top-8">
             {/* Salon Info */}
             <Card>
               <CardContent className="p-6">
