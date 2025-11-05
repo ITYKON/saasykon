@@ -216,15 +216,21 @@ export async function PUT(request: Request) {
         const wilayaNum = parseInt(rawCity, 10);
         // contrainte simple: 1..58
         if (!Number.isFinite(wilayaNum) || wilayaNum < 1 || wilayaNum > 58) {
-          return NextResponse.json({ error: `Code wilaya invalide: ${rawCity}` }, { status: 400 });
+          console.warn(`Code wilaya invalide: ${rawCity}, utilisation de la ville par défaut`);
+          // Au lieu de retourner une erreur, on utilise une ville par défaut
+          city = await prisma.cities.findFirst({
+            where: { country_code: country.code },
+            orderBy: { name: 'asc' },
+          });
+        } else {
+          city = await prisma.cities.findFirst({
+            where: { country_code: country.code, wilaya_number: wilayaNum },
+          });
         }
-        city = await prisma.cities.findFirst({
-          where: { country_code: country.code, wilaya_number: wilayaNum },
-        });
-        if (!city) {
-          return NextResponse.json({ error: `Aucune ville trouvée pour la wilaya ${String(wilayaNum).padStart(2,'0')}` }, { status: 400 });
-        }
-      } else if (rawCity) {
+      } 
+      
+      // Si pas de ville trouvée ou pas de correspondance, on essaie avec le nom de la ville
+      if (!city && rawCity) {
         // Recherche par nom normalisé (fallback exact puis approx.)
         city = await prisma.cities.findFirst({
           where: { country_code: country.code, name: rawCity },
@@ -234,11 +240,15 @@ export async function PUT(request: Request) {
           const targetSlug = norm(rawCity);
           city = allCities.find((c: any) => norm(c.name) === targetSlug) || null;
         }
-        if (!city) {
-          return NextResponse.json({ error: `Ville inconnue: ${rawCity}. Merci d'utiliser un nom de ville existant ou un code wilaya (ex: 06).` }, { status: 400 });
-        }
-      } else {
-        return NextResponse.json({ error: 'Ville non fournie' }, { status: 400 });
+      }
+      
+      // Si toujours pas de ville, on prend la première ville du pays
+      if (!city) {
+        console.warn('Aucune ville valide fournie, utilisation de la première ville du pays');
+        city = await prisma.cities.findFirst({
+          where: { country_code: country.code },
+          orderBy: { name: 'asc' },
+        });
       }
       
       // 3. Vérifier si une adresse principale existe déjà
@@ -295,7 +305,7 @@ export async function PUT(request: Request) {
         console.log(`Anciens horaires supprimés: ${deleteCount.count}`);
 
         // Vérifier que workingHours est bien un objet
-        const workingHoursData = Object.entries(workingHours).map(([day, hours]: [string, any]) => {
+        const workingHoursData = Object.entries(workingHours).flatMap(([day, hours]: [string, any]) => {
           // Convertir le jour en format attendu par la base de données
           const dayMap: Record<string, number> = {
             lundi: 1,
@@ -316,58 +326,56 @@ export async function PUT(request: Request) {
               timeStr = `${timeStr.slice(0, 2)}:${timeStr.slice(2)}`;
             }
             
-            // Créer une date avec l'heure spécifiée
-            const [hours, minutes] = timeStr.split(':').map(Number);
-            // Créer une date en UTC pour éviter les problèmes de fuseau horaire
-            const date = new Date(Date.UTC(1970, 0, 1, hours, minutes, 0, 0));
-            return date;
+            try {
+              // Créer une date avec l'heure spécifiée
+              const [hours, minutes] = timeStr.split(':').map(Number);
+              // Créer une date en UTC pour éviter les problèmes de fuseau horaire
+              const date = new Date(Date.UTC(1970, 0, 1, hours, minutes, 0, 0));
+              return date;
+            } catch (error) {
+              console.error(`Erreur de format d'heure: ${timeStr}`, error);
+              return new Date('1970-01-01T00:00:00.000Z');
+            }
           };
           
           const dayLower = day.toLowerCase();
           const weekday = dayMap[dayLower];
           if (weekday === undefined) {
             console.warn(`Jour non reconnu: ${day}`);
-            return null;
+            return [];
           }
           
-          // Si le jour n'est pas ouvert, on ne crée pas d'entrée
-          if (!hours.ouvert) {
-            return null;
+          // Si le jour n'est pas marqué comme ouvert, on ne crée pas d'entrée
+          if (!hours || hours.ouvert === false || hours.ouvert === 'false') {
+            console.log(`Jour non ouvert: ${day}`);
+            return [];
           }
           
           // S'assurer que les heures sont définies
-          const startTime = hours.debut ? formatTimeToDb(hours.debut) : new Date('1970-01-01T00:00:00.000Z');
-          const endTime = hours.fin ? formatTimeToDb(hours.fin) : new Date('1970-01-01T00:00:00.000Z');
+          const startTime = hours.debut ? formatTimeToDb(hours.debut) : new Date('1970-01-01T09:00:00.000Z');
+          const endTime = hours.fin ? formatTimeToDb(hours.fin) : new Date('1970-01-01T18:00:00.000Z');
           
-          console.log(`Création des horaires pour le jour ${weekday}: ${startTime.toISOString()} - ${endTime.toISOString()}`);
+          console.log(`Création des horaires pour le jour ${weekday} (${day}): ${startTime.toISOString()} - ${endTime.toISOString()}`);
           
-          return {
+          return [{
             business_id: updatedBusiness.id,
             weekday,
             start_time: startTime,
-            end_time: endTime,
-          };
-        }).filter(Boolean); // Filtrer les entrées invalides
+            end_time: endTime
+          }];
+        }); // Utilisation de flatMap pour éliminer les tableaux vides
 
         // Ajouter les horaires un par un pour éviter les problèmes de types
         console.log(`${workingHoursData.length} jours d'ouverture à enregistrer`);
-        for (const wh of workingHoursData) {
-          if (wh) { // Vérification de type pour TypeScript
-            try {
-              await prisma.working_hours.create({
-                data: {
-                  business_id: wh.business_id,
-                  weekday: wh.weekday,
-                  start_time: wh.start_time,
-                  end_time: wh.end_time,
-                },
-              });
-              console.log(`Horaires enregistrés pour le jour ${wh.weekday}`);
-            } catch (error) {
-              console.error(`Erreur lors de l'enregistrement des horaires pour le jour ${wh.weekday}:`, error);
-              throw error; // Propager l'erreur pour qu'elle soit gérée par le bloc catch principal
-            }
-          }
+        
+        if (workingHoursData.length > 0) {
+          await prisma.working_hours.createMany({
+            data: workingHoursData,
+            skipDuplicates: true,
+          });
+          console.log(`Horaires enregistrés pour ${workingHoursData.length} jours`);
+        } else {
+          console.log('Aucun horaire à enregistrer');
         }
       } catch (error) {
         console.error('=== ERREUR LORS DE LA MISE À JOUR DES HORAIRES ===');
