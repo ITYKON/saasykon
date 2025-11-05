@@ -7,7 +7,7 @@ import { Footer } from "@/components/footer"
 import { SearchMap } from "@/components/search-map"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { MapPin, Star, Filter, Calendar } from "lucide-react"
+import { MapPin, Star, Filter, Calendar, Search as SearchIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import Link from "next/link"
@@ -91,12 +91,42 @@ export default function SearchPage() {
     fetchResults()
   }, [query, location, category, page])
 
-  const handleSearch = () => {
+  const handleSearch = (e?: React.FormEvent) => {
+    e?.preventDefault()
     const params = new URLSearchParams()
-    if (query) params.set("q", query)
-    if (location) params.set("location", location)
-    if (category) params.set("category", category)
+    
+    // Si l'utilisateur a saisi quelque chose dans le champ de recherche (nom d'institut ou service)
+    if (query) {
+      params.set("q", query)
+    }
+    
+    // Si l'utilisateur a saisi une localisation (ville ou adresse)
+    if (location) {
+      params.set("location", location)
+    }
+    
+    // Si une catégorie est sélectionnée
+    if (category) {
+      params.set("category", category)
+    }
+    
+    // Si aucun critère de recherche n'est fourni, on ne fait rien
+    if (!query && !location && !category) {
+      return
+    }
+    
+    // Réinitialiser la page à 1 lors d'une nouvelle recherche
+    setPage(1)
+    
+    // Mettre à jour l'URL avec les paramètres de recherche
     router.push(`/search?${params.toString()}`)
+  }
+  
+  // Gestion de la soumission du formulaire avec la touche Entrée
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSearch()
+    }
   }
 
   return (
@@ -106,28 +136,41 @@ export default function SearchPage() {
       {/* Search Bar */}
       <div className="bg-white border-b border-gray-200 py-4">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-4">
-            <Input
-              placeholder="Coupe femme"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="flex-1 h-11"
-            />
-            <Input
-              placeholder={location || "Ville, adresse..."}
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              className="flex-1 h-11"
-            />
-            <Button className="h-11 px-6 bg-black hover:bg-gray-800" onClick={handleSearch}>
+          <form onSubmit={handleSearch} className="flex items-center gap-4">
+            <div className="flex-1">
+              <Input
+                placeholder="Nom de l'institut ou service recherché"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={handleKeyDown}
+                className="h-11 w-full"
+                aria-label="Rechercher un institut ou un service"
+              />
+            </div>
+            <div className="flex-1">
+              <Input
+                placeholder="Ville, adresse ou code postal"
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                onKeyDown={handleKeyDown}
+                className="h-11 w-full"
+                aria-label="Localisation (ville, adresse, code postal)"
+              />
+            </div>
+            <Button 
+              type="submit" 
+              className="h-11 px-6 bg-black hover:bg-gray-800 flex-shrink-0"
+              disabled={!query && !location}
+            >
               <span className="sr-only">Rechercher</span>
-              🔍
+              <SearchIcon className="h-5 w-5 mr-2" />
+              Rechercher
             </Button>
             <Button variant="outline" className="h-11">
               <Calendar className="h-4 w-4 mr-2" />
               À tout moment
             </Button>
-          </div>
+          </form>
         </div>
       </div>
 

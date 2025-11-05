@@ -13,6 +13,7 @@ import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Camera, MapPin, Clock, Phone, Star, Upload, X, Plus, Edit2, Loader2 } from "lucide-react"
 import { toast } from "@/components/ui/use-toast"
+import { logger } from "@/lib/logger"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -169,7 +170,7 @@ export default function ProfilInstitutPage() {
         photos: formData.photos,
       };
 
-      console.log('Données envoyées à l\'API:', JSON.stringify(requestData, null, 2));
+      logger.debug('Envoi des données du profil à l\'API', { publicName: requestData.publicName });
 
       const response = await fetch('/api/pro/business/profile', {
         method: 'PUT',
@@ -179,8 +180,8 @@ export default function ProfilInstitutPage() {
         body: JSON.stringify(requestData),
       })
 
-      const responseData = await response.json();
-      console.log('Réponse de l\'API:', responseData);
+const responseData = await response.json();
+      logger.api.response('PUT', '/api/pro/business/profile', response.status, responseData);
 
       if (!response.ok) {
         throw new Error(responseData.error || 'Erreur lors de la mise à jour du profil');
@@ -191,7 +192,7 @@ export default function ProfilInstitutPage() {
         description: responseData.message || 'Votre profil a été mis à jour avec succès',
       })
     } catch (error) {
-      console.error('Erreur lors de la mise à jour du profil:', error)
+      logger.error('Erreur lors de la mise à jour du profil:', error)
       toast({
         title: 'Erreur',
         description: 'Une erreur est survenue lors de la mise à jour du profil',

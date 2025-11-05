@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAuthUserFromCookies } from '@/lib/auth';
 import { getAuthContext } from '@/lib/authorization';
+import { logger } from '@/lib/logger';
 
 export async function GET() {
   try {
@@ -95,7 +96,7 @@ export async function GET() {
 
 export async function PUT(request: Request) {
   try {
-    console.log('=== DÉBUT DU TRAITEMENT DE LA REQUÊTE ===');
+    logger.debug('Traitement de la requête de mise à jour du profil');
     
     // Récupérer l'utilisateur à partir des cookies
     const user = await getAuthUserFromCookies().catch(error => {
@@ -114,9 +115,9 @@ export async function PUT(request: Request) {
     let data;
     try {
       data = await request.json();
-      console.log('Données reçues:', JSON.stringify(data, null, 2));
+      logger.debug('Données reçues:', JSON.stringify(data, null, 2));
     } catch (error) {
-      console.error('Erreur lors de l\'analyse du corps de la requête:', error);
+      logger.error('Erreur lors de l\'analyse du corps de la requête:', error);
       return NextResponse.json(
         { error: 'Format de requête invalide' },
         { status: 400 }
@@ -153,7 +154,6 @@ export async function PUT(request: Request) {
     }
 
     // Mettre à jour l'entreprise
-    console.log('Mise à jour des informations de l\'entreprise...');
     let updatedBusiness;
     try {
       updatedBusiness = await prisma.businesses.update({
@@ -167,15 +167,19 @@ export async function PUT(request: Request) {
           updated_at: new Date(),
         },
       });
-      console.log('Informations de l\'entreprise mises à jour avec succès');
+      logger.debug('Informations de l\'entreprise mises à jour', { businessId: updatedBusiness.id });
     } catch (error: any) {
-      console.error('Erreur lors de la mise à jour de l\'entreprise:', error);
+      logger.error('Erreur lors de la mise à jour de l\'entreprise', { error });
       throw new Error(`Échec de la mise à jour de l'entreprise: ${error?.message || 'Erreur inconnue'}`);
     }
 
     // Mettre à jour l'adresse principale
     if (address) {
-      console.log('Traitement de l\'adresse:', JSON.stringify(address, null, 2));
+      logger.debug('Traitement de l\'adresse', { 
+        line1: address.line1,
+        city: address.city || 'non spécifiée',
+        country: address.country 
+      });
       
       // 1. Vérifier si le pays existe, sinon le créer
       let country = await prisma.countries.findFirst({
@@ -188,7 +192,7 @@ export async function PUT(request: Request) {
       });
 
       if (!country) {
-        console.log(`Création du pays: ${address.country}`);
+        logger.info(`Création d'un nouveau pays: ${address.country}`);
         // Créer un code de pays à partir du nom (ex: 'algerie' -> 'DZ')
         const countryCode = address.country.substring(0, 2).toUpperCase() || 'DZ';
         country = await prisma.countries.create({
@@ -216,7 +220,7 @@ export async function PUT(request: Request) {
         const wilayaNum = parseInt(rawCity, 10);
         // contrainte simple: 1..58
         if (!Number.isFinite(wilayaNum) || wilayaNum < 1 || wilayaNum > 58) {
-          console.warn(`Code wilaya invalide: ${rawCity}, utilisation de la ville par défaut`);
+          logger.warn(`Code wilaya invalide: ${rawCity}, utilisation de la ville par défaut`);
           // Au lieu de retourner une erreur, on utilise une ville par défaut
           city = await prisma.cities.findFirst({
             where: { country_code: country.code },
@@ -244,7 +248,7 @@ export async function PUT(request: Request) {
       
       // Si toujours pas de ville, on prend la première ville du pays
       if (!city) {
-        console.warn('Aucune ville valide fournie, utilisation de la première ville du pays');
+        logger.warn('Aucune ville valide fournie, utilisation de la première ville du pays');
         city = await prisma.cities.findFirst({
           where: { country_code: country.code },
           orderBy: { name: 'asc' },
@@ -256,7 +260,7 @@ export async function PUT(request: Request) {
         where: { business_id: updatedBusiness.id, is_primary: true },
       });
       
-      console.log('Adresse existante trouvée:', existingLocation ? 'Oui' : 'Non');
+      logger.debug(existingLocation ? 'Mise à jour de l\'adresse existante' : 'Création d\'une nouvelle adresse');
 
       if (existingLocation) {
         // Mettre à jour l'adresse existante
@@ -294,7 +298,9 @@ export async function PUT(request: Request) {
     }
 
     // Mettre à jour les horaires d'ouverture
-    console.log('Traitement des horaires:', JSON.stringify(workingHours, null, 2));
+    logger.debug('Traitement des horaires', { 
+      joursConfigures: workingHours ? Object.keys(workingHours).filter(day => workingHours[day]?.ouvert).length : 0 
+    });
     
     if (workingHours && typeof workingHours === 'object') {
       try {
@@ -302,7 +308,7 @@ export async function PUT(request: Request) {
         const deleteCount = await prisma.working_hours.deleteMany({
           where: { business_id: updatedBusiness.id },
         });
-        console.log(`Anciens horaires supprimés: ${deleteCount.count}`);
+        logger.debug(`Suppression de ${deleteCount.count} anciens horaires`);
 
         // Vérifier que workingHours est bien un objet
         const workingHoursData = Object.entries(workingHours).flatMap(([day, hours]: [string, any]) => {
@@ -333,7 +339,7 @@ export async function PUT(request: Request) {
               const date = new Date(Date.UTC(1970, 0, 1, hours, minutes, 0, 0));
               return date;
             } catch (error) {
-              console.error(`Erreur de format d'heure: ${timeStr}`, error);
+              logger.error(`Erreur de format d'heure: ${timeStr}`, error);
               return new Date('1970-01-01T00:00:00.000Z');
             }
           };
@@ -341,13 +347,13 @@ export async function PUT(request: Request) {
           const dayLower = day.toLowerCase();
           const weekday = dayMap[dayLower];
           if (weekday === undefined) {
-            console.warn(`Jour non reconnu: ${day}`);
+            logger.warn(`Jour non reconnu: ${day}`);
             return [];
           }
           
           // Si le jour n'est pas marqué comme ouvert, on ne crée pas d'entrée
           if (!hours || hours.ouvert === false || hours.ouvert === 'false') {
-            console.log(`Jour non ouvert: ${day}`);
+            logger.debug(`Jour non ouvert: ${day}`);
             return [];
           }
           
@@ -355,7 +361,7 @@ export async function PUT(request: Request) {
           const startTime = hours.debut ? formatTimeToDb(hours.debut) : new Date('1970-01-01T09:00:00.000Z');
           const endTime = hours.fin ? formatTimeToDb(hours.fin) : new Date('1970-01-01T18:00:00.000Z');
           
-          console.log(`Création des horaires pour le jour ${weekday} (${day}): ${startTime.toISOString()} - ${endTime.toISOString()}`);
+          logger.debug(`Création des horaires pour ${day} (${weekday}): ${startTime.toISOString().substr(11, 5)} - ${endTime.toISOString().substr(11, 5)}`);
           
           return [{
             business_id: updatedBusiness.id,
@@ -366,29 +372,24 @@ export async function PUT(request: Request) {
         }); // Utilisation de flatMap pour éliminer les tableaux vides
 
         // Ajouter les horaires un par un pour éviter les problèmes de types
-        console.log(`${workingHoursData.length} jours d'ouverture à enregistrer`);
-        
         if (workingHoursData.length > 0) {
+          logger.debug(`Enregistrement de ${workingHoursData.length} jours d'ouverture`);
           await prisma.working_hours.createMany({
             data: workingHoursData,
             skipDuplicates: true,
           });
-          console.log(`Horaires enregistrés pour ${workingHoursData.length} jours`);
+          logger.debug(`Horaires enregistrés pour ${workingHoursData.length} jours`);
         } else {
-          console.log('Aucun horaire à enregistrer');
+          logger.debug('Aucun horaire à enregistrer (tous les jours sont fermés)');
         }
       } catch (error) {
-        console.error('=== ERREUR LORS DE LA MISE À JOUR DES HORAIRES ===');
-        const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
-        console.error('Détails de l\'erreur:', error);
-        // On propage l'erreur pour qu'elle soit gérée par le bloc catch principal
-        // avec un message plus explicite
-        throw new Error(`Échec de la mise à jour des horaires: ${errorMessage}`);
+        logger.error('Échec de la mise à jour des horaires', { error });
+        throw new Error(`Échec de la mise à jour des horaires: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
       }
     }
 
     // Mettre à jour les photos
-    console.log('Traitement des photos:', JSON.stringify(photos, null, 2));
+    logger.debug(`Traitement de ${photos?.length || 0} photos`);
     if (photos && Array.isArray(photos)) {
       try {
         // Vérifier s'il y a des photos à supprimer
@@ -397,26 +398,26 @@ export async function PUT(request: Request) {
         });
         
         if (existingPhotos.length > 0) {
-          console.log(`Suppression de ${existingPhotos.length} anciennes photos`);
+          logger.debug(`Suppression de ${existingPhotos.length} anciennes photos`);
           await prisma.business_media.deleteMany({
             where: { business_id: updatedBusiness.id },
           });
         } else {
-          console.log('Aucune ancienne photo à supprimer');
+          logger.debug('Aucune ancienne photo à supprimer');
         }
 
         // Ajouter les nouvelles photos
-        console.log(`Ajout de ${photos.length} nouvelles photos`);
+        logger.debug(`Ajout de ${photos.length} nouvelles photos`);
         
         const createdPhotos = [];
         for (let i = 0; i < photos.length; i++) {
           const url = photos[i];
           if (!url) {
-            console.warn(`URL de photo manquante à la position ${i}, ignorée`);
+            logger.warn(`URL de photo manquante à la position ${i}, ignorée`);
             continue;
           }
           
-          console.log(`Enregistrement de la photo ${i + 1}/${photos.length}:`, url);
+          logger.debug(`Enregistrement de la photo ${i + 1}/${photos.length}:`, url);
           
           try {
             const createdPhoto = await prisma.business_media.create({
@@ -428,25 +429,25 @@ export async function PUT(request: Request) {
               },
             });
             createdPhotos.push(createdPhoto);
-            console.log(`Photo ${i + 1} enregistrée avec l'ID:`, createdPhoto.id);
+            logger.debug(`Photo ${i + 1} enregistrée avec l'ID:`, createdPhoto.id);
           } catch (error) {
-            console.error(`Erreur lors de l'enregistrement de la photo ${i + 1}:`, error);
+            logger.error(`Erreur lors de l'enregistrement de la photo ${i + 1}:`, error);
             throw new Error(`Échec de l'enregistrement de la photo: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
           }
         }
         
-        console.log(`${createdPhotos.length} photos enregistrées avec succès`);
+        logger.debug(`${createdPhotos.length} photos enregistrées avec succès`);
         
       } catch (error) {
-        console.error('=== ERREUR LORS DE LA MISE À JOUR DES PHOTOS ===');
-        console.error('Détails de l\'erreur:', error);
+        logger.error('=== ERREUR LORS DE LA MISE À JOUR DES PHOTOS ===');
+        logger.error('Détails de l\'erreur:', error);
         // On propage l'erreur avec un message clair
         throw new Error(`Échec de la mise à jour des photos: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
       }
     }
 
     // Récupérer les données mises à jour pour les renvoyer
-    console.log('Récupération des données mises à jour...');
+    logger.debug('Récupération des données mises à jour...');
     const updatedBusinessWithRelations = await prisma.businesses.findUnique({
       where: { id: updatedBusiness.id },
       include: {
@@ -467,7 +468,7 @@ export async function PUT(request: Request) {
       },
     });
 
-    console.log('Données mises à jour récupérées:', {
+    logger.debug('Données mises à jour récupérées:', {
       business: updatedBusinessWithRelations ? {
         ...updatedBusinessWithRelations,
         business_locations: updatedBusinessWithRelations.business_locations,
@@ -502,33 +503,44 @@ export async function PUT(request: Request) {
       }, {} as Record<string, { ouvert: boolean; debut: string; fin: string }>) || {}
     };
 
+    logger.debug('Mise à jour du profil', { 
+      userId: user?.id, 
+      email: user?.email,
+      hasAddress: !!address,
+      workingDays: workingHours ? Object.keys(workingHours).filter(day => workingHours[day]?.ouvert).length : 0,
+      photoCount: photos?.length || 0
+    });
+
     return NextResponse.json({ 
       success: true, 
       message: 'Profil mis à jour avec succès',
       business: formattedBusiness 
     });
   } catch (error: unknown) {
-    console.error('=== ERREUR LORS DE LA MISE À JOUR DU PROFIL ===');
-    const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
-    const errorName = error instanceof Error ? error.constructor.name : 'UnknownError';
-    const errorStack = error instanceof Error ? error.stack : 'Aucune stack trace';
+    const errorInfo = error instanceof Error ? {
+      name: error.name,
+      message: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    } : {
+      name: 'UnknownError',
+      message: 'Une erreur inconnue est survenue',
+      stack: undefined
+    };
     
-    console.error('Type d\'erreur:', errorName);
-    console.error('Message d\'erreur:', errorMessage);
-    console.error('Stack trace:', errorStack);
+    logger.error('Échec de la mise à jour du profil', { error: errorInfo });
     
     return NextResponse.json(
       { 
         error: 'Une erreur est survenue lors de la mise à jour du profil',
         details: process.env.NODE_ENV === 'development' ? {
-          message: errorMessage,
-          name: errorName,
-          stack: errorStack
+          message: errorInfo.message,
+          name: errorInfo.name,
+          stack: errorInfo.stack
         } : undefined
       },
       { status: 500 }
     );
   } finally {
-    console.log('=== FIN DU TRAITEMENT DE LA REQUÊTE ===');
+    logger.debug('Traitement du profil terminé avec succès');
   }
 }

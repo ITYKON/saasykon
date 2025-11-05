@@ -147,7 +147,7 @@ const statusClasses = (statusEnum: string) => {
 }
 
 const getStatusBadge = (statusFr: string) => {
-  switch (status) {
+  switch (statusFr) {
     case "Confirmé":
       return (
         <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
@@ -372,17 +372,39 @@ export default function ReservationsPage() {
   const [statusFilter, setStatusFilter] = useState("all")
   const [selectedReservation, setSelectedReservation] = useState<any>(null)
 
+  // Fonction pour normaliser les statuts
+  const normalizeStatus = (status: string) => {
+    const statusMap: Record<string, string> = {
+      'PENDING': 'En attente',
+      'CONFIRMED': 'Confirmé',
+      'COMPLETED': 'Terminé',
+      'CANCELLED': 'Annulé',
+      'En attente': 'En attente',
+      'Confirmé': 'Confirmé',
+      'Terminé': 'Terminé',
+      'Annulé': 'Annulé'
+    };
+    return statusMap[status] || status;
+  };
+
   const filteredReservations = reservations.filter((reservation) => {
     const matchesSearch =
-      reservation.client.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      reservation.service.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      reservation.employe.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      reservation.client?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      reservation.service?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      reservation.employe?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (reservation.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (reservation.telephone || '').toLowerCase().includes(searchTerm.toLowerCase())
-    // Sécurité: ne pas afficher les annulées même si un filtre serait mal configuré
-    if (reservation.status === 'CANCELLED' || reservation.status === 'Annulé') return false
-    const matchesStatus = statusFilter === "all" || reservation.status === statusFilter
-    return matchesSearch && matchesStatus
+    
+    // Normaliser le statut de la réservation
+    const normalizedStatus = normalizeStatus(reservation.status);
+    
+    // Ne pas afficher les réservations annulées sauf si c'est explicitement demandé
+    if (normalizedStatus === 'Annulé' && statusFilter !== 'Annulé') return false;
+    
+    // Appliquer le filtre de statut
+    const matchesStatus = statusFilter === "all" || normalizedStatus === statusFilter;
+    
+    return matchesSearch && matchesStatus;
   })
 
   return (
@@ -417,15 +439,19 @@ export default function ReservationsPage() {
             )}
             
             <div className="w-48">
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger>
+              <Select 
+                value={statusFilter} 
+                onValueChange={setStatusFilter}
+                defaultValue="all"
+              >
+                <SelectTrigger className="w-[180px]">
                   <Filter className="h-4 w-4 mr-2" />
                   <SelectValue placeholder="Filtrer par statut" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Tous les statuts</SelectItem>
-                  <SelectItem value="Confirmé">Confirmé</SelectItem>
                   <SelectItem value="En attente">En attente</SelectItem>
+                  <SelectItem value="Confirmé">Confirmé</SelectItem>
                   <SelectItem value="Terminé">Terminé</SelectItem>
                   <SelectItem value="Annulé">Annulé</SelectItem>
                 </SelectContent>
