@@ -19,9 +19,30 @@ export default function SalonPage({ params }: { params: { id: string } }) {
   } | null>(null)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const [isFavorite, setIsFavorite] = useState(false)
+  const [isFavoriteLoading, setIsFavoriteLoading] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [data, setData] = useState<any | null>(null)
+
+  // Vérifier si le salon est dans les favoris au chargement
+  useEffect(() => {
+    let mounted = true
+    const checkFavorite = async () => {
+      try {
+        const response = await fetch('/api/client/favorites')
+        if (response.ok) {
+          const { favorites } = await response.json()
+          if (mounted) {
+            setIsFavorite(favorites.some((fav: any) => fav.businesses?.id === params.id))
+          }
+        }
+      } catch (error) {
+        console.error('Erreur lors de la vérification des favoris:', error)
+      }
+    }
+    checkFavorite()
+    return () => { mounted = false }
+  }, [params.id])
 
   useEffect(() => {
     let mounted = true
@@ -169,11 +190,34 @@ export default function SalonPage({ params }: { params: { id: string } }) {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setIsFavorite(!isFavorite)}
+              onClick={async () => {
+                if (isFavoriteLoading) return;
+                setIsFavoriteLoading(true);
+                try {
+                  if (isFavorite) {
+                    await fetch(`/api/client/favorites?business_id=${params.id}`, {
+                      method: 'DELETE',
+                    });
+                  } else {
+                    await fetch('/api/client/favorites', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify({ business_id: params.id }),
+                    });
+                  }
+                  setIsFavorite(!isFavorite);
+                } catch (error) {
+                  console.error('Erreur lors de la mise à jour des favoris:', error);
+                } finally {
+                  setIsFavoriteLoading(false);
+                }
+              }}
               className={isFavorite ? "text-red-500 border-red-500" : ""}
             >
-              <Heart className={`h-4 w-4 mr-1 ${isFavorite ? "fill-current" : ""}`} />
-              {isFavorite ? "Retiré" : "Favoris"}
+              <Heart className={`h-4 w-4 mr-1 ${isFavorite ? "fill-current" : ""} ${isFavoriteLoading ? "opacity-50" : ""}`} />
+              {isFavoriteLoading ? "Chargement..." : (isFavorite ? "Retiré" : "Favoris")}
             </Button>
             <Button variant="outline" size="sm">
               <Share2 className="h-4 w-4 mr-1" />
