@@ -70,11 +70,13 @@ export default function SearchPage() {
       try {
         const params = new URLSearchParams()
         if (query) params.set("q", query)
-        if (location) params.set("location", location)
-        if (category) params.set("category", category)
+        // On ne garde que le paramètre de recherche par nom d'institut
         params.set("page", page.toString())
         
-        const response = await fetch(`/api/search?${params.toString()}`)
+        const response = await fetch(`/api/search-simple?${params.toString()}`)
+        if (!response.ok) {
+          throw new Error(`Erreur HTTP: ${response.status}`)
+        }
         const data = await response.json()
         
         if (data.businesses) {
@@ -83,48 +85,42 @@ export default function SearchPage() {
         }
       } catch (error) {
         console.error("Erreur lors de la recherche:", error)
+        // Afficher un message d'erreur à l'utilisateur si nécessaire
       } finally {
         setLoading(false)
       }
     }
 
-    fetchResults()
-  }, [query, location, category, page])
+    if (query) {
+      fetchResults()
+    } else {
+      // Réinitialiser les résultats si la recherche est vide
+      setBusinesses([])
+      setTotal(0)
+    }
+  }, [query, page])
 
   const handleSearch = (e?: React.FormEvent) => {
     e?.preventDefault()
-    const params = new URLSearchParams()
     
-    // Si l'utilisateur a saisi quelque chose dans le champ de recherche (nom d'institut ou service)
-    if (query) {
-      params.set("q", query)
-    }
-    
-    // Si l'utilisateur a saisi une localisation (ville ou adresse)
-    if (location) {
-      params.set("location", location)
-    }
-    
-    // Si une catégorie est sélectionnée
-    if (category) {
-      params.set("category", category)
-    }
-    
-    // Si aucun critère de recherche n'est fourni, on ne fait rien
-    if (!query && !location && !category) {
+    // Si aucun terme de recherche n'est fourni, on ne fait rien
+    if (!query.trim()) {
       return
     }
     
     // Réinitialiser la page à 1 lors d'une nouvelle recherche
     setPage(1)
     
-    // Mettre à jour l'URL avec les paramètres de recherche
+    // Mettre à jour l'URL avec le paramètre de recherche
+    const params = new URLSearchParams()
+    params.set("q", query.trim())
     router.push(`/search?${params.toString()}`)
   }
   
   // Gestion de la soumission du formulaire avec la touche Entrée
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
+      e.preventDefault()
       handleSearch()
     }
   }
