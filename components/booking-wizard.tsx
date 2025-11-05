@@ -152,13 +152,6 @@ interface BookingWizardProps {
                     }}>Supprimer</button>
                   </div>
                 ))}
-                <div className="pt-3 mt-1 border-t flex items-center justify-between text-sm text-gray-700">
-                  <div className="font-medium">Total</div>
-                  <div className="flex items-center gap-4">
-                    <span>{totalDuration} min</span>
-                    <span>{Math.round(totalPriceCents / 100)} DA</span>
-                  </div>
-                </div>
               </div>
             )}
             {/* Information modal shown after slot selection */}
@@ -382,21 +375,7 @@ interface BookingWizardProps {
 
   const renderStep2 = () => (
     <div className="space-y-8">
-      <div className="space-y-6 bg-white p-8 rounded-xl shadow-sm border">
-        <h3 className="font-semibold mb-2">2. Date et heure sélectionnées</h3>
-        <div className="flex justify-between items-center">
-          <span>
-            {selectedDate && selectedTime
-              ? `${new Date(selectedDate).toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })} à ${selectedTime}`
-              : '—'}
-          </span>
-          <Button variant="link" className="text-blue-600 p-0" onClick={() => setCurrentStep(1)}>
-            Modifier
-          </Button>
-        </div>
-      </div>
-
-      {/* If authenticated, show direct confirmation here and hide Identification section */}
+      {/* Résumé date supprimé pour réduire la redondance */}
       {(auth || authOverride) && (
         <div className="space-y-4">
           {error && <div className="text-sm text-red-600 text-center">{error}</div>}
@@ -607,13 +586,8 @@ interface BookingWizardProps {
                       <span className="font-medium">Total</span>
                       <span className="font-medium">{totalDuration} min • {Math.round(totalPriceCents / 100)} DA</span>
                     </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-600">Employé</span>
-                      <span>{employees.find(e => e.id === selectedEmployeeId)?.full_name || 'Sans préférence'}</span>
-                    </div>
                     <div className="flex gap-2 pt-2">
                       <Button variant="outline" size="sm" className="h-8" onClick={() => setCurrentStep(1)}>Modifier prestations</Button>
-                      <Button variant="outline" size="sm" className="h-8" onClick={() => setCurrentStep(2)}>Modifier date</Button>
                     </div>
                   </div>
                 )}
