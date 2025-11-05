@@ -23,11 +23,11 @@ interface BookingWizardProps {
   } | null
 }
 
-export default function BookingWizard({ salon, onClose, initialService = null }: BookingWizardProps) {
+ export default function BookingWizard({ salon, onClose, initialService = null }: BookingWizardProps) {
   const router = useRouter()
   const { auth, loading: authLoading } = useAuth()
   const [currentStep, setCurrentStep] = useState(1)
-  const [selectedService, setSelectedService] = useState<any>(initialService)
+  const [selectedItems, setSelectedItems] = useState<any[]>(() => initialService ? [initialService] : [])
   const [selectedDate, setSelectedDate] = useState<string>("")
   const [selectedTime, setSelectedTime] = useState<string>("")
   const [submitting, setSubmitting] = useState(false)
@@ -50,16 +50,43 @@ export default function BookingWizard({ salon, onClose, initialService = null }:
   const [authSubmitting, setAuthSubmitting] = useState(false)
   const [ticketOpen, setTicketOpen] = useState(false)
   const [ticketData, setTicketData] = useState<any>(null)
+  const [showAddService, setShowAddService] = useState(false)
+  const [editingItemIndex, setEditingItemIndex] = useState<number | null>(null)
+  const [itemSlotsCache, setItemSlotsCache] = useState<Record<string, Array<{ date: string; slots: string[] }>>>({})
 
   // removed unused constants to avoid TS noUnusedLocals issues
 
-  // Fetch employees when a service is selected
+  const totalDuration = selectedItems.reduce((sum, it) => sum + Number(it?.duration_minutes || 0), 0)
+  const totalPriceCents = selectedItems.reduce((sum, it) => sum + Number(it?.price_cents ?? 0), 0)
+
+  async function loadSlotsForService(serviceId: string) {
+    if (!serviceId) return [] as Array<{ date: string; slots: string[] }>
+    if (itemSlotsCache[serviceId]) return itemSlotsCache[serviceId]
+    try {
+      const p = new URLSearchParams()
+      p.set('serviceId', serviceId)
+      if (selectedEmployeeId) p.set('employeeId', selectedEmployeeId)
+      p.set('days', '7')
+      p.set('start', startDate)
+      const res = await fetch(`/api/salon/${salon.id}/timeslots?` + p.toString(), { cache: 'no-store' })
+      const j = await res.json().catch(() => ({ days: [] }))
+      const days = Array.isArray(j?.days) ? j.days : []
+      const val = days.map((d: any) => ({ date: d.date, slots: (d.slots || []).map((s: any) => s.time) }))
+      setItemSlotsCache((prev) => ({ ...prev, [serviceId]: val }))
+      return val
+    } catch {
+      return []
+    }
+  }
+
+  // Fetch employees when at least one service is selected (use the first one as reference)
   useEffect(() => {
     let ignore = false
     async function run() {
-      if (!selectedService) { setEmployees([]); setSelectedEmployeeId(null); return }
+      const first = selectedItems[0]
+      if (!first) { setEmployees([]); setSelectedEmployeeId(null); return }
       try {
-        const url = `/api/salon/${salon.id}/employees?serviceId=${selectedService.id}`
+        const url = `/api/salon/${salon.id}/employees?serviceId=${first.id}`
         const res = await fetch(url, { cache: 'no-store' })
         const j = await res.json().catch(() => ({ employees: [] }))
         if (ignore) return
@@ -73,17 +100,18 @@ export default function BookingWizard({ salon, onClose, initialService = null }:
     }
     run()
     return () => { ignore = true }
-  }, [selectedService, salon.id])
+  }, [selectedItems, salon.id])
 
-  // Fetch time slots when service, employee or startDate changes
+  // Fetch time slots when first service, employee or startDate changes
   useEffect(() => {
     let ignore = false
     async function loadSlots() {
-      if (!selectedService) { setSlots([]); return }
+      const first = selectedItems[0]
+      if (!first) { setSlots([]); return }
       setLoadingSlots(true)
       try {
         const p = new URLSearchParams()
-        p.set('serviceId', selectedService.id)
+        p.set('serviceId', first.id)
         if (selectedEmployeeId) p.set('employeeId', selectedEmployeeId)
         p.set('days', '7')
         p.set('start', startDate)
@@ -100,7 +128,7 @@ export default function BookingWizard({ salon, onClose, initialService = null }:
     }
     loadSlots()
     return () => { ignore = true }
-  }, [selectedService, selectedEmployeeId, salon.id, startDate])
+  }, [selectedItems, selectedEmployeeId, salon.id, startDate])
 
   const renderStep1 = () => (
     <div className="space-y-6">
@@ -109,9 +137,29 @@ export default function BookingWizard({ salon, onClose, initialService = null }:
       <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-100">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
-            <h3 className="font-semibold truncate">{selectedService ? selectedService.name : "Sélectionner une prestation"}</h3>
-            {selectedService && (
-              <p className="text-sm text-gray-600">{selectedService.duration_minutes}min • {(selectedService.price_cents ?? 0) / 100} DA</p>
+            <h3 className="font-semibold truncate">{selectedItems.length ? "Prestations sélectionnées" : "Sélectionner une prestation"}</h3>
+            {!!selectedItems.length && (
+              <div className="space-y-2 mt-2">
+                {selectedItems.map((it, idx) => (
+                  <div key={idx} className="flex items-center justify-between gap-3 text-sm">
+                    <div className="truncate">
+                      {it.name}
+                      <span className="text-gray-600"> • {it.duration_minutes}min • {(it.price_cents ?? 0) / 100} DA</span>
+                    </div>
+                    <button className="text-sm text-blue-600 hover:underline shrink-0" onClick={() => {
+                      setSelectedItems((prev) => prev.filter((_, i) => i !== idx))
+                      setShowAddService(false)
+                    }}>Supprimer</button>
+                  </div>
+                ))}
+                <div className="pt-3 mt-1 border-t flex items-center justify-between text-sm text-gray-700">
+                  <div className="font-medium">Total</div>
+                  <div className="flex items-center gap-4">
+                    <span>{totalDuration} min</span>
+                    <span>{Math.round(totalPriceCents / 100)} DA</span>
+                  </div>
+                </div>
+              </div>
             )}
             {/* Information modal shown after slot selection */}
       <AlertDialog open={showInfo} onOpenChange={setShowInfo}>
@@ -166,7 +214,7 @@ export default function BookingWizard({ salon, onClose, initialService = null }:
         </AlertDialogContent>
       </AlertDialog>
     </div>
-          {selectedService && (
+          {!!selectedItems.length && (
             <div className="w-56 shrink-0">
               <Label className="text-xs text-gray-500">Avec qui ?</Label>
               <div className="mt-1">
@@ -188,11 +236,9 @@ export default function BookingWizard({ salon, onClose, initialService = null }:
               </div>
             </div>
           )}
-          {selectedService && (
-            <button className="text-sm text-blue-600 hover:underline shrink-0 ml-auto">Supprimer</button>
-          )}
+          {/* right area left blank when multi */}
         </div>
-        {!selectedService && (
+        {!selectedItems.length && (
           <div className="mt-3">
             <div className="text-sm text-gray-700 mb-4">Choisir une prestation</div>
             <div className="space-y-6">
@@ -208,12 +254,10 @@ export default function BookingWizard({ salon, onClose, initialService = null }:
                         <button
                           key={svc.id}
                           className="w-full text-left p-3 border rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-between"
-                          onClick={() => setSelectedService({
-                            id: svc.id,
-                            name: svc.name,
-                            duration_minutes: svc.duration_minutes || 30,
-                            price_cents: svc.price_cents ?? 0,
-                          })}
+                          onClick={() => {
+                            setSelectedItems((prev)=> [...prev, { id: svc.id, name: svc.name, duration_minutes: svc.duration_minutes || 30, price_cents: svc.price_cents ?? 0 }])
+                            setShowAddService(false)
+                          }}
                         >
                           <div className="flex-1">
                             <div className="font-medium text-gray-900">{svc.name}</div>
@@ -231,7 +275,7 @@ export default function BookingWizard({ salon, onClose, initialService = null }:
             </div>
           </div>
         )}
-        {selectedService && (
+        {!!selectedItems.length && (
           <div className="mt-6">
             {/* Section 2 header */}
             <h2 className="text-base font-semibold text-black mb-3"><span className="text-blue-600 mr-2">2.</span> Choix de la date & heure</h2>
@@ -289,10 +333,47 @@ export default function BookingWizard({ salon, onClose, initialService = null }:
 
       {/* Ajouter une prestation à la suite */}
       <div className="mt-3">
-        <Button variant="default" className="bg-black hover:bg-gray-800 text-white">
+        <Button variant="default" className="bg-black hover:bg-gray-800 text-white" onClick={() => setShowAddService((v)=>!v)}>
           <Plus className="h-4 w-4 mr-2" />
           Ajouter une prestation à la suite
         </Button>
+        {showAddService && (
+          <div className="mt-4">
+            <div className="text-sm text-gray-700 mb-4">Choisir une prestation supplémentaire</div>
+            <div className="space-y-6">
+              {(salon?.services || []).map((category: any, catIndex: number) => {
+                if (!category.items?.length) return null;
+                return (
+                  <div key={`add-${catIndex}`} className="space-y-2">
+                    <h3 className="font-medium text-gray-900 text-base mb-2">
+                      {category.category || 'Autres prestations'}
+                    </h3>
+                    <div className="space-y-2">
+                      {category.items.map((svc: any) => (
+                        <button
+                          key={`add-${svc.id}`}
+                          className="w-full text-left p-3 border rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-between"
+                          onClick={() => {
+                            setSelectedItems((prev)=> [...prev, { id: svc.id, name: svc.name, duration_minutes: svc.duration_minutes || 30, price_cents: svc.price_cents ?? 0 }])
+                            setShowAddService(false)
+                          }}
+                        >
+                          <div className="flex-1">
+                            <div className="font-medium text-gray-900">{svc.name}</div>
+                            <div className="text-sm text-gray-500">
+                              {svc.duration_minutes || 30} min • {(svc.price_cents ?? 0) / 100} DA
+                            </div>
+                          </div>
+                          <ChevronRight className="h-4 w-4 text-gray-400 ml-4" />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Bloc manuel masqué pour coller au rendu Planity */}
@@ -321,7 +402,7 @@ export default function BookingWizard({ salon, onClose, initialService = null }:
           {error && <div className="text-sm text-red-600 text-center">{error}</div>}
           <Button
             className="w-full bg-black text-white hover:bg-gray-800"
-            disabled={authLoading || submitting || !selectedService || !selectedDate || !selectedTime}
+            disabled={authLoading || submitting || selectedItems.length === 0 || !selectedDate || !selectedTime}
             onClick={async () => {
               setSubmitting(true)
               setError(null)
@@ -331,15 +412,13 @@ export default function BookingWizard({ salon, onClose, initialService = null }:
                   business_id: salon.id,
                   starts_at: starts_at.toISOString(),
                   employee_id: selectedEmployeeId || undefined,
-                  items: [
-                    {
-                      service_id: selectedService.id,
-                      duration_minutes: Number(selectedService.duration_minutes || 30),
-                      price_cents: Number(selectedService.price_cents ?? 0),
-                      currency: 'DZD',
-                      employee_id: selectedEmployeeId || undefined,
-                    },
-                  ],
+                  items: selectedItems.map((it) => ({
+                    service_id: it.id,
+                    duration_minutes: Number(it.duration_minutes || 30),
+                    price_cents: Number(it.price_cents ?? 0),
+                    currency: 'DZD',
+                    employee_id: selectedEmployeeId || undefined,
+                  })),
                 }
                 const res = await fetch('/api/client/bookings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
                 const j = await res.json().catch(() => ({}))
@@ -350,7 +429,7 @@ export default function BookingWizard({ salon, onClose, initialService = null }:
                   salonName: salon?.name,
                   date: new Date(selectedDate).toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }),
                   time: selectedTime,
-                  serviceName: selectedService?.name,
+                  serviceName: selectedItems.map(s=>s.name).join(' + '),
                   employee: employees.find(e => e.id === selectedEmployeeId)?.full_name || 'Sans préférence',
                 })
                 setTicketOpen(true)
@@ -472,6 +551,74 @@ export default function BookingWizard({ salon, onClose, initialService = null }:
 
           {/* Sidebar */}
           <div className="lg:col-span-4 space-y-6 lg:sticky lg:top-8">
+            {/* Récapitulatif de la réservation */}
+            <Card>
+              <CardContent className="p-6 space-y-3">
+                <h3 className="font-semibold text-lg">Récapitulatif</h3>
+                {selectedItems.length === 0 ? (
+                  <div className="text-sm text-gray-600">Aucune prestation sélectionnée</div>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="space-y-1">
+                      {selectedItems.map((it, idx) => (
+                        <div key={`recap-${idx}`} className="space-y-1">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="truncate mr-2">{it.name}</span>
+                            <span className="text-gray-600">{it.duration_minutes}min • {(it.price_cents ?? 0) / 100} DA</span>
+                          </div>
+                          <div className="flex items-center justify-between text-xs text-gray-600">
+                            <span>Date & heure</span>
+                            <div className="flex items-center gap-2">
+                              <span>{(it as any).date && (it as any).time
+                                ? `${new Date((it as any).date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })} • ${(it as any).time}`
+                                : (selectedDate && selectedTime ? `${new Date(selectedDate).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })} • ${selectedTime}` : '—')}
+                              </span>
+                              <button className="text-blue-600 hover:underline" onClick={async () => {
+                                setEditingItemIndex(idx)
+                                await loadSlotsForService(it.id)
+                              }}>Modifier</button>
+                            </div>
+                          </div>
+                          {editingItemIndex === idx && (
+                            <div className="mt-2 rounded-md border p-2">
+                              <div className="grid grid-cols-3 gap-2 max-h-48 overflow-auto">
+                                {(itemSlotsCache[it.id] || []).map((d) => (
+                                  <div key={`itm-${idx}-${d.date}`} className="col-span-1">
+                                    <div className="text-[11px] font-medium text-gray-700 mb-1">{new Date(d.date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}</div>
+                                    <div className="flex flex-col gap-1">
+                                      {d.slots.slice(0,6).map((t) => (
+                                        <button key={`itm-${idx}-${d.date}-${t}`} className={`text-[11px] h-7 border rounded px-2 ${((it as any).date === d.date && (it as any).time === t) ? 'bg-black text-white' : 'bg-white hover:bg-gray-50'}`}
+                                          onClick={() => {
+                                            setSelectedItems((prev) => prev.map((p, pi) => pi === idx ? { ...p, date: d.date, time: t } : p))
+                                            setEditingItemIndex(null)
+                                          }}
+                                        >{t}</button>
+                                      ))}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    <div className="pt-2 mt-1 border-t flex items-center justify-between text-sm">
+                      <span className="font-medium">Total</span>
+                      <span className="font-medium">{totalDuration} min • {Math.round(totalPriceCents / 100)} DA</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-600">Employé</span>
+                      <span>{employees.find(e => e.id === selectedEmployeeId)?.full_name || 'Sans préférence'}</span>
+                    </div>
+                    <div className="flex gap-2 pt-2">
+                      <Button variant="outline" size="sm" className="h-8" onClick={() => setCurrentStep(1)}>Modifier prestations</Button>
+                      <Button variant="outline" size="sm" className="h-8" onClick={() => setCurrentStep(2)}>Modifier date</Button>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
             {/* Salon Info */}
             <Card>
               <CardContent className="p-6">
