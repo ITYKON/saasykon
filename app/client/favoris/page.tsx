@@ -1,6 +1,7 @@
 "use client"
 import { useEffect, useState } from "react"
 import { Heart, MapPin, Star, Clock, Phone } from "lucide-react"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -98,9 +99,14 @@ export default function ClientFavoris() {
               </div>
 
               <div className="flex gap-2">
-                <Button className="flex-1 bg-black text-white hover:bg-gray-800">Prendre RDV</Button>
-                <Button variant="outline" className="border-black text-black hover:bg-gray-50 bg-transparent">
-                  Voir profil
+                <Button 
+                  className="flex-1 bg-black text-white hover:bg-gray-800"
+                  onClick={() => window.location.href = `/salon/${fav.businesses.id}`}
+                >
+                  Prendre RDV
+                </Button>
+                <Button asChild variant="outline" className="border-black text-black hover:bg-gray-50 bg-transparent">
+                  <Link href={`/salon/${fav.businesses.id}`}>Voir profil</Link>
                 </Button>
               </div>
             </CardContent>
