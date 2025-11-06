@@ -85,9 +85,13 @@ export default function SalonPage({ params }: { params: { id: string } }) {
         // Raw fields preserved for booking
         duration_minutes: it.duration_minutes || 30,
         price_cents: it.price_cents ?? null,
+        ...(typeof it.price_min_cents === 'number' ? { price_min_cents: it.price_min_cents } : {}),
+        ...(typeof it.price_max_cents === 'number' ? { price_max_cents: it.price_max_cents } : {}),
         // Display fields
         duration: `${it.duration_minutes || 30}min`,
-        price: it.price_cents != null ? `${Math.round(it.price_cents / 100)} DA` : "—",
+        price: (typeof it.price_min_cents === 'number' && typeof it.price_max_cents === 'number')
+          ? `${Math.round(it.price_min_cents / 100)}–${Math.round(it.price_max_cents / 100)} DA`
+          : (it.price_cents != null ? `${Math.round(it.price_cents / 100)} DA` : "—"),
       })),
     }))
     const hours: Record<string, string> = (data.hours as Record<string, string>) || {
@@ -319,6 +323,8 @@ export default function SalonPage({ params }: { params: { id: string } }) {
                                     name: service.name,
                                     duration_minutes: Number(service.duration_minutes || 30),
                                     price_cents: service.price_cents ?? null,
+                                    ...(typeof service.price_min_cents === 'number' ? { price_min_cents: service.price_min_cents } : {}),
+                                    ...(typeof service.price_max_cents === 'number' ? { price_max_cents: service.price_max_cents } : {}),
                                   })
                                   setShowBooking(true)
                                 }}

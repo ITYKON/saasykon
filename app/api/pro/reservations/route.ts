@@ -38,8 +38,14 @@ export async function GET(req: NextRequest) {
             variant_id: true,
             price_cents: true,
             duration_minutes: true,
-            services: { select: { id: true, name: true } },
-            service_variants: { select: { id: true, name: true, duration_minutes: true, price_cents: true } },
+            services: { 
+              select: { 
+                id: true, 
+                name: true,
+                service_variants: { take: 1, orderBy: { duration_minutes: 'asc' }, select: { price_min_cents: true, price_max_cents: true } }
+              } 
+            },
+            service_variants: { select: { id: true, name: true, duration_minutes: true, price_cents: true, price_min_cents: true, price_max_cents: true } },
           },
         },
       },
@@ -56,7 +62,9 @@ export async function GET(req: NextRequest) {
     const formattedReservations = reservationsList.map((reservation: any) => {
       // Calculer la durée totale et le prix total
       let totalDuration = 0;
-      let totalPrice = 0;
+      let minTotal = 0;
+      let maxTotal = 0;
+      let counted = false;
       let serviceNames: string[] = [];
 
       // Vérifier si reservation_items existe avant de l'itérer
@@ -65,6 +73,8 @@ export async function GET(req: NextRequest) {
           service_variants?: { 
             duration_minutes?: number;
             name?: string;
+            price_min_cents?: number | null;
+            price_max_cents?: number | null;
           };
           services?: { 
             duration_minutes?: number;
@@ -76,7 +86,23 @@ export async function GET(req: NextRequest) {
           const variantDuration = item.service_variants?.duration_minutes || item.services?.duration_minutes || 0;
           const duration = item.duration_minutes || variantDuration;
           totalDuration += duration;
-          totalPrice += item.price_cents || 0;
+          const hasRange = typeof item.service_variants?.price_min_cents === 'number' && typeof item.service_variants?.price_max_cents === 'number'
+          const svcVar = (item as any)?.services?.service_variants?.[0]
+          const hasFallbackRange = typeof svcVar?.price_min_cents === 'number' && typeof svcVar?.price_max_cents === 'number'
+          // Debug log to verify data coming from DB
+          try { console.log('[ProReservations] item pricing', { price_cents: item.price_cents, min: item.service_variants?.price_min_cents ?? svcVar?.price_min_cents, max: item.service_variants?.price_max_cents ?? svcVar?.price_max_cents }); } catch {}
+          if (typeof item.price_cents === 'number' && item.price_cents > 0) { minTotal += item.price_cents; maxTotal += item.price_cents; counted = true; }
+          else if (hasRange && item.service_variants) { 
+            minTotal += (item.service_variants.price_min_cents as number); 
+            maxTotal += (item.service_variants.price_max_cents as number); 
+            counted = true; 
+          } else if (hasFallbackRange && svcVar) {
+            // Fallback to service's first variant range
+            minTotal += (svcVar.price_min_cents as number)
+            maxTotal += (svcVar.price_max_cents as number)
+            counted = true
+            try { console.log('[ProReservations] used service fallback range'); } catch {}
+          }
           
           const serviceName = item.services?.name || 'Service inconnu';
           const variantName = item.service_variants?.name ? ` - ${item.service_variants.name}` : '';
@@ -96,6 +122,12 @@ export async function GET(req: NextRequest) {
         ? (employee.full_name || 'Employé inconnu')
         : 'Aucun employé';
 
+      const prixText = !counted
+        ? '—'
+        : (minTotal === maxTotal)
+          ? (Math.round(minTotal / 100) + ' DA')
+          : (`${Math.round(minTotal / 100)}–${Math.round(maxTotal / 100)} DA`)
+      try { console.log('[ProReservations] reservation total', { id: reservation.id, minTotal, maxTotal, counted, prixText }) } catch {}
       return {
         id: reservation.id,
         client: clientName,
@@ -106,7 +138,7 @@ export async function GET(req: NextRequest) {
         date: reservation.starts_at,
         heure: new Date(reservation.starts_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
         duree: `${totalDuration} min`,
-        prix: Math.round(totalPrice / 100) + ' DA',
+        prix: prixText,
         status: STATUS_FR[reservation.status] || reservation.status,
         notes: reservation.notes || '',
         location: location?.address_line1 || 'Adresse non spécifiée',

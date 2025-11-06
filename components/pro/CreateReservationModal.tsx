@@ -40,6 +40,7 @@ export default function CreateReservationModal({
   const [date, setDate] = useState<string>("");
   const [time, setTime] = useState<string>("");
   const [priceCents, setPriceCents] = useState<string>("");
+  const [priceMode, setPriceMode] = useState<'fixed' | 'range'>('fixed');
   const [duration, setDuration] = useState<string>("");
   const [notes, setNotes] = useState<string>("");
 
@@ -115,9 +116,12 @@ export default function CreateReservationModal({
 
   useEffect(() => {
     if (!variantId && variants.length) {
-      setVariantId(variants[0].id);
-      setDuration(String(variants[0].duration_minutes || 30));
-      setPriceCents(String(variants[0].price_cents || 0));
+      const v = variants[0] as any
+      setVariantId(v.id);
+      setDuration(String(v.duration_minutes || 30));
+      const hasRange = typeof v?.price_min_cents === 'number' && typeof v?.price_max_cents === 'number'
+      if (hasRange) { setPriceMode('range'); setPriceCents(''); }
+      else { setPriceMode('fixed'); setPriceCents(String(v?.price_cents || 0)); }
     }
   }, [variants, variantId]);
 
@@ -143,7 +147,7 @@ export default function CreateReservationModal({
             {
               service_id: serviceId,
               variant_id: variantId || null,
-              price_cents: Number(priceCents || 0),
+              price_cents: priceMode === 'fixed' ? Number(priceCents || 0) : null,
               currency: 'DZD',
               employee_id: employeeId === "none" ? null : employeeId || null,
               duration_minutes: Number(duration || 30),
@@ -247,10 +251,12 @@ export default function CreateReservationModal({
                       value={variantId} 
                       onValueChange={(value) => {
                         setVariantId(value);
-                        const selectedVariant = variants.find((v: any) => v.id === value);
+                        const selectedVariant = variants.find((v: any) => v.id === value) as any;
                         if (selectedVariant) {
                           setDuration(String(selectedVariant.duration_minutes || duration));
-                          setPriceCents(String(selectedVariant.price_cents || priceCents));
+                          const hasRange = typeof selectedVariant?.price_min_cents === 'number' && typeof selectedVariant?.price_max_cents === 'number'
+                          if (hasRange) { setPriceMode('range'); setPriceCents(''); }
+                          else { setPriceMode('fixed'); setPriceCents(String(selectedVariant.price_cents || priceCents)); }
                         }
                       }}
                     >
@@ -264,7 +270,9 @@ export default function CreateReservationModal({
                               <div className="flex justify-between w-full">
                                 <span>{variant.name}</span>
                                 <span className="text-gray-500 ml-2">
-                                  {variant.duration_minutes} min • {typeof variant.price_cents === 'number' ? `${Math.round(variant.price_cents / 100)} DA` : 'Prix non défini'}
+                                  {variant.duration_minutes} min • {typeof variant.price_min_cents === 'number' && typeof variant.price_max_cents === 'number'
+                                    ? `${Math.round(variant.price_min_cents / 100)}–${Math.round(variant.price_max_cents / 100)} DA`
+                                    : (typeof variant.price_cents === 'number' ? `${Math.round(variant.price_cents / 100)} DA` : 'Prix non défini')}
                                 </span>
                               </div>
                             </SelectItem>
@@ -332,27 +340,38 @@ export default function CreateReservationModal({
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Prix (DA) *</Label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">DA</span>
-                    <Input 
-                      type="number" 
-                      value={priceCents !== '' ? String(Math.floor(Number(priceCents) / 100)) : ''} 
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        if (val === '') {
-                          setPriceCents('');
-                        } else {
-                          const dinars = Math.max(0, Math.floor(Number(val)) || 0);
-                          setPriceCents(String(dinars * 100));
-                        }
-                      }}
-                      placeholder="0"
-                      className="pl-10"
-                      step="1"
-                      min="0"
-                      required
-                    />
+                  <Label>Prix *</Label>
+                  <div className={`grid ${priceMode === 'fixed' ? 'grid-cols-3' : 'grid-cols-1'} gap-2 items-center`}>
+                    <Select value={priceMode} onValueChange={(v: any) => setPriceMode(v)}>
+                      <SelectTrigger><SelectValue placeholder="Mode" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="fixed">Fixe</SelectItem>
+                        <SelectItem value="range">Variable</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {priceMode === 'fixed' ? (
+                      <div className="relative col-span-2">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">DA</span>
+                        <Input 
+                          type="number" 
+                          value={priceCents !== '' ? String(Math.floor(Number(priceCents) / 100)) : ''} 
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (val === '') {
+                              setPriceCents('');
+                            } else {
+                              const dinars = Math.max(0, Math.floor(Number(val)) || 0);
+                              setPriceCents(String(dinars * 100));
+                            }
+                          }}
+                          placeholder="0"
+                          className="pl-10"
+                          step="1"
+                          min="0"
+                          required
+                        />
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               </div>
@@ -380,7 +399,7 @@ export default function CreateReservationModal({
                 </Button>
                 <Button
                   onClick={submit}
-                  disabled={submitting || !serviceId || !date || !time || !client || !duration || !priceCents}
+                  disabled={submitting || !serviceId || !date || !time || !client || !duration || (priceMode === 'fixed' && !priceCents)}
                 >
                   {submitting ? "Création en cours..." : "Confirmer la réservation"}
                 </Button>

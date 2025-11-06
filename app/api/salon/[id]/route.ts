@@ -25,7 +25,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
             description: true,
             category_id: true,
             service_categories: { select: { name: true } },
-            service_variants: { where: { is_active: true }, orderBy: { duration_minutes: "asc" }, select: { id: true, name: true, duration_minutes: true, price_cents: true } },
+            service_variants: { where: { is_active: true }, orderBy: { duration_minutes: "asc" }, select: { id: true, name: true, duration_minutes: true, price_cents: true, price_min_cents: true, price_max_cents: true } },
           },
           orderBy: { name: "asc" },
         },
@@ -42,14 +42,16 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     const reviewCount = business.ratings_aggregates ? business.ratings_aggregates.rating_count : 0;
 
     // Group services by category
-    const categoriesMap = new Map<string, { category: string; items: Array<{ id: string; name: string; description?: string | null; duration_minutes: number; price_cents: number | null }> }>();
+    const categoriesMap = new Map<string, { category: string; items: Array<{ id: string; name: string; description?: string | null; duration_minutes: number; price_cents: number | null; price_min_cents?: number | null; price_max_cents?: number | null }> }>();
     for (const s of business.services) {
       const catName = s.service_categories?.name || "Autres";
       if (!categoriesMap.has(catName)) categoriesMap.set(catName, { category: catName, items: [] });
       const variant = s.service_variants?.[0];
       const duration = variant?.duration_minutes || 30;
       const price = variant?.price_cents ?? null;
-      categoriesMap.get(catName)!.items.push({ id: s.id, name: s.name, description: s.description, duration_minutes: duration, price_cents: price });
+      const priceMin = typeof (variant as any)?.price_min_cents === 'number' ? (variant as any).price_min_cents : null;
+      const priceMax = typeof (variant as any)?.price_max_cents === 'number' ? (variant as any).price_max_cents : null;
+      categoriesMap.get(catName)!.items.push({ id: s.id, name: s.name, description: s.description, duration_minutes: duration, price_cents: price, ...(priceMin != null ? { price_min_cents: priceMin } : {}), ...(priceMax != null ? { price_max_cents: priceMax } : {}), });
     }
 
     // Reviews simplified

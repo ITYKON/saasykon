@@ -20,6 +20,8 @@ interface BookingWizardProps {
     name: string
     duration_minutes: number
     price_cents?: number | null
+    price_min_cents?: number | null
+    price_max_cents?: number | null
   } | null
 }
 
@@ -154,7 +156,12 @@ interface BookingWizardProps {
                   <div key={idx} className="flex items-center justify-between gap-3 text-sm">
                     <div className="truncate">
                       {it.name}
-                      <span className="text-gray-600"> • {it.duration_minutes}min • {(it.price_cents ?? 0) / 100} DA</span>
+                      <span className="text-gray-600">
+                        
+                        • {it.duration_minutes}min • {typeof (it as any).price_min_cents === 'number' && typeof (it as any).price_max_cents === 'number'
+                          ? `${Math.round((it as any).price_min_cents / 100)}–${Math.round((it as any).price_max_cents / 100)} DA`
+                          : `${Math.round(((it.price_cents ?? 0) as number) / 100)} DA`}
+                      </span>
                     </div>
                     <button className="text-sm text-blue-600 hover:underline shrink-0" onClick={() => {
                       setSelectedItems((prev) => prev.filter((_, i) => i !== idx))
@@ -188,6 +195,9 @@ interface BookingWizardProps {
       {/* Ticket modal after successful reservation */}
       <AlertDialog open={ticketOpen} onOpenChange={setTicketOpen}>
         <AlertDialogContent>
+          <button aria-label="Fermer" className="absolute right-4 top-4 text-gray-500 hover:text-black" onClick={() => setTicketOpen(false)}>
+            <X className="h-5 w-5" />
+          </button>
           <AlertDialogHeader>
             <AlertDialogTitle>Ticket de réservation</AlertDialogTitle>
             <AlertDialogDescription>
@@ -196,6 +206,9 @@ interface BookingWizardProps {
                   <div className="font-medium">{ticketData.salonName}</div>
                   <div className="text-sm text-gray-600">{ticketData.date} • à {ticketData.time}</div>
                   <div className="mt-2 text-sm">Prestation: {ticketData.serviceName}</div>
+                  {ticketData.price && (
+                    <div className="text-sm">Prix: {ticketData.price}</div>
+                  )}
                   <div className="text-sm">Avec: {ticketData.employee}</div>
                   <div className="mt-2 text-xs text-gray-500">Référence: {ticketData.id}</div>
                 </div>
@@ -212,7 +225,6 @@ interface BookingWizardProps {
             }}>Télécharger</AlertDialogAction>
             <AlertDialogAction onClick={() => { setTicketOpen(false); router.push(`/client/dashboard`) }}>Mon espace</AlertDialogAction>
             <AlertDialogAction onClick={() => { setTicketOpen(false); router.push(`/salon/${salon?.id}`) }}>Retour au salon</AlertDialogAction>
-            <AlertDialogAction onClick={() => { setTicketOpen(false); onClose() }}>Fermer</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -258,14 +270,24 @@ interface BookingWizardProps {
                           key={svc.id}
                           className="w-full text-left p-3 border rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-between"
                           onClick={() => {
-                            setSelectedItems((prev)=> [...prev, { id: svc.id, name: svc.name, duration_minutes: svc.duration_minutes || 30, price_cents: svc.price_cents ?? 0 }])
+                            const hasRange = typeof svc.price_min_cents === 'number' && typeof svc.price_max_cents === 'number'
+                            setSelectedItems((prev)=> [...prev, {
+                              id: svc.id,
+                              name: svc.name,
+                              duration_minutes: svc.duration_minutes || 30,
+                              price_cents: hasRange ? null : (typeof svc.price_cents === 'number' ? svc.price_cents : null),
+                              ...(typeof svc.price_min_cents === 'number' ? { price_min_cents: svc.price_min_cents } : {}),
+                              ...(typeof svc.price_max_cents === 'number' ? { price_max_cents: svc.price_max_cents } : {}),
+                            }])
                             setShowAddService(false)
                           }}
                         >
                           <div className="flex-1">
                             <div className="font-medium text-gray-900">{svc.name}</div>
                             <div className="text-sm text-gray-500">
-                              {svc.duration_minutes || 30} min • {(svc.price_cents ?? 0) / 100} DA
+                              {svc.duration_minutes || 30} min • {typeof svc.price_min_cents === 'number' && typeof svc.price_max_cents === 'number'
+                                ? `${Math.round(svc.price_min_cents / 100)}–${Math.round(svc.price_max_cents / 100)} DA`
+                                : `${Math.round(((svc.price_cents ?? 0) as number) / 100)} DA`}
                             </div>
                           </div>
                           <ChevronRight className="h-4 w-4 text-gray-400 ml-4" />
@@ -357,14 +379,24 @@ interface BookingWizardProps {
                           key={`add-${svc.id}`}
                           className="w-full text-left p-3 border rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-between"
                           onClick={() => {
-                            setSelectedItems((prev)=> [...prev, { id: svc.id, name: svc.name, duration_minutes: svc.duration_minutes || 30, price_cents: svc.price_cents ?? 0 }])
+                            const hasRange = typeof svc.price_min_cents === 'number' && typeof svc.price_max_cents === 'number'
+                            setSelectedItems((prev)=> [...prev, {
+                              id: svc.id,
+                              name: svc.name,
+                              duration_minutes: svc.duration_minutes || 30,
+                              price_cents: hasRange ? null : (typeof svc.price_cents === 'number' ? svc.price_cents : null),
+                              ...(typeof svc.price_min_cents === 'number' ? { price_min_cents: svc.price_min_cents } : {}),
+                              ...(typeof svc.price_max_cents === 'number' ? { price_max_cents: svc.price_max_cents } : {}),
+                            }])
                             setShowAddService(false)
                           }}
                         >
                           <div className="flex-1">
                             <div className="font-medium text-gray-900">{svc.name}</div>
                             <div className="text-sm text-gray-500">
-                              {svc.duration_minutes || 30} min • {(svc.price_cents ?? 0) / 100} DA
+                              {svc.duration_minutes || 30} min • {typeof svc.price_min_cents === 'number' && typeof svc.price_max_cents === 'number'
+                                ? `${Math.round(svc.price_min_cents / 100)}–${Math.round(svc.price_max_cents / 100)} DA`
+                                : `${Math.round(((svc.price_cents ?? 0) as number) / 100)} DA`}
                             </div>
                           </div>
                           <ChevronRight className="h-4 w-4 text-gray-400 ml-4" />
@@ -406,16 +438,34 @@ interface BookingWizardProps {
                   items: selectedItems.map((it) => ({
                     service_id: it.id,
                     duration_minutes: Number(it.duration_minutes || 30),
-                    price_cents: Number(it.price_cents ?? 0),
+                    price_cents: (typeof it.price_cents === 'number' ? it.price_cents : null) as any,
                     currency: 'DZD',
                     employee_id: selectedEmployeeId || undefined,
                   })),
                 }
+                try { console.log('[BookingWizard] submit payload', { payload, selectedItems }) } catch {}
                 const res = await fetch('/api/client/bookings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
                 const j = await res.json().catch(() => ({}))
                 if (!res.ok) throw new Error(j?.error || 'Impossible de créer la réservation')
                 // Open ticket modal with data (provisional employee name)
                 const bookingId = j?.booking?.id
+                try { console.log('[BookingWizard] booking created', { bookingId, business_id: salon?.id }) } catch {}
+                // Compute price text (fixed total or min–max range)
+                let minTotal = 0
+                let maxTotal = 0
+                let counted = false
+                for (const it of selectedItems) {
+                  const pc = typeof it.price_cents === 'number' ? it.price_cents : null
+                  const pmin = typeof (it as any).price_min_cents === 'number' ? (it as any).price_min_cents : null
+                  const pmax = typeof (it as any).price_max_cents === 'number' ? (it as any).price_max_cents : null
+                  if (pc != null) { minTotal += pc; maxTotal += pc; counted = true }
+                  else if (pmin != null && pmax != null) { minTotal += pmin; maxTotal += pmax; counted = true }
+                }
+                const priceText = !counted
+                  ? '—'
+                  : (minTotal === maxTotal)
+                    ? `${Math.round(minTotal / 100)} DA`
+                    : `${Math.round(minTotal / 100)}–${Math.round(maxTotal / 100)} DA`
                 setTicketData({
                   id: bookingId,
                   salonName: salon?.name,
@@ -423,6 +473,7 @@ interface BookingWizardProps {
                   time: selectedTime,
                   serviceName: selectedItems.map(s=>s.name).join(' + '),
                   employee: employees.find(e => e.id === selectedEmployeeId)?.full_name || 'Sans préférence',
+                  price: priceText,
                 })
                 setTicketOpen(true)
                 // Refresh employee from server-assigned value (handles 'Sans préférence')
@@ -566,7 +617,10 @@ interface BookingWizardProps {
                         <div key={`recap-${idx}`} className="space-y-1">
                           <div className="flex items-center justify-between text-sm">
                             <span className="truncate mr-2">{it.name}</span>
-                            <span className="text-gray-600">{it.duration_minutes}min • {(it.price_cents ?? 0) / 100} DA</span>
+                            <span className="text-gray-600">{it.duration_minutes}min • {typeof (it as any).price_min_cents === 'number' && typeof (it as any).price_max_cents === 'number'
+                              ? `${Math.round((it as any).price_min_cents / 100)}–${Math.round((it as any).price_max_cents / 100)} DA`
+                              : `${Math.round(((it.price_cents ?? 0) as number) / 100)} DA`}
+                            </span>
                           </div>
                           <div className="flex items-center justify-between text-xs text-gray-600">
                             <span>Date & heure</span>
@@ -607,7 +661,23 @@ interface BookingWizardProps {
                     </div>
                     <div className="pt-2 mt-1 border-t flex items-center justify-between text-sm">
                       <span className="font-medium">Total</span>
-                      <span className="font-medium">{totalDuration} min • {Math.round(totalPriceCents / 100)} DA</span>
+                      {(() => {
+                        let minTotal = 0
+                        let maxTotal = 0
+                        for (const it of selectedItems) {
+                          const pc = typeof it.price_cents === 'number' ? it.price_cents : null
+                          const pmin = typeof (it as any).price_min_cents === 'number' ? (it as any).price_min_cents : null
+                          const pmax = typeof (it as any).price_max_cents === 'number' ? (it as any).price_max_cents : null
+                          if (pc != null) { minTotal += pc; maxTotal += pc }
+                          else if (pmin != null && pmax != null) { minTotal += pmin; maxTotal += pmax }
+                        }
+                        const text = (minTotal === maxTotal)
+                          ? `${Math.round(minTotal / 100)} DA`
+                          : `${Math.round(minTotal / 100)}–${Math.round(maxTotal / 100)} DA`
+                        return (
+                          <span className="font-medium">{totalDuration} min • {text}</span>
+                        )
+                      })()}
                     </div>
                     <div className="flex gap-2 pt-2">
                       <Button variant="outline" size="sm" className="h-8" onClick={() => setCurrentStep(1)}>Modifier prestations</Button>
