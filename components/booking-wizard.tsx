@@ -94,7 +94,16 @@ interface BookingWizardProps {
         const list = Array.isArray(j?.employees) ? j.employees : []
         setEmployees(list)
         // Reset selection if not in list
-        setSelectedEmployeeId((prev) => (list.find((e: any) => e.id === prev) ? prev : null))
+        setSelectedEmployeeId((prev) => {
+          const stillThere = list.find((e: any) => e.id === prev) ? prev : null
+          if (stillThere) return stillThere
+          // Auto-assign randomly when 'Sans préférence' to drive agenda by a concrete employee
+          if (list.length > 0) {
+            const pick = list[Math.floor(Math.random() * list.length)]
+            return pick.id
+          }
+          return null
+        })
       } catch {
         if (!ignore) { setEmployees([]); setSelectedEmployeeId(null) }
       }
@@ -405,9 +414,10 @@ interface BookingWizardProps {
                 const res = await fetch('/api/client/bookings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
                 const j = await res.json().catch(() => ({}))
                 if (!res.ok) throw new Error(j?.error || 'Impossible de créer la réservation')
-                // Open ticket modal with data
+                // Open ticket modal with data (provisional employee name)
+                const bookingId = j?.booking?.id
                 setTicketData({
-                  id: j?.booking?.id,
+                  id: bookingId,
                   salonName: salon?.name,
                   date: new Date(selectedDate).toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }),
                   time: selectedTime,
@@ -415,6 +425,15 @@ interface BookingWizardProps {
                   employee: employees.find(e => e.id === selectedEmployeeId)?.full_name || 'Sans préférence',
                 })
                 setTicketOpen(true)
+                // Refresh employee from server-assigned value (handles 'Sans préférence')
+                if (bookingId) {
+                  try {
+                    const det = await fetch(`/api/client/bookings/${bookingId}`, { cache: 'no-store' })
+                    const dj = await det.json().catch(() => null)
+                    const name = dj?.booking?.employees?.full_name || null
+                    if (name) setTicketData((prev: any) => ({ ...prev, employee: name }))
+                  } catch {}
+                }
               } catch (e: any) {
                 setError(e?.message || 'Erreur de création')
               } finally {

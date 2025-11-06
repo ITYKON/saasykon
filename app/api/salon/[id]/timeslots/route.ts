@@ -40,21 +40,36 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     }
     const duration = service.service_variants?.[0]?.duration_minutes ?? 30;
 
-    // Load working hours (employee-specific takes precedence if provided)
-    let wh = await prisma.working_hours.findMany({
-      where: {
-        business_id: businessId,
-        employee_id: employeeId ? employeeId : null,
-      },
+    // Load working hours and qualified employees
+    const businessWh = await prisma.working_hours.findMany({
+      where: { business_id: businessId, employee_id: null },
       select: { weekday: true, start_time: true, end_time: true },
     });
-    // Fallback to business hours if no employee-specific hours
-    if (employeeId && wh.length === 0) {
-      wh = await prisma.working_hours.findMany({
-        where: { business_id: businessId, employee_id: null },
-        select: { weekday: true, start_time: true, end_time: true },
-      });
+
+    let candidateEmployeeIds: string[] = []
+    if (employeeId) {
+      candidateEmployeeIds = [employeeId]
+    } else {
+      try {
+        const emps = await prisma.employees.findMany({
+          where: {
+            business_id: businessId,
+            is_active: true,
+            employee_services: { some: { service_id: serviceId! } },
+          },
+          select: { id: true },
+        })
+        candidateEmployeeIds = emps.map(e => String(e.id))
+      } catch {}
     }
+
+    // Working hours per employee
+    const empWh = candidateEmployeeIds.length
+      ? await prisma.working_hours.findMany({
+          where: { business_id: businessId, employee_id: { in: candidateEmployeeIds } },
+          select: { employee_id: true, weekday: true, start_time: true, end_time: true },
+        })
+      : []
 
     const now = new Date();
     const leadMs = 2 * 60 * 60 * 1000; // 2h lead time
@@ -82,22 +97,71 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       const day = new Date(startDay);
       day.setDate(startDay.getDate() + i);
       const weekday = day.getDay(); // 0..6 (0=Sunday)
-      const entries = wh.filter(x => x.weekday === weekday);
-      const daySlots: Array<{ time: string }> = [];
+      const daySlotsSet = new Set<string>();
 
-      for (const e of entries) {
-        const start = applyTimeLocal(day, e.start_time as any as Date);
-        const end = applyTimeLocal(day, e.end_time as any as Date);
-        // iterate by step ensuring slot + duration fits before end
-        for (let t = new Date(start); t.getTime() + duration*60000 <= end.getTime(); t = new Date(t.getTime() + slotStep*60000)) {
-          // respect lead time
-          if (t.getTime() < now.getTime() + leadMs) continue;
-          const timeStr = `${pad(t.getHours())}:${pad(t.getMinutes())}`;
-          daySlots.push({ time: timeStr });
+      // Helper to check conflicts for a given employee and slot
+      async function isEmployeeFree(eid: string, startDt: Date, endDt: Date) {
+        const conflict = await prisma.reservations.findFirst({
+          where: {
+            employee_id: eid,
+            status: { in: ["PENDING", "CONFIRMED"] as any },
+            starts_at: { lt: endDt },
+            ends_at: { gt: startDt },
+          },
+          select: { id: true },
+        })
+        return !conflict
+      }
+
+      // Build candidate slots
+      if (candidateEmployeeIds.length === 0) {
+        // No specific employee constraint: use business hours baseline, but still require at least one qualified employee free
+        const entries = businessWh.filter(x => x.weekday === weekday);
+        for (const e of entries) {
+          const startW = applyTimeLocal(day, e.start_time as any as Date);
+          const endW = applyTimeLocal(day, e.end_time as any as Date);
+          for (let t = new Date(startW); t.getTime() + duration*60000 <= endW.getTime(); t = new Date(t.getTime() + slotStep*60000)) {
+            if (t.getTime() < now.getTime() + leadMs) continue;
+            const slotEnd = new Date(t.getTime() + duration*60000)
+            // check any employee with working hours covering this time window
+            let anyFree = false
+            for (const eid of candidateEmployeeIds) {
+              const hours = empWh.filter(w => w.employee_id === eid && w.weekday === weekday)
+              const ranges = hours.length ? hours : businessWh.filter(x => x.weekday === weekday)
+              // within any range
+              const covered = ranges.some(r => {
+                const rs = applyTimeLocal(day, r.start_time as any as Date)
+                const re = applyTimeLocal(day, r.end_time as any as Date)
+                return t.getTime() >= rs.getTime() && slotEnd.getTime() <= re.getTime()
+              })
+              if (!covered) continue
+              if (await isEmployeeFree(eid, t, slotEnd)) { anyFree = true; break }
+            }
+            if (anyFree) daySlotsSet.add(`${pad(t.getHours())}:${pad(t.getMinutes())}`)
+          }
+        }
+      } else {
+        // Specific employees (either provided or qualified list): union of free slots across employees
+        for (const eid of candidateEmployeeIds) {
+          const ranges = (empWh.filter(w => w.employee_id === eid && w.weekday === weekday).length
+            ? empWh.filter(w => w.employee_id === eid && w.weekday === weekday)
+            : businessWh.filter(x => x.weekday === weekday))
+          for (const r of ranges) {
+            const rs = applyTimeLocal(day, r.start_time as any as Date)
+            const re = applyTimeLocal(day, r.end_time as any as Date)
+            for (let t = new Date(rs); t.getTime() + duration*60000 <= re.getTime(); t = new Date(t.getTime() + slotStep*60000)) {
+              if (t.getTime() < now.getTime() + leadMs) continue;
+              const slotEnd = new Date(t.getTime() + duration*60000)
+              if (await isEmployeeFree(eid, t, slotEnd)) {
+                daySlotsSet.add(`${pad(t.getHours())}:${pad(t.getMinutes())}`)
+              }
+            }
+          }
         }
       }
 
-      result.push({ date: ymd(day), slots: daySlots });
+      const daySlots = Array.from(daySlotsSet).sort().map(time => ({ time }))
+      result.push({ date: ymd(day), slots: daySlots })
     }
 
     return NextResponse.json({ days: result });

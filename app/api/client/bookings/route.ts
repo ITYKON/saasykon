@@ -140,15 +140,19 @@ export async function POST(request: Request) {
     if (!resolvedEmployeeId && Array.isArray(items) && items.length > 0) {
       const firstServiceId = String(items[0]?.service_id || '')
       if (firstServiceId) {
-        // Employés qui proposent ce service
-        const empSvc = await prisma.employee_services.findMany({
-          where: { business_id, services: { id: firstServiceId } } as any,
-          select: { employee_id: true },
-        } as any)
-        const candidateIds = Array.from(new Set((empSvc || []).map((e: any) => e.employee_id).filter(Boolean)))
+        // Employés actifs du salon capables de faire ce service
+        const emps = await prisma.employees.findMany({
+          where: {
+            business_id,
+            is_active: true,
+            employee_services: { some: { service_id: firstServiceId } },
+          },
+          select: { id: true },
+        })
+        const candidateIds: any[] = emps.map((e: any) => e.id)
         if (candidateIds.length) {
           // Vérifier disponibilité (pas de chevauchement)
-          const available: string[] = []
+          const available: any[] = []
           for (const eid of candidateIds) {
             const conflict = await prisma.reservations.findFirst({
               where: {
