@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { X, ChevronLeft, ChevronRight, Star, Plus } from "lucide-react"
+import { X, ChevronLeft, ChevronRight, Plus } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -56,6 +56,7 @@ interface BookingWizardProps {
   const [editingItemIndex, setEditingItemIndex] = useState<number | null>(null)
   const [itemSlotsCache, setItemSlotsCache] = useState<Record<string, Array<{ date: string; slots: string[] }>>>({})
   const submitLock = useRef(false)
+  const [showAgenda, setShowAgenda] = useState(true)
 
   // removed unused constants to avoid TS noUnusedLocals issues
 
@@ -152,23 +153,40 @@ interface BookingWizardProps {
             <h3 className="font-semibold truncate">{selectedItems.length ? "Prestations sélectionnées" : "Sélectionner une prestation"}</h3>
             {!!selectedItems.length && (
               <div className="space-y-2 mt-2">
-                {selectedItems.map((it, idx) => (
-                  <div key={idx} className="flex items-center justify-between gap-3 text-sm">
-                    <div className="truncate">
-                      {it.name}
-                      <span className="text-gray-600">
-                        
-                        • {it.duration_minutes}min • {typeof (it as any).price_min_cents === 'number' && typeof (it as any).price_max_cents === 'number'
-                          ? `${Math.round((it as any).price_min_cents / 100)}–${Math.round((it as any).price_max_cents / 100)} DA`
-                          : `${Math.round(((it.price_cents ?? 0) as number) / 100)} DA`}
-                      </span>
-                    </div>
-                    <button className="text-sm text-blue-600 hover:underline shrink-0" onClick={() => {
-                      setSelectedItems((prev) => prev.filter((_, i) => i !== idx))
-                      setShowAddService(false)
-                    }}>Supprimer</button>
+                <div className="w-full bg-white border rounded-2xl p-4 shadow-sm flex items-start justify-between">
+                  <div className="min-w-0">
+                    {(() => {
+                      let minTotal = 0, maxTotal = 0, counted = false
+                      for (const it of selectedItems) {
+                        const pc = typeof it.price_cents === 'number' ? it.price_cents : null
+                        const pmin = typeof (it as any).price_min_cents === 'number' ? (it as any).price_min_cents : null
+                        const pmax = typeof (it as any).price_max_cents === 'number' ? (it as any).price_max_cents : null
+                        if (pc != null) { minTotal += pc; maxTotal += pc; counted = true }
+                        else if (pmin != null && pmax != null) { minTotal += pmin; maxTotal += pmax; counted = true }
+                      }
+                      const hasPrice = counted
+                      const isRange = counted && minTotal !== maxTotal
+                      const priceText = !hasPrice ? '—' : (isRange ? `à partir de ${Math.round(minTotal / 100)} da` : `${Math.round(minTotal / 100)} da`)
+                      const mins = Number(totalDuration || 0)
+                      const h = Math.floor(mins / 60)
+                      const m = mins % 60
+                      const durText = h > 0 ? `${h}h${m ? ` ${m}min` : ''}` : `${m}min`
+                      return (
+                        <>
+                          <div className="font-medium text-gray-900 truncate">
+                            {selectedItems.map(s => s.name).join(' + ')}
+                            {hasPrice && <span className="ml-1 text-gray-800">{priceText}</span>}
+                          </div>
+                          <div className="text-sm text-gray-500 mt-1">{durText}</div>
+                        </>
+                      )
+                    })()}
                   </div>
-                ))}
+                  <button className="text-sm text-indigo-600 hover:underline shrink-0 ml-4" onClick={() => {
+                    setSelectedItems([])
+                    setShowAddService(false)
+                  }}>Supprimer</button>
+                </div>
               </div>
             )}
             {/* Information modal shown after slot selection */}
@@ -304,51 +322,58 @@ interface BookingWizardProps {
           <div className="mt-6">
             {/* Section 2 header */}
             <h2 className="text-base font-semibold text-black mb-3"><span className="text-blue-600 mr-2">2.</span> Choix de la date & heure</h2>
+            {/* Résumé sélection si agenda masqué */}
+            {!showAgenda && selectedDate && selectedTime && (
+              <div className="mb-3">
+                <div className="w-full bg-white border rounded-2xl p-4 shadow-sm flex items-center justify-between">
+                  <div className="text-sm text-gray-800">
+                    <span className="capitalize">{new Date(selectedDate).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                    <span className="mx-2 text-gray-400">•</span>
+                    <span>à {selectedTime}</span>
+                  </div>
+                  <button className="text-sm text-indigo-600 hover:underline" onClick={() => setShowAgenda(true)}>Modifier</button>
+                </div>
+              </div>
+            )}
             {loadingSlots ? (
               <div className="text-sm text-gray-500">Chargement des créneaux…</div>
             ) : (
-              <div className="overflow-x-auto">
-                <div className="flex items-center justify-between mb-2">
-                  <Button variant="ghost" size="sm" className="bg-transparent" onClick={() => {
-                    const d = new Date(startDate); d.setDate(d.getDate() - 7); setStartDate(d.toISOString().split('T')[0])
-                  }}>
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="sm" className="bg-transparent" onClick={() => {
-                    const d = new Date(startDate); d.setDate(d.getDate() + 7); setStartDate(d.toISOString().split('T')[0])
-                  }}>
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </div>
+              <div className={`relative overflow-x-auto ${!showAgenda ? 'hidden' : ''}`}>
+                <button aria-label="Semaine précédente" className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full p-2 hover:bg-gray-100" onClick={() => { const d = new Date(startDate); d.setDate(d.getDate() - 7); setStartDate(d.toISOString().split('T')[0]) }}>
+                  <ChevronLeft className="h-5 w-5" />
+                </button>
+                <button aria-label="Semaine suivante" className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-2 hover:bg-gray-100" onClick={() => { const d = new Date(startDate); d.setDate(d.getDate() + 7); setStartDate(d.toISOString().split('T')[0]) }}>
+                  <ChevronRight className="h-5 w-5" />
+                </button>
                 <div className="grid grid-cols-7 gap-4 w-full bg-white border rounded-2xl p-6 shadow-sm">
-                {/* En-têtes des jours */}
-                {slots.slice(0, 7).map((d) => (
-                  <div key={`header-${d.date}`} className="text-center font-medium text-sm text-gray-600 pb-2">
-                    {new Date(d.date).toLocaleDateString('fr-FR', { weekday: 'short' }).toUpperCase()}
-                  </div>
-                ))}
-                {/* Contenu des jours */}
-                  {slots.map((d) => (
-                    <div key={d.date} className="border-l border-gray-100 pl-3">
-                      <div className="text-sm font-medium text-gray-800 mb-3">
-                        {new Date(d.date).toLocaleDateString('fr-FR', { day: '2-digit' })} {new Date(d.date).toLocaleDateString('fr-FR', { month: 'short' })}
+                  {slots.slice(0, 7).map((d) => {
+                    const dateObj = new Date(d.date)
+                    const dayName = dateObj.toLocaleDateString('fr-FR', { weekday: 'long' })
+                    const day = dateObj.toLocaleDateString('fr-FR', { day: '2-digit' })
+                    const month = dateObj.toLocaleDateString('fr-FR', { month: 'short' })
+                    return (
+                      <div key={d.date} className="flex flex-col">
+                        <div className="text-center mb-3">
+                          <div className="text-sm font-medium text-gray-800 capitalize">{dayName}</div>
+                          <div className="text-xs text-gray-500">{day} {month}.</div>
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          {d.slots.length === 0 && (
+                            <div className="text-xs text-gray-400 text-center">Aucun créneau</div>
+                          )}
+                          {d.slots.map((t) => (
+                            <button
+                              key={`${d.date}-${t}`}
+                              className={`text-sm h-9 rounded-md px-3 py-2 transition font-medium text-gray-800 ${selectedDate === d.date && selectedTime === t ? 'bg-black text-white' : 'bg-gray-100 hover:bg-gray-200'}`}
+                              onClick={() => { setSelectedDate(d.date); setSelectedTime(t); setShowInfo(true); setShowAgenda(false) }}
+                            >
+                              {t}
+                            </button>
+                          ))}
+                        </div>
                       </div>
-                      <div className="flex flex-col gap-2">
-                        {d.slots.length === 0 && (
-                          <div className="text-xs text-gray-400">Aucun créneau</div>
-                        )}
-                        {d.slots.map((t) => (
-                          <button
-                            key={`${d.date}-${t}`}
-                            className={`text-sm h-10 border rounded-lg px-3 py-2 bg-white hover:bg-gray-50 transition font-medium ${selectedDate === d.date && selectedTime === t ? 'bg-black text-white hover:bg-black' : 'hover:border-gray-300'}`}
-                            onClick={() => { setSelectedDate(d.date); setSelectedTime(t); setShowInfo(true) }}
-                          >
-                            {t}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               </div>
             )}
@@ -358,7 +383,7 @@ interface BookingWizardProps {
 
       {/* Ajouter une prestation à la suite */}
       <div className="mt-3">
-        <Button variant="default" className="bg-black hover:bg-gray-800 text-white" onClick={() => setShowAddService((v)=>!v)}>
+        <Button variant="default" className="bg-black hover:bg-gray-800 text-white mb-3" onClick={() => setShowAddService((v)=>!v)}>
           <Plus className="h-4 w-4 mr-2" />
           Ajouter une prestation à la suite
         </Button>
@@ -684,57 +709,6 @@ interface BookingWizardProps {
                     </div>
                   </div>
                 )}
-              </CardContent>
-            </Card>
-            {/* Salon Info */}
-            <Card>
-              <CardContent className="p-6">
-                <h3 className="font-semibold text-lg mb-2">{salon.name}</h3>
-                <p className="text-sm text-gray-600 mb-4">{salon.address}</p>
-
-                <div className="text-center mb-4">
-                  <div className="text-2xl font-bold">{salon.ratings.overall}</div>
-                  <div className="flex justify-center mb-1">
-                    {[...Array(5)].map((_, i) => (
-                      <Star key={i} className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                    ))}
-                  </div>
-                  <p className="text-xs text-gray-600">{salon.reviewCount} clients ont donné leur avis</p>
-                </div>
-
-                <div className="space-y-1 text-sm">
-                  <div className="flex justify-between">
-                    <span>Accueil</span>
-                    <span className="font-medium">{salon.ratings.welcome}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Propreté</span>
-                    <span className="font-medium">{salon.ratings.cleanliness}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Cadre & Ambiance</span>
-                    <span className="font-medium">{salon.ratings.atmosphere}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Qualité</span>
-                    <span className="font-medium">{salon.ratings.quality}</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Hours */}
-            <Card>
-              <CardContent className="p-6">
-                <h3 className="font-semibold mb-4">Horaires d'ouverture</h3>
-                <div className="space-y-1 text-sm">
-                  {Object.entries((salon?.hours || {}) as Record<string, string>).map(([day, hours]) => (
-                    <div key={day} className="flex justify-between">
-                      <span className="font-medium">{day}</span>
-                      <span className={hours === "Fermé" ? "text-red-600" : "text-gray-600"}>{hours}</span>
-                    </div>
-                  ))}
-                </div>
               </CardContent>
             </Card>
           </div>

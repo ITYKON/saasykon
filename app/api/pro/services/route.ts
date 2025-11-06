@@ -70,11 +70,25 @@ export async function POST(req: NextRequest) {
   if (!name || typeof name !== "string") {
     return NextResponse.json({ error: "name required" }, { status: 400 });
   }
+  const normalize = (s: string) => s.trim().replace(/\s+/g, " ");
+  const nameNorm = normalize(name);
+  // Guard against duplicates (case-insensitive) within same business and category
+  const existing = await prisma.services.findFirst({
+    where: {
+      business_id: businessId,
+      ...(typeof category_id === 'number' ? { category_id: category_id as number } : { category_id: null }),
+      name: { equals: nameNorm, mode: 'insensitive' as any },
+    },
+    select: { id: true },
+  } as any);
+  if (existing) {
+    return NextResponse.json({ error: 'Duplicate service', code: 'DUPLICATE_SERVICE', id: existing.id }, { status: 409 });
+  }
 
   const created = await prisma.services.create({
     data: {
       business_id: businessId,
-      name,
+      name: nameNorm,
       description: description ?? null,
       ...(typeof category_id === "number" ? { category_id } : {}),
       ...(typeof is_active === "boolean" ? { is_active } : {}),

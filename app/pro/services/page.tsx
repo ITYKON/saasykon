@@ -307,9 +307,23 @@ export default function ProServices() {
     try {
       const bid = getBusinessId()
       const q = bid ? `?business_id=${encodeURIComponent(bid)}` : ""
+      // Front guard: check duplicates before creating
+      const normalize = (s: string) => s.trim().replace(/\s+/g, ' ')
+      const nameNorm = normalize(name)
+      try {
+        const listRes = await fetch(`/api/pro/services${q}`)
+        const lj = await listRes.json().catch(() => ({ services: [] }))
+        const exists = Array.isArray(lj?.services) && lj.services.some((s: any) => {
+          const sameCat = (typeof category_id === 'number' ? (s.category_id === category_id) : (s.category_id == null))
+          const sameName = typeof s?.name === 'string' && s.name.trim().toLowerCase() === nameNorm.toLowerCase()
+          return sameCat && sameName
+        })
+        if (exists) { alert('Cette prestation existe déjà dans cette catégorie.'); return }
+      } catch {}
+      const key = `svc-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,8)}`
       const createRes = await fetch(`/api/pro/services${q}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", 'Idempotency-Key': key },
         body: JSON.stringify({ name, description: newDescription || null, ...(category_id ? { category_id } : {}) }),
       })
       const created = await createRes.json().catch(() => ({}))
