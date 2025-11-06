@@ -99,18 +99,32 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       const weekday = day.getDay(); // 0..6 (0=Sunday)
       const daySlotsSet = new Set<string>();
 
-      // Helper to check conflicts for a given employee and slot
+      // Vérifie si un employé est disponible pour un créneau donné
       async function isEmployeeFree(eid: string, startDt: Date, endDt: Date) {
+        // Vérifie les réservations existantes qui se chevauchent
         const conflict = await prisma.reservations.findFirst({
           where: {
             employee_id: eid,
             status: { in: ["PENDING", "CONFIRMED"] as any },
-            starts_at: { lt: endDt },
-            ends_at: { gt: startDt },
+            // Vérifie les chevauchements
+            OR: [
+              // La réservation commence pendant le créneau demandé
+              { 
+                starts_at: { lt: endDt },
+                ends_at: { gt: startDt }
+              },
+              // La réservation contient le créneau demandé
+              {
+                starts_at: { lte: startDt },
+                ends_at: { gte: endDt }
+              }
+            ]
           },
-          select: { id: true },
-        })
-        return !conflict
+          select: { id: true, status: true }
+        });
+        
+        // Si un conflit est trouvé, le créneau n'est pas disponible
+        return !conflict;
       }
 
       // Build candidate slots

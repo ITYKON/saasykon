@@ -40,52 +40,215 @@ export async function GET() {
 	}
 }
 
-// POST: Crée une réservation de test
-export async function POST() {
-			try {
-				const authCheck = await requireAdminOrPermission("reservations");
-				if (authCheck instanceof NextResponse) return authCheck;
-				// Test spécifique demandé : salon RARE BEAUTYY GOMEZ, client fayza20@gmail.com
-				const salon = await prisma.businesses.findFirst({ where: { public_name: "RARE BEAUTYY GOMEZ" } });
-				if (!salon) return NextResponse.json({ error: "Salon RARE BEAUTYY GOMEZ introuvable" }, { status: 404 });
+// Fonction utilitaire pour vérifier la disponibilité d'un créneau
+async function isSlotAvailable(businessId: string, employeeId: string | null, startsAt: Date, endsAt: Date, excludeReservationId?: string) {
+  // S'assurer que les dates sont bien des objets Date valides
+  const start = new Date(startsAt);
+  const end = new Date(endsAt);
 
-				const user = await prisma.users.findFirst({ where: { email: "fayza20@gmail.com" } });
-				if (!user) return NextResponse.json({ error: "Utilisateur fayza20@gmail.com introuvable" }, { status: 404 });
+  // Vérifier les réservations existantes qui se chevauchent
+  const whereClause: any = {
+    business_id: businessId,
+    status: { in: ["PENDING", "CONFIRMED"] },
+    // Vérifier les chevauchements
+    OR: [
+      // La réservation commence pendant le créneau demandé
+      { 
+        starts_at: { lt: end },
+        ends_at: { gt: start }
+      },
+      // La réservation se termine pendant le créneau demandé
+      {
+        starts_at: { lt: end },
+        ends_at: { gt: start }
+      },
+      // La réservation contient complètement le créneau demandé
+      {
+        starts_at: { lte: start },
+        ends_at: { gte: end }
+      },
+      // La réservation est contenue dans le créneau demandé
+      {
+        starts_at: { gte: start },
+        ends_at: { lte: end }
+      }
+    ]
+  };
 
-				const client = await prisma.clients.findFirst({ where: { user_id: user.id } });
-				if (!client) return NextResponse.json({ error: "Client lié à fayza20@gmail.com introuvable" }, { status: 404 });
+  // Si un employé est spécifié, vérifier uniquement ses réservations
+  if (employeeId) {
+    whereClause.employee_id = employeeId;
+  }
 
-				const service = await prisma.services.findFirst({ where: { business_id: salon.id } });
-				if (!service) return NextResponse.json({ error: "Aucun service trouvé pour le salon RARE BEAUTYY GOMEZ" }, { status: 404 });
+  // Exclure une réservation existante (pour la mise à jour)
+  if (excludeReservationId) {
+    whereClause.NOT = {
+      id: excludeReservationId
+    };
+  }
 
-				// Création réservation de test
-				const starts_at = new Date("2025-09-22T14:00:00Z");
-				const ends_at = new Date("2025-09-22T14:30:00Z");
-				const reservation = await prisma.reservations.create({
-					data: {
-						business_id: salon.id,
-						client_id: client.id,
-						starts_at,
-						ends_at,
-						status: "CONFIRMED",
-						reservation_items: {
-							create: [{
-								service_id: service.id,
-								price_cents: 1800 * 100,
-								currency: "DZD",
-								duration_minutes: 30,
-							}],
-						},
-					},
-					include: {
-						clients: true,
-						businesses: true,
-						reservation_items: { include: { services: true } },
-					},
-				});
-				return NextResponse.json({ reservation });
-			} catch (e) {
-				console.error("[POST /api/admin/reservations] Erreur:", e);
-				return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
-			}
+  const conflict = await prisma.reservations.findFirst({
+    where: whereClause,
+    select: { 
+      id: true, 
+      status: true, 
+      starts_at: true, 
+      ends_at: true,
+      clients: { select: { first_name: true, last_name: true } }
+    },
+  });
+
+  return {
+    available: !conflict,
+    conflict: conflict ? {
+      id: conflict.id,
+      status: conflict.status,
+      starts_at: conflict.starts_at,
+      ends_at: conflict.ends_at,
+      client_name: conflict.clients ? `${conflict.clients.first_name || ''} ${conflict.clients.last_name || ''}`.trim() : 'Client inconnu'
+    } : null
+  };
+}
+
+// POST: Crée une réservation manuelle
+interface CreateReservationRequest {
+  business_id: string;
+  client_id: string;
+  employee_id?: string | null;
+  service_id: string;
+  starts_at: string;
+  duration_minutes: number;
+  price_cents: number;
+  notes?: string;
+}
+
+export async function POST(req: Request) {
+  try {
+    const authCheck = await requireAdminOrPermission("reservations");
+    if (authCheck instanceof NextResponse) return authCheck;
+
+    // Récupérer les données de la requête
+    const body: CreateReservationRequest = await req.json();
+    const { 
+      business_id, 
+      client_id, 
+      employee_id, 
+      service_id, 
+      starts_at, 
+      duration_minutes, 
+      price_cents, 
+      notes 
+    } = body;
+
+    // Validation des champs requis
+    if (!business_id || !client_id || !service_id || !starts_at || !duration_minutes || !price_cents) {
+      return NextResponse.json(
+        { error: "Tous les champs obligatoires doivent être renseignés" }, 
+        { status: 400 }
+      );
+    }
+
+    // Convertir la date de début en objet Date
+    const startsAt = new Date(starts_at);
+    if (isNaN(startsAt.getTime())) {
+      return NextResponse.json(
+        { error: "Format de date invalide" }, 
+        { status: 400 }
+      );
+    }
+
+    // Calculer la date de fin
+    const endsAt = new Date(startsAt.getTime() + duration_minutes * 60000);
+
+    // Vérifier la disponibilité du créneau
+    console.log('Vérification du créneau:', { business_id, employee_id, startsAt, endsAt });
+    const { available, conflict } = await isSlotAvailable(business_id, employee_id || null, startsAt, endsAt);
+    
+    console.log('Résultat de la vérification:', { available, conflict });
+    
+    if (!available) {
+      if (conflict) {
+        console.log('Conflit détecté:', JSON.stringify(conflict, null, 2));
+        return NextResponse.json(
+          { 
+            error: "Créneau indisponible", 
+            conflict: {
+              message: `Conflit avec une réservation existante (${conflict.status}) pour ${conflict.client_name} de ${new Date(conflict.starts_at).toLocaleString()} à ${new Date(conflict.ends_at).toLocaleString()}`,
+              details: conflict
+            }
+          }, 
+          { status: 409 }
+        );
+      } else {
+        console.error('Conflit détecté mais non disponible dans la réponse');
+        return NextResponse.json(
+          { error: "Créneau indisponible (conflit non spécifié)" },
+          { status: 409 }
+        );
+      }
+    }
+
+    // Créer la réservation
+    const reservation = await prisma.$transaction(async (prisma) => {
+      // Créer la réservation
+      const newReservation = await prisma.reservations.create({
+        data: {
+          business_id,
+          client_id,
+          employee_id: employee_id || null,
+          starts_at: startsAt,
+          ends_at: endsAt,
+          status: "CONFIRMED",
+          notes: notes || null,
+          reservation_items: {
+            create: [{
+              service_id,
+              price_cents: Math.round(price_cents * 100), // Convertir en centimes
+              currency: "DZD",
+              duration_minutes,
+              employee_id: employee_id || null,
+            }],
+          },
+        },
+        include: {
+          clients: true,
+          employees: { select: { id: true, full_name: true } },
+          businesses: { select: { id: true, public_name: true } },
+          reservation_items: { 
+            include: { 
+              services: true,
+              service_variants: true
+            } 
+          },
+        },
+      });
+
+      // Ajouter une entrée dans l'historique des statuts
+      await prisma.reservation_status_history.create({
+        data: {
+          reservation_id: newReservation.id,
+          from_status: null,
+          to_status: 'CONFIRMED',
+          changed_by_user_id: authCheck.userId || null,
+          changed_at: new Date(),
+          reason: 'Réservation créée manuellement depuis l\'administration'
+        }
+      });
+
+      return newReservation;
+    });
+
+    return NextResponse.json({ 
+      success: true, 
+      message: "Réservation créée avec succès",
+      reservation 
+    });
+
+  } catch (e) {
+    console.error("[POST /api/admin/reservations] Erreur:", e);
+    return NextResponse.json(
+      { error: "Une erreur est survenue lors de la création de la réservation" }, 
+      { status: 500 }
+    );
+  }
 }

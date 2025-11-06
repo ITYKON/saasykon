@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,7 +35,10 @@ export default function CreateReservationModal({
 
   const [serviceId, setServiceId] = useState<string>("");
   const [variantId, setVariantId] = useState<string>("");
-  const [employeeId, setEmployeeId] = useState<string>("none");
+  const [employees, setEmployees] = useState<Array<{ id: string; full_name: string }>>([]);
+  const [employeeId, setEmployeeId] = useState<string | "none">(defaultEmployeeId || "none");
+  const employeesRef = useRef(employees);
+  employeesRef.current = employees;
   const [client, setClient] = useState<{id: string; name: string; phone?: string; email?: string} | null>(null);
   const [date, setDate] = useState<string>("");
   const [time, setTime] = useState<string>("");
@@ -43,6 +46,7 @@ export default function CreateReservationModal({
   const [priceMode, setPriceMode] = useState<'fixed' | 'range'>('fixed');
   const [duration, setDuration] = useState<string>("");
   const [notes, setNotes] = useState<string>("");
+  const [availabilityError, setAvailabilityError] = useState<string | null>(null);
 
   // Charger les services et employés
   useEffect(() => {
@@ -56,6 +60,7 @@ export default function CreateReservationModal({
         setServices(s.services || []);
         setAllEmployees(e.items || []);
         setFilteredEmployees(e.items || []);
+        setEmployees(e.items || []);
       })
       .finally(() => setLoading(false));
   }, [open, businessId]);
@@ -125,14 +130,107 @@ export default function CreateReservationModal({
     }
   }, [variants, variantId]);
 
+  // Vérifier la disponibilité du créneau
+  async function checkAvailability() {
+    if (!date || !time || !duration) return true; // Pas de vérification si les champs requis ne sont pas remplis
+    
+    const startsAt = new Date(`${date}T${time}:00`);
+    const endsAt = new Date(startsAt.getTime() + (Number(duration) || 30) * 60000);
+    
+    try {
+      console.log('Vérification de disponibilité:', { 
+        startsAt: startsAt.toISOString(),
+        endsAt: endsAt.toISOString(),
+        employeeId: employeeId === "none" ? null : employeeId,
+        businessId
+      });
+      
+      const res = await fetch(`/api/salon/${businessId}/timeslots/check-availability`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          starts_at: startsAt.toISOString(),
+          ends_at: endsAt.toISOString(),
+          employee_id: employeeId === "none" ? null : employeeId,
+        }),
+      });
+      
+      const data = await res.json();
+      console.log('Réponse de vérification de disponibilité:', data);
+      
+      if (!res.ok) {
+        throw new Error(data.message || data.error || "Erreur de vérification de disponibilité");
+      }
+      
+      if (data.available === false) {
+        if (data.conflict) {
+          // Utiliser les informations du conflit renvoyées par l'API
+          const { client_name, employee_name, starts_at, ends_at } = data.conflict;
+          const startTime = new Date(starts_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+          const endTime = new Date(ends_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+          
+          setAvailabilityError(
+            `⚠️ ${employee_name} est déjà réservé(e) pour ${client_name} de ${startTime} à ${endTime}. ` +
+            "Veuillez choisir un autre horaire ou un autre employé."
+          );
+        } else {
+          // Fallback si les informations de conflit ne sont pas disponibles
+          const employeeName = employeeId && employeeId !== "none" 
+            ? employeesRef.current.find((e: { id: string }) => e.id === employeeId)?.full_name 
+            : "l'employé sélectionné";
+          
+          setAvailabilityError(
+            `⚠️ ${employeeName} est déjà occupé(e) sur ce créneau. ` +
+            "Veuillez choisir un autre horaire ou un autre employé."
+          );
+        }
+        return false;
+      }
+      
+      setAvailabilityError(null);
+      return true;
+      
+    } catch (e) {
+      const errorMessage = e instanceof Error ? e.message : "Erreur inconnue";
+      console.error("Erreur lors de la vérification de disponibilité:", e);
+      setAvailabilityError(`Erreur de vérification de disponibilité: ${errorMessage}`);
+      return false;
+    }
+  }
+
   async function submit() {
+    // Réinitialiser les erreurs
+    setAvailabilityError(null);
+    
+    // Validation des champs obligatoires
     if (!client) {
-      alert("Veuillez sélectionner un client");
+      setAvailabilityError("Veuillez sélectionner un client");
+      return;
+    }
+    
+    if (!serviceId) {
+      setAvailabilityError("Veuillez sélectionner un service");
+      return;
+    }
+    
+    if (!date || !time) {
+      setAvailabilityError("Veuillez sélectionner une date et une heure");
       return;
     }
     
     setSubmitting(true);
+    
     try {
+      // Vérifier d'abord la disponibilité
+      const isAvailable = await checkAvailability();
+      console.log('Disponibilité vérifiée:', isAvailable);
+      
+      if (!isAvailable) {
+        console.log('Créneau non disponible, arrêt de la soumission');
+        setSubmitting(false);
+        return;
+      }
+      
       const starts_at = new Date(`${date}T${time}:00`);
       const res = await fetch("/api/pro/appointments", {
         method: "POST",
@@ -155,10 +253,14 @@ export default function CreateReservationModal({
           ],
         }),
       });
+      
       const text = await res.text();
       let j: any = {};
       try { j = JSON.parse(text); } catch {}
-      if (!res.ok) throw new Error(j?.error || text || "Erreur de création");
+      
+      if (!res.ok) {
+        throw new Error(j?.error || text || "Erreur de création");
+      }
       
       // Réinitialiser le formulaire
       setClient(null);
@@ -169,11 +271,12 @@ export default function CreateReservationModal({
       setDate("");
       setTime("");
       setNotes("");
+      setAvailabilityError(null);
       
       if (onCreated) onCreated();
       setOpen(false);
     } catch (e) {
-      alert((e as any)?.message || "Erreur de création");
+      setAvailabilityError((e as any)?.message || "Erreur lors de la création de la réservation");
     } finally {
       setSubmitting(false);
     }
@@ -185,6 +288,21 @@ export default function CreateReservationModal({
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Nouveau RDV</DialogTitle>
+          {availabilityError && (
+            <div className="mt-4 w-full">
+              <div className="w-full p-3 bg-red-50 border-2 border-red-200 rounded-lg">
+                <div className="flex items-start gap-2 text-red-700">
+                  <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  </svg>
+                  <div>
+                    <p className="font-medium">Créneau indisponible</p>
+                    <p className="text-sm mt-1">{availabilityError.replace('⚠️', '').trim()}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </DialogHeader>
         {loading ? (
           <div className="py-6 text-sm text-gray-600">Chargement…</div>
@@ -389,20 +507,44 @@ export default function CreateReservationModal({
               </div>
 
               {/* Boutons d'action */}
-              <div className="flex justify-end gap-3 pt-2">
-                <Button 
-                  variant="outline" 
-                  onClick={() => setOpen(false)}
-                  disabled={submitting}
-                >
-                  Annuler
-                </Button>
-                <Button
-                  onClick={submit}
-                  disabled={submitting || !serviceId || !date || !time || !client || !duration || (priceMode === 'fixed' && !priceCents)}
-                >
-                  {submitting ? "Création en cours..." : "Confirmer la réservation"}
-                </Button>
+              <div className="flex flex-col gap-3 pt-2">
+                <div className="flex justify-end gap-3">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setOpen(false)}
+                    disabled={submitting}
+                  >
+                    Annuler
+                  </Button>
+                  <div className="relative group">
+                    <Button 
+                      type="button"
+                      onClick={submit}
+                      disabled={submitting || !client || !serviceId || !date || !time}
+                      className="w-full"
+                    >
+                      {submitting ? "Création en cours..." : "Confirmer la réservation"}
+                    </Button>
+                    
+                    {/* Message d'aide au survol */}
+                    {(submitting || !client || !serviceId || !date || !time) && (
+                      <div className="absolute bottom-full right-0 mb-2 hidden group-hover:block bg-gray-800 text-white text-xs rounded px-2 py-1 whitespace-nowrap">
+                        {submitting ? "Traitement en cours..." :
+                         !client ? "Sélectionnez d'abord un client" :
+                         !serviceId ? "Sélectionnez un service" :
+                         !date || !time ? "Sélectionnez une date et une heure" : 
+                         "Confirmer la réservation"}
+                      </div>
+                    )}
+                  </div>
+                  {!client || !serviceId || !date || !time ? (
+                    <p className="text-sm text-gray-500 text-center">
+                      {!client ? "Sélectionnez un client" :
+                       !serviceId ? "Sélectionnez un service" :
+                       !date || !time ? "Sélectionnez une date et une heure" : ""}
+                    </p>
+                  ) : null}
+                </div>
               </div>
               
               <p className="text-xs text-gray-500 text-right">

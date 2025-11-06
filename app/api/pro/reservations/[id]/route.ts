@@ -44,15 +44,56 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
 
   // Find reservation to check business and permissions
-  const existing = await prisma.reservations.findUnique({ where: { id }, select: { business_id: true } });
+  const existing = await prisma.reservations.findUnique({ 
+    where: { id }, 
+    select: { 
+      id: true,
+      business_id: true, 
+      status: true,
+      starts_at: true,
+      ends_at: true
+    } 
+  });
+  
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  
+  // Vérifier si la réservation est déjà annulée
+  if (existing.status === 'CANCELLED') {
+    return NextResponse.json({ ok: true, message: "La réservation est déjà annulée" });
+  }
 
   const bizId = existing.business_id;
   const allowed = ctx.roles.includes("ADMIN") || ctx.assignments.some((a) => a.business_id === bizId && (a.role === "PRO" || a.role === "PROFESSIONNEL"));
   if (!allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  await prisma.reservations.delete({ where: { id } });
-  return NextResponse.json({ ok: true });
+  // Annuler la réservation au lieu de la supprimer
+  const cancelledReservation = await prisma.reservations.update({
+    where: { id },
+    data: { 
+      status: 'CANCELLED',
+      cancelled_at: new Date()
+    },
+    select: { id: true, status: true, cancelled_at: true }
+  });
+
+  // Ajouter une entrée dans l'historique des statuts
+  await prisma.reservation_status_history.create({
+    data: {
+      reservation_id: id,
+      from_status: existing.status as any, // Cast nécessaire pour le type
+      to_status: 'CANCELLED',
+      changed_by_user_id: ctx.userId || undefined,
+      changed_at: new Date()
+    }
+  });
+
+  console.log(`Réservation ${id} annulée. Créneau libéré de ${existing.starts_at} à ${existing.ends_at}`);
+  
+  return NextResponse.json({ 
+    ok: true, 
+    message: "Réservation annulée avec succès",
+    reservation: cancelledReservation
+  });
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
