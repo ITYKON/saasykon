@@ -134,13 +134,48 @@ export async function POST(request: Request) {
   const totalMinutes = durations.reduce((s, x) => s + (isFinite(x) ? x : 0), 0)
   const ends = new Date(start.getTime() + totalMinutes * 60000)
 
+  // Sélectionner un employé si 'Sans préférence'
+  let resolvedEmployeeId: string | null = employee_id || null
+  try {
+    if (!resolvedEmployeeId && Array.isArray(items) && items.length > 0) {
+      const firstServiceId = String(items[0]?.service_id || '')
+      if (firstServiceId) {
+        // Employés qui proposent ce service
+        const empSvc = await prisma.employee_services.findMany({
+          where: { business_id, services: { id: firstServiceId } } as any,
+          select: { employee_id: true },
+        } as any)
+        const candidateIds = Array.from(new Set((empSvc || []).map((e: any) => e.employee_id).filter(Boolean)))
+        if (candidateIds.length) {
+          // Vérifier disponibilité (pas de chevauchement)
+          const available: string[] = []
+          for (const eid of candidateIds) {
+            const conflict = await prisma.reservations.findFirst({
+              where: {
+                employee_id: eid,
+                status: { in: ["PENDING", "CONFIRMED"] as any },
+                starts_at: { lt: ends },
+                ends_at: { gt: start },
+              },
+              select: { id: true },
+            })
+            if (!conflict) available.push(eid)
+          }
+          if (available.length) {
+            resolvedEmployeeId = available[Math.floor(Math.random() * available.length)]
+          }
+        }
+      }
+    }
+  } catch {}
+
   // Créer la réservation + items dans une transaction
   const created = await prisma.$transaction(async (tx) => {
     const reservation = await tx.reservations.create({
       data: {
         business_id,
         client_id: client.id,
-        employee_id: employee_id || null,
+        employee_id: resolvedEmployeeId || null,
         location_id: location_id || null,
         booker_user_id: user.id,
         starts_at: start,
@@ -157,7 +192,7 @@ export async function POST(request: Request) {
           reservation_id: reservation.id,
           service_id: it.service_id,
           variant_id: it.variant_id || null,
-          employee_id: it.employee_id || employee_id || null,
+          employee_id: it.employee_id || resolvedEmployeeId || null,
           price_cents: Number(it.price_cents || 0),
           currency: it.currency || 'DZD',
           duration_minutes: Number(it.duration_minutes || 0),
