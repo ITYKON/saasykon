@@ -92,6 +92,43 @@ export async function POST(request: Request) {
   const start = new Date(starts_at)
   if (isNaN(start.getTime())) return NextResponse.json({ error: "Invalid starts_at" }, { status: 400 })
 
+  // Déduplication: éviter les doublons si même utilisateur/salon/horaire et mêmes items
+  try {
+    const minStart = new Date(start.getTime() - 60_000)
+    const maxStart = new Date(start.getTime() + 60_000)
+    const recent = new Date(Date.now() - 60_000)
+    const existing = await prisma.reservations.findFirst({
+      where: {
+        client_id: client.id,
+        business_id,
+        starts_at: { gte: minStart, lte: maxStart },
+        created_at: { gte: recent },
+        status: { in: ["PENDING", "CONFIRMED"] as any },
+      },
+      include: { reservation_items: { select: { service_id: true, duration_minutes: true, price_cents: true } } },
+    })
+    if (existing) {
+      // comparer l'ensemble des services et le nombre d'items
+      const existingSet = new Map<string, number>()
+      for (const it of existing.reservation_items) {
+        existingSet.set(String(it.service_id), (existingSet.get(String(it.service_id)) || 0) + 1)
+      }
+      const incomingSet = new Map<string, number>()
+      for (const it of items) {
+        incomingSet.set(String(it.service_id), (incomingSet.get(String(it.service_id)) || 0) + 1)
+      }
+      let same = existing.reservation_items.length === items.length && existingSet.size === incomingSet.size
+      if (same) {
+        for (const [k, v] of incomingSet) {
+          if (existingSet.get(k) !== v) { same = false; break }
+        }
+      }
+      if (same) {
+        return NextResponse.json({ booking: { id: existing.id } }, { status: 200 })
+      }
+    }
+  } catch {}
+
   // Calculer la fin en fonction des durées d'items
   const durations: number[] = items.map((i: any) => Number(i?.duration_minutes || 0))
   const totalMinutes = durations.reduce((s, x) => s + (isFinite(x) ? x : 0), 0)

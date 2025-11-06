@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -53,6 +53,7 @@ interface BookingWizardProps {
   const [showAddService, setShowAddService] = useState(false)
   const [editingItemIndex, setEditingItemIndex] = useState<number | null>(null)
   const [itemSlotsCache, setItemSlotsCache] = useState<Record<string, Array<{ date: string; slots: string[] }>>>({})
+  const submitLock = useRef(false)
 
   // removed unused constants to avoid TS noUnusedLocals issues
 
@@ -383,6 +384,8 @@ interface BookingWizardProps {
             className="w-full bg-black text-white hover:bg-gray-800"
             disabled={authLoading || submitting || selectedItems.length === 0 || !selectedDate || !selectedTime}
             onClick={async () => {
+              if (submitLock.current) return
+              submitLock.current = true
               setSubmitting(true)
               setError(null)
               try {
@@ -416,6 +419,7 @@ interface BookingWizardProps {
                 setError(e?.message || 'Erreur de création')
               } finally {
                 setSubmitting(false)
+                submitLock.current = false
               }
             }}
           >
