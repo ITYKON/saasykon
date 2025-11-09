@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import Image from "next/image"
+import Link from "next/link"
 import { SalonFormModal } from "@/components/admin/SalonFormModal";
 import { SalonDetailModal } from "@/components/admin/SalonDetailModal";
 import { ProtectedAdminPage } from "@/components/admin/ProtectedAdminPage";
@@ -25,6 +26,7 @@ function AdminSalonsContent() {
   const [statusFilter, setStatusFilter] = React.useState("all");
   const [subscriptionFilter, setSubscriptionFilter] = React.useState("all");
   const [cityFilter, setCityFilter] = React.useState("all");
+  const [claimStatusFilter, setClaimStatusFilter] = React.useState("all");
   type Salon = {
     id: string;
     legal_name: string;
@@ -36,20 +38,51 @@ function AdminSalonsContent() {
     cover_url?: string;
     status?: string;
     subscription?: string;
+    claim_status?: string;
     business_locations?: Array<{ address_line1?: string; cities?: { name?: string } }>;
     [key: string]: any;
   };
   const [salons, setSalons] = React.useState<Salon[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    fetch("/api/admin/salons")
-      .then(res => res.json())
+    console.log('Début de la récupération des salons...');
+    setError(null);
+    setLoading(true);
+    
+    const params = new URLSearchParams();
+    if (claimStatusFilter !== "all") {
+      params.set("claim_status", claimStatusFilter);
+    }
+    
+    fetch(`/api/admin/salons?${params.toString()}`)
+      .then(async (res) => {
+        console.log('Réponse reçue, statut:', res.status);
+        if (!res.ok) {
+          const errorText = await res.text();
+          console.error('Erreur de l\'API:', errorText);
+          throw new Error(`Erreur HTTP: ${res.status} - ${errorText}`);
+        }
+        return res.json();
+      })
       .then(data => {
-        setSalons(data.salons || []);
+        console.log('Données reçues de l\'API:', data);
+        if (data.success && data.data) {
+          setSalons(data.data.salons || []);
+        } else {
+          console.error('Format de réponse inattendu:', data);
+          setError('Format de réponse inattendu de l\'API');
+        }
+      })
+      .catch(error => {
+        console.error('Erreur lors de la récupération des salons:', error);
+        setError(`Erreur lors du chargement des salons: ${error.message}`);
+      })
+      .finally(() => {
         setLoading(false);
       });
-  }, []);
+  }, [claimStatusFilter]);
 
   // Modals et état salon sélectionné
   const [addModalOpen, setAddModalOpen] = React.useState(false);
@@ -98,6 +131,48 @@ function AdminSalonsContent() {
       default:
         return "bg-gray-100 text-gray-800"
     }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
+          <p className="text-gray-600">Chargement des salons...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6 bg-red-50 border border-red-200 rounded-lg">
+        <h3 className="text-lg font-medium text-red-800">Erreur de chargement</h3>
+        <p className="text-red-700 mt-2">{error}</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="mt-4 px-4 py-2 bg-red-100 text-red-800 rounded-md hover:bg-red-200 transition-colors"
+        >
+          Réessayer
+        </button>
+      </div>
+    );
+  }
+
+  if (salons.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <Building className="h-12 w-12 mx-auto text-gray-400" />
+        <h3 className="mt-2 text-lg font-medium text-gray-900">Aucun salon trouvé</h3>
+        <p className="mt-1 text-gray-500">Aucun salon n'a été trouvé dans la base de données.</p>
+        <div className="mt-6">
+          <Button onClick={() => setAddModalOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Ajouter un salon
+          </Button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -228,6 +303,17 @@ function AdminSalonsContent() {
                 <SelectItem value="Constantine">Constantine</SelectItem>
               </SelectContent>
             </Select>
+            <Select value={claimStatusFilter} onValueChange={setClaimStatusFilter}>
+              <SelectTrigger className="w-full sm:w-48">
+                <SelectValue placeholder="Revendication" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous</SelectItem>
+                <SelectItem value="none">Disponible pour revendication</SelectItem>
+                <SelectItem value="pending">Revendication en attente</SelectItem>
+                <SelectItem value="approved">Revendiqué</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>
@@ -247,7 +333,14 @@ function AdminSalonsContent() {
             <CardContent className="p-6">
               <div className="flex justify-between items-start mb-4">
                 <div>
-                  <h3 className="text-xl font-bold text-black">{salon.public_name || salon.legal_name}</h3>
+                  <div className="flex items-center gap-2 mb-1">
+                    <h3 className="text-xl font-bold text-black">{salon.public_name || salon.legal_name}</h3>
+                    {salon.claim_status === "none" && (
+                      <Badge className="bg-blue-100 text-blue-800 border-blue-200 text-xs">
+                        Disponible pour revendication
+                      </Badge>
+                    )}
+                  </div>
                   <p className="text-gray-600">Email : {salon.email}</p>
                   <div className="flex items-center text-gray-600 text-sm mt-1">
                     <MapPin className="h-4 w-4 mr-1" />
@@ -296,7 +389,7 @@ function AdminSalonsContent() {
                 </div>
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
                 <Button variant="outline" size="sm" className="flex-1 bg-transparent" onClick={() => { setSelectedSalon(salon); setDetailModalOpen(true); }}>
                   <Eye className="h-4 w-4 mr-1" />
                   Voir
@@ -309,6 +402,13 @@ function AdminSalonsContent() {
                   <Button size="sm" className="bg-green-600 text-white hover:bg-green-700">
                     Valider
                   </Button>
+                )}
+                {salon.claim_status === "none" && (
+                  <Link href={`/salon/${salon.id}`} target="_blank">
+                    <Button size="sm" variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100">
+                      Voir page publique
+                    </Button>
+                  </Link>
                 )}
                 <Button
                   variant="outline"
@@ -327,9 +427,17 @@ function AdminSalonsContent() {
                           alert("Erreur: " + (result.error || "Suppression impossible"));
                         } else {
                           alert("Salon supprimé");
-                          fetch("/api/admin/salons")
+                          const params = new URLSearchParams();
+                          if (claimStatusFilter !== "all") {
+                            params.set("claim_status", claimStatusFilter);
+                          }
+                          fetch(`/api/admin/salons?${params.toString()}`)
                             .then(res => res.json())
-                            .then(data => setSalons(data.salons || []));
+                            .then(data => {
+                              if (data.success && data.data) {
+                                setSalons(data.data.salons || []);
+                              }
+                            });
                         }
                       } catch (err) {
                         alert("Erreur réseau: " + err);
@@ -358,13 +466,22 @@ function AdminSalonsContent() {
             });
             const result = await res.json();
             if (!res.ok) {
-              alert("Erreur: " + (result.error || "Ajout impossible"));
+              const errorMsg = result.error || result.details || "Ajout impossible";
+              alert("Erreur: " + errorMsg);
             } else {
-              alert("Salon ajouté avec succès");
+              const message = salon.create_for_claim 
+                ? "Salon créé avec succès ! Il est maintenant disponible pour la revendication sur la page publique."
+                : "Salon ajouté avec succès";
+              alert(message);
+              setAddModalOpen(false);
               // Recharge la liste
               fetch("/api/admin/salons")
                 .then(res => res.json())
-                .then(data => setSalons(data.salons || []));
+                .then(data => {
+                  if (data.success && data.data) {
+                    setSalons(data.data.salons || []);
+                  }
+                });
             }
           } catch (err) {
             alert("Erreur réseau: " + err);

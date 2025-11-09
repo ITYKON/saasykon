@@ -1,7 +1,8 @@
-import { Calendar, Clock, Users, TrendingUp, DollarSign, Settings, Plus, Eye } from "lucide-react"
+import { Calendar, Clock, Users, TrendingUp, DollarSign, Settings, Plus, Eye, AlertCircle, FileText } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import Link from "next/link"
 import CreateReservationModal from "@/components/pro/CreateReservationModal"
 import { headers } from "next/headers"
@@ -21,6 +22,18 @@ export default async function ProDashboard() {
     )
   }
   const { kpis, todayAgenda, notifications, business, address } = await resp.json();
+  
+  // Fetch claim information
+  let claimInfo: any = null;
+  try {
+    const claimResp = await fetch(`${origin}/api/pro/claim`, { cache: "no-store", headers: { cookie: h.get("cookie") || "" } });
+    if (claimResp.ok) {
+      const claimData = await claimResp.json();
+      claimInfo = claimData.claim;
+    }
+  } catch (e) {
+    // Ignore errors
+  }
   const stats = {
     revenueCents: kpis?.revenueCents || 0,
     bookings: kpis?.bookings || 0,
@@ -69,6 +82,37 @@ export default async function ProDashboard() {
         </header>
 
         <div className="p-6">
+          {/* Claim Documents Banner */}
+          {claimInfo && !claimInfo.has_all_documents && (
+            <Alert className={`mb-6 ${claimInfo.is_blocked ? "border-red-500 bg-red-50" : "border-yellow-500 bg-yellow-50"}`}>
+              <AlertCircle className={`h-4 w-4 ${claimInfo.is_blocked ? "text-red-600" : "text-yellow-600"}`} />
+              <AlertTitle className={claimInfo.is_blocked ? "text-red-800" : "text-yellow-800"}>
+                {claimInfo.is_blocked ? "Compte bloqué" : "Documents manquants"}
+              </AlertTitle>
+              <AlertDescription className={claimInfo.is_blocked ? "text-red-700" : "text-yellow-700"}>
+                {claimInfo.is_blocked ? (
+                  <p>
+                    Votre compte a été bloqué car les documents requis n'ont pas été soumis dans les délais.
+                    Veuillez soumettre vos documents pour débloquer votre compte.
+                  </p>
+                ) : (
+                  <p>
+                    Il vous reste <strong>{claimInfo.days_remaining} jour{claimInfo.days_remaining > 1 ? "s" : ""}</strong> pour soumettre vos documents légaux.
+                    Votre compte sera bloqué après ce délai si les documents ne sont pas fournis.
+                  </p>
+                )}
+                <div className="mt-4">
+                  <Link href="/pro/settings/documents">
+                    <Button variant={claimInfo.is_blocked ? "destructive" : "default"} size="sm">
+                      <FileText className="h-4 w-4 mr-2" />
+                      {claimInfo.is_blocked ? "Soumettre les documents" : "Compléter les documents"}
+                    </Button>
+                  </Link>
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+
           {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
             <Card>

@@ -34,6 +34,7 @@ export const SalonFormModal: React.FC<SalonFormModalProps> = ({ open, onClose, o
     reviewCount: 0,
     totalBookings: 0,
     monthlyRevenue: 0,
+    create_for_claim: false, // Nouveau champ pour créer sans propriétaire
   });
 
   const [logoPreview, setLogoPreview] = useState<string>(form.logo_url || "");
@@ -140,6 +141,25 @@ export const SalonFormModal: React.FC<SalonFormModalProps> = ({ open, onClose, o
               <Input name="totalBookings" type="number" min="0" value={form.totalBookings} onChange={handleChange} placeholder="RDV total" className="rounded-lg" />
               <label className="text-xs text-gray-500">Revenus/mois</label>
               <Input name="monthlyRevenue" type="number" min="0" value={form.monthlyRevenue} onChange={handleChange} placeholder="Revenus/mois" className="rounded-lg" />
+              {mode === "add" && (
+                <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      name="create_for_claim"
+                      checked={form.create_for_claim}
+                      onChange={(e) => setForm({ ...form, create_for_claim: e.target.checked })}
+                      className="rounded"
+                    />
+                    <span className="text-sm text-blue-900 font-medium">
+                      Créer pour revendication (sans propriétaire)
+                    </span>
+                  </label>
+                  <p className="text-xs text-blue-700 mt-2">
+                    Si coché, le salon sera créé sans propriétaire et pourra être revendiqué par les utilisateurs via la page publique.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
           <div className="flex justify-end gap-3 mt-8">

@@ -2,13 +2,14 @@
 import type React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, Users, Building2, CreditCard, Settings, Calendar, TrendingUp, Shield, Archive } from "lucide-react";
+import { BarChart3, Users, Building2, CreditCard, Settings, Calendar, TrendingUp, Shield, Archive, FileText } from "lucide-react";
 import useAuth from "@/hooks/useAuth";
 
 // Map navigation items to an optional permission code required to view them.
 const navigation = [
   { name: "Dashboard", href: "/admin/dashboard", icon: BarChart3, permission: null },
   { name: "Leads", href: "/admin/leads", icon: Users, permission: null },
+  { name: "Revendications", href: "/admin/claims", icon: FileText, permission: null },
   { name: "Utilisateurs", href: "/admin/utilisateurs", icon: Users, permission: "users" },
   { name: "Salons", href: "/admin/salons", icon: Building2, permission: "salons" },
   { name: "Réservations", href: "/admin/reservations", icon: Calendar, permission: "reservations" },

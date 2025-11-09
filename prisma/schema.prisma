@@ -25,6 +25,36 @@ model addresses {
   users        users?     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
 
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model business_leads {
+  id                     String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  business_name          String
+  owner_first_name       String
+  owner_last_name        String
+  email                  String
+  phone                  String?
+  activity_type          String?
+  location               String?
+  notes                  String?
+  status                 lead_status             @default(pending)
+  converted_by           String?                 @db.Uuid
+  created_at             DateTime                @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime                @default(now()) @db.Timestamptz(6)
+  claim_token            String?                 @unique
+  token_expires          DateTime?               @db.Timestamptz(6)
+  documents_uploaded     Boolean?                @default(false)
+  trial_ends_at          DateTime?               @db.Timestamptz(6)
+  verification_id        String?                 @db.Uuid
+  users                  users?                  @relation(fields: [converted_by], references: [id], onUpdate: NoAction, map: "business_leads_converted_by_fk")
+  business_verifications business_verifications? @relation(fields: [verification_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  lead_documents         lead_documents[]
+
+  @@index([activity_type, location], map: "business_leads_activity_location_idx")
+  @@index([created_at(sort: Desc)])
+  @@index([email])
+  @@index([status])
+}
+
 model business_locations {
   id            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   business_id   String         @db.Uuid
@@ -58,48 +88,80 @@ model business_media {
   businesses  businesses @relation(fields: [business_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
 
+model business_verifications {
+  id                    String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  business_id           String              @db.Uuid
+  rc_number             String?
+  rc_document_url       String?
+  id_document_front_url String?
+  id_document_back_url  String?
+  status                verification_status @default(pending)
+  reviewed_by           String?             @db.Uuid
+  reviewed_at           DateTime?           @db.Timestamptz(6)
+  notes                 String?
+  created_at            DateTime            @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime            @default(now()) @db.Timestamptz(6)
+  business_leads        business_leads[]
+  businesses            businesses          @relation(fields: [business_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "business_verifications_business_fk")
+  users                 users?              @relation(fields: [reviewed_by], references: [id], onUpdate: NoAction, map: "business_verifications_reviewed_by_fk")
+
+  @@index([business_id], map: "business_verifications_business_idx")
+  @@index([reviewed_at])
+  @@index([status])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model businesses {
-  id                     String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  owner_user_id          String                   @db.Uuid
-  legal_name             String
-  public_name            String
-  description            String?
-  email                  String?
-  phone                  String?
-  website                String?
-  vat_number             String?
-  category_code          String?
-  logo_url               String?
-  cover_url              String?
-  created_at             DateTime                 @default(now()) @db.Timestamptz(6)
-  updated_at             DateTime                 @default(now()) @db.Timestamptz(6)
-  archived_at            DateTime?                @db.Timestamptz(6)
-  deleted_at             DateTime?                @db.Timestamptz(6)
-  status                 business_status          @default(pending_verification)
-  onboarding_completed   Boolean                  @default(false)
-  business_locations     business_locations[]
-  business_media         business_media[]
-  business_verifications business_verifications[]
-  users                  users                    @relation(fields: [owner_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  client_favorites       client_favorites[]
-  daily_business_stats   daily_business_stats[]
-  employee_permissions   employee_permissions[]
-  employees              employees[]
-  invoices               invoices[]
-  notifications          notifications[]
-  payments               payments[]
-  payouts                payouts[]
-  ratings_aggregates     ratings_aggregates?
-  reservations           reservations[]
-  resources              resources[]
-  reviews                reviews[]
-  services               services[]
-  subscriptions          subscriptions[]
-  user_roles             user_roles[]
-  waitlist               waitlist[]
-  working_hours          working_hours[]
+  id                                    String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  owner_user_id                         String                   @db.Uuid
+  legal_name                            String
+  public_name                           String
+  description                           String?
+  email                                 String?
+  phone                                 String?
+  website                               String?
+  vat_number                            String?
+  category_code                         String?
+  logo_url                              String?
+  cover_url                             String?
+  created_at                            DateTime                 @default(now()) @db.Timestamptz(6)
+  updated_at                            DateTime                 @default(now()) @db.Timestamptz(6)
+  archived_at                           DateTime?                @db.Timestamptz(6)
+  deleted_at                            DateTime?                @db.Timestamptz(6)
+  status                                business_status          @default(pending_verification)
+  onboarding_completed                  Boolean                  @default(false)
+  claim_status                          String                   @default("none")
+  owner_id                              String?                  @db.Uuid
+  verification_status                   verification_status      @default(pending)
+  trial_ends_at                         DateTime?                @db.Timestamptz(6)
+  last_reminder_sent_at                 DateTime?                @db.Timestamptz(6)
+  business_locations                    business_locations[]
+  business_media                        business_media[]
+  business_verifications                business_verifications[]
+  users_businesses_owner_idTousers      users?                   @relation("businesses_owner_idTousers", fields: [owner_id], references: [id], onUpdate: NoAction)
+  users_businesses_owner_user_idTousers users                    @relation("businesses_owner_user_idTousers", fields: [owner_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  claims                                claims[]
+  client_favorites                      client_favorites[]
+  daily_business_stats                  daily_business_stats[]
+  employee_permissions                  employee_permissions[]
+  employees                             employees[]
+  invoices                              invoices[]
+  notifications                         notifications[]
+  payments                              payments[]
+  payouts                               payouts[]
+  ratings_aggregates                    ratings_aggregates?
+  reservations                          reservations[]
+  resources                             resources[]
+  reviews                               reviews[]
+  services                              services[]
+  subscriptions                         subscriptions[]
+  user_roles                            user_roles[]
+  waitlist                              waitlist[]
+  working_hours                         working_hours[]
 
   @@index([status])
+  @@index([trial_ends_at])
+  @@index([verification_status])
 }
 
 model cities {
@@ -110,6 +172,38 @@ model cities {
   addresses          addresses[]
   business_locations business_locations[]
   countries          countries?           @relation(fields: [country_code], references: [code], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model claims {
+  id                    Int        @id @default(autoincrement())
+  business_id           String     @db.Uuid
+  user_id               String     @db.Uuid
+  full_name             String
+  email                 String
+  phone                 String
+  role                  String
+  document_url          String?
+  rc_number             String?
+  rc_document_url       String?
+  id_document_front_url String?
+  id_document_back_url  String?
+  status                String     @default("pending")
+  claim_token           String?    @unique
+  token_expires_at      DateTime?  @db.Timestamptz(6)
+  documents_submitted   Boolean    @default(false)
+  documents_submitted_at DateTime?  @db.Timestamptz(6)
+  expires_at            DateTime?  @db.Timestamptz(6)
+  created_at            DateTime   @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime   @default(now()) @db.Timestamptz(6)
+  businesses            businesses @relation(fields: [business_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users                 users      @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([business_id], map: "idx_claim_business_id")
+  @@index([expires_at], map: "idx_claim_expires_at")
+  @@index([status], map: "idx_claim_status")
+  @@index([user_id], map: "idx_claim_user_id")
+  @@index([claim_token], map: "idx_claim_token")
 }
 
 model client_favorites {
@@ -182,7 +276,19 @@ model employee_availability_overrides {
   @@unique([employee_id, date], map: "employee_availability_overrides_employee_id_date_idx")
 }
 
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model employee_permissions {
+  employee_id     String          @db.Uuid
+  permission_id   Int
+  business_id     String          @db.Uuid
+  created_at      DateTime        @default(now()) @db.Timestamptz(6)
+  businesses      businesses      @relation(fields: [business_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  pro_permissions pro_permissions @relation(fields: [permission_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([employee_id, permission_id, business_id])
+  @@index([business_id], map: "employee_permissions_business_idx")
+  @@index([employee_id], map: "employee_permissions_employee_idx")
+}
+
 model employee_roles {
   employee_id String    @db.Uuid
   role        String
@@ -235,6 +341,22 @@ model event_logs {
   @@index([business_id, occurred_at(sort: Desc)])
 }
 
+model invite_tokens {
+  id                                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id                               String   @db.Uuid
+  email                                 String
+  token_hash                            String   @unique(map: "invite_tokens_token_hash_uq")
+  expires_at                            DateTime @db.Timestamptz(6)
+  used                                  Boolean  @default(false)
+  created_by                            String   @db.Uuid
+  created_at                            DateTime @default(now()) @db.Timestamptz(6)
+  users_invite_tokens_created_byTousers users    @relation("invite_tokens_created_byTousers", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "invite_tokens_created_by_fk")
+  users_invite_tokens_user_idTousers    users    @relation("invite_tokens_user_idTousers", fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "invite_tokens_user_fk")
+
+  @@index([expires_at])
+  @@index([user_id, used], map: "invite_tokens_user_used_idx")
+}
+
 model invoices {
   id             String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   business_id    String        @db.Uuid
@@ -247,6 +369,17 @@ model invoices {
   businesses     businesses    @relation(fields: [business_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   clients        clients?      @relation(fields: [client_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   reservations   reservations? @relation(fields: [reservation_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model lead_documents {
+  id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  lead_id        String         @db.Uuid
+  document_type  String
+  file_url       String
+  created_at     DateTime       @default(now()) @db.Timestamptz(6)
+  business_leads business_leads @relation(fields: [lead_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([lead_id, document_type])
 }
 
 model login_attempts {
@@ -346,6 +479,15 @@ model plans {
   is_active        Boolean         @default(true)
   plan_features    plan_features[]
   subscriptions    subscriptions[]
+}
+
+model pro_permissions {
+  id                   Int                    @id @default(autoincrement())
+  code                 String                 @unique
+  description          String?
+  employee_permissions employee_permissions[]
+
+  @@index([code])
 }
 
 model ratings_aggregates {
@@ -620,7 +762,9 @@ model users {
   addresses                                     addresses[]
   business_leads                                business_leads[]
   business_verifications                        business_verifications[]
-  businesses                                    businesses[]
+  businesses_businesses_owner_idTousers         businesses[]                 @relation("businesses_owner_idTousers")
+  businesses_businesses_owner_user_idTousers    businesses[]                 @relation("businesses_owner_user_idTousers")
+  claims                                        claims[]
   clients                                       clients[]
   employee_accounts                             employee_accounts?
   invite_tokens_invite_tokens_created_byTousers invite_tokens[]              @relation("invite_tokens_created_byTousers")
@@ -663,99 +807,10 @@ model working_hours {
   @@index([business_id, employee_id])
 }
 
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-model business_leads {
-  id               String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  business_name    String
-  owner_first_name String
-  owner_last_name  String
-  email            String
-  phone            String?
-  activity_type    String?
-  location         String?
-  notes            String?
-  status           lead_status @default(pending)
-  converted_by     String?     @db.Uuid
-  created_at       DateTime    @default(now()) @db.Timestamptz(6)
-  updated_at       DateTime    @default(now()) @db.Timestamptz(6)
-  users            users?      @relation(fields: [converted_by], references: [id], onUpdate: NoAction, map: "business_leads_converted_by_fk")
-
-  @@index([activity_type, location], map: "business_leads_activity_location_idx")
-  @@index([created_at(sort: Desc)])
-  @@index([email])
-  @@index([status])
-}
-
-model business_closures {
-  id           String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  business_id  String     @db.Uuid
-  start_date   DateTime   @db.Date
-  end_date     DateTime   @db.Date
-  reason       String?
-  created_at   DateTime   @default(now()) @db.Timestamptz(6)
-  updated_at   DateTime   @default(now()) @db.Timestamptz(6)
-  businesses   businesses @relation(fields: [business_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-
-  @@index([business_id, start_date, end_date])
-}
-
-model business_verifications {
-  id                    String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  business_id           String              @db.Uuid
-  rc_number             String?
-  rc_document_url       String?
-  id_document_front_url String?
-  id_document_back_url  String?
-  status                verification_status @default(pending)
-  reviewed_by           String?             @db.Uuid
-  reviewed_at           DateTime?           @db.Timestamptz(6)
-  notes                 String?
-  created_at            DateTime            @default(now()) @db.Timestamptz(6)
-  updated_at            DateTime            @default(now()) @db.Timestamptz(6)
-  businesses            businesses          @relation(fields: [business_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "business_verifications_business_fk")
-  users                 users?              @relation(fields: [reviewed_by], references: [id], onUpdate: NoAction, map: "business_verifications_reviewed_by_fk")
-
-  @@index([business_id], map: "business_verifications_business_idx")
-  @@index([reviewed_at])
-  @@index([status])
-}
-
-model invite_tokens {
-  id                                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  user_id                               String   @db.Uuid
-  email                                 String
-  token_hash                            String   @unique(map: "invite_tokens_token_hash_uq")
-  expires_at                            DateTime @db.Timestamptz(6)
-  used                                  Boolean  @default(false)
-  created_by                            String   @db.Uuid
-  created_at                            DateTime @default(now()) @db.Timestamptz(6)
-  users_invite_tokens_created_byTousers users    @relation("invite_tokens_created_byTousers", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "invite_tokens_created_by_fk")
-  users_invite_tokens_user_idTousers    users    @relation("invite_tokens_user_idTousers", fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "invite_tokens_user_fk")
-
-  @@index([expires_at])
-  @@index([user_id, used], map: "invite_tokens_user_used_idx")
-}
-
-model employee_permissions {
-  employee_id     String          @db.Uuid
-  permission_id   Int
-  business_id     String          @db.Uuid
-  created_at      DateTime        @default(now()) @db.Timestamptz(6)
-  businesses      businesses      @relation(fields: [business_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  pro_permissions pro_permissions @relation(fields: [permission_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-
-  @@id([employee_id, permission_id, business_id])
-  @@index([business_id], map: "employee_permissions_business_idx")
-  @@index([employee_id], map: "employee_permissions_employee_idx")
-}
-
-model pro_permissions {
-  id                   Int                    @id @default(autoincrement())
-  code                 String                 @unique
-  description          String?
-  employee_permissions employee_permissions[]
-
-  @@index([code])
+enum business_status {
+  pending_verification
+  verified
+  active
 }
 
 enum client_status {
@@ -763,6 +818,13 @@ enum client_status {
   REGULIER
   NOUVEAU
   AUCUN
+}
+
+enum lead_status {
+  pending
+  contacted
+  invited
+  validated
 }
 
 enum payment_status {
@@ -788,19 +850,6 @@ enum subscription_status {
   PAST_DUE
   CANCELED
   INCOMPLETE
-}
-
-enum business_status {
-  pending_verification
-  verified
-  active
-}
-
-enum lead_status {
-  pending
-  contacted
-  invited
-  validated
 }
 
 enum verification_status {

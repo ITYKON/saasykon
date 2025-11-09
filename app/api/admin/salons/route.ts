@@ -1,128 +1,241 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { z } from "zod";
 import { requireAdminOrPermission } from "@/lib/authorization";
+import { z } from "zod";
+
+// Type personnalisé pour la réponse de la requête Prisma
+type BusinessWithRelations = {
+  id: string;
+  legal_name: string;
+  public_name: string;
+  description: string | null;
+  email: string | null;
+  phone: string | null;
+  website: string | null;
+  logo_url: string | null;
+  cover_url: string | null;
+  status: string;
+  created_at: Date;
+  updated_at: Date;
+  archived_at: Date | null;
+  deleted_at: Date | null;
+  owner_user_id: string;
+  business_locations: any[];
+  services: Array<{ id: string; name: string }>;
+  employees: any[];
+  subscriptions: Array<{
+    id: string;
+    plans: { id: number; name: string } | null;
+  }>;
+};
+
+type SalonResponse = BusinessWithRelations & {
+  rating_avg: number;
+  rating_count: number;
+  rating: number;
+  reviewCount: number;
+  totalBookings: number;
+  monthlyRevenue: number;
+  joinDate: string;
+  lastActivity?: string;
+  subscription: string;
+  status: "en attente" | "inactif";
+  isTop: boolean;
+  isNew: boolean;
+  isPremium: boolean;
+};
 
 export async function GET(req: Request) {
-  // Enforce auth
-  const authCheck = await requireAdminOrPermission("salons");
-  if (authCheck instanceof NextResponse) return authCheck;
-  // Pagination
-  const { searchParams } = new URL(req.url);
-  const page = parseInt(searchParams.get("page") || "1", 10);
-  const pageSize = parseInt(searchParams.get("pageSize") || "10", 10);
-  const skip = (page - 1) * pageSize;
-  const take = pageSize;
-  const q = (searchParams.get("q") || "").trim();
+  try {
+    // Vérification de l'authentification
+    const authCheck = await requireAdminOrPermission("salons");
+    if (authCheck instanceof NextResponse) return authCheck;
+    
+    // Gestion de la pagination
+    const { searchParams } = new URL(req.url);
+    const page = parseInt(searchParams.get("page") || "1", 10);
+    const pageSize = Math.min(parseInt(searchParams.get("pageSize") || "10", 10), 100);
+    const skip = (page - 1) * pageSize;
+    const take = pageSize;
+    const q = (searchParams.get("q") || "").trim();
 
-  const where: any = q
-    ? {
+    // Construction de la requête de recherche
+    const claimStatusFilter = searchParams.get("claim_status");
+    const where: any = {
+      ...(q && {
         OR: [
-          { public_name: { contains: q, mode: "insensitive" } },
-          { legal_name: { contains: q, mode: "insensitive" } },
-          { email: { contains: q, mode: "insensitive" } },
+          { public_name: { contains: q, mode: 'insensitive' } },
+          { legal_name: { contains: q, mode: 'insensitive' } },
+          { email: { contains: q, mode: 'insensitive' } },
         ],
-      }
-    : {};
+      }),
+      // Filtre par statut de revendication si spécifié
+      ...(claimStatusFilter && claimStatusFilter !== "all" ? { claim_status: claimStatusFilter } : {}),
+    };
 
-  const [salons, total] = await Promise.all([
-    prisma.businesses.findMany({
+    // Récupération des données avec sélection précise des champs
+    const salons = await prisma.businesses.findMany({
       where,
-      include: {
+      select: {
+        id: true,
+        legal_name: true,
+        public_name: true,
+        description: true,
+        email: true,
+        phone: true,
+        website: true,
+        logo_url: true,
+        cover_url: true,
+        status: true,
+        claim_status: true,
+        created_at: true,
+        updated_at: true,
+        archived_at: true,
+        deleted_at: true,
+        owner_user_id: true,
         business_locations: true,
-        business_media: true,
-        users: true,
-        services: true,
-        reviews: true,
+        services: {
+          select: {
+            id: true,
+            name: true
+          },
+          take: 10
+        },
         employees: true,
-        subscriptions: { include: { plans: true } },
-        ratings_aggregates: true,
+        subscriptions: {
+          select: {
+            id: true,
+            plans: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
+          },
+          orderBy: { created_at: 'desc' },
+          take: 1
+        }
       },
       orderBy: { created_at: "desc" },
       skip,
       take,
-    }),
-    prisma.businesses.count({ where }),
-  ]);
+    }) as unknown as BusinessWithRelations[];
 
-  // Pré-calculs agrégés pour enrichir les champs attendus par le front
-  const businessIds = salons.map((s) => s.id);
-  const now = new Date();
-  const last30 = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    // Comptage total des résultats
+    const total = await prisma.businesses.count({ where });
 
-  // groupBy reservations -> totalBookings
-  const reservationsCounts = businessIds.length
-    ? await prisma.reservations.groupBy({
-        by: ["business_id"],
-        where: { business_id: { in: businessIds } },
-        _count: { _all: true },
-      })
-    : [];
-  const bookingsMap = Object.fromEntries(reservationsCounts.map((r) => [r.business_id, r._count._all]));
+    // Récupération des IDs pour les requêtes supplémentaires
+    const businessIds = salons.map((s) => s.id);
+    const now = new Date();
+    const last30 = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-  // groupBy payments in last 30d -> monthlyRevenue in DA
-  const paymentsSums = businessIds.length
-    ? await prisma.payments.groupBy({
-        by: ["business_id"],
-        where: { business_id: { in: businessIds }, status: "CAPTURED", created_at: { gte: last30, lt: now } },
-        _sum: { amount_cents: true },
-      })
-    : [];
-  const monthlyRevenueMap = Object.fromEntries(
-    paymentsSums.map((p) => [p.business_id, Math.round(((p._sum.amount_cents || 0) as number) / 100)])
-  );
+    // groupBy reservations -> totalBookings
+    const reservationsCounts = businessIds.length
+      ? await prisma.reservations.groupBy({
+          by: ["business_id"],
+          where: { business_id: { in: businessIds } },
+          _count: { _all: true },
+        })
+      : [];
+    const bookingsMap = Object.fromEntries(reservationsCounts.map((r) => [r.business_id, r._count._all]));
 
-  // lastActivity via event_logs (take recent and pick first per business)
-  const recentLogs = businessIds.length
-    ? await prisma.event_logs.findMany({
-        where: { business_id: { in: businessIds } },
-        orderBy: { occurred_at: "desc" },
-        take: 200,
-        select: { business_id: true, occurred_at: true },
-      })
-    : [];
-  const lastActivityMap: Record<string, string> = {};
-  for (const log of recentLogs) {
-    const bid = log.business_id as string | null;
-    if (bid && !lastActivityMap[bid]) lastActivityMap[bid] = log.occurred_at.toISOString();
+    // groupBy payments in last 30d -> monthlyRevenue in DA
+    const paymentsSums = businessIds.length
+      ? await prisma.payments.groupBy({
+          by: ["business_id"],
+          where: { business_id: { in: businessIds }, status: "CAPTURED", created_at: { gte: last30, lt: now } },
+          _sum: { amount_cents: true },
+        })
+      : [];
+    const monthlyRevenueMap = Object.fromEntries(
+      paymentsSums.map((p) => [p.business_id, Math.round(((p._sum.amount_cents || 0) as number) / 100)])
+    );
+
+    // lastActivity via event_logs (take recent and pick first per business)
+    const recentLogs = businessIds.length
+      ? await prisma.event_logs.findMany({
+          where: { business_id: { in: businessIds } },
+          orderBy: { occurred_at: "desc" },
+          take: 200,
+          select: { business_id: true, occurred_at: true },
+        })
+      : [];
+    const lastActivityMap: Record<string, string> = {};
+    for (const log of recentLogs) {
+      const bid = log.business_id as string | null;
+      if (bid && !lastActivityMap[bid]) lastActivityMap[bid] = log.occurred_at.toISOString();
+    }
+
+    // Enrichissement des données pour le frontend
+    const salonsWithBadges: SalonResponse[] = salons.map((salon: BusinessWithRelations) => {
+      // Valeurs par défaut
+      const rating_avg = 0;
+      const rating_count = 0;
+      
+      // Vérification des données de base
+      const businessLocations = Array.isArray(salon.business_locations) ? salon.business_locations : [];
+      const services = Array.isArray(salon.services) ? salon.services : [];
+      const employees = Array.isArray(salon.employees) ? salon.employees : [];
+      const subscriptions = Array.isArray(salon.subscriptions) ? salon.subscriptions : [];
+      
+      // Calculs de statut
+      const hasLocation = businessLocations.length > 0;
+      const hasService = services.length > 0;
+      const hasEmployee = employees.length > 0;
+      const profileComplete = hasLocation && hasService && hasEmployee && Boolean(salon.public_name);
+      const hasActiveSubscription = subscriptions.length > 0;
+      const isNew = (new Date().getTime() - new Date(salon.created_at).getTime()) < 1000 * 60 * 60 * 24 * 30; // Moins de 30 jours
+      
+      // Détermination du statut
+      const status: "en attente" | "inactif" = salon.archived_at || salon.deleted_at
+        ? "inactif"
+        : "en attente";
+      
+      // Données de l'abonnement
+      const subscription = subscriptions[0]?.plans?.name || "";
+      
+      return {
+        ...salon,
+        rating_avg,
+        rating_count,
+        // Champs attendus par le front
+        rating: rating_avg,
+        reviewCount: rating_count,
+        totalBookings: bookingsMap[salon.id] || 0,
+        monthlyRevenue: monthlyRevenueMap[salon.id] || 0, // DA
+        joinDate: salon.created_at?.toISOString() || new Date().toISOString(),
+        lastActivity: lastActivityMap[salon.id] || undefined,
+        subscription,
+        status,
+        isTop: rating_avg >= 4.5,
+        isNew: (new Date().getTime() - new Date(salon.created_at).getTime()) < 1000 * 60 * 60 * 24 * 30,
+        isPremium: subscription.toLowerCase() === "premium",
+      };
+    });
+
+    // Préparation de la réponse
+    return NextResponse.json({ 
+      success: true,
+      data: {
+        salons: salonsWithBadges, 
+        total, 
+        page, 
+        pageSize,
+        totalPages: Math.ceil(total / pageSize)
+      }
+    });
+  } catch (error: unknown) {
+    console.error('Error in /api/admin/salons:', error);
+    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+    return NextResponse.json(
+      { 
+        success: false,
+        error: 'Internal Server Error',
+        message: errorMessage
+      },
+      { status: 500 }
+    );
   }
-
-  // Calculs business pour badges/statuts avancés + enrichissements UI
-  const salonsWithBadges = salons.map(salon => {
-    // rating_avg et rating_count
-    const rating_avg = salon.ratings_aggregates?.rating_avg ? Number(salon.ratings_aggregates.rating_avg) : 0;
-    const rating_count = salon.ratings_aggregates?.rating_count ?? 0;
-    // abonnement principal (nom du plan)
-    const subscription = salon.subscriptions?.[0]?.plans?.name || "";
-    // statut: en attente si inscription incomplète ou sans abonnement actif, inactif si archivé/supprimé
-    const hasLocation = (salon.business_locations || []).length > 0;
-    const hasService = (salon.services || []).length > 0;
-    const hasEmployee = (salon.employees || []).length > 0;
-    const profileComplete = hasLocation && hasService && hasEmployee && Boolean(salon.public_name);
-    const hasActiveSubscription = Boolean(salon.subscriptions && salon.subscriptions[0]);
-    const status: "en attente" | "inactif" = (salon as any).archived_at || (salon as any).deleted_at
-      ? "inactif"
-      : "en attente"; // d'après la règle fournie, pas d'état "actif" exposé ici
-    return {
-      ...salon,
-      rating_avg,
-      rating_count,
-      // Champs attendus par le front
-      rating: rating_avg,
-      reviewCount: rating_count,
-      totalBookings: bookingsMap[salon.id] || 0,
-      monthlyRevenue: monthlyRevenueMap[salon.id] || 0, // DA
-      joinDate: salon.created_at?.toISOString?.() || (salon as any).created_at,
-      lastActivity: lastActivityMap[salon.id] || undefined,
-      subscription,
-      status,
-      isTop: rating_avg >= 4.5,
-      isNew: (new Date().getTime() - new Date(salon.created_at).getTime()) < 1000 * 60 * 60 * 24 * 30,
-      isPremium: subscription.toLowerCase() === "premium",
-    };
-  });
-
-  return NextResponse.json({ salons: salonsWithBadges, total, page, pageSize });
 }
 
 // Validation Zod
@@ -149,16 +262,22 @@ export async function POST(req: Request) {
     console.error("[POST /api/admin/salons] Validation error:", parse.error);
     return NextResponse.json({ error: "Validation error", details: parse.error }, { status: 400 });
   }
-  // Création du user owner si non fourni
+  // Si create_for_claim est true, créer le salon sans propriétaire pour permettre la revendication
+  const createForClaim = data.create_for_claim === true;
   let ownerUserId = data.owner_user_id;
-  if (!ownerUserId) {
+  
+  if (createForClaim) {
+    // Pour revendication : pas de propriétaire, claim_status = "none"
+    ownerUserId = null;
+  } else if (!ownerUserId) {
+    // Création du user owner si non fourni et pas pour revendication
     try {
       const ownerUser = await prisma.users.create({
         data: {
-          email: data.email,
+          email: data.email || `temp-${Date.now()}@example.com`,
           phone: data.phone,
-          first_name: data.public_name,
-          last_name: data.legal_name,
+          first_name: data.public_name?.split(" ")[0] || "",
+          last_name: data.public_name?.split(" ").slice(1).join(" ") || data.legal_name || "",
         },
       });
       ownerUserId = ownerUser.id;
@@ -168,23 +287,53 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Erreur création user", details: err }, { status: 500 });
     }
   }
+  
   // Création salon
   try {
+    const salonData: any = {
+      legal_name: data.legal_name,
+      public_name: data.public_name,
+      description: data.description || null,
+      email: data.email || null,
+      phone: data.phone || null,
+      website: data.website || null,
+      vat_number: data.vat_number || null,
+      category_code: data.category_code || null,
+      logo_url: data.logo_url || null,
+      cover_url: data.cover_url || null,
+      status: data.status || "pending_verification",
+    };
+
+    // Si create_for_claim, créer avec un user système comme propriétaire temporaire
+    // et claim_status = "none" pour permettre la revendication
+    if (createForClaim) {
+      // Créer ou récupérer un user système pour les salons à revendiquer
+      let systemUser = await prisma.users.findFirst({
+        where: { email: "system@yoka.com" },
+      });
+      
+      if (!systemUser) {
+        // Créer un user système si nécessaire
+        systemUser = await prisma.users.create({
+          data: {
+            email: "system@yoka.com",
+            first_name: "System",
+            last_name: "YOKA",
+            locale: "fr",
+          },
+        });
+      }
+      
+      salonData.owner_user_id = systemUser.id;
+      salonData.claim_status = "none"; // Permet la revendication
+      salonData.status = "pending_verification"; // En attente de revendication
+    } else {
+      salonData.owner_user_id = ownerUserId;
+      salonData.claim_status = "none";
+    }
+
     const salon = await prisma.businesses.create({
-      data: {
-        owner_user_id: ownerUserId,
-        legal_name: data.legal_name,
-        public_name: data.public_name,
-        description: data.description,
-        email: data.email,
-        phone: data.phone,
-        website: data.website,
-        vat_number: data.vat_number,
-        category_code: data.category_code,
-        logo_url: data.logo_url,
-        cover_url: data.cover_url,
-        // autres champs si besoin
-      },
+      data: salonData,
     });
     console.log("[POST /api/admin/salons] Salon créé:", salon);
     await prisma.event_logs.create({
