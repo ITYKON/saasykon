@@ -1,12 +1,58 @@
-import { ChevronDown } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Header } from "@/components/header"
-import { Footer } from "@/components/footer"
-import { SearchForm } from "@/components/search-form"
-import Link from "next/link"
-import Image from "next/image"
+"use client";
+
+import { useState } from "react";
+import { ChevronDown } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Header } from "@/components/header";
+import { Footer } from "@/components/footer";
+import { SearchForm } from "@/components/search-form";
+import Link from "next/link";
+import Image from "next/image";
+
+interface FAQItem {
+  question: string;
+  answer: string | JSX.Element;
+}
+
+const faqItems: FAQItem[] = [
+  {
+    question: "Qu'est-ce que YOKA ?",
+    answer: "YOKA est une plateforme innovante qui connecte les professionnels de la beauté avec leur clientèle. Notre mission est de simplifier la prise de rendez-vous en ligne, d'optimiser la gestion des salons et d'offrir une expérience utilisateur exceptionnelle aux clients comme aux professionnels du secteur."
+  },
+  {
+    question: "Comment prendre rendez-vous sur YOKA ?",
+    answer: (
+      <ol className="list-decimal pl-5 space-y-2">
+        <li>Recherchez un salon ou un professionnel près de chez vous</li>
+        <li>Sélectionnez le service désiré</li>
+        <li>Choisissez une date et un créneau horaire disponible</li>
+        <li>Confirmez votre rendez-vous en quelques clics</li>
+        <li>Recevez une confirmation par email et SMS</li>
+      </ol>
+    )
+  },
+  {
+    question: "Est-ce que je dois payer en ligne sur YOKA ?",
+  //  answer: "Le paiement en ligne est une option disponible mais non obligatoire. Vous pouvez choisir de payer directement en salon si vous le préférez. Pour les services nécessitant un acompte, le paiement en ligne sera requis pour confirmer votre réservation."
+    answer: "Le paiement en ligne n'est pas disponible pour le moment. Vous pouvez payer directement en salon."
+  },
+  {
+    question: "Comment gérer mes rendez-vous sur YOKA ?",
+    answer: "Dans votre espace client, vous pouvez :\n- Voir tous vos rendez-vous à venir et passés\n- Modifier ou annuler un rendez-vous (selon la politique d'annulation du salon)\n- Recevoir des rappels par email et SMS\n- Donner votre avis après votre prestation\n- Sauvegarder vos salons préférés"
+  },
+  {
+    question: "Comment faire apparaître mon salon ou institut sur YOKA ?",
+    answer: "Pour référencer votre établissement sur YOKA :\n1. Créez un compte professionnel\n2. Complétez votre profil avec les informations de votre salon\n3. Ajoutez vos services et vos disponibilités\n4. Une fois validé par notre équipe, votre salon sera visible par nos utilisateurs\n\nNotre équipe est disponible pour vous accompagner dans cette démarche."
+  }
+];
 
 export default function HomePage() {
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+
+  const toggleFaq = (index: number) => {
+    setActiveIndex(activeIndex === index ? null : index);
+  };
+
   return (
     <div className="min-h-screen bg-white">
       <Header />
@@ -303,7 +349,7 @@ export default function HomePage() {
       </section>
 
       {/* FAQ Section */}
-      <section className="py-20 bg-gray-50">
+      <section className="py-20 bg-gray-50" id="faq">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <div className="text-sm font-semibold text-blue-600 mb-2 tracking-wide">FAQ</div>
@@ -311,18 +357,28 @@ export default function HomePage() {
           </div>
 
           <div className="space-y-4">
-            {[
-              "Qu'est-ce que YOKA ?",
-              "Comment prendre rendez-vous sur YOKA ?",
-              "Est-ce que je dois payer en ligne sur YOKA ?",
-              "Comment gérer mes rendez-vous sur YOKA ?",
-              "Comment faire apparaître mon salon ou institut sur YOKA ?",
-            ].map((question, index) => (
-              <div key={index} className="bg-white rounded-lg border border-gray-200">
-                <button className="w-full px-6 py-4 text-left flex items-center justify-between hover:bg-gray-50">
-                  <span className="font-medium text-black">{question}</span>
-                  <ChevronDown className="h-5 w-5 text-gray-400" />
+            {faqItems.map((item, index) => (
+              <div key={index} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                <button 
+                  onClick={() => toggleFaq(index)}
+                  className="w-full px-6 py-4 text-left flex items-center justify-between hover:bg-gray-50 focus:outline-none"
+                  aria-expanded={activeIndex === index}
+                  aria-controls={`faq-content-${index}`}
+                >
+                  <span className="font-medium text-black text-left">{item.question}</span>
+                  <ChevronDown 
+                    className={`h-5 w-5 text-gray-400 transition-transform duration-200 ${activeIndex === index ? 'transform rotate-180' : ''}`} 
+                  />
                 </button>
+                <div 
+                  id={`faq-content-${index}`}
+                  className={`px-6 pb-4 pt-0 transition-all duration-300 ${activeIndex === index ? 'block' : 'hidden'}`}
+                  aria-hidden={activeIndex !== index}
+                >
+                  <div className="text-gray-600">
+                    {item.answer}
+                  </div>
+                </div>
               </div>
             ))}
           </div>
