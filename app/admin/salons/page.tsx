@@ -322,25 +322,26 @@ function AdminSalonsContent() {
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
   {filteredSalons.map((salon) => (
           <Card key={salon.id} className="overflow-hidden hover:shadow-lg transition-shadow">
-            <div className="relative h-48">
-              <Image src={salon.logo_url || "/placeholder.svg"} alt={salon.public_name || salon.legal_name} fill className="object-cover" />
-              <div className="absolute top-2 right-2 flex gap-2">
+            <div className="relative bg-gray-100 p-4 flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <Building className="h-6 w-6 text-gray-500" />
+                <h3 className="text-lg font-semibold">{salon.public_name || salon.legal_name}</h3>
+              </div>
+              <div className="flex gap-2">
                 <Badge className={getStatusColor(salon.status || "")}>{salon.status}</Badge>
                 <Badge className={getSubscriptionColor(salon.subscription || "")}>{salon.subscription}</Badge>
               </div>
             </div>
 
             <CardContent className="p-6">
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <h3 className="text-xl font-bold text-black">{salon.public_name || salon.legal_name}</h3>
-                    {salon.claim_status === "none" && (
-                      <Badge className="bg-blue-100 text-blue-800 border-blue-200 text-xs">
-                        Disponible pour revendication
-                      </Badge>
-                    )}
+              <div className="pt-4">
+                {salon.claim_status === "none" && (
+                  <div className="mb-3">
+                    <Badge className="bg-blue-100 text-blue-800 border-blue-200 text-xs">
+                      Disponible pour revendication
+                    </Badge>
                   </div>
+                )}
                   <p className="text-gray-600">Email : {salon.email}</p>
                   <div className="flex items-center text-gray-600 text-sm mt-1">
                     <MapPin className="h-4 w-4 mr-1" />
@@ -354,7 +355,7 @@ function AdminSalonsContent() {
                   </div>
                   <p className="text-xs text-gray-500">({salon.reviewCount} avis)</p>
                 </div>
-              </div>
+              {/* </div> */}
 
               <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
                 <div>
