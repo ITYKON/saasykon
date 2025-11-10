@@ -43,6 +43,21 @@ export const QuiSommesNous = () => {
         </div>
       </div>
 
+      {/* Notre Mission */}
+      <div className="bg-white py-16">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h2 className="text-3xl font-bold text-gray-900 mb-8">Notre mission</h2>
+          <div className="space-y-6 text-lg text-gray-600">
+            <p>
+              Nous croyons que chaque professionnel de la beauté mérite des outils simples et performants pour se concentrer sur l'essentiel : prendre soin de ses clients.
+            </p>
+            <p>
+              Notre mission est de digitaliser les salons sans complexité, d'améliorer leur visibilité et de simplifier leur gestion quotidienne, tout en garantissant une expérience moderne et agréable à leurs clients.
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Nos Valeurs */}
       <div className="py-20 bg-gradient-to-b from-white to-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
