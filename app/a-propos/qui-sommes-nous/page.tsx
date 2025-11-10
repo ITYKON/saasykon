@@ -1,3 +1,4 @@
+import { Header } from "@/components/header";
 import { QuiSommesNous } from "@/components/footer/a-propos/QuiSommesNous";
 import { Footer } from "@/components/footer";
 
@@ -9,7 +10,10 @@ export const metadata = {
 export default function QuiSommesNousPage() {
   return (
     <>
-      <QuiSommesNous />
+      <Header />
+      <main>
+        <QuiSommesNous />
+      </main>
       <Footer />
     </>
   );

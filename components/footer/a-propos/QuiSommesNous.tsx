@@ -3,9 +3,9 @@ import { FaLeaf, FaHandsHelping,  FaUsers, FaRegSmile } from "react-icons/fa";
 
 export const QuiSommesNous = () => {
   return (
-    <div className="bg-white py-16">
+    <div className="bg-white py-4">
       {/* Hero Section */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         <div className="text-center">
           <h1 className="text-4xl font-bold text-gray-900 mb-6">Qui sommes-nous ?</h1>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">
