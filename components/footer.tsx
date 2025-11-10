@@ -1,4 +1,7 @@
-import Link from "next/link"
+import Link from "next/link";
+import { ServicesSection } from "./footer/services/ServicesSection";
+import { ProfessionnelsSection } from "./footer/professionnels/ProfessionnelsSection";
+import { AProposSection } from "./footer/a-propos/AProposSection";
 
 export function Footer() {
   return (
@@ -9,76 +12,14 @@ export function Footer() {
             <div className="text-2xl font-bold text-black tracking-wide mb-4">YOKA</div>
             <p className="text-gray-600">Là où la beauté rencontre la technologie.</p>
           </div>
-          <div>
-            <h3 className="font-semibold text-black mb-4">Services</h3>
-            <ul className="space-y-2 text-gray-600">
-              <li>
-                <Link href="/coiffeur" className="hover:text-black transition-colors">
-                  Coiffeur
-                </Link>
-              </li>
-              <li>
-                <Link href="/barbier" className="hover:text-black transition-colors">
-                  Barbier
-                </Link>
-              </li>
-              <li>
-                <Link href="/manucure" className="hover:text-black transition-colors">
-                  Manucure
-                </Link>
-              </li>
-              <li>
-                <Link href="/institut" className="hover:text-black transition-colors">
-                  Institut de beauté
-                </Link>
-              </li>
-            </ul>
-          </div>
-          <div>
-            <h3 className="font-semibold text-black mb-4">Professionnels</h3>
-            <ul className="space-y-2 text-gray-600">
-              <li>
-                <Link href="/pro/register" className="hover:text-black transition-colors">
-                  Devenir partenaire
-                </Link>
-              </li>
-              <li>
-                <Link href="/pro/login" className="hover:text-black transition-colors">
-                  Espace pro
-                </Link>
-              </li>
-              <li>
-                <Link href="/support" className="hover:text-black transition-colors">
-                  Support
-                </Link>
-              </li>
-            </ul>
-          </div>
-          <div>
-            <h3 className="font-semibold text-black mb-4">À propos</h3>
-            <ul className="space-y-2 text-gray-600">
-              <li>
-                <Link href="/about" className="hover:text-black transition-colors">
-                  Qui sommes-nous
-                </Link>
-              </li>
-              <li>
-                <Link href="/contact" className="hover:text-black transition-colors">
-                  Contact
-                </Link>
-              </li>
-              <li>
-                <Link href="/legal" className="hover:text-black transition-colors">
-                  Mentions légales
-                </Link>
-              </li>
-            </ul>
-          </div>
+          <ServicesSection />
+          <ProfessionnelsSection />
+          <AProposSection />
         </div>
         <div className="border-t border-gray-200 mt-8 pt-8 text-center text-gray-600">
           <p>&copy; 2025 YOKA. Tous droits réservés.</p>
         </div>
       </div>
     </footer>
-  )
+  );
 }
