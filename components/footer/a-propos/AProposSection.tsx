@@ -11,12 +11,12 @@ export const AProposSection = () => {
           </Link>
         </li>
         <li>
-          <Link href="/contact" className="hover:text-black transition-colors">
+          <Link href="/a-propos/contact" className="hover:text-black transition-colors">
             Contact
           </Link>
         </li>
         <li>
-          <Link href="/legal" className="hover:text-black transition-colors">
+          <Link href="/a-propos/mentions-legales" className="hover:text-black transition-colors">
             Mentions légales
           </Link>
         </li>
