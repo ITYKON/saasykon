@@ -182,25 +182,72 @@ export async function PUT(request: Request) {
       });
       
       // 1. Vérifier si le pays existe, sinon le créer
+      const countryName = address.country.trim();
+      
+      // Mapping des pays connus avec leurs codes ISO
+      const knownCountries: Record<string, string> = {
+        'algerie': 'DZ',
+        'france': 'FR',
+        'maroc': 'MA',
+        'tunisie': 'TN',
+        // Ajouter d'autres pays au besoin
+      };
+
+      // Normaliser le nom du pays pour la recherche
+      const normalizedCountryName = countryName.toLowerCase();
+      
+      // Vérifier d'abord par nom exact
       let country = await prisma.countries.findFirst({
         where: { 
           OR: [
-            { name: address.country },
-            { code: address.country }
+            { name: { equals: countryName, mode: 'insensitive' } },
+            { code: { equals: countryName.toUpperCase() } }
           ]
         }
       });
 
+      // Si le pays n'existe pas, essayer de le créer
       if (!country) {
-        logger.info(`Création d'un nouveau pays: ${address.country}`);
-        // Créer un code de pays à partir du nom (ex: 'algerie' -> 'DZ')
-        const countryCode = address.country.substring(0, 2).toUpperCase() || 'DZ';
-        country = await prisma.countries.create({
-          data: {
-            code: countryCode,
-            name: address.country,
-          },
-        });
+        logger.info(`Pays non trouvé, tentative de création: ${countryName}`);
+        
+        // Essayer de trouver un code pays connu
+        let countryCode = knownCountries[normalizedCountryName] || 
+                         countryName.substring(0, 2).toUpperCase();
+        
+        try {
+          country = await prisma.countries.create({
+            data: {
+              code: countryCode,
+              name: countryName,
+            },
+          });
+          logger.info(`Nouveau pays créé: ${countryName} (${countryCode})`);
+        } catch (createError: any) {
+          // En cas d'erreur de contrainte unique (pays déjà existant avec un nom/code similaire)
+          if (createError.code === 'P2002') {
+            logger.warn(`Conflit lors de la création du pays, recherche alternative: ${countryName}`);
+            // Réessayer de trouver le pays (au cas où il aurait été créé entre-temps)
+            country = await prisma.countries.findFirst({
+              where: { 
+                OR: [
+                  { name: { contains: countryName, mode: 'insensitive' } },
+                  { code: countryCode }
+                ]
+              }
+            });
+            
+            // Si toujours pas trouvé, utiliser l'Algérie par défaut
+            if (!country) {
+              logger.warn(`Utilisation de l'Algérie comme pays par défaut`);
+              country = await prisma.countries.findFirst({
+                where: { code: 'DZ' }
+              });
+            }
+          } else {
+            logger.error('Erreur lors de la création du pays:', createError);
+            throw new Error(`Échec de la gestion du pays: ${createError.message}`);
+          }
+        }
       }
 
       // 2. Résoudre la ville selon notation des wilayas (Algérie)
