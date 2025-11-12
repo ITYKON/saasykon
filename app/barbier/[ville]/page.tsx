@@ -100,7 +100,6 @@ export default async function BarbierVillePage({ params }: PageProps) {
                         <Star className="w-4 h-4 text-yellow-400 fill-current mr-1" />
                         <span className="text-sm font-medium">4.8</span>
                         <span className="text-sm text-gray-500 ml-1">(0 avis)</span>
-                        <span className="text-sm text-gray-400 ml-3">€€€</span>
                       </div>
                     </div>
                     <Button className="bg-black hover:bg-gray-800 text-white">Prendre RDV</Button>

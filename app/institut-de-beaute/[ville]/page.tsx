@@ -128,7 +128,6 @@ export default async function CityInstitutePage({ params }: PageProps) {
                           <span className="font-medium">4.8</span>
                           <span className="text-gray-500">(0 avis)</span>
                         </div>
-                        <span className="text-gray-600">€€€</span>
                       </div>
 
                       {/* Time Slots */}
