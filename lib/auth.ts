@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { randomBytes } from "crypto";
+import { randomBytes, randomInt } from "crypto";
 
 const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME || "saas_session";
 const SESSION_TTL_SECONDS = Number(process.env.SESSION_TTL_SECONDS || 60 * 60 * 24 * 7); // 7 days
@@ -36,6 +36,35 @@ export async function verifyPassword(plainPassword: string, hashedPassword: stri
     console.error('[verifyPassword] Erreur lors de la vérification du mot de passe:', error);
     return false;
   }
+}
+
+export function generateTemporaryPassword(length: number = 12): string {
+  const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const lowercase = 'abcdefghijklmnopqrstuvwxyz';
+  const numbers = '0123456789';
+  const special = '!@#$%^&*()_+~`|}{[]:;?><,./-=';
+  
+  // Assurez-vous que le mot de passe contient au moins un caractère de chaque type
+  let password = [
+    uppercase[randomInt(uppercase.length)],
+    lowercase[randomInt(lowercase.length)],
+    numbers[randomInt(numbers.length)],
+    special[randomInt(special.length)]
+  ];
+  
+  // Remplir le reste du mot de passe avec des caractères aléatoires
+  const allChars = uppercase + lowercase + numbers + special;
+  while (password.length < length) {
+    password.push(allChars[randomInt(allChars.length)]);
+  }
+  
+  // Mélanger le mot de passe
+  for (let i = password.length - 1; i > 0; i--) {
+    const j = randomInt(i + 1);
+    [password[i], password[j]] = [password[j], password[i]];
+  }
+  
+  return password.join('');
 }
 
 function generateSessionToken(): string {

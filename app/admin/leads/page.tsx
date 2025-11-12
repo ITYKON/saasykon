@@ -224,6 +224,38 @@ export default function AdminLeadsPage() {
     } catch {}
   }
 
+  async function approveLead(id: string) {
+    try {
+      setLoading(true);
+      const res = await fetch(`/api/admin/leads/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "approve" }),
+      });
+      
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({}));
+        throw new Error(error.message || "Erreur lors de l'approbation du lead");
+      }
+      
+      toast({
+        title: "Succès",
+        description: "Le lead a été approuvé et converti en entreprise avec succès",
+      });
+      
+      // Recharger la liste des leads
+      await load();
+    } catch (err: any) {
+      toast({
+        title: "Erreur",
+        description: err.message || "Une erreur est survenue",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <div className="w-full px-6 py-8">
       <div className="mb-6 flex items-center justify-between">
@@ -554,6 +586,23 @@ export default function AdminLeadsPage() {
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent>Marquer contacté</TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8"
+                            onClick={() => approveLead(it.id)}
+                            disabled={loading}
+                          >
+                            <CheckCircle className="h-4 w-4 mr-1" />
+                            Approuver
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Convertir ce lead en entreprise</p>
+                        </TooltipContent>
                       </Tooltip>
                       <Tooltip>
                         <TooltipTrigger asChild>
