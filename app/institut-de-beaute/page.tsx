@@ -3,6 +3,7 @@ import { Input } from "@/components/ui/input"
 import Link from "next/link"
 import { prisma } from "@/lib/prisma"
 import { redirect } from "next/navigation"
+import { Footer } from "@/components/footer"
 
 function slugifyCity(name: string) {
   return name
@@ -218,6 +219,8 @@ export default async function InstitutDeBeautePage({
           </div>
         </div>
       </section>
+
+      <Footer />
     </div>
   )
 }

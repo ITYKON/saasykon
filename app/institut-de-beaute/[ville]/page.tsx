@@ -3,6 +3,7 @@ import { MapPin, Star, Filter } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { prisma } from "@/lib/prisma"
+import { Footer } from "@/components/footer"
 
 interface PageProps {
   params: {
@@ -176,6 +177,8 @@ export default async function CityInstitutePage({ params }: PageProps) {
           )}
         </div>
       </div>
+
+      <Footer />
     </div>
   )
 }
