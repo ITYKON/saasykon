@@ -2,61 +2,148 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyPassword, createSession } from "@/lib/auth";
 
-export async function POST(request: Request) {
+// Fonction pour enregistrer une tentative de connexion échouée
+async function logFailedLoginAttempt(userId: string | null, email: string) {
   try {
-    const { email, password } = await request.json();
-    if (!email || !password) {
-      return NextResponse.json({ error: "Identifiants requis" }, { status: 400 });
-    }
-    const user = await prisma.users.findUnique({ where: { email } });
-    if (!user || !user.password_hash) {
-      // Log failed attempt (no user or no password)
-      await prisma.login_attempts.create({
-        data: {
-          success: false,
-          user_id: user?.id ?? null,
-          ip_address: undefined,
-          user_agent: undefined,
-        },
-      }).catch(() => {});
-      return NextResponse.json({ error: "Identifiants invalides" }, { status: 401 });
-    }
-    const ok = await verifyPassword(password, user.password_hash);
-    if (!ok) {
-      // Log failed password
-      await prisma.login_attempts.create({
-        data: {
-          success: false,
-          user_id: user.id,
-          ip_address: undefined,
-          user_agent: undefined,
-        },
-      }).catch(() => {});
-      return NextResponse.json({ error: "Identifiants invalides" }, { status: 401 });
-    }
-    // Log successful login
+    await prisma.login_attempts.create({
+      data: {
+        success: false,
+        user_id: userId,
+        ip_address: '',
+        user_agent: '',
+      },
+    });
+    console.log(`Tentative de connexion échouée pour l'utilisateur: ${userId || 'inconnu'}, email: ${email}`);
+  } catch (error) {
+    console.error('Erreur lors de l\'enregistrement de la tentative échouée:', error);
+  }
+}
+
+// Fonction pour enregistrer une connexion réussie
+async function logSuccessfulLogin(userId: string, email: string) {
+  try {
     await prisma.login_attempts.create({
       data: {
         success: true,
-        user_id: user.id,
-        ip_address: undefined,
-        user_agent: undefined,
+        user_id: userId,
+        ip_address: '',
+        user_agent: '',
       },
-    }).catch(() => {});
+    });
+    console.log(`Connexion réussie pour l'utilisateur: ${userId}, email: ${email}`);
+  } catch (error) {
+    console.error('Erreur lors de l\'enregistrement de la connexion réussie:', error);
+  }
+}
+
+export async function POST(request: Request) {
+  console.log('Début de la tentative de connexion');
+  try {
+    const { email, password } = await request.json();
+    console.log('Tentative de connexion pour l\'email:', email);
+    
+    if (!email || !password) {
+      console.log('Email ou mot de passe manquant');
+      return NextResponse.json({ error: "Identifiants requis" }, { status: 400 });
+    }
+    
+    const user = await prisma.users.findUnique({ 
+      where: { email },
+      include: {
+        user_roles: {
+          include: {
+            roles: true
+          }
+        }
+      }
+    });
+    
+    console.log('Utilisateur trouvé dans la base de données:', user ? 'Oui' : 'Non');
+    
+    if (!user) {
+      console.log('Aucun utilisateur trouvé avec cet email');
+      await logFailedLoginAttempt(null, email);
+      return NextResponse.json({ error: "Identifiants invalides" }, { status: 401 });
+    }
+    
+    if (!user.password_hash) {
+      console.log('L\'utilisateur n\'a pas de mot de passe défini');
+      await logFailedLoginAttempt(user.id, email);
+      return NextResponse.json({ error: "Veuvez d'abord définir votre mot de passe" }, { status: 401 });
+    }
+    console.log('Vérification du mot de passe...');
+    console.log(`Données de l'utilisateur:`, {
+      userId: user.id,
+      hasPassword: !!user.password_hash,
+      passwordLength: user.password_hash?.length
+    });
+    
+    const ok = await verifyPassword(password, user.password_hash || '');
+    
+    if (!ok) {
+      console.log('Échec de la vérification du mot de passe');
+      console.log(`Détails de la vérification:`, {
+        passwordProvided: !!password,
+        passwordLength: password?.length,
+        storedHash: user.password_hash ? 'Présent' : 'Manquant',
+        storedHashLength: user.password_hash?.length
+      });
+      
+      await logFailedLoginAttempt(user.id, email);
+      return NextResponse.json({ 
+        error: "Identifiants invalides",
+        details: {
+          hasPassword: !!user.password_hash,
+          passwordLength: password?.length
+        }
+      }, { status: 401 });
+    }
+    
+    console.log('Mot de passe valide, création de la session...');
+    // Log successful login
+    await logSuccessfulLogin(user.id, email);
+    
+    console.log('Création de la session pour l\'utilisateur ID:', user.id);
     // Create session and role/business cookies
     const res = await createSession(user.id);
+    console.log('Session créée avec succès');
     // Sync onboarding_done cookie for PRO guard based on DB flag
     try {
-      const owned = await prisma.businesses.findMany({ where: { owner_user_id: user.id }, select: { onboarding_completed: true } });
+      console.log('Vérification de l\'onboarding pour l\'utilisateur ID:', user.id);
+      const owned = await prisma.businesses.findMany({ 
+        where: { owner_user_id: user.id }, 
+        select: { onboarding_completed: true } 
+      });
+      
+      console.log('Entreprises trouvées pour l\'utilisateur:', owned);
       const done = owned.some((b) => b.onboarding_completed === true);
       const expires = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
+      
+      console.log('Onboarding status:', done ? 'Complété' : 'Non complété');
+      
       if (done) {
-        res.cookies.set("onboarding_done", "true", { httpOnly: false, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", expires });
+        res.cookies.set("onboarding_done", "true", { 
+          httpOnly: false, 
+          sameSite: "lax", 
+          secure: process.env.NODE_ENV === 'production', 
+          path: "/", 
+          expires 
+        });
+        console.log('Cookie onboarding_done défini à true');
       } else {
         // ensure it is cleared so middleware redirects to /pro/onboarding
-        res.cookies.set("onboarding_done", "", { httpOnly: false, expires: new Date(0), path: "/" });
+        res.cookies.set("onboarding_done", "false", { 
+          httpOnly: false, 
+          sameSite: "lax", 
+          secure: process.env.NODE_ENV === 'production', 
+          path: "/", 
+          expires: new Date(Date.now() + 24 * 60 * 60 * 1000) // 1 jour
+        });
+        console.log('Cookie onboarding_done défini à false');
       }
-    } catch {}
+    } catch (error) {
+      console.error('Erreur lors de la vérification de l\'onboarding:', error);
+    }
     // Fallback: if user owns businesses but has no PRO role, auto-assign PRO
     try {
       const [assignments, owned, proRole] = await Promise.all([

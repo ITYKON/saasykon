@@ -41,8 +41,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Token expired" }, { status: 400 });
   }
 
-  if (claim.status === "approved" || claim.status === "rejected") {
-    return NextResponse.json({ error: "Claim already processed" }, { status: 400 });
+  // Ne pas bloquer si la revendication est déjà approuvée
+  if (claim.status === "rejected") {
+    return NextResponse.json({ error: "Cette revendication a été rejetée" }, { status: 400 });
   }
 
   // Calculate days remaining
@@ -51,7 +52,7 @@ export async function GET(req: NextRequest) {
     ? Math.max(0, Math.ceil((claim.expires_at.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)))
     : 7;
 
-  return NextResponse.json({
+  const responseData = {
     ok: true,
     claim: {
       id: claim.id,
@@ -60,6 +61,10 @@ export async function GET(req: NextRequest) {
       phone: claim.phone,
       status: claim.status,
       documents_submitted: claim.documents_submitted,
+      rc_number: claim.rc_number,
+      rc_document_url: claim.rc_document_url,
+      id_document_front_url: claim.id_document_front_url,
+      id_document_back_url: claim.id_document_back_url,
       days_remaining: daysRemaining,
       business: claim.businesses,
       user: {
@@ -68,6 +73,23 @@ export async function GET(req: NextRequest) {
         has_password: !!claim.users.password_hash,
       },
     },
-  });
+  };
+
+  // Vérifier si la requête vient déjà d'une redirection pour éviter les boucles
+  const isFromRedirect = req.headers.get('x-from-redirect') === 'true';
+  
+  // Si c'est une requête directe avec token et pas déjà une redirection
+  if (token && !isFromRedirect) {
+    const onboardingUrl = new URL('/claims/onboarding', req.nextUrl.origin);
+    onboardingUrl.searchParams.set('token', token);
+    
+    // Ajouter un en-tête pour éviter les boucles de redirection
+    const response = NextResponse.redirect(onboardingUrl);
+    response.headers.set('x-from-redirect', 'true');
+    return response;
+  }
+
+  // Si c'est une requête AJAX ou déjà une redirection, retourner les données JSON
+  return NextResponse.json(responseData);
 }
 

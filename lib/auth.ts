@@ -8,12 +8,34 @@ const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME || "saas_session";
 const SESSION_TTL_SECONDS = Number(process.env.SESSION_TTL_SECONDS || 60 * 60 * 24 * 7); // 7 days
 
 export async function hashPassword(plainPassword: string): Promise<string> {
-  const salt = await bcrypt.genSalt(10);
-  return await bcrypt.hash(plainPassword, salt);
+  console.log('[hashPassword] Hachage du mot de passe...');
+  try {
+    const salt = await bcrypt.genSalt(10);
+    console.log('[hashPassword] Sel généré');
+    const hashed = await bcrypt.hash(plainPassword, salt);
+    console.log('[hashPassword] Mot de passe haché avec succès');
+    return hashed;
+  } catch (error) {
+    console.error('[hashPassword] Erreur lors du hachage du mot de passe:', error);
+    throw error;
+  }
 }
 
 export async function verifyPassword(plainPassword: string, hashedPassword: string): Promise<boolean> {
-  return await bcrypt.compare(plainPassword, hashedPassword);
+  console.log('[verifyPassword] Vérification du mot de passe...');
+  try {
+    if (!plainPassword || !hashedPassword) {
+      console.error('[verifyPassword] Mot de passe ou hash manquant');
+      return false;
+    }
+    
+    const isValid = await bcrypt.compare(plainPassword, hashedPassword);
+    console.log(`[verifyPassword] Résultat de la vérification: ${isValid ? 'Valide' : 'Invalide'}`);
+    return isValid;
+  } catch (error) {
+    console.error('[verifyPassword] Erreur lors de la vérification du mot de passe:', error);
+    return false;
+  }
 }
 
 function generateSessionToken(): string {

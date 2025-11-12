@@ -58,10 +58,15 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/admin/dashboard", request.url));
   }
 
-  // Force PRO users to complete onboarding before accessing other /pro pages
+  // Allow PRO users to access dashboard even if onboarding is not completed
+  // They will see a banner with a link to complete onboarding
   const onboardingDone = request.cookies.get("onboarding_done")?.value === "true";
-  if (roles.includes("PRO") && isProPath && !isProOnboarding && !onboardingDone) {
-    return NextResponse.redirect(new URL("/pro/onboarding", request.url));
+  const isProDashboard = pathname === "/pro/dashboard" || pathname === "/pro";
+  
+  // Only redirect to onboarding if the user explicitly navigates to /pro/onboarding
+  // Otherwise, they can access the dashboard and complete onboarding later
+  if (roles.includes("PRO") && pathname === "/pro/onboarding" && onboardingDone) {
+    return NextResponse.redirect(new URL("/pro/dashboard", request.url));
   }
 
   // Do NOT auto-redirect away from the invite flow, even if a session exists
