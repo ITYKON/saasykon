@@ -31,7 +31,7 @@ export async function GET() {
       orderBy: { created_at: "desc" },
       take: 5,
       include: {
-        users: { select: { first_name: true, last_name: true } },
+        users_businesses_owner_user_idTousers: { select: { first_name: true, last_name: true } },
         business_locations: {
           take: 1,
           include: { cities: { select: { name: true } } },
@@ -61,7 +61,7 @@ export async function GET() {
       return {
         id: b.id,
         name: b.public_name || b.legal_name,
-        owner: `${b.users?.first_name ?? ""} ${b.users?.last_name ?? ""}`.trim() || undefined,
+        owner: `${b.users_businesses_owner_user_idTousers?.first_name ?? ""} ${b.users_businesses_owner_user_idTousers?.last_name ?? ""}`.trim() || undefined,
         location: b.business_locations?.[0]?.cities?.name || undefined,
         status,
         subscription: b.subscriptions?.[0]?.plans?.name || b.subscriptions?.[0]?.plans?.code || "-",
