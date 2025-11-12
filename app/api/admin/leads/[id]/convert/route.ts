@@ -99,6 +99,31 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     }
   }
 
+  // Créer une entrée dans business_locations avec la ville du lead
+  if (lead.location) {
+    // Essayer de trouver la ville dans la base de données
+    const city = await prisma.cities.findFirst({
+      where: {
+        name: {
+          contains: lead.location,
+          mode: 'insensitive'
+        }
+      },
+      take: 1
+    });
+
+    await prisma.business_locations.create({
+      data: {
+        business_id: business.id,
+        address_line1: lead.location,
+        city_id: city?.id || null,
+        country_code: 'DZ', // Par défaut Algérie
+        is_primary: true,
+        timezone: 'Africa/Algiers'
+      },
+    });
+  }
+
   // Update lead state
   await prisma.business_leads.update({
     where: { id: lead.id },
