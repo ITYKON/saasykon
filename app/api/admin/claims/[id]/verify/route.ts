@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdminOrPermission } from "@/lib/authorization";
+import { sendEmail, claimApprovedEmailTemplate } from "@/lib/email";
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const auth = await requireAdminOrPermission("CLAIMS_MANAGE");
@@ -97,7 +98,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       await prisma.business_verifications.update({
         where: { id: verification.id },
         data: {
-          status: "approved",
+          status: "verified" as const,  // Utilisation de 'verified' au lieu de 'approved'
           reviewed_by: auth.userId,
           reviewed_at: new Date(),
           notes: notes || null,
@@ -112,7 +113,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
           rc_document_url: claim.rc_document_url || null,
           id_document_front_url: claim.id_document_front_url || null,
           id_document_back_url: claim.id_document_back_url || null,
-          status: "approved",
+          status: "verified" as const,  // Utilisation de 'verified' au lieu de 'approved'
           reviewed_by: auth.userId,
           reviewed_at: new Date(),
           notes: notes || null,
@@ -141,6 +142,28 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         });
       }
     } catch {}
+
+    // Envoyer un email de confirmation à l'utilisateur
+    try {
+      const dashboardUrl = `${process.env.NEXT_PUBLIC_APP_URL}/pro/dashboard`;
+      const { text, html } = claimApprovedEmailTemplate({
+        firstName: claim.users.first_name || 'Utilisateur',
+        businessName: claim.businesses.public_name || claim.businesses.legal_name || 'votre entreprise',
+        dashboardUrl: dashboardUrl
+      });
+
+      await sendEmail({
+        to: claim.users.email,
+        subject: 'Votre revendication a été approuvée',
+        html,
+        text,
+        category: 'claim_approved',
+        sandbox: process.env.NODE_ENV !== 'production'
+      });
+    } catch (emailError) {
+      console.error('Erreur lors de l\'envoi de l\'email de confirmation:', emailError);
+      // Ne pas échouer la requête si l'email échoue
+    }
 
     // Event log
     await prisma.event_logs.create({

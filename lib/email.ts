@@ -55,3 +55,50 @@ export function inviteEmailTemplate(params: { firstName?: string | null; appUrl:
   </div>`;
   return { text, html };
 }
+
+export function claimApprovedEmailTemplate(params: { 
+  firstName: string; 
+  businessName: string;
+  dashboardUrl: string;
+}) {
+  const greeting = `Bonjour ${params.firstName},`;
+  const text = `${greeting}
+
+Félicitations ! Votre revendication pour l'entreprise "${params.businessName}" a été approuvée avec succès.
+
+Vous pouvez dès maintenant accéder à votre tableau de bord professionnel pour gérer votre entreprise :
+${params.dashboardUrl}
+
+Cordialement,
+L'équipe de support`;
+
+  const html = `
+  <div style="font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height:1.5; max-width:600px; margin:0 auto; padding:20px;">
+    <div style="text-align: center; margin-bottom: 24px;">
+      <h1 style="color: #111; font-size: 24px; margin-bottom: 16px;">Revendication approuvée !</h1>
+      <div style="height: 4px; width: 64px; background: #10B981; margin: 0 auto 16px;"></div>
+    </div>
+    
+    <p>${greeting}</p>
+    
+    <p>Félicitations ! Votre revendication pour l'entreprise <strong>${params.businessName}</strong> a été approuvée avec succès.</p>
+    
+    <p>Vous pouvez dès maintenant accéder à votre tableau de bord professionnel pour gérer votre entreprise :</p>
+    
+    <div style="text-align: center; margin: 32px 0;">
+      <a href="${params.dashboardUrl}" 
+         style="display: inline-block; padding: 12px 24px; background: #111; color: #fff; 
+                text-decoration: none; border-radius: 8px; font-weight: 500;">
+        Accéder au tableau de bord
+      </a>
+    </div>
+    
+    <p>Si vous avez des questions ou avez besoin d'aide, n'hésitez pas à répondre à cet email.</p>
+    
+    <div style="margin-top: 32px; padding-top: 16px; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 14px;">
+      <p>Cordialement,<br>L'équipe de support</p>
+    </div>
+  </div>`;
+  
+  return { text, html };
+}
