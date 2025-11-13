@@ -39,9 +39,17 @@ export default async function ManucureVillePage({ params }: PageProps) {
   if (!city) notFound()
   const locations = await prisma.business_locations.findMany({
     where: { city_id: city.id },
-    include: { businesses: true },
+    include: { businesses: { include: { working_hours: true } } },
     orderBy: { created_at: "desc" },
   })
+
+  function workingWeekdayLabels(workingWeekdays: number[]): string[] {
+    if (!Array.isArray(workingWeekdays) || workingWeekdays.length === 0) return []
+    const labels = ["Dim.", "Lun.", "Mar.", "Mer.", "Jeu.", "Ven.", "Sam."]
+    const set = new Set(workingWeekdays.map((d) => ((d % 7) + 7) % 7))
+    const order = [1, 2, 3, 4, 5, 6, 0]
+    return order.filter((d) => set.has(d)).map((d) => labels[d])
+  }
 
   return (
     <div className="min-h-screen bg-white">
@@ -106,34 +114,25 @@ export default async function ManucureVillePage({ params }: PageProps) {
                     <Button className="bg-black hover:bg-gray-800 text-white">Prendre RDV</Button>
                   </div>
 
-                  {/* Time Slots */}
+                  {/* Working days (next occurrences) */}
                   <div className="space-y-3">
                     <div>
-                      <span className="text-sm font-medium text-gray-700 mr-4">MATIN</span>
+                      <span className="text-sm font-medium text-gray-700 mr-4">JOURS OUVERTS</span>
                       <div className="inline-flex gap-2">
-                        {["09:00", "10:30", "11:00"].map((time) => (
+                        {workingWeekdayLabels(
+                          Array.from(
+                            new Set(
+                              (loc.businesses.working_hours || []).map((wh: any) => Number(wh.weekday ?? -1)).filter((n: number) => n >= 0 && n <= 6)
+                            )
+                          )
+                        ).map((label) => (
                           <Button
-                            key={time}
+                            key={label}
                             variant="outline"
                             size="sm"
                             className="border-blue-200 text-blue-600 hover:bg-blue-50 bg-transparent"
                           >
-                            Mer.{time.split(":")[0]}
-                          </Button>
-                        ))}
-                      </div>
-                    </div>
-                    <div>
-                      <span className="text-sm font-medium text-gray-700 mr-4">APRÈS-MIDI</span>
-                      <div className="inline-flex gap-2">
-                        {["14:00", "15:30", "16:00"].map((time) => (
-                          <Button
-                            key={time}
-                            variant="outline"
-                            size="sm"
-                            className="border-blue-200 text-blue-600 hover:bg-blue-50 bg-transparent"
-                          >
-                            Mer.{time.split(":")[0]}
+                            {label}
                           </Button>
                         ))}
                       </div>

@@ -36,7 +36,7 @@ export default async function CityInstitutePage({ params }: PageProps) {
   // Fetch business locations in this city with their businesses
   let locations = await prisma.business_locations.findMany({
     where: { city_id: city.id },
-    include: { businesses: true },
+    include: { businesses: { include: { working_hours: true } } },
     orderBy: { created_at: "desc" },
   })
 
@@ -50,10 +50,18 @@ export default async function CityInstitutePage({ params }: PageProps) {
     if (cityIds.length > 0) {
       locations = await prisma.business_locations.findMany({
         where: { city_id: { in: cityIds } },
-        include: { businesses: true },
+        include: { businesses: { include: { working_hours: true } } },
         orderBy: { created_at: "desc" },
       })
     }
+  }
+
+  function workingWeekdayLabels(workingWeekdays: number[]): string[] {
+    if (!Array.isArray(workingWeekdays) || workingWeekdays.length === 0) return []
+    const labels = ["Dim.", "Lun.", "Mar.", "Mer.", "Jeu.", "Ven.", "Sam."]
+    const set = new Set(workingWeekdays.map((d) => ((d % 7) + 7) % 7))
+    const order = [1, 2, 3, 4, 5, 6, 0] // Commencer par Lundi
+    return order.filter((d) => set.has(d)).map((d) => labels[d])
   }
 
   return (
@@ -131,25 +139,23 @@ export default async function CityInstitutePage({ params }: PageProps) {
                         </div>
                       </div>
 
-                      {/* Time Slots */}
+                      {/* Working days (next occurrences) */}
                       <div className="space-y-3">
                         <div>
-                          <div className="text-sm font-medium text-gray-700 mb-2">MATIN</div>
+                          <div className="text-sm font-medium text-gray-700 mb-2">JOURS OUVERTS</div>
                           <div className="flex flex-wrap gap-2">
-                            {["Mer.10", "Jeu.11", "Ven.12"].map((slot) => (
-                              <Button key={`morning-${slot}`} variant="outline" size="sm" className="text-blue-600 border-blue-600 hover:bg-blue-50 bg-transparent">
-                                {slot}
-                              </Button>
-                            ))}
-                          </div>
-                        </div>
-
-                        <div>
-                          <div className="text-sm font-medium text-gray-700 mb-2">APRÈS-MIDI</div>
-                          <div className="flex flex-wrap gap-2">
-                            {["Mer.10", "Jeu.11", "Ven.12"].map((slot) => (
-                              <Button key={`afternoon-${slot}`} variant="outline" size="sm" className="text-blue-600 border-blue-600 hover:bg-blue-50 bg-transparent">
-                                {slot}
+                            {workingWeekdayLabels(
+                              Array.from(
+                                new Set(
+                                  (loc.businesses.working_hours || []).map((wh: any) => {
+                                    // Prisma weekday: 0..6 where 0 = dimanche (aligné à JS Date.getDay)
+                                    return Number(wh.weekday ?? -1)
+                                  }).filter((n: number) => n >= 0 && n <= 6)
+                                )
+                              )
+                            ).map((label) => (
+                              <Button key={label} variant="outline" size="sm" className="text-blue-600 border-blue-600 hover:bg-blue-50 bg-transparent">
+                                {label}
                               </Button>
                             ))}
                           </div>
