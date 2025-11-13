@@ -11,6 +11,7 @@ import Link from "next/link"
 import { SalonFormModal } from "@/components/admin/SalonFormModal";
 import { SalonDetailModal } from "@/components/admin/SalonDetailModal";
 import { ProtectedAdminPage } from "@/components/admin/ProtectedAdminPage";
+import { buildSalonSlug } from "@/lib/salon-slug";
 
 export default function AdminSalons() {
   return (
@@ -405,7 +406,14 @@ function AdminSalonsContent() {
                   </Button>
                 )}
                 {salon.claim_status === "none" && (
-                  <Link href={`/salon/${salon.id}`} target="_blank">
+                  <Link
+                    href={`/salon/${buildSalonSlug(
+                      salon.public_name || salon.legal_name || "",
+                      salon.id,
+                      salon.business_locations?.[0]?.cities?.name || null
+                    )}`}
+                    target="_blank"
+                  >
                     <Button size="sm" variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100">
                       Voir page publique
                     </Button>

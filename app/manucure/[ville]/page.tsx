@@ -6,6 +6,7 @@ import { MapPin, Star, Filter, Info } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { prisma } from "@/lib/prisma"
+import { buildSalonSlug } from "@/lib/salon-slug"
 
 interface PageProps {
   params: { ville: string }
@@ -146,7 +147,10 @@ export default async function ManucureVillePage({ params }: PageProps) {
                     </div>
                   </div>
 
-                  <Link href={`/salon/${loc.businesses.id}`} className="text-sm text-gray-600 hover:text-gray-800 mt-4 underline">
+                  <Link
+                    href={`/salon/${buildSalonSlug(loc.businesses.public_name || loc.businesses.legal_name || "", loc.businesses.id, city.name)}`}
+                    className="text-sm text-gray-600 hover:text-gray-800 mt-4 underline"
+                  >
                     Plus d'informations
                   </Link>
                 </div>

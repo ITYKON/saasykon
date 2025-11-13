@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import Link from "next/link"
 import Image from "next/image"
+import { buildSalonSlug } from "@/lib/salon-slug"
 
 type Business = {
   id: string
@@ -35,6 +36,7 @@ type Business = {
   isPremium: boolean
   isNew: boolean
   isTop: boolean
+  city?: string
 }
 
 export default function SearchPage() {
@@ -250,7 +252,11 @@ export default function SearchPage() {
             ) : (
               <div className="space-y-4">
                 {businesses.map((business) => (
-                  <Link key={business.id} href={`/salon/${business.id}`} id={`business-${business.id}`}>
+                  <Link
+                    key={business.id}
+                    href={`/salon/${buildSalonSlug(business.name, business.id, business.city || business.location?.city)}`}
+                    id={`business-${business.id}`}
+                  >
                     <Card className="hover:shadow-md transition-shadow cursor-pointer">
                       <div className="flex gap-4 p-4">
                         {/* Image */}

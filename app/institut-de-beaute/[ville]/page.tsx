@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { prisma } from "@/lib/prisma"
 import { Footer } from "@/components/footer"
+import { buildSalonSlug } from "@/lib/salon-slug"
 
 interface PageProps {
   params: {
@@ -37,7 +38,7 @@ export default async function CityInstitutePage({ params }: PageProps) {
   // Fetch business locations in this city with their businesses
   let locations = await prisma.business_locations.findMany({
     where: { city_id: city.id },
-    include: { businesses: { include: { working_hours: true } } },
+    include: { businesses: { include: { working_hours: true } }, cities: true },
     orderBy: { created_at: "desc" },
   })
 
@@ -51,7 +52,7 @@ export default async function CityInstitutePage({ params }: PageProps) {
     if (cityIds.length > 0) {
       locations = await prisma.business_locations.findMany({
         where: { city_id: { in: cityIds } },
-        include: { businesses: { include: { working_hours: true } } },
+        include: { businesses: { include: { working_hours: true } }, cities: true },
         orderBy: { created_at: "desc" },
       })
     }
@@ -169,7 +170,14 @@ export default async function CityInstitutePage({ params }: PageProps) {
                         </div>
                       </div>
 
-                      <Link href={`/salon/${loc.businesses.id}`} className="text-sm text-gray-600 hover:text-gray-800 mt-4 underline">
+                      <Link
+                        href={`/salon/${buildSalonSlug(
+                          loc.businesses.public_name || loc.businesses.legal_name || "",
+                          loc.businesses.id,
+                          loc.cities?.name || city.name
+                        )}`}
+                        className="text-sm text-gray-600 hover:text-gray-800 mt-4 underline"
+                      >
                         Plus d'informations
                       </Link>
                     </div>
@@ -177,7 +185,15 @@ export default async function CityInstitutePage({ params }: PageProps) {
                     {/* CTA Button */}
                     <div className="lg:ml-6">
                       <Button className="bg-black hover:bg-gray-800 text-white px-6 py-2 w-full lg:w-auto" asChild>
-                        <a href={`/salon/${loc.businesses.id}`}>Prendre RDV</a>
+                        <a
+                          href={`/salon/${buildSalonSlug(
+                            loc.businesses.public_name || loc.businesses.legal_name || "",
+                            loc.businesses.id,
+                            loc.cities?.name || city.name
+                          )}`}
+                        >
+                          Prendre RDV
+                        </a>
                       </Button>
                     </div>
                   </div>

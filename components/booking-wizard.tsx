@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { useAuth } from "@/hooks/useAuth"
+import { buildSalonSlug } from "@/lib/salon-slug"
 
 interface BookingWizardProps {
   salon: any
@@ -242,7 +243,16 @@ interface BookingWizardProps {
               w.document.close(); w.focus(); w.print(); w.close();
             }}>Télécharger</AlertDialogAction>
             <AlertDialogAction onClick={() => { setTicketOpen(false); router.push(`/client/dashboard`) }}>Mon espace</AlertDialogAction>
-            <AlertDialogAction onClick={() => { setTicketOpen(false); router.push(`/salon/${salon?.id}`) }}>Retour au salon</AlertDialogAction>
+            <AlertDialogAction
+              onClick={() => {
+                setTicketOpen(false)
+                if (salon?.id) {
+                  router.push(`/salon/${buildSalonSlug(salon?.name || "", salon.id, salon?.city || null)}`)
+                }
+              }}
+            >
+              Retour au salon
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

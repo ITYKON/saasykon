@@ -6,6 +6,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import Link from "next/link"
 import CreateReservationModal from "@/components/pro/CreateReservationModal"
 import { headers } from "next/headers"
+import { buildSalonSlug } from "@/lib/salon-slug"
 
 export default async function ProDashboard() {
   // Fetch unified dashboard data from API (server-side)
@@ -70,7 +71,17 @@ export default async function ProDashboard() {
                     }
                   />
                 )}
-                <Link href={business?.id ? `/salon/${business.id}` : "#"}>
+                <Link
+                  href={
+                    business?.id
+                      ? `/salon/${buildSalonSlug(
+                        business.public_name || business.legal_name || "",
+                        business.id,
+                        address?.cities?.name || null
+                      )}`
+                      : "#"
+                  }
+                >
                   <Button variant="outline">
                     <Eye className="h-4 w-4 mr-2" />
                     Voir ma page

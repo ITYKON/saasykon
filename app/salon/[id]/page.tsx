@@ -8,8 +8,11 @@ import { Star, MapPin, Clock, Phone, Heart, Share2, ChevronLeft, ChevronRight } 
 import Link from "next/link"
 import Image from "next/image"
 import BookingWizard from "@/components/booking-wizard"
+import { useRouter } from "next/navigation"
+import { buildSalonSlug, extractSalonId } from "@/lib/salon-slug"
 
 export default function SalonPage({ params }: { params: { id: string } }) {
+  const router = useRouter()
   const [showBooking, setShowBooking] = useState(false)
   const [selectedServiceForBooking, setSelectedServiceForBooking] = useState<{
     id: string
@@ -24,8 +27,11 @@ export default function SalonPage({ params }: { params: { id: string } }) {
   const [error, setError] = useState<string | null>(null)
   const [data, setData] = useState<any | null>(null)
 
+  const businessId = useMemo(() => extractSalonId(params.id), [params.id])
+
   // Vérifier si le salon est dans les favoris au chargement
   useEffect(() => {
+    if (!businessId) return
     let mounted = true
     const checkFavorite = async () => {
       try {
@@ -33,7 +39,7 @@ export default function SalonPage({ params }: { params: { id: string } }) {
         if (response.ok) {
           const { favorites } = await response.json()
           if (mounted) {
-            setIsFavorite(favorites.some((fav: any) => fav.businesses?.id === params.id))
+            setIsFavorite(favorites.some((fav: any) => fav.businesses?.id === businessId))
           }
         }
       } catch (error) {
@@ -42,12 +48,13 @@ export default function SalonPage({ params }: { params: { id: string } }) {
     }
     checkFavorite()
     return () => { mounted = false }
-  }, [params.id])
+  }, [businessId])
 
   useEffect(() => {
+    if (!businessId) return
     let mounted = true
     setLoading(true)
-    fetch(`/api/salon/${params.id}`, { cache: "no-store" })
+    fetch(`/api/salon/${businessId}`, { cache: "no-store" })
       .then(async (r) => {
         const j = await r.json().catch(() => ({}))
         if (!r.ok) throw new Error(j?.error || "Erreur de chargement")
@@ -64,7 +71,15 @@ export default function SalonPage({ params }: { params: { id: string } }) {
       })
       .finally(() => mounted && setLoading(false))
     return () => { mounted = false }
-  }, [params.id])
+  }, [businessId])
+
+  useEffect(() => {
+    if (!data?.name || !businessId) return
+    const canonicalSlug = buildSalonSlug(data.name, businessId, data.city)
+    if (canonicalSlug && canonicalSlug !== params.id) {
+      router.replace(`/salon/${canonicalSlug}`, { scroll: false })
+    }
+  }, [data?.name, businessId, params.id, router])
 
   const salon = useMemo(() => {
     if (!data) return null
@@ -114,6 +129,7 @@ export default function SalonPage({ params }: { params: { id: string } }) {
     return {
       id: data.id,
       name: data.name,
+      city: data.city ?? null,
       address: data.address,
       rating: ratings.overall,
       reviewCount: data.reviewCount || reviews.length,
@@ -199,7 +215,7 @@ export default function SalonPage({ params }: { params: { id: string } }) {
                 setIsFavoriteLoading(true);
                 try {
                   if (isFavorite) {
-                    await fetch(`/api/client/favorites?business_id=${params.id}`, {
+                    await fetch(`/api/client/favorites?business_id=${businessId}`, {
                       method: 'DELETE',
                     });
                   } else {
@@ -208,7 +224,7 @@ export default function SalonPage({ params }: { params: { id: string } }) {
                       headers: {
                         'Content-Type': 'application/json',
                       },
-                      body: JSON.stringify({ business_id: params.id }),
+                      body: JSON.stringify({ business_id: businessId }),
                     });
                   }
                   setIsFavorite(!isFavorite);
@@ -227,7 +243,7 @@ export default function SalonPage({ params }: { params: { id: string } }) {
               <Share2 className="h-4 w-4 mr-1" />
               Partager
             </Button>
-            <Link href={`/claims?business_id=${params.id}&business_name=${encodeURIComponent(salon?.name || '')}`}>
+            <Link href={`/claims?business_id=${businessId}&business_name=${encodeURIComponent(salon?.name || '')}`}>
               <Button variant="outline" size="sm" className="bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200">
                 Revendiquer mon établissement
               </Button>
