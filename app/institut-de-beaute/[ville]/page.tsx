@@ -144,20 +144,26 @@ export default async function CityInstitutePage({ params }: PageProps) {
                         <div>
                           <div className="text-sm font-medium text-gray-700 mb-2">JOURS OUVERTS</div>
                           <div className="flex flex-wrap gap-2">
-                            {workingWeekdayLabels(
-                              Array.from(
-                                new Set(
-                                  (loc.businesses.working_hours || []).map((wh: any) => {
-                                    // Prisma weekday: 0..6 where 0 = dimanche (aligné à JS Date.getDay)
-                                    return Number(wh.weekday ?? -1)
-                                  }).filter((n: number) => n >= 0 && n <= 6)
+                            {(() => {
+                              const labels = workingWeekdayLabels(
+                                Array.from(
+                                  new Set(
+                                    (loc.businesses.working_hours || []).map((wh: any) => {
+                                      // Prisma weekday: 0..6 where 0 = dimanche (aligné à JS Date.getDay)
+                                      return Number(wh.weekday ?? -1)
+                                    }).filter((n: number) => n >= 0 && n <= 6)
+                                  )
                                 )
                               )
-                            ).map((label) => (
-                              <Button key={label} variant="outline" size="sm" className="text-blue-600 border-blue-600 hover:bg-blue-50 bg-transparent">
-                                {label}
-                              </Button>
-                            ))}
+                              if (labels.length === 0) {
+                                return <span className="text-sm text-gray-500">Aucun jour ouvert</span>
+                              }
+                              return labels.map((label) => (
+                                <Button key={label} variant="outline" size="sm" className="text-blue-600 border-blue-600 hover:bg-blue-50 bg-transparent">
+                                  {label}
+                                </Button>
+                              ))
+                            })()}
                           </div>
                         </div>
                       </div>
