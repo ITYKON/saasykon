@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
-type VerificationStatus = 'PENDING_DOCUMENTS' | 'PENDING_VERIFICATION' | 'VERIFIED' | 'REJECTED' | 'BLOCKED';
+type VerificationStatus = 'PENDING_DOCUMENTS' | 'PENDING_VERIFICATION' | 'VERIFIED' | 'REJECTED' | 'BLOCKED' | 'DOCUMENTS_SUBMITTED';
 
 interface DocumentVerificationBannerProps {
   status: VerificationStatus;
@@ -16,6 +16,9 @@ interface DocumentVerificationBannerProps {
 
 export function DocumentVerificationBanner({ status, daysRemaining, businessId }: DocumentVerificationBannerProps) {
   const [timeLeft, setTimeLeft] = useState('');
+  
+  // Log pour le débogage
+  console.log('[DocumentVerificationBanner] Statut de la vérification:', { status, daysRemaining, businessId });
 
   useEffect(() => {
     // Update countdown every second
@@ -42,7 +45,10 @@ export function DocumentVerificationBanner({ status, daysRemaining, businessId }
     return () => clearInterval(timer);
   }, [daysRemaining]);
 
-  if (status === 'VERIFIED') return null;
+  if (status === 'VERIFIED' || status === 'DOCUMENTS_SUBMITTED') {
+    console.log('[DocumentVerificationBanner] Masquage de la bannière car le statut est:', status);
+    return null;
+  }
 
   const getAlertVariant = () => {
     switch (status) {
