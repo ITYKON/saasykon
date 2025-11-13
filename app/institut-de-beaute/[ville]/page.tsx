@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation"
 import { MapPin, Star, Filter } from "lucide-react"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { prisma } from "@/lib/prisma"
@@ -168,9 +169,9 @@ export default async function CityInstitutePage({ params }: PageProps) {
                         </div>
                       </div>
 
-                      <button className="text-sm text-gray-600 hover:text-gray-800 mt-4 underline">
+                      <Link href={`/salon/${loc.businesses.id}`} className="text-sm text-gray-600 hover:text-gray-800 mt-4 underline">
                         Plus d'informations
-                      </button>
+                      </Link>
                     </div>
 
                     {/* CTA Button */}

@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import Image from "next/image"
+import Link from "next/link"
 import { MapPin, Star, Filter, Info } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -145,9 +146,9 @@ export default async function ManucureVillePage({ params }: PageProps) {
                     </div>
                   </div>
 
-                  <button className="text-sm text-gray-600 hover:text-gray-800 mt-4 underline">
+                  <Link href={`/salon/${loc.businesses.id}`} className="text-sm text-gray-600 hover:text-gray-800 mt-4 underline">
                     Plus d'informations
-                  </button>
+                  </Link>
                 </div>
               </div>
             </div>
