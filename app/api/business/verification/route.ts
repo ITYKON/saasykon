@@ -29,7 +29,22 @@ const errorResponse = (message: string, status: number, details?: any) => {
 
 // Types pour les statuts basés sur le schéma Prisma
 type VerificationStatus = 'pending' | 'verified' | 'rejected';
-type BusinessStatus = 'pending_verification' | 'active' | 'suspended' | 'rejected';
+type BusinessStatus = 'pending_verification' | 'verified' | 'rejected' | 'blocked';
+
+// Surcharge du type pour accepter notre statut personnalisé
+type CustomVerificationStatus = VerificationStatus | string;
+
+declare global {
+  namespace Prisma {
+    // Surcharge de l'interface verification_status pour accepter notre statut personnalisé
+    interface verification_status {
+      equals?: CustomVerificationStatus;
+      in?: CustomVerificationStatus[];
+      notIn?: CustomVerificationStatus[];
+      not?: CustomVerificationStatus;
+    }
+  }
+}
 
 // Configuration des types pour les fichiers
 type FileWithName = {
@@ -74,7 +89,10 @@ export async function POST(request: Request) {
       return errorResponse('Non autorisé: utilisateur non connecté', 401);
     }
     
-    console.log(`[Business Verification API] Utilisateur connecté: ${user.email}`);
+    console.log(`[Business Verification API] Utilisateur connecté:`, {
+      id: user.id,
+      email: user.email
+    });
 
     // Récupérer l'entreprise de l'utilisateur
     console.log(`[Business Verification API] Récupération de l'entreprise pour l'utilisateur ${user.id}`);
@@ -99,8 +117,31 @@ export async function POST(request: Request) {
       });
     }
     
-    console.log(`[Business Verification API] Entreprise trouvée: ${business.id} - ${business.public_name}`);
-
+    console.log(`[Business Verification API] Entreprise trouvée:`, {
+      id: business.id,
+      name: business.public_name,
+      status: business.status
+    });
+    
+    // Récupérer les vérifications existantes avec les statuts valides
+    const existingVerifications = await prisma.business_verifications.findMany({
+      where: { 
+        business_id: business.id,
+        status: {
+          in: ['pending', 'verified', 'rejected']
+        }
+      },
+      orderBy: { created_at: 'desc' },
+      take: 1
+    });
+    
+    const existingVerification = existingVerifications[0] || null;
+    
+    console.log(`[Business Verification API] Vérifications existantes:`, {
+      count: existingVerification ? 1 : 0,
+      latestStatus: existingVerification?.status || 'none',
+      id: existingVerification?.id
+    });
 
     // Récupération des données du formulaire
     console.log('[Business Verification API] Récupération des données du formulaire');
@@ -197,63 +238,41 @@ export async function POST(request: Request) {
 
     // Sauvegarder les fichiers
     console.log('[Business Verification API] Début de la sauvegarde des fichiers');
-    let rcDocumentUrl, idDocumentFrontUrl, idDocumentBackUrl;
-    const businessId = business.id;
     
+    // Créer un dossier pour les documents de cette entreprise
+    const uploadDir = `business-verification/${business.id}`;
+    console.log(`[Business Verification API] Dossier de destination: ${uploadDir}`);
+    
+    let rcDocumentUrl: string;
+    let idFrontDocumentUrl: string;
+    let idBackDocumentUrl: string;
+
     try {
-      // Sauvegarder chaque fichier séquentiellement pour s'assurer qu'ils sont tous traités
-      const saveFiles = async () => {
-        const files = [
-          { file: rcDocument, name: 'rc', urlVar: 'rcDocumentUrl' },
-          { file: idDocumentFront, name: 'id-front', urlVar: 'idDocumentFrontUrl' },
-          { file: idDocumentBack, name: 'id-back', urlVar: 'idDocumentBackUrl' }
-        ];
-        
-        for (const { file, name, urlVar } of files) {
-          try {
-            console.log(`[Business Verification API] Sauvegarde du fichier ${name}...`);
-            const url = await saveFile(file, `business-verification/${businessId}`);
-            console.log(`[Business Verification API] Fichier ${name} sauvegardé: ${url}`);
-            
-            // Mettre à jour l'URL du fichier correspondant
-            if (name === 'rc') rcDocumentUrl = url;
-            else if (name === 'id-front') idDocumentFrontUrl = url;
-            else if (name === 'id-back') idDocumentBackUrl = url;
-          } catch (fileError) {
-            logError(`saveFile-${name}`, fileError, { fileName: file.name, fileType: file.type });
-            throw new Error(`Échec de la sauvegarde du fichier ${name}: ${fileError instanceof Error ? fileError.message : String(fileError)}`);
-          }
-        }
-      };
+      // Sauvegarder chaque fichier
+      console.log('[Business Verification API] Sauvegarde du fichier rc...');
+      rcDocumentUrl = await saveFile(rcDocument, uploadDir);
+      console.log('[Business Verification API] Fichier rc sauvegardé:', rcDocumentUrl);
       
-      await saveFiles();
+      console.log('[Business Verification API] Sauvegarde du fichier id-front...');
+      idFrontDocumentUrl = await saveFile(idDocumentFront, uploadDir);
+      console.log('[Business Verification API] Fichier id-front sauvegardé:', idFrontDocumentUrl);
+      
+      console.log('[Business Verification API] Sauvegarde du fichier id-back...');
+      idBackDocumentUrl = await saveFile(idDocumentBack, uploadDir);
+      console.log('[Business Verification API] Fichier id-back sauvegardé:', idBackDocumentUrl);
+      
       console.log('[Business Verification API] Tous les fichiers ont été sauvegardés avec succès');
     } catch (error) {
-      logError('saveFiles', error, { businessId });
+      console.error('[Business Verification API] Erreur lors de la sauvegarde des fichiers:', error);
       return errorResponse(
-        'Une erreur est survenue lors de la sauvegarde des fichiers. Veuillez réessayer.',
-        500,
+        'Erreur lors de la sauvegarde des fichiers', 
+        500, 
         {
           errorCode: 'FILE_SAVE_ERROR',
           details: error instanceof Error ? error.message : String(error)
         }
       );
     }
-
-    // Vérifier s'il existe déjà une vérification en attente
-    console.log('[Business Verification API] Vérification des validations existantes');
-    const existingVerification = await prisma.business_verifications.findFirst({
-      where: {
-        business_id: businessId,
-        status: { in: ['pending', 'verified', 'rejected'] },
-      },
-    });
-    
-    console.log('[Business Verification API] État de la vérification existante:', {
-      exists: !!existingVerification,
-      status: existingVerification?.status,
-      id: existingVerification?.id
-    });
 
     let verification;
     try {
@@ -268,8 +287,8 @@ export async function POST(request: Request) {
           data: {
             rc_number: rcNumber,
             rc_document_url: rcDocumentUrl,
-            id_document_front_url: idDocumentFrontUrl,
-            id_document_back_url: idDocumentBackUrl,
+            id_document_front_url: idFrontDocumentUrl,
+            id_document_back_url: idBackDocumentUrl,
             status: 'pending' as const,
             reviewed_at: null,
             reviewed_by: null,
@@ -282,11 +301,11 @@ export async function POST(request: Request) {
         
         verification = await prisma.business_verifications.create({
           data: {
-            business_id: businessId,
+            business_id: business.id,
             rc_number: rcNumber,
             rc_document_url: rcDocumentUrl,
-            id_document_front_url: idDocumentFrontUrl,
-            id_document_back_url: idDocumentBackUrl,
+            id_document_front_url: idFrontDocumentUrl,
+            id_document_back_url: idBackDocumentUrl,
             status: 'pending' as const,
             created_at: new Date(),
             updated_at: new Date()
@@ -302,8 +321,8 @@ export async function POST(request: Request) {
       // Mettre à jour le statut de l'entreprise
       console.log('[Business Verification API] Mise à jour du statut de l\'entreprise');
       
-      await prisma.businesses.update({
-        where: { id: businessId },
+await prisma.businesses.update({
+        where: { id: business.id },
         data: { 
           status: 'pending_verification' as const,
           verification_status: 'pending' as const,
@@ -313,14 +332,44 @@ export async function POST(request: Request) {
       
       console.log('[Business Verification API] Statut de l\'entreprise mis à jour avec succès');
       
-      return NextResponse.json({
-        success: true,
-        message: 'Documents soumis avec succès. Vérification en cours.',
-        verificationId: verification.id
+      // Mettre à jour la réclamation pour indiquer que les documents ont été soumis
+      console.log('[Business Verification API] Mise à jour du statut de la réclamation et des documents');
+      
+      await prisma.claims.updateMany({
+        where: {
+          business_id: business.id,
+          status: { in: ['pending', 'documents_pending', 'documents_submitted'] }
+        },
+        data: {
+          status: 'documents_submitted',
+          documents_submitted: true,
+          documents_submitted_at: new Date(),
+          rc_document_url: rcDocumentUrl,
+          id_document_front_url: idFrontDocumentUrl,
+          id_document_back_url: idBackDocumentUrl,
+          updated_at: new Date()
+        }
       });
       
+      console.log('[Business Verification API] Statut et documents de la réclamation mis à jour avec succès');
+      
+      // Forcer le rafraîchissement du cache côté client
+      const response = NextResponse.json({
+        success: true,
+        message: 'Documents soumis avec succès. Vérification en cours.',
+        verificationId: verification.id,
+        timestamp: new Date().toISOString() // Ajout d'un timestamp pour éviter le cache
+      });
+      
+      // Ajouter des en-têtes pour éviter la mise en cache
+      response.headers.set('Cache-Control', 'no-store, max-age=0');
+      response.headers.set('Pragma', 'no-cache');
+      response.headers.set('Expires', '0');
+      
+      return response;
+      
     } catch (error) {
-      logError('updateVerification', error, { businessId });
+      logError('updateVerification', error, { businessId: business.id });
       
       // Vérifier si c'est une erreur de base de données
       if (error instanceof Error && error.message.includes('prisma')) {

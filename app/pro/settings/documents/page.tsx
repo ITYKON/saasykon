@@ -15,15 +15,27 @@ import { Upload, FileText, CheckCircle } from 'lucide-react';
 // Schéma de validation avec Zod
 const documentFormSchema = z.object({
   rcNumber: z.string().min(1, 'Le numéro RC est requis'),
-  rcDocument: z.instanceof(FileList).refine(files => files.length > 0, {
-    message: 'Le document du registre de commerce est requis',
-  }),
-  idDocumentFront: z.instanceof(FileList).refine(files => files.length > 0, {
-    message: 'La pièce d\'identité (recto) est requise',
-  }),
-  idDocumentBack: z.instanceof(FileList).refine(files => files.length > 0, {
-    message: 'La pièce d\'identité (verso) est requise',
-  }),
+  rcDocument: z.any()
+    .refine(files => files?.length > 0, {
+      message: 'Le document du registre de commerce est requis',
+    })
+    .refine(files => files?.[0]?.size <= 5 * 1024 * 1024, {
+      message: 'La taille maximale est de 5MB',
+    }),
+  idDocumentFront: z.any()
+    .refine(files => files?.length > 0, {
+      message: 'La pièce d\'identité (recto) est requise',
+    })
+    .refine(files => files?.[0]?.size <= 5 * 1024 * 1024, {
+      message: 'La taille maximale est de 5MB',
+    }),
+  idDocumentBack: z.any()
+    .refine(files => files?.length > 0, {
+      message: 'La pièce d\'identité (verso) est requise',
+    })
+    .refine(files => files?.[0]?.size <= 5 * 1024 * 1024, {
+      message: 'La taille maximale est de 5MB',
+    }),
 });
 
 type DocumentFormValues = z.infer<typeof documentFormSchema>;
@@ -61,13 +73,29 @@ export default function DocumentUploadPage() {
       }
       
       toast({
-        title: 'Documents soumis avec succès',
-        description: 'Vos documents sont en cours de vérification. Vous serez notifié une fois la vérification terminée.',
+        title: (
+          <div className="flex items-center gap-2">
+            <CheckCircle className="h-5 w-5 text-green-500" />
+            <span>Documents soumis avec succès</span>
+          </div>
+        ),
+        description: (
+          <div className="space-y-1">
+            <p>Vos documents sont en cours de vérification.</p>
+            <p className="text-sm text-muted-foreground">
+              Redirection vers le tableau de bord...
+            </p>
+          </div>
+        ),
+        duration: 2000,
+        className: 'border-green-200 bg-green-50',
       });
       
       // Rediriger vers le tableau de bord après un court délai
       setTimeout(() => {
         router.push('/pro/dashboard');
+        // Forcer un rechargement complet pour s'assurer que les données sont à jour
+        router.refresh();
       }, 2000);
       
     } catch (error) {
