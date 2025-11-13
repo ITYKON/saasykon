@@ -10,6 +10,7 @@ import Image from "next/image"
 import BookingWizard from "@/components/booking-wizard"
 import { useRouter } from "next/navigation"
 import { buildSalonSlug, extractSalonId } from "@/lib/salon-slug"
+import { Footer } from "@/components/footer"
 
 export default function SalonPage({ params }: { params: { id: string } }) {
   const router = useRouter()
@@ -462,6 +463,7 @@ export default function SalonPage({ params }: { params: { id: string } }) {
           </div>
         </div>
       </div>
+      <Footer />
     </div>
   )
 }

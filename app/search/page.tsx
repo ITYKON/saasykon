@@ -128,7 +128,7 @@ export default function SearchPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="flex flex-col min-h-screen bg-white">
       <Header />
 
       {/* Search Bar */}
@@ -212,7 +212,7 @@ export default function SearchPage() {
       </div>
 
       {/* Results Layout */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full">
         <div className="mb-4">
           <h2 className="text-xl font-semibold text-black">
             Sélectionnez un salon
@@ -394,8 +394,10 @@ export default function SearchPage() {
           </div>
         </div>
       </div>
-
-      <Footer />
+      
+      <div className="mt-auto">
+        <Footer />
+      </div>
     </div>
   )
 }
