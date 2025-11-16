@@ -62,7 +62,10 @@ export async function GET(req: NextRequest) {
     prisma.notifications.count({ where: { business_id: businessId, is_read: false } }).catch(() => 0),
     prisma.payments.findFirst({ where: { business_id: businessId }, orderBy: { created_at: "desc" }, select: { currency: true } }).catch(() => null as any),
     prisma.businesses.findUnique({ where: { id: businessId }, select: { id: true, public_name: true, legal_name: true } }),
-    prisma.business_locations.findFirst({ where: { business_id: businessId, is_primary: true }, select: { address_line1: true } }),
+    prisma.business_locations.findFirst({
+      where: { business_id: businessId, is_primary: true },
+      select: { address_line1: true, cities: { select: { name: true } } }
+    }),
   ]);
 
   const newClients = firsts.filter((g) => g._min.starts_at && g._min.starts_at >= weekStart && g._min.starts_at < weekEnd).length;

@@ -590,23 +590,6 @@ export default function AdminLeadsPage() {
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-8"
-                            onClick={() => approveLead(it.id)}
-                            disabled={loading}
-                          >
-                            <CheckCircle className="h-4 w-4 mr-1" />
-                            Approuver
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Convertir ce lead en entreprise</p>
-                        </TooltipContent>
-                      </Tooltip>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
                             size="sm"
                             variant="outline"
                             className="h-8"

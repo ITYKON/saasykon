@@ -47,7 +47,8 @@ export async function GET(request: Request) {
     const name = b?.public_name || b?.legal_name || null
     const cover_image_url = b?.cover_url || null
     const loc = b?.business_locations?.[0]
-    const address = loc ? `${loc.address_line1 ?? ""}${loc.cities?.name ? ", " + loc.cities.name : ""}${loc.postal_code ? " " + loc.postal_code : ""}`.trim() : null
+    const city = loc?.cities?.name ?? null
+    const address = loc ? `${loc.address_line1 ?? ""}${city ? ", " + city : ""}${loc.postal_code ? " " + loc.postal_code : ""}`.trim() : null
     return {
       ...f,
       businesses: {
@@ -55,6 +56,7 @@ export async function GET(request: Request) {
         name,
         cover_image_url,
         address,
+        city,
       },
     }
   })

@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import Link from "next/link"
 import Image from "next/image"
+import { buildSalonSlug } from "@/lib/salon-slug"
 
 type Business = {
   id: string
@@ -35,6 +36,7 @@ type Business = {
   isPremium: boolean
   isNew: boolean
   isTop: boolean
+  city?: string
 }
 
 export default function SearchPage() {
@@ -126,7 +128,7 @@ export default function SearchPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="flex flex-col min-h-screen bg-white">
       <Header />
 
       {/* Search Bar */}
@@ -210,7 +212,7 @@ export default function SearchPage() {
       </div>
 
       {/* Results Layout */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full">
         <div className="mb-4">
           <h2 className="text-xl font-semibold text-black">
             Sélectionnez un salon
@@ -250,7 +252,11 @@ export default function SearchPage() {
             ) : (
               <div className="space-y-4">
                 {businesses.map((business) => (
-                  <Link key={business.id} href={`/salon/${business.id}`} id={`business-${business.id}`}>
+                  <Link
+                    key={business.id}
+                    href={`/salon/${buildSalonSlug(business.name, business.id, business.city || business.location?.city)}`}
+                    id={`business-${business.id}`}
+                  >
                     <Card className="hover:shadow-md transition-shadow cursor-pointer">
                       <div className="flex gap-4 p-4">
                         {/* Image */}
@@ -388,8 +394,10 @@ export default function SearchPage() {
           </div>
         </div>
       </div>
-
-      <Footer />
+      
+      <div className="mt-auto">
+        <Footer />
+      </div>
     </div>
   )
 }

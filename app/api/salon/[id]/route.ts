@@ -13,8 +13,11 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
         email: true,
         phone: true,
         description: true,
-        claim_status: true, // Ajouter claim_status pour vérifier si le salon peut être revendiqué
-        business_locations: { where: { is_primary: true }, take: 1, select: { address_line1: true, address_line2: true, postal_code: true } },
+        business_locations: {
+          where: { is_primary: true },
+          take: 1,
+          select: { address_line1: true, address_line2: true, postal_code: true, cities: { select: { name: true } } }
+        },
         business_media: { orderBy: { position: "asc" }, select: { url: true } },
         ratings_aggregates: { select: { rating_avg: true, rating_count: true } },
         working_hours: { select: { weekday: true, start_time: true, end_time: true } },
@@ -37,7 +40,8 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     if (!business) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
     const address = business.business_locations?.[0];
-    const addressText = [address?.address_line1, address?.address_line2, address?.postal_code].filter(Boolean).join(", ");
+    const cityName = address?.cities?.name ?? null;
+    const addressText = [address?.address_line1, address?.address_line2, cityName, address?.postal_code].filter(Boolean).join(", ");
     const images = (business.business_media || []).map((m) => m.url);
     const rating = business.ratings_aggregates ? Number(business.ratings_aggregates.rating_avg) : 0;
     const reviewCount = business.ratings_aggregates ? business.ratings_aggregates.rating_count : 0;
@@ -90,6 +94,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
       address: addressText,
       phone: business.phone,
       email: business.email,
+      city: cityName,
       rating,
       reviewCount,
       images,

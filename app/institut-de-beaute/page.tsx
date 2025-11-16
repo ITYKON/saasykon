@@ -204,7 +204,7 @@ export default async function InstitutDeBeautePage({
 
       {/* CTA Section */}
       <section className="py-16">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">  
           <h2 className="text-3xl font-bold text-gray-900 mb-4">Vous êtes propriétaire d'un institut de beauté ?</h2>
           <p className="text-lg text-gray-600 mb-8">
             Rejoignez YOKA et développez votre clientèle grâce à notre plateforme de réservation en ligne

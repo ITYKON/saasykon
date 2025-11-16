@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import Image from "next/image"
+import { buildSalonSlug } from "@/lib/salon-slug"
 
 type Favorite = {
   id: string
@@ -15,6 +16,7 @@ type Favorite = {
     address?: string | null
     phone?: string | null
     cover_image_url?: string | null
+    city?: string | null
   }
 }
 
@@ -101,12 +103,12 @@ export default function ClientFavoris() {
               <div className="flex gap-2">
                 <Button 
                   className="flex-1 bg-black text-white hover:bg-gray-800"
-                  onClick={() => window.location.href = `/salon/${fav.businesses.id}`}
+                  onClick={() => window.location.href = `/salon/${buildSalonSlug(fav.businesses.name || "", fav.businesses.id, fav.businesses.city)}`}
                 >
                   Prendre RDV
                 </Button>
                 <Button asChild variant="outline" className="border-black text-black hover:bg-gray-50 bg-transparent">
-                  <Link href={`/salon/${fav.businesses.id}`}>Voir profil</Link>
+                  <Link href={`/salon/${buildSalonSlug(fav.businesses.name || "", fav.businesses.id, fav.businesses.city)}`}>Voir profil</Link>
                 </Button>
               </div>
             </CardContent>
