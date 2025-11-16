@@ -120,82 +120,10 @@ export async function GET(req: Request): Promise<NextResponse> {
     const formattedResults = businesses.map(business => {
       const primaryLocation = business.business_locations.find(loc => loc.is_primary) || business.business_locations[0];
       const primaryImage = business.business_media[0]?.url || null;
-    // Tri par pertinence pour la recherche par nom
-    orderBy = [
-      // Les correspondances exactes en premier
-      { public_name: 'asc' },
-      // Puis les correspondances par préfixe
-      ...(orderBy || [])
-    ];
-  } else if (location) {
-    // Recherche par localisation uniquement
-    console.log('Recherche par localisation uniquement', { locationConditions });
-    where.business_locations = {
-      some: { 
-        OR: locationConditions,
-                  }
-                },
-                business_media: {
-                  orderBy: { position: "asc" },
-                  take: 5
-                },
-                services: {
-                  where: { is_active: true },
-                  include: {
-                    service_variants: {
-                      where: { is_active: true },
-                      take: 1
-                    }
-                  },
-                  take: 10
-                },
-                employees: {
-                  where: { is_active: true },
-                  select: {
-                    id: true,
-                    full_name: true
-                  }
-                },
-                ratings_aggregates: true,
-                subscriptions: {
-                  where: {
-                    status: "ACTIVE"
-                  },
-                  include: {
-                    plans: true
-                  },
-                  take: 1
-                }
-              },
-              orderBy: [
-                { public_name: 'asc' },
-                { ratings_aggregates: { rating_avg: "desc" } },
-                { created_at: "desc" }
-              ],
-              skip: 0,
-              take: 10,
-            }),
-            prisma.businesses.count({ where }),
-          ]);
-          
-          console.log('Résultats de la recherche élargie:', { count: broaderResults.length });
-          
-          // On utilise les résultats élargis s'il y en a
-          if (broaderResults.length > 0) {
-            businesses = broaderResults;
-            total = broaderTotal;
-          }
-        }
-      }
-      
-      // Enrichissement des données pour le frontend
-      const enrichedBusinesses = businesses.map(business => {
       const rating_avg = business.ratings_aggregates?.rating_avg 
         ? Number(business.ratings_aggregates.rating_avg) 
         : 0;
       const rating_count = business.ratings_aggregates?.rating_count ?? 0;
-      const primaryLocation = business.business_locations.find(loc => loc.is_primary) 
-        || business.business_locations[0];
       const subscription = business.subscriptions?.[0];
 
       return {
@@ -240,8 +168,8 @@ export async function GET(req: Request): Promise<NextResponse> {
         businesses: formattedResults,
         total,
         page,
-        pageSize: take,
-        totalPages: Math.ceil(total / take)
+        pageSize,
+        totalPages: Math.ceil(total / pageSize)
       };
       
       console.log(`Recherche terminée: ${formattedResults.length} résultats sur ${total}`);
@@ -258,5 +186,4 @@ export async function GET(req: Request): Promise<NextResponse> {
       { status: 500 }
     );
   }
-}
 }
