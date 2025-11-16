@@ -45,67 +45,31 @@ export default function ClaimOnboardingPage() {
       return
     }
 
-    // Vérifier si nous avons déjà des données de revendication dans l'URL
-    const claimDataParam = searchParams.get('claimData')
-    if (claimDataParam) {
-      try {
-        const data = JSON.parse(decodeURIComponent(claimDataParam))
-        setClaimData(data.claim)
-        setStep("password") // Toujours afficher le formulaire de mot de passe en premier
-        setLoading(false)
-      } catch (error) {
-        console.error("Erreur lors du parsing des données de revendication:", error)
-        fetchClaimData()
-      }
-    } else {
-      fetchClaimData()
-    }
+    fetchClaimData()
   }, [token])
 
   const fetchClaimData = async () => {
     try {
-      // Ajout d'un en-tête pour éviter les boucles de redirection
-      const response = await fetch(`/api/claims/verify?token=${encodeURIComponent(token!)}`, {
-        headers: {
-          'x-from-redirect': 'true'
-        }
-      })
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || "Erreur lors de la vérification du token")
-      }
-      
+      const response = await fetch(`/api/claims/verify?token=${encodeURIComponent(token!)}`)
       const data = await response.json()
-      
-      if (!data || !data.claim) {
-        throw new Error("Données de revendication invalides")
+
+      if (!response.ok) {
+        throw new Error(data.error || "Token invalide")
       }
 
       setClaimData(data.claim)
       
-      // Gestion du flux en fonction du statut de la revendication et du mot de passe
-      if (data.claim.status === 'approved') {
-        // Si la revendication est déjà approuvée, on vérifie si l'utilisateur a un mot de passe
-        if (data.claim.user.has_password) {
-          if (data.claim.documents_submitted) {
-            // Tout est complété, on montre l'écran de complétion
-            setStep("complete")
-          } else {
-            // Documents manquants, on passe à l'étape des documents
-            setStep("documents")
-          }
-        } else {
-          // Pas de mot de passe, on commence par là
-          setStep("password")
-        }
+      // If user already has password, skip password step
+      if (data.claim.user.has_password) {
+        setStep("documents")
       } else {
-        // Pour les autres statuts, on suit le flux normal
-        if (data.claim.user.has_password) {
-          setStep("documents")
-        } else {
-          setStep("password")
-        }
+        setStep("password")
+      }
+
+      // Load existing documents if any
+      if (data.claim.documents_submitted) {
+        // Documents already submitted, show completion
+        setStep("complete")
       }
     } catch (error: any) {
       toast({
@@ -219,41 +183,7 @@ export default function ClaimOnboardingPage() {
       return
     }
 
-    setSubmitting(true)
-    try {
-      const response = await fetch("/api/claims/complete", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          token,
-          password: password,
-          complete_now: false,
-        }),
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || "Erreur lors de l'enregistrement du mot de passe")
-      }
-
-      toast({
-        title: "Mot de passe enregistré",
-        description: "Votre mot de passe a été enregistré avec succès.",
-      })
-      
-      setStep("documents")
-    } catch (error: any) {
-      toast({
-        title: "Erreur",
-        description: error.message || "Impossible d'enregistrer le mot de passe",
-        variant: "destructive",
-      })
-    } finally {
-      setSubmitting(false)
-    }
+    setStep("documents")
   }
 
   const handleComplete = async (completeNow: boolean) => {
@@ -266,7 +196,7 @@ export default function ClaimOnboardingPage() {
         },
         body: JSON.stringify({
           token,
-          // Ne pas renvoyer le mot de passe car il a déjà été enregistré
+          password: step === "password" ? password : undefined,
           rc_number: rcNumber,
           rc_document_url: rcDocumentUrl,
           id_document_front_url: idDocumentFrontUrl,

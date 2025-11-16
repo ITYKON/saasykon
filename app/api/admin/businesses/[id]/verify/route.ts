@@ -31,7 +31,11 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       });
 
   // Update business.status
-  const newBusinessStatus = status === "verified" ? ("verified" as any) : ("pending_verification" as any);
+  // Si le salon vient d'un lead converti (claim_status = "not_claimable"), il devient actif après vérification
+  // Sinon, on utilise le statut "verified"
+  const newBusinessStatus = status === "verified" 
+    ? (current.claim_status === "not_claimable" ? ("active" as any) : ("verified" as any))
+    : ("pending_verification" as any);
   await prisma.businesses.update({ where: { id: businessId }, data: { status: newBusinessStatus } });
 
   await prisma.event_logs.create({

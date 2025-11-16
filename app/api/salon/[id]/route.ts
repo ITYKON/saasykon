@@ -13,6 +13,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
         email: true,
         phone: true,
         description: true,
+        claim_status: true, // Ajouter claim_status pour vérifier si le salon peut être revendiqué
         business_locations: { where: { is_primary: true }, take: 1, select: { address_line1: true, address_line2: true, postal_code: true } },
         business_media: { orderBy: { position: "asc" }, select: { url: true } },
         ratings_aggregates: { select: { rating_avg: true, rating_count: true } },
@@ -95,6 +96,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
       services: Array.from(categoriesMap.values()),
       reviews,
       hours,
+      claim_status: business.claim_status, // Inclure claim_status dans la réponse
     });
   } catch (e) {
     return NextResponse.json({ error: "Server error" }, { status: 500 });

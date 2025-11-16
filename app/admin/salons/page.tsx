@@ -1,16 +1,18 @@
 "use client";
 import React from "react";
-import { Building, MapPin, Star, DollarSign, Filter, Plus, Eye, Edit, Trash2 } from "lucide-react"
+import { Building, MapPin, Star, DollarSign, Filter, Plus, Eye, Edit, Trash2, CheckCircle, XCircle, Clock, Users, MoreVertical } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import Image from "next/image"
 import Link from "next/link"
 import { SalonFormModal } from "@/components/admin/SalonFormModal";
 import { SalonDetailModal } from "@/components/admin/SalonDetailModal";
 import { ProtectedAdminPage } from "@/components/admin/ProtectedAdminPage";
+import { SalonList } from "@/components/admin/SalonList";
 
 export default function AdminSalons() {
   return (
@@ -27,6 +29,7 @@ function AdminSalonsContent() {
   const [subscriptionFilter, setSubscriptionFilter] = React.useState("all");
   const [cityFilter, setCityFilter] = React.useState("all");
   const [claimStatusFilter, setClaimStatusFilter] = React.useState("all");
+  const [activeTab, setActiveTab] = React.useState("all");
   type Salon = {
     id: string;
     legal_name: string;
@@ -51,12 +54,9 @@ function AdminSalonsContent() {
     setError(null);
     setLoading(true);
     
-    const params = new URLSearchParams();
-    if (claimStatusFilter !== "all") {
-      params.set("claim_status", claimStatusFilter);
-    }
-    
-    fetch(`/api/admin/salons?${params.toString()}`)
+    // Ne pas filtrer par claim_status si on utilise les onglets
+    // Les onglets gèrent le filtrage côté client
+    fetch(`/api/admin/salons`)
       .then(async (res) => {
         console.log('Réponse reçue, statut:', res.status);
         if (!res.ok) {
@@ -82,7 +82,7 @@ function AdminSalonsContent() {
       .finally(() => {
         setLoading(false);
       });
-  }, [claimStatusFilter]);
+  }, []);
 
   // Modals et état salon sélectionné
   const [addModalOpen, setAddModalOpen] = React.useState(false);
@@ -90,8 +90,48 @@ function AdminSalonsContent() {
   const [detailModalOpen, setDetailModalOpen] = React.useState(false);
   const [selectedSalon, setSelectedSalon] = React.useState<any | null>(null);
 
-  // Filtrage et recherche
-    const filteredSalons = salons.filter(salon => {
+  // Gestionnaire pour le changement de statut d'un salon
+  const handleStatusChange = async (salonId: string, newStatus: string) => {
+    try {
+      const res = await fetch(`/api/admin/salons/${salonId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus })
+      });
+      
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || 'Échec de la mise à jour du statut');
+      }
+      
+      // Mettre à jour l'état local
+      setSalons(salons.map(salon => 
+        salon.id === salonId ? { ...salon, status: newStatus } : salon
+      ));
+      
+      return true;
+    } catch (error: unknown) {
+      console.error('Erreur lors de la mise à jour du statut:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Une erreur inconnue est survenue';
+      alert(`Erreur lors de la mise à jour du statut: ${errorMessage}`);
+      return false;
+    }
+  };
+
+  // Gestionnaire pour afficher les détails d'un salon
+  const handleViewDetails = (salon: any) => {
+    setSelectedSalon(salon);
+    setDetailModalOpen(true);
+  };
+
+  // Gestionnaire pour éditer un salon
+  const handleEditSalon = (salon: any) => {
+    setSelectedSalon(salon);
+    setEditModalOpen(true);
+  };
+
+  // Filtrage et recherche avec gestion des onglets
+  const filteredSalons = salons.filter(salon => {
     const matchSearch =
       (salon.public_name?.toLowerCase().includes(search.toLowerCase()) || "") ||
       (salon.legal_name?.toLowerCase().includes(search.toLowerCase()) || "") ||
@@ -102,14 +142,46 @@ function AdminSalonsContent() {
     // city: utilise business_locations[0]?.cities?.name si présent
     const city = salon.business_locations?.[0]?.cities?.name || "";
     const matchCity = cityFilter === "all" ? true : city.toLowerCase() === cityFilter.toLowerCase();
-    return matchSearch && matchStatus && matchSubscription && matchCity;
+    
+    // Filtrage par onglet actif
+    let matchTab = true;
+    if (activeTab === "available_for_claim") {
+      matchTab = salon.claim_status === "none";
+    } else if (activeTab === "claimed_approved") {
+      matchTab = salon.claim_status === "approved";
+    } else if (activeTab === "from_leads") {
+      matchTab = salon.claim_status === "not_claimable";
+    } else if (activeTab === "pending_claim") {
+      matchTab = salon.claim_status === "pending";
+    } else if (activeTab === "rejected_claim") {
+      matchTab = salon.claim_status === "rejected";
+    }
+    // "all" affiche tout
+    
+    return matchSearch && matchStatus && matchSubscription && matchCity && matchTab;
   });
+
+  // Calculer les statistiques par catégorie
+  const stats = {
+    total: salons.length,
+    available_for_claim: salons.filter(s => s.claim_status === "none").length,
+    claimed_approved: salons.filter(s => s.claim_status === "approved").length,
+    from_leads: salons.filter(s => s.claim_status === "not_claimable").length,
+    pending_claim: salons.filter(s => s.claim_status === "pending").length,
+    rejected_claim: salons.filter(s => s.claim_status === "rejected").length,
+    active: salons.filter(s => s.status === "actif").length,
+    pending: salons.filter(s => s.status === "en attente").length,
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case "actif":
+      case "active":
         return "bg-green-100 text-green-800"
+      case "verified":
+        return "bg-blue-100 text-blue-800"
       case "en attente":
+      case "pending_verification":
         return "bg-orange-100 text-orange-800"
       case "suspendu":
         return "bg-red-100 text-red-800"
@@ -177,80 +249,100 @@ function AdminSalonsContent() {
 
   return (
     <div className="space-y-6">
-            <header className="bg-white border-b border-gray-200 mb-6">
+      <header className="bg-white border-b border-gray-200 mb-6">
         <div className="px-6 py-4">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-        <h1 className="text-2xl font-bold text-black">Gestion des salons</h1>
-         <p className="text-gray-600 mt-1">Surveillez et gérez toutes les salons de la plateforme.</p>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <h1 className="text-2xl font-bold text-black">Gestion des salons</h1>
+              <p className="text-gray-600 mt-1">Surveillez et gérez tous les salons de la plateforme.</p>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline">
+                <Filter className="h-4 w-4 mr-2" />
+                Filtres
+              </Button>
+              <Button className="bg-black text-white hover:bg-gray-800" onClick={() => setAddModalOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Ajouter salon
+              </Button>
+            </div>
+          </div>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline">
-            <Filter className="h-4 w-4 mr-2" />
-            Filtres
-          </Button>
-          <Button className="bg-black text-white hover:bg-gray-800" onClick={() => setAddModalOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Ajouter salon
-          </Button>
-        </div>
-      </div>
-         </div>
-         </header>
+      </header>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-4">
             <div className="flex items-center">
-              <Building className="h-8 w-8 text-blue-600" />
-              <div className="ml-4">
-                <p className="text-2xl font-bold text-black">{salons.length}</p>
-                <p className="text-gray-600">Total salons</p>
+              <Building className="h-6 w-6 text-blue-600" />
+              <div className="ml-3">
+                <p className="text-xl font-bold text-black">{stats.total}</p>
+                <p className="text-xs text-gray-600">Total</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-4">
             <div className="flex items-center">
-              <div className="h-8 w-8 bg-green-100 rounded-full flex items-center justify-center">
-                <span className="text-green-600 font-bold">{salons.filter((s) => s.status === "actif").length}</span>
+              <div className="h-6 w-6 bg-blue-100 rounded-full flex items-center justify-center">
+                <span className="text-blue-600 font-bold text-xs">{stats.available_for_claim}</span>
               </div>
-              <div className="ml-4">
-                <p className="text-2xl font-bold text-black">Actifs</p>
-                <p className="text-gray-600">Salons actifs</p>
+              <div className="ml-3">
+                <p className="text-xl font-bold text-black">{stats.available_for_claim}</p>
+                <p className="text-xs text-gray-600">Disponibles</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-4">
             <div className="flex items-center">
-              <div className="h-8 w-8 bg-orange-100 rounded-full flex items-center justify-center">
-                <span className="text-orange-600 font-bold">
-                  {salons.filter((s) => s.status === "en attente").length}
-                </span>
-              </div>
-              <div className="ml-4">
-                <p className="text-2xl font-bold text-black">En attente</p>
-                <p className="text-gray-600">À valider</p>
+              <CheckCircle className="h-6 w-6 text-green-600" />
+              <div className="ml-3">
+                <p className="text-xl font-bold text-black">{stats.claimed_approved}</p>
+                <p className="text-xs text-gray-600">Revendiqués</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-4">
             <div className="flex items-center">
-              <DollarSign className="h-8 w-8 text-green-600" />
-              <div className="ml-4">
-                <p className="text-2xl font-bold text-black">
-                  {Math.round(salons.reduce((acc, s) => acc + (s.monthlyRevenue || 0), 0) / 1000)}k DA
+              <Users className="h-6 w-6 text-purple-600" />
+              <div className="ml-3">
+                <p className="text-xl font-bold text-black">{stats.from_leads}</p>
+                <p className="text-xs text-gray-600">Depuis leads</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center">
+              <Clock className="h-6 w-6 text-orange-600" />
+              <div className="ml-3">
+                <p className="text-xl font-bold text-black">{stats.pending_claim}</p>
+                <p className="text-xs text-gray-600">En attente</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center">
+              <DollarSign className="h-6 w-6 text-green-600" />
+              <div className="ml-3">
+                <p className="text-xl font-bold text-black">
+                  {Math.round(salons.reduce((acc, s) => acc + (s.monthlyRevenue || 0), 0) / 1000)}k
                 </p>
-                <p className="text-gray-600">Revenus totaux</p>
+                <p className="text-xs text-gray-600">Revenus</p>
               </div>
             </div>
           </CardContent>
@@ -303,156 +395,239 @@ function AdminSalonsContent() {
                 <SelectItem value="Constantine">Constantine</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={claimStatusFilter} onValueChange={setClaimStatusFilter}>
-              <SelectTrigger className="w-full sm:w-48">
-                <SelectValue placeholder="Revendication" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tous</SelectItem>
-                <SelectItem value="none">Disponible pour revendication</SelectItem>
-                <SelectItem value="pending">Revendication en attente</SelectItem>
-                <SelectItem value="approved">Revendiqué</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
         </CardContent>
       </Card>
 
-      {/* Salons List */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-  {filteredSalons.map((salon) => (
-          <Card key={salon.id} className="overflow-hidden hover:shadow-lg transition-shadow">
-            <div className="relative bg-gray-100 p-4 flex justify-between items-center">
-              <div className="flex items-center gap-2">
-                <Building className="h-6 w-6 text-gray-500" />
-                <h3 className="text-lg font-semibold">{salon.public_name || salon.legal_name}</h3>
-              </div>
-              <div className="flex gap-2">
-                <Badge className={getStatusColor(salon.status || "")}>{salon.status}</Badge>
-                <Badge className={getSubscriptionColor(salon.subscription || "")}>{salon.subscription}</Badge>
-              </div>
-            </div>
+      {/* Onglets pour organiser les salons */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-5 lg:grid-cols-6">
+          <TabsTrigger value="all" className="text-xs sm:text-sm">
+            Tous ({stats.total})
+          </TabsTrigger>
+          <TabsTrigger value="available_for_claim" className="text-xs sm:text-sm">
+            Disponibles ({stats.available_for_claim})
+          </TabsTrigger>
+          <TabsTrigger value="claimed_approved" className="text-xs sm:text-sm">
+            Revendiqués ({stats.claimed_approved})
+          </TabsTrigger>
+          <TabsTrigger value="from_leads" className="text-xs sm:text-sm">
+            Depuis leads ({stats.from_leads})
+          </TabsTrigger>
+          <TabsTrigger value="pending_claim" className="text-xs sm:text-sm">
+            En attente ({stats.pending_claim})
+          </TabsTrigger>
+          <TabsTrigger value="rejected_claim" className="text-xs sm:text-sm hidden lg:block">
+            Rejetés ({stats.rejected_claim})
+          </TabsTrigger>
+        </TabsList>
 
-            <CardContent className="p-6">
-              <div className="pt-4">
-                {salon.claim_status === "none" && (
-                  <div className="mb-3">
-                    <Badge className="bg-blue-100 text-blue-800 border-blue-200 text-xs">
-                      Disponible pour revendication
-                    </Badge>
-                  </div>
-                )}
-                  <p className="text-gray-600">Email : {salon.email}</p>
-                  <div className="flex items-center text-gray-600 text-sm mt-1">
-                    <MapPin className="h-4 w-4 mr-1" />
-                    {salon.business_locations?.[0]?.address_line1 || ""}
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="flex items-center">
-                    <Star className="h-4 w-4 text-yellow-500 fill-current mr-1" />
-                    <span className="font-semibold">{salon.rating}</span>
-                  </div>
-                  <p className="text-xs text-gray-500">({salon.reviewCount} avis)</p>
-                </div>
-              {/* </div> */}
-
-              <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
-                <div>
-                  <p className="text-gray-600">RDV total</p>
-                  <p className="font-semibold text-black">{salon.totalBookings}</p>
-                </div>
-                <div>
-                  <p className="text-gray-600">Revenus/mois</p>
-                  <p className="font-semibold text-black">{(salon.monthlyRevenue ?? 0).toLocaleString()} DA</p>
-                </div>
-                <div>
-                  <p className="text-gray-600">Inscrit le</p>
-                  <p className="font-semibold text-black">{salon.joinDate}</p>
-                </div>
-                <div>
-                  <p className="text-gray-600">Dernière activité</p>
-                  <p className="font-semibold text-black">{salon.lastActivity}</p>
-                </div>
-              </div>
-
-              <div className="mb-4">
-                <p className="text-sm text-gray-600 mb-2">Services:</p>
-                <div className="flex flex-wrap gap-1">
-                  {((salon.services ?? [])
-                    .map((s: any) => (typeof s === "string" ? s : s?.name))
-                    .filter(Boolean) as string[])
-                    .map((name: string, index: number) => (
-                      <Badge key={index} variant="secondary" className="text-xs">
-                        {name}
-                      </Badge>
-                    ))}
-                </div>
-              </div>
-
-              <div className="flex gap-2 flex-wrap">
-                <Button variant="outline" size="sm" className="flex-1 bg-transparent" onClick={() => { setSelectedSalon(salon); setDetailModalOpen(true); }}>
-                  <Eye className="h-4 w-4 mr-1" />
-                  Voir
-                </Button>
-                <Button variant="outline" size="sm" className="flex-1 bg-transparent" onClick={() => { setSelectedSalon(salon); setEditModalOpen(true); }}>
-                  <Edit className="h-4 w-4 mr-1" />
-                  Modifier
-                </Button>
-                {salon.status === "en attente" && (
-                  <Button size="sm" className="bg-green-600 text-white hover:bg-green-700">
-                    Valider
-                  </Button>
-                )}
-                {salon.claim_status === "none" && (
-                  <Link href={`/salon/${salon.id}`} target="_blank">
-                    <Button size="sm" variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100">
-                      Voir page publique
-                    </Button>
-                  </Link>
-                )}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="text-red-600 border-red-600 hover:bg-red-50 bg-transparent"
-                  onClick={async () => {
-                    if (window.confirm("Confirmer la suppression ?")) {
-                      try {
-                        const res = await fetch("/api/admin/salons", {
-                          method: "DELETE",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ id: salon.id }),
-                        });
-                        const result = await res.json();
-                        if (!res.ok) {
-                          alert("Erreur: " + (result.error || "Suppression impossible"));
-                        } else {
-                          alert("Salon supprimé");
-                          const params = new URLSearchParams();
-                          if (claimStatusFilter !== "all") {
-                            params.set("claim_status", claimStatusFilter);
-                          }
-                          fetch(`/api/admin/salons?${params.toString()}`)
-                            .then(res => res.json())
-                            .then(data => {
-                              if (data.success && data.data) {
-                                setSalons(data.data.salons || []);
-                              }
-                            });
-                        }
-                      } catch (err) {
-                        alert("Erreur réseau: " + err);
-                      }
+        {/* Contenu des onglets */}
+        <TabsContent value="all" className="mt-6">
+          <SalonList 
+            salons={filteredSalons} 
+            loading={loading}
+            onStatusChange={handleStatusChange}
+            showActions={false}
+            showClaimStatus={true}
+            onViewDetails={handleViewDetails}
+            onEdit={handleEditSalon}
+            onDelete={async (salon) => {
+              if (window.confirm(`Êtes-vous sûr de vouloir supprimer le salon "${salon.public_name || salon.legal_name}" ?`)) {
+                try {
+                  const res = await fetch(`/api/admin/salons`, {
+                    method: "DELETE",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ id: salon.id }),
+                  });
+                  const result = await res.json();
+                  if (!res.ok) {
+                    alert("Erreur: " + (result.error || "Suppression impossible"));
+                  } else {
+                    const res = await fetch("/api/admin/salons");
+                    const data = await res.json();
+                    if (data.success && data.data) {
+                      setSalons(data.data.salons || []);
                     }
-                  }}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+                  }
+                } catch (err) {
+                  alert("Erreur réseau: " + err);
+                }
+              }
+            }}
+          />
+        </TabsContent>
+        <TabsContent value="available_for_claim" className="mt-6">
+          <SalonList 
+            salons={filteredSalons.filter(salon => !salon.claim_status || salon.claim_status === 'none')} 
+            loading={loading}
+            onStatusChange={handleStatusChange}
+            showActions={false}
+            showClaimStatus={true}
+            onViewDetails={handleViewDetails}
+            onEdit={handleEditSalon}
+            onDelete={async (salon) => {
+              if (window.confirm(`Êtes-vous sûr de vouloir supprimer le salon "${salon.public_name || salon.legal_name}" ?`)) {
+                try {
+                  const res = await fetch(`/api/admin/salons`, {
+                    method: "DELETE",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ id: salon.id }),
+                  });
+                  const result = await res.json();
+                  if (!res.ok) {
+                    alert("Erreur: " + (result.error || "Suppression impossible"));
+                  } else {
+                    const res = await fetch("/api/admin/salons");
+                    const data = await res.json();
+                    if (data.success && data.data) {
+                      setSalons(data.data.salons || []);
+                    }
+                  }
+                } catch (err) {
+                  alert("Erreur réseau: " + err);
+                }
+              }
+            }}
+          />
+        </TabsContent>
+        <TabsContent value="claimed_approved" className="mt-6">
+          <SalonList 
+            salons={filteredSalons.filter(salon => salon.claim_status === 'approved')} 
+            loading={loading}
+            onStatusChange={handleStatusChange}
+            showActions={false}
+            showClaimStatus={true}
+            onViewDetails={handleViewDetails}
+            onEdit={handleEditSalon}
+            onDelete={async (salon) => {
+              if (window.confirm(`Êtes-vous sûr de vouloir supprimer le salon "${salon.public_name || salon.legal_name}" ?`)) {
+                try {
+                  const res = await fetch(`/api/admin/salons`, {
+                    method: "DELETE",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ id: salon.id }),
+                  });
+                  const result = await res.json();
+                  if (!res.ok) {
+                    alert("Erreur: " + (result.error || "Suppression impossible"));
+                  } else {
+                    const res = await fetch("/api/admin/salons");
+                    const data = await res.json();
+                    if (data.success && data.data) {
+                      setSalons(data.data.salons || []);
+                    }
+                  }
+                } catch (err) {
+                  alert("Erreur réseau: " + err);
+                }
+              }
+            }}
+          />
+        </TabsContent>
+        <TabsContent value="from_leads" className="mt-6">
+          <SalonList 
+            salons={filteredSalons.filter(salon => salon.claim_status === 'not_claimable')} 
+            loading={loading}
+            onStatusChange={handleStatusChange}
+            showActions={false}
+            showClaimStatus={true}
+            onViewDetails={handleViewDetails}
+            onEdit={handleEditSalon}
+            onDelete={async (salon) => {
+              if (window.confirm(`Êtes-vous sûr de vouloir supprimer le salon "${salon.public_name || salon.legal_name}" ?`)) {
+                try {
+                  const res = await fetch(`/api/admin/salons`, {
+                    method: "DELETE",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ id: salon.id }),
+                  });
+                  const result = await res.json();
+                  if (!res.ok) {
+                    alert("Erreur: " + (result.error || "Suppression impossible"));
+                  } else {
+                    const res = await fetch("/api/admin/salons");
+                    const data = await res.json();
+                    if (data.success && data.data) {
+                      setSalons(data.data.salons || []);
+                    }
+                  }
+                } catch (err) {
+                  alert("Erreur réseau: " + err);
+                }
+              }
+            }}
+          />
+        </TabsContent>
+        <TabsContent value="pending_claim" className="mt-6">
+          <SalonList 
+            salons={filteredSalons.filter(salon => salon.claim_status === 'pending')} 
+            loading={loading}
+            onStatusChange={handleStatusChange}
+            showActions={true}
+            showClaimStatus={false}
+            onViewDetails={handleViewDetails}
+            onEdit={handleEditSalon}
+            onDelete={async (salon) => {
+              if (window.confirm(`Êtes-vous sûr de vouloir supprimer le salon "${salon.public_name || salon.legal_name}" ?`)) {
+                try {
+                  const res = await fetch(`/api/admin/salons`, {
+                    method: "DELETE",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ id: salon.id }),
+                  });
+                  const result = await res.json();
+                  if (!res.ok) {
+                    alert("Erreur: " + (result.error || "Suppression impossible"));
+                  } else {
+                    const res = await fetch("/api/admin/salons");
+                    const data = await res.json();
+                    if (data.success && data.data) {
+                      setSalons(data.data.salons || []);
+                    }
+                  }
+                } catch (err) {
+                  alert("Erreur réseau: " + err);
+                }
+              }
+            }}
+          />
+        </TabsContent>
+        <TabsContent value="rejected_claim" className="mt-6">
+          <SalonList 
+            salons={filteredSalons.filter(salon => salon.claim_status === 'rejected')} 
+            loading={loading}
+            onStatusChange={handleStatusChange}
+            showActions={false}
+            showClaimStatus={true}
+            onViewDetails={handleViewDetails}
+            onEdit={handleEditSalon}
+            onDelete={async (salon) => {
+              if (window.confirm(`Êtes-vous sûr de vouloir supprimer le salon "${salon.public_name || salon.legal_name}" ?`)) {
+                try {
+                  const res = await fetch(`/api/admin/salons`, {
+                    method: "DELETE",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ id: salon.id }),
+                  });
+                  const result = await res.json();
+                  if (!res.ok) {
+                    alert("Erreur: " + (result.error || "Suppression impossible"));
+                  } else {
+                    const res = await fetch("/api/admin/salons");
+                    const data = await res.json();
+                    if (data.success && data.data) {
+                      setSalons(data.data.salons || []);
+                    }
+                  }
+                } catch (err) {
+                  alert("Erreur réseau: " + err);
+                }
+              }
+            }}
+          />
+        </TabsContent>
+      </Tabs>
 
       {/* Modals CRUD salons */}
       <SalonFormModal
@@ -538,3 +713,29 @@ function AdminSalonsContent() {
     </div>
   );
 }
+
+// Fonction utilitaire pour obtenir la couleur du statut
+const getStatusColor = (status: string) => {
+  switch (status?.toLowerCase()) {
+    case 'actif':
+    case 'active':
+      return 'bg-green-100 text-green-800 border-green-200';
+    case 'en attente':
+    case 'pending':
+      return 'bg-amber-100 text-amber-800 border-amber-200';
+    case 'suspendu':
+    case 'suspended':
+      return 'bg-red-100 text-red-800 border-red-200';
+    default:
+      return 'bg-gray-100 text-gray-800 border-gray-200';
+  }
+};
+
+// Fonction utilitaire pour obtenir la couleur de l'abonnement
+const getSubscriptionColor = (subscription: string) => {
+  if (!subscription) return 'bg-gray-100 text-gray-800 border-gray-200';
+  if (subscription.toLowerCase().includes('premium')) return 'bg-purple-100 text-purple-800 border-purple-200';
+  if (subscription.toLowerCase().includes('pro')) return 'bg-blue-100 text-blue-800 border-blue-200';
+  if (subscription.toLowerCase().includes('basic')) return 'bg-green-100 text-green-800 border-green-200';
+  return 'bg-gray-100 text-gray-800 border-gray-200';
+};
