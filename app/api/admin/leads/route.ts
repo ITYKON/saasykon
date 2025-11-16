@@ -3,7 +3,6 @@ import { prisma } from "@/lib/prisma";
 import { getAuthContext } from "@/lib/authorization";
 import { sendEmail } from "@/lib/email";
 import { generateTemporaryPassword, hashPassword } from "@/lib/auth";
-import { Prisma } from "@prisma/client";
 
 // Type pour un lead avec ses vérifications
 interface BusinessLeadWithVerification {
@@ -176,6 +175,7 @@ async function convertLeadToBusiness(lead: any, adminId: string) {
   }
 
   // Créer l'entreprise
+  // Les salons créés depuis les leads ne sont PAS revendicables
   const business = await prisma.$transaction(async (tx) => {
     const newBusiness = await tx.businesses.create({
       data: {
@@ -187,6 +187,7 @@ async function convertLeadToBusiness(lead: any, adminId: string) {
         phone: lead.phone,
         status: 'active',
         onboarding_completed: true,
+        claim_status: "not_claimable", // Les salons créés depuis les leads ne sont pas revendicables
         created_at: new Date(),
         updated_at: new Date(),
         // Copier les informations de vérification si elles existent

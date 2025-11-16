@@ -56,6 +56,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   });
 
   // Create business with pending_verification status
+  // Les salons créés depuis les leads ne sont PAS revendicables (claim_status = "not_claimable")
   const business = await prisma.businesses.create({
     data: {
       owner_user_id: user.id,
@@ -65,6 +66,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       email,
       phone: phone ?? lead.phone ?? null,
       status: "pending_verification" as any,
+      claim_status: "not_claimable", // Les salons créés depuis les leads ne sont pas revendicables
     },
   });
 

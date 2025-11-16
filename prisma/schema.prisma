@@ -158,6 +158,7 @@ model businesses {
   user_roles                            user_roles[]
   waitlist                              waitlist[]
   working_hours                         working_hours[]
+  business_ownership_transfers          business_ownership_transfers[]
 
   @@index([status])
   @@index([trial_ends_at])
@@ -176,33 +177,34 @@ model cities {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model claims {
-  id                     Int        @id @default(autoincrement())
-  business_id            String     @db.Uuid
-  user_id                String     @db.Uuid
-  full_name              String
-  email                  String
-  phone                  String
-  role                   String
-  document_url           String?
-  status                 String     @default("pending")
-  expires_at             DateTime?  @db.Timestamptz(6)
-  created_at             DateTime   @default(now()) @db.Timestamptz(6)
-  updated_at             DateTime   @default(now()) @db.Timestamptz(6)
-  claim_token            String?    @unique(map: "unique_claim_token")
-  token_expires_at       DateTime?
-  rc_number              String?    @db.VarChar
-  rc_document_url        String?
-  id_document_front_url  String?
-  id_document_back_url   String?
-  documents_submitted    Boolean?   @default(false)
+  id                    Int        @id @default(autoincrement())
+  business_id           String     @db.Uuid
+  user_id               String     @db.Uuid
+  full_name             String
+  email                 String
+  phone                 String
+  role                  String
+  document_url          String?
+  rc_number             String?
+  rc_document_url       String?
+  id_document_front_url String?
+  id_document_back_url  String?
+  status                String     @default("pending")
+  claim_token           String?    @unique
+  token_expires_at      DateTime?  @db.Timestamptz(6)
+  documents_submitted   Boolean    @default(false)
   documents_submitted_at DateTime?  @db.Timestamptz(6)
-  businesses             businesses @relation(fields: [business_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  users                  users      @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  expires_at            DateTime?  @db.Timestamptz(6)
+  created_at            DateTime   @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime   @default(now()) @db.Timestamptz(6)
+  businesses            businesses @relation(fields: [business_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users                 users      @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([business_id], map: "idx_claim_business_id")
   @@index([expires_at], map: "idx_claim_expires_at")
   @@index([status], map: "idx_claim_status")
   @@index([user_id], map: "idx_claim_user_id")
+  @@index([claim_token], map: "idx_claim_token")
 }
 
 model client_favorites {
@@ -775,6 +777,9 @@ model users {
   reservations                                  reservations[]
   sessions                                      sessions[]
   user_roles                                    user_roles[]
+  ownership_transfers_from                      business_ownership_transfers[] @relation("OwnershipTransfersFrom")
+  ownership_transfers_to                        business_ownership_transfers[] @relation("OwnershipTransfersTo")
+  reviewed_ownership_transfers                  business_ownership_transfers[] @relation("OwnershipTransfersReviewed")
 
   @@index([provider, provider_id])
 }
@@ -804,6 +809,27 @@ model working_hours {
   employees   employees? @relation(fields: [employee_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([business_id, employee_id])
+}
+
+model business_ownership_transfers {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  business_id     String   @db.Uuid
+  current_owner_id String  @db.Uuid
+  new_owner_id    String   @db.Uuid
+  status          String   @default("pending") // pending, approved, rejected
+  requested_at    DateTime @default(now())
+  reviewed_at     DateTime?
+  reviewed_by     String?  @db.Uuid
+  review_notes    String?
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+  
+  business        businesses @relation(fields: [business_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  current_owner   users      @relation("OwnershipTransfersFrom", fields: [current_owner_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  new_owner       users      @relation("OwnershipTransfersTo", fields: [new_owner_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  reviewer        users?     @relation("OwnershipTransfersReviewed", fields: [reviewed_by], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  @@map("business_ownership_transfers")
 }
 
 enum business_status {

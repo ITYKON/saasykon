@@ -1,25 +1,34 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdminOrPermission } from "@/lib/authorization";
-import { sendEmail, claimApprovedEmailTemplate } from "@/lib/email";
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const auth = await requireAdminOrPermission("CLAIMS_MANAGE");
   if (auth instanceof NextResponse) return auth;
 
-  const claimId = parseInt(params.id);
-  if (isNaN(claimId)) {
+  // Parse claim ID and validate
+  let claimId: number;
+  try {
+    claimId = parseInt(params.id, 10);
+    if (isNaN(claimId)) throw new Error('Invalid claim ID');
+  } catch (error) {
     return NextResponse.json({ error: "Invalid claim ID" }, { status: 400 });
   }
 
-  let body: any;
+  // Define request body type
+  interface RequestBody {
+    action: 'approve' | 'reject';
+    notes?: string;
+  }
+
+  let body: RequestBody;
   try {
     body = await req.json();
-  } catch {
+  } catch (error) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { action, notes } = body || {}; // action: "approve" | "reject"
+  const { action, notes } = body;
 
   if (!action || (action !== "approve" && action !== "reject")) {
     return NextResponse.json({ error: "Invalid action. Must be 'approve' or 'reject'" }, { status: 400 });
@@ -98,7 +107,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       await prisma.business_verifications.update({
         where: { id: verification.id },
         data: {
-          status: "verified" as const,  // Utilisation de 'verified' au lieu de 'approved'
+          status: "approved" as const,
           reviewed_by: auth.userId,
           reviewed_at: new Date(),
           notes: notes || null,
@@ -113,7 +122,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
           rc_document_url: claim.rc_document_url || null,
           id_document_front_url: claim.id_document_front_url || null,
           id_document_back_url: claim.id_document_back_url || null,
-          status: "verified" as const,  // Utilisation de 'verified' au lieu de 'approved'
+          status: "approved" as const,
           reviewed_by: auth.userId,
           reviewed_at: new Date(),
           notes: notes || null,
@@ -135,35 +144,13 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
           data: {
             business_id: claim.business_id,
             plan_id: freePlan.id,
-            status: "TRIALING" as any,
+            status: "TRIALING" as const,
             current_period_start: now,
             current_period_end: trialEnd,
           },
         });
       }
     } catch {}
-
-    // Envoyer un email de confirmation à l'utilisateur
-    try {
-      const dashboardUrl = `${process.env.NEXT_PUBLIC_APP_URL}/pro/dashboard`;
-      const { text, html } = claimApprovedEmailTemplate({
-        firstName: claim.users.first_name || 'Utilisateur',
-        businessName: claim.businesses.public_name || claim.businesses.legal_name || 'votre entreprise',
-        dashboardUrl: dashboardUrl
-      });
-
-      await sendEmail({
-        to: claim.users.email,
-        subject: 'Votre revendication a été approuvée',
-        html,
-        text,
-        category: 'claim_approved',
-        sandbox: process.env.NODE_ENV !== 'production'
-      });
-    } catch (emailError) {
-      console.error('Erreur lors de l\'envoi de l\'email de confirmation:', emailError);
-      // Ne pas échouer la requête si l'email échoue
-    }
 
     // Event log
     await prisma.event_logs.create({
@@ -195,7 +182,13 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     }).catch(() => {});
   }
 
-  return NextResponse.json({
+  // Define response type
+  interface ApiResponse {
+    ok: boolean;
+    message: string;
+  }
+
+  return NextResponse.json<ApiResponse>({
     ok: true,
     message: action === "approve" ? "Claim approved" : "Claim rejected",
   });

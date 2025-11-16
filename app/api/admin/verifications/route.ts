@@ -35,6 +35,8 @@ export async function GET(req: NextRequest) {
     reviewed_by: v.reviewed_by,
     reviewed_at: v.reviewed_at?.toISOString() || null,
     created_at: v.created_at.toISOString(),
+    claim_status: v.businesses?.claim_status || null,
+    business_logo: v.businesses?.logo_url || null,
   }));
 
   return NextResponse.json({ items: data });
