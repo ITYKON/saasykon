@@ -34,6 +34,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
           orderBy: { name: "asc" },
         },
         reviews: { select: { id: true, rating: true, comment: true, created_at: true }, take: 20, orderBy: { created_at: "desc" } },
+        claim_status: true,
       },
     });
 

@@ -227,7 +227,7 @@ export async function GET(req: Request) {
       const verification = Array.isArray(salon.business_verifications) && salon.business_verifications.length > 0
         ? salon.business_verifications[0]
         : null;
-      const verification_status = verification?.status || null;
+      const verification_status = verification?.status || undefined;
       
       // Données de l'abonnement
       const subscription = subscriptions[0]?.plans?.name || "";
