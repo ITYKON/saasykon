@@ -284,11 +284,13 @@ const salonSchema = z.object({
   description: z.string().optional(),
   email: z.string().email(),
   phone: z.string().min(6),
-  website: z.string().url().optional(),
+  website: z.string().url().optional().or(z.literal('')).nullable(),
   vat_number: z.string().optional(),
   category_code: z.string().optional(),
-  logo_url: z.string().optional(),
-  cover_url: z.string().optional(),
+  logo_url: z.string().optional().or(z.literal('')).nullable(),
+  cover_url: z.string().optional().or(z.literal('')).nullable(),
+  location: z.string().optional(), // City or location name
+  status: z.string().optional(),
 });
 
 export async function POST(req: Request) {
@@ -376,6 +378,34 @@ export async function POST(req: Request) {
       data: salonData,
     });
     console.log("[POST /api/admin/salons] Salon créé:", salon);
+
+    // Create business location if location is provided
+    if (parse.data.location) {
+      try {
+        // Try to find the city in the database
+        const city = await prisma.cities.findFirst({
+          where: {
+            name: {
+              contains: parse.data.location,
+              mode: 'insensitive'
+            },
+          },
+        });
+
+        await prisma.business_locations.create({
+          data: {
+            business_id: salon.id,
+            address_line1: parse.data.location,
+            city_id: city?.id,
+            is_primary: true,
+          },
+        });
+        console.log("[POST /api/admin/salons] Localisation créée:", parse.data.location);
+      } catch (locationError) {
+        console.error("[POST /api/admin/salons] Erreur création localisation:", locationError);
+        // Continue even if location creation fails
+      }
+    }
     await prisma.event_logs.create({
       data: {
         user_id: (authCheck as any).userId,
@@ -457,6 +487,44 @@ export async function PUT(req: Request) {
       where: { id: data.id },
       data: updateData,
     });
+    
+    // Handle location update if provided
+    if (data.location) {
+      // Find the city by name
+      const city = await prisma.cities.findFirst({
+        where: {
+          name: {
+            contains: data.location,
+            mode: 'insensitive'
+          }
+        }
+      });
+      
+      // Update or create business location
+      const existingLocation = await prisma.business_locations.findFirst({
+        where: { business_id: data.id, is_primary: true }
+      });
+      
+      if (existingLocation) {
+        await prisma.business_locations.update({
+          where: { id: existingLocation.id },
+          data: {
+            address_line1: data.location,
+            city_id: city?.id,
+            updated_at: new Date()
+          }
+        });
+      } else {
+        await prisma.business_locations.create({
+          data: {
+            business_id: data.id,
+            address_line1: data.location,
+            city_id: city?.id,
+            is_primary: true
+          }
+        });
+      }
+    }
     console.log("[PUT /api/admin/salons] Salon modifié:", salon);
     await prisma.event_logs.create({
       data: {

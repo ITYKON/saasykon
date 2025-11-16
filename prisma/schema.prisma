@@ -112,8 +112,8 @@ model business_verifications {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model businesses {
-  id                                    String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  owner_user_id                         String                   @db.Uuid
+  id                                    String                         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  owner_user_id                         String                         @db.Uuid
   legal_name                            String
   public_name                           String
   description                           String?
@@ -124,22 +124,25 @@ model businesses {
   category_code                         String?
   logo_url                              String?
   cover_url                             String?
-  created_at                            DateTime                 @default(now()) @db.Timestamptz(6)
-  updated_at                            DateTime                 @default(now()) @db.Timestamptz(6)
-  archived_at                           DateTime?                @db.Timestamptz(6)
-  deleted_at                            DateTime?                @db.Timestamptz(6)
-  status                                business_status          @default(pending_verification)
-  onboarding_completed                  Boolean                  @default(false)
-  claim_status                          String                   @default("none")
-  owner_id                              String?                  @db.Uuid
-  verification_status                   verification_status      @default(pending)
-  trial_ends_at                         DateTime?                @db.Timestamptz(6)
-  last_reminder_sent_at                 DateTime?                @db.Timestamptz(6)
+  created_at                            DateTime                       @default(now()) @db.Timestamptz(6)
+  updated_at                            DateTime                       @default(now()) @db.Timestamptz(6)
+  archived_at                           DateTime?                      @db.Timestamptz(6)
+  deleted_at                            DateTime?                      @db.Timestamptz(6)
+  status                                business_status                @default(pending_verification)
+  onboarding_completed                  Boolean                        @default(false)
+  claim_status                          String                         @default("none")
+  owner_id                              String?                        @db.Uuid
+  verification_status                   verification_status            @default(pending)
+  trial_ends_at                         DateTime?                      @db.Timestamptz(6)
+  last_reminder_sent_at                 DateTime?                      @db.Timestamptz(6)
+  is_claimable                          Boolean                        @default(false)
+  converted_from_lead                   Boolean                        @default(false)
   business_locations                    business_locations[]
   business_media                        business_media[]
+  business_ownership_transfers          business_ownership_transfers[]
   business_verifications                business_verifications[]
-  users_businesses_owner_idTousers      users?                   @relation("businesses_owner_idTousers", fields: [owner_id], references: [id], onUpdate: NoAction)
-  users_businesses_owner_user_idTousers users                    @relation("businesses_owner_user_idTousers", fields: [owner_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users_businesses_owner_idTousers      users?                         @relation("businesses_owner_idTousers", fields: [owner_id], references: [id], onUpdate: NoAction)
+  users_businesses_owner_user_idTousers users                          @relation("businesses_owner_user_idTousers", fields: [owner_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   claims                                claims[]
   client_favorites                      client_favorites[]
   daily_business_stats                  daily_business_stats[]
@@ -158,7 +161,6 @@ model businesses {
   user_roles                            user_roles[]
   waitlist                              waitlist[]
   working_hours                         working_hours[]
-  business_ownership_transfers          business_ownership_transfers[]
 
   @@index([status])
   @@index([trial_ends_at])
@@ -177,34 +179,33 @@ model cities {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model claims {
-  id                    Int        @id @default(autoincrement())
-  business_id           String     @db.Uuid
-  user_id               String     @db.Uuid
-  full_name             String
-  email                 String
-  phone                 String
-  role                  String
-  document_url          String?
-  rc_number             String?
-  rc_document_url       String?
-  id_document_front_url String?
-  id_document_back_url  String?
-  status                String     @default("pending")
-  claim_token           String?    @unique
-  token_expires_at      DateTime?  @db.Timestamptz(6)
-  documents_submitted   Boolean    @default(false)
+  id                     Int        @id @default(autoincrement())
+  business_id            String     @db.Uuid
+  user_id                String     @db.Uuid
+  full_name              String
+  email                  String
+  phone                  String
+  role                   String
+  document_url           String?
+  status                 String     @default("pending")
+  expires_at             DateTime?  @db.Timestamptz(6)
+  created_at             DateTime   @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime   @default(now()) @db.Timestamptz(6)
+  claim_token            String?    @unique(map: "unique_claim_token")
+  token_expires_at       DateTime?
+  rc_number              String?    @db.VarChar
+  rc_document_url        String?
+  id_document_front_url  String?
+  id_document_back_url   String?
+  documents_submitted    Boolean?   @default(false)
   documents_submitted_at DateTime?  @db.Timestamptz(6)
-  expires_at            DateTime?  @db.Timestamptz(6)
-  created_at            DateTime   @default(now()) @db.Timestamptz(6)
-  updated_at            DateTime   @default(now()) @db.Timestamptz(6)
-  businesses            businesses @relation(fields: [business_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  users                 users      @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  businesses             businesses @relation(fields: [business_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users                  users      @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([business_id], map: "idx_claim_business_id")
   @@index([expires_at], map: "idx_claim_expires_at")
   @@index([status], map: "idx_claim_status")
   @@index([user_id], map: "idx_claim_user_id")
-  @@index([claim_token], map: "idx_claim_token")
 }
 
 model client_favorites {
@@ -745,8 +746,8 @@ model user_roles {
 }
 
 model users {
-  id                                            String                       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  email                                         String                       @unique
+  id                                            String                         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email                                         String                         @unique
   phone                                         String?
   password_hash                                 String?
   provider                                      String?
@@ -754,22 +755,25 @@ model users {
   first_name                                    String?
   last_name                                     String?
   avatar_url                                    String?
-  locale                                        String?                      @default("fr")
-  is_email_verified                             Boolean?                     @default(false)
-  is_phone_verified                             Boolean?                     @default(false)
-  created_at                                    DateTime                     @default(now()) @db.Timestamptz(6)
-  updated_at                                    DateTime                     @default(now()) @db.Timestamptz(6)
-  deleted_at                                    DateTime?                    @db.Timestamptz(6)
+  locale                                        String?                        @default("fr")
+  is_email_verified                             Boolean?                       @default(false)
+  is_phone_verified                             Boolean?                       @default(false)
+  created_at                                    DateTime                       @default(now()) @db.Timestamptz(6)
+  updated_at                                    DateTime                       @default(now()) @db.Timestamptz(6)
+  deleted_at                                    DateTime?                      @db.Timestamptz(6)
   addresses                                     addresses[]
   business_leads                                business_leads[]
+  ownership_transfers_from                      business_ownership_transfers[] @relation("OwnershipTransfersFrom")
+  ownership_transfers_to                        business_ownership_transfers[] @relation("OwnershipTransfersTo")
+  reviewed_ownership_transfers                  business_ownership_transfers[] @relation("OwnershipTransfersReviewed")
   business_verifications                        business_verifications[]
-  businesses_businesses_owner_idTousers         businesses[]                 @relation("businesses_owner_idTousers")
-  businesses_businesses_owner_user_idTousers    businesses[]                 @relation("businesses_owner_user_idTousers")
+  businesses_businesses_owner_idTousers         businesses[]                   @relation("businesses_owner_idTousers")
+  businesses_businesses_owner_user_idTousers    businesses[]                   @relation("businesses_owner_user_idTousers")
   claims                                        claims[]
   clients                                       clients[]
   employee_accounts                             employee_accounts?
-  invite_tokens_invite_tokens_created_byTousers invite_tokens[]              @relation("invite_tokens_created_byTousers")
-  invite_tokens_invite_tokens_user_idTousers    invite_tokens[]              @relation("invite_tokens_user_idTousers")
+  invite_tokens_invite_tokens_created_byTousers invite_tokens[]                @relation("invite_tokens_created_byTousers")
+  invite_tokens_invite_tokens_user_idTousers    invite_tokens[]                @relation("invite_tokens_user_idTousers")
   login_attempts                                login_attempts[]
   notification_preferences                      notification_preferences?
   notifications                                 notifications[]
@@ -777,9 +781,6 @@ model users {
   reservations                                  reservations[]
   sessions                                      sessions[]
   user_roles                                    user_roles[]
-  ownership_transfers_from                      business_ownership_transfers[] @relation("OwnershipTransfersFrom")
-  ownership_transfers_to                        business_ownership_transfers[] @relation("OwnershipTransfersTo")
-  reviewed_ownership_transfers                  business_ownership_transfers[] @relation("OwnershipTransfersReviewed")
 
   @@index([provider, provider_id])
 }
@@ -812,23 +813,26 @@ model working_hours {
 }
 
 model business_ownership_transfers {
-  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  business_id     String   @db.Uuid
-  current_owner_id String  @db.Uuid
-  new_owner_id    String   @db.Uuid
-  status          String   @default("pending") // pending, approved, rejected
-  requested_at    DateTime @default(now())
-  reviewed_at     DateTime?
-  reviewed_by     String?  @db.Uuid
-  review_notes    String?
-  created_at      DateTime @default(now())
-  updated_at      DateTime @updatedAt
-  
-  business        businesses @relation(fields: [business_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  current_owner   users      @relation("OwnershipTransfersFrom", fields: [current_owner_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  new_owner       users      @relation("OwnershipTransfersTo", fields: [new_owner_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  reviewer        users?     @relation("OwnershipTransfersReviewed", fields: [reviewed_by], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  id               String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  business_id      String     @db.Uuid
+  current_owner_id String     @db.Uuid
+  new_owner_id     String     @db.Uuid
+  status           String     @default("pending")
+  requested_at     DateTime   @default(now()) @db.Timestamptz(6)
+  reviewed_at      DateTime?  @db.Timestamptz(6)
+  reviewed_by      String?    @db.Uuid
+  review_notes     String?
+  created_at       DateTime   @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime   @updatedAt @db.Timestamptz(6)
+  business         businesses @relation(fields: [business_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  current_owner    users      @relation("OwnershipTransfersFrom", fields: [current_owner_id], references: [id], onUpdate: NoAction)
+  new_owner        users      @relation("OwnershipTransfersTo", fields: [new_owner_id], references: [id], onUpdate: NoAction)
+  reviewer         users?     @relation("OwnershipTransfersReviewed", fields: [reviewed_by], references: [id], onUpdate: NoAction)
 
+  @@index([business_id])
+  @@index([current_owner_id])
+  @@index([new_owner_id])
+  @@index([status])
   @@map("business_ownership_transfers")
 }
 

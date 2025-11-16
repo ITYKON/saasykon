@@ -54,8 +54,8 @@ export async function GET(req: Request): Promise<NextResponse> {
     // Si plusieurs termes de recherche, ajouter une recherche par mots-clés
     if (searchTerms.length > 1) {
       nameConditions.push(
-        { public_name: { search: searchTerms.join(' & '), mode: 'insensitive' as const } },
-        { legal_name: { search: searchTerms.join(' & '), mode: 'insensitive' as const } }
+        { public_name: { contains: searchTerms.join(' '), mode: 'insensitive' as const } },
+        { legal_name: { contains: searchTerms.join(' '), mode: 'insensitive' as const } }
       );
     }
     
@@ -120,13 +120,14 @@ export async function GET(req: Request): Promise<NextResponse> {
         image: primaryImage,
         rating: business.ratings_aggregates?.rating_avg || 0,
         reviewCount: business.ratings_aggregates?.rating_count || 0,
+        claim_status: business.claim_status,
         address: primaryLocation ? `${primaryLocation.address_line1} ${primaryLocation.address_line2 || ''}`.trim() : '',
         city: primaryLocation?.cities?.name || '',
         postalCode: primaryLocation?.postal_code || '',
         employeesCount: business.employees.length,
         isPremium: business.subscriptions.some(sub => sub.plans.code === 'premium'),
         isNew: new Date(business.created_at) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // Moins de 30 jours
-        isTop: (business.ratings_aggregates?.rating_avg || 0) >= 4.5
+        isTop: Number(business.ratings_aggregates?.rating_avg || 0) >= 4.5
       };
     });
     

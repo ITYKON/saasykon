@@ -51,39 +51,33 @@ function AdminSalonsContent() {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
 
+  // Reusable function to reload salons
+  const reloadSalons = async () => {
+    try {
+      setError(null);
+      setLoading(true);
+      
+      const res = await fetch(`/api/admin/salons`);
+      if (!res.ok) {
+        throw new Error(`Erreur HTTP: ${res.status}`);
+      }
+      const data = await res.json();
+      
+      if (data.success && data.data) {
+        setSalons(data.data.salons || []);
+      } else {
+        throw new Error('Format de réponse invalide');
+      }
+    } catch (err: any) {
+      console.error('Erreur lors du rechargement des salons:', err);
+      setError(err.message || 'Erreur de chargement');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   React.useEffect(() => {
-    console.log('Début de la récupération des salons...');
-    setError(null);
-    setLoading(true);
-    
-    // Ne pas filtrer par claim_status si on utilise les onglets
-    // Les onglets gèrent le filtrage côté client
-    fetch(`/api/admin/salons`)
-      .then(async (res) => {
-        console.log('Réponse reçue, statut:', res.status);
-        if (!res.ok) {
-          const errorText = await res.text();
-          console.error('Erreur de l\'API:', errorText);
-          throw new Error(`Erreur HTTP: ${res.status} - ${errorText}`);
-        }
-        return res.json();
-      })
-      .then(data => {
-        console.log('Données reçues de l\'API:', data);
-        if (data.success && data.data) {
-          setSalons(data.data.salons || []);
-        } else {
-          console.error('Format de réponse inattendu:', data);
-          setError('Format de réponse inattendu de l\'API');
-        }
-      })
-      .catch(error => {
-        console.error('Erreur lors de la récupération des salons:', error);
-        setError(`Erreur lors du chargement des salons: ${error.message}`);
-      })
-      .finally(() => {
-        setLoading(false);
-      });
+    reloadSalons();
   }, []);
 
   // Modals et état salon sélectionné
@@ -128,7 +122,17 @@ function AdminSalonsContent() {
 
   // Gestionnaire pour éditer un salon
   const handleEditSalon = (salon: any) => {
-    setSelectedSalon(salon);
+    // Extract location from business_locations
+    const location = salon.business_locations?.[0]?.address_line1 || 
+                    salon.business_locations?.[0]?.cities?.name || 
+                    '';
+    
+    const salonWithLocation = {
+      ...salon,
+      location
+    };
+    
+    setSelectedSalon(salonWithLocation);
     setEditModalOpen(true);
   };
 
@@ -430,7 +434,7 @@ function AdminSalonsContent() {
             salons={filteredSalons} 
             loading={loading}
             onStatusChange={handleStatusChange}
-            showActions={false}
+            showActions={true}
             showClaimStatus={true}
             onViewDetails={handleViewDetails}
             onEdit={handleEditSalon}
@@ -446,11 +450,7 @@ function AdminSalonsContent() {
                   if (!res.ok) {
                     alert("Erreur: " + (result.error || "Suppression impossible"));
                   } else {
-                    const res = await fetch("/api/admin/salons");
-                    const data = await res.json();
-                    if (data.success && data.data) {
-                      setSalons(data.data.salons || []);
-                    }
+                    await reloadSalons();
                   }
                 } catch (err) {
                   alert("Erreur réseau: " + err);
@@ -464,7 +464,7 @@ function AdminSalonsContent() {
             salons={filteredSalons.filter(salon => !salon.claim_status || salon.claim_status === 'none')} 
             loading={loading}
             onStatusChange={handleStatusChange}
-            showActions={false}
+            showActions={true}
             showClaimStatus={true}
             onViewDetails={handleViewDetails}
             onEdit={handleEditSalon}
@@ -480,11 +480,7 @@ function AdminSalonsContent() {
                   if (!res.ok) {
                     alert("Erreur: " + (result.error || "Suppression impossible"));
                   } else {
-                    const res = await fetch("/api/admin/salons");
-                    const data = await res.json();
-                    if (data.success && data.data) {
-                      setSalons(data.data.salons || []);
-                    }
+                    await reloadSalons();
                   }
                 } catch (err) {
                   alert("Erreur réseau: " + err);
@@ -498,7 +494,7 @@ function AdminSalonsContent() {
             salons={filteredSalons.filter(salon => salon.claim_status === 'approved')} 
             loading={loading}
             onStatusChange={handleStatusChange}
-            showActions={false}
+            showActions={true}
             showClaimStatus={true}
             onViewDetails={handleViewDetails}
             onEdit={handleEditSalon}
@@ -514,11 +510,7 @@ function AdminSalonsContent() {
                   if (!res.ok) {
                     alert("Erreur: " + (result.error || "Suppression impossible"));
                   } else {
-                    const res = await fetch("/api/admin/salons");
-                    const data = await res.json();
-                    if (data.success && data.data) {
-                      setSalons(data.data.salons || []);
-                    }
+                    await reloadSalons();
                   }
                 } catch (err) {
                   alert("Erreur réseau: " + err);
@@ -532,7 +524,7 @@ function AdminSalonsContent() {
             salons={filteredSalons.filter(salon => salon.claim_status === 'not_claimable')} 
             loading={loading}
             onStatusChange={handleStatusChange}
-            showActions={false}
+            showActions={true}
             showClaimStatus={true}
             onViewDetails={handleViewDetails}
             onEdit={handleEditSalon}
@@ -548,11 +540,7 @@ function AdminSalonsContent() {
                   if (!res.ok) {
                     alert("Erreur: " + (result.error || "Suppression impossible"));
                   } else {
-                    const res = await fetch("/api/admin/salons");
-                    const data = await res.json();
-                    if (data.success && data.data) {
-                      setSalons(data.data.salons || []);
-                    }
+                    await reloadSalons();
                   }
                 } catch (err) {
                   alert("Erreur réseau: " + err);
@@ -566,7 +554,7 @@ function AdminSalonsContent() {
             salons={filteredSalons.filter(salon => salon.claim_status === 'pending')} 
             loading={loading}
             onStatusChange={handleStatusChange}
-            showActions={true}
+            showActions={false}
             showClaimStatus={false}
             onViewDetails={handleViewDetails}
             onEdit={handleEditSalon}
@@ -582,11 +570,7 @@ function AdminSalonsContent() {
                   if (!res.ok) {
                     alert("Erreur: " + (result.error || "Suppression impossible"));
                   } else {
-                    const res = await fetch("/api/admin/salons");
-                    const data = await res.json();
-                    if (data.success && data.data) {
-                      setSalons(data.data.salons || []);
-                    }
+                    await reloadSalons();
                   }
                 } catch (err) {
                   alert("Erreur réseau: " + err);
@@ -600,7 +584,7 @@ function AdminSalonsContent() {
             salons={filteredSalons.filter(salon => salon.claim_status === 'rejected')} 
             loading={loading}
             onStatusChange={handleStatusChange}
-            showActions={false}
+            showActions={true}
             showClaimStatus={true}
             onViewDetails={handleViewDetails}
             onEdit={handleEditSalon}
@@ -616,11 +600,7 @@ function AdminSalonsContent() {
                   if (!res.ok) {
                     alert("Erreur: " + (result.error || "Suppression impossible"));
                   } else {
-                    const res = await fetch("/api/admin/salons");
-                    const data = await res.json();
-                    if (data.success && data.data) {
-                      setSalons(data.data.salons || []);
-                    }
+                    await reloadSalons();
                   }
                 } catch (err) {
                   alert("Erreur réseau: " + err);
@@ -653,13 +633,7 @@ function AdminSalonsContent() {
               alert(message);
               setAddModalOpen(false);
               // Recharge la liste
-              fetch("/api/admin/salons")
-                .then(res => res.json())
-                .then(data => {
-                  if (data.success && data.data) {
-                    setSalons(data.data.salons || []);
-                  }
-                });
+              await reloadSalons();
             }
           } catch (err) {
             alert("Erreur réseau: " + err);
@@ -692,9 +666,7 @@ function AdminSalonsContent() {
                 alert("Erreur: " + (result.error || "Modification impossible"));
               } else {
                 alert("Salon modifié avec succès");
-                fetch("/api/admin/salons")
-                  .then(res => res.json())
-                  .then(data => setSalons(data.salons || []));
+                await reloadSalons();
               }
             } catch (err) {
               alert("Erreur réseau: " + err);

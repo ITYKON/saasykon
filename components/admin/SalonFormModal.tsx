@@ -24,6 +24,7 @@ export const SalonFormModal: React.FC<SalonFormModalProps> = ({ open, onClose, o
     website: "",
     vat_number: "",
     category_code: "",
+    location: initialSalon?.business_locations?.[0]?.address_line1 || "", // Add location field from existing data
     logo_url: "",
     cover_url: "",
     status: "actif",
@@ -98,6 +99,8 @@ export const SalonFormModal: React.FC<SalonFormModalProps> = ({ open, onClose, o
                 </select>
                 <Input name="phone" value={form.phone} onChange={handleChange} placeholder="Téléphone" className="rounded-lg" />
               </div>
+              <label className="text-xs text-gray-500">Ville / Localisation</label>
+              <Input name="location" value={form.location} onChange={handleChange} placeholder="Ex: Alger, Oran, Constantine..." className="rounded-lg" />
               <label className="text-xs text-gray-500">Site web</label>
               <Input name="website" value={form.website} onChange={handleChange} placeholder="Site web" className="rounded-lg" />
               <label className="text-xs text-gray-500">Numéro TVA</label>

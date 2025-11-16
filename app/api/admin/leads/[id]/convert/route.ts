@@ -56,7 +56,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   });
 
   // Create business with pending_verification status
-  // Les salons créés depuis les leads ne sont PAS revendicables (claim_status = "not_claimable")
+  // Les salons créés depuis les leads ne sont PAS revendicables (claim_status = "approved")
   const business = await prisma.businesses.create({
     data: {
       owner_user_id: user.id,
@@ -66,7 +66,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       email,
       phone: phone ?? lead.phone ?? null,
       status: "pending_verification" as any,
-      claim_status: "not_claimable", // Les salons créés depuis les leads ne sont pas revendicables
+      claim_status: "approved", // Les salons créés depuis les leads ne sont pas revendicables
     },
   });
 
@@ -166,7 +166,16 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     const appUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
     const tpl = inviteEmailTemplate({ firstName: user.first_name, appUrl, token: tokenRaw, validityHours: 24 });
-    await sendEmail({ to: email, subject: `Votre compte est prêt — activez votre accès`, html: tpl.html, text: tpl.text });
+    
+    // Try to send email with timeout handling
+    try {
+      await sendEmail({ to: email, subject: `Votre compte est prêt — activez votre accès`, html: tpl.html, text: tpl.text });
+      console.log(`✅ Email sent successfully to: ${email}`);
+    } catch (emailError) {
+      console.error(`❌ Failed to send email to ${email}:`, emailError);
+      // Continue with the process even if email fails
+      console.log(`⚠️  Lead conversion continues without email. User can be invited manually later.`);
+    }
 
     await prisma.event_logs.create({
       data: {

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
-import { Loader2, Upload, Camera, CheckCircle2, AlertCircle } from "lucide-react"
+import { Loader2, Upload, Camera, CheckCircle2, AlertCircle, CheckCircle, XCircle, Clock } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 
@@ -29,6 +29,7 @@ export default function ClaimOnboardingPage() {
   const [idDocumentFrontUrl, setIdDocumentFrontUrl] = useState("")
   const [idDocumentBackUrl, setIdDocumentBackUrl] = useState("")
   const [uploading, setUploading] = useState<string | null>(null)
+  const [documentStatus, setDocumentStatus] = useState<"pending" | "approved" | "rejected" | null>(null)
 
   const [cameraFor, setCameraFor] = useState<"rc_doc" | "id_front" | "id_back" | null>(null)
   const videoRef = useRef<HTMLVideoElement | null>(null)
@@ -68,8 +69,29 @@ export default function ClaimOnboardingPage() {
 
       // Load existing documents if any
       if (data.claim.documents_submitted) {
-        // Documents already submitted, show completion
-        setStep("complete")
+        // Load existing documents to show their status
+        if (data.claim.rc_document_url) {
+          setRcDocumentUrl(data.claim.rc_document_url)
+        }
+        if (data.claim.id_document_front_url) {
+          setIdDocumentFrontUrl(data.claim.id_document_front_url)
+        }
+        if (data.claim.id_document_back_url) {
+          setIdDocumentBackUrl(data.claim.id_document_back_url)
+        }
+        if (data.claim.rc_number) {
+          setRcNumber(data.claim.rc_number)
+        }
+        // Set document status based on claim status
+        if (data.claim.status === "approved") {
+          setDocumentStatus("approved")
+        } else if (data.claim.status === "rejected") {
+          setDocumentStatus("rejected")
+        } else {
+          setDocumentStatus("pending")
+        }
+        // Show documents page to see status and traceability
+        setStep("documents")
       }
     } catch (error: any) {
       toast({
@@ -211,20 +233,17 @@ export default function ClaimOnboardingPage() {
         throw new Error(data.error || "Erreur lors de la soumission")
       }
 
-      if (data.ok && completeNow && data.has_all_documents) {
-        // Redirect to dashboard
+      if (data.ok && (completeNow || !completeNow)) {
+        // Session created, reload page to let middleware handle redirect
         toast({
-          title: "Documents soumis",
-          description: "Vos documents sont en cours de vérification.",
+          title: completeNow && data.has_all_documents 
+            ? "Documents soumis" 
+            : "Documents enregistrés",
+          description: completeNow && data.has_all_documents
+            ? "Vos documents sont en cours de vérification."
+            : "Vous pouvez compléter plus tard depuis votre tableau de bord.",
         })
-        router.push("/pro/dashboard")
-      } else if (data.ok && !completeNow) {
-        // Save for later
-        toast({
-          title: "Documents enregistrés",
-          description: "Vous pouvez compléter plus tard depuis votre tableau de bord.",
-        })
-        router.push("/pro/dashboard")
+        window.location.href = "/pro/dashboard"
       } else {
         setStep("complete")
       }
@@ -319,6 +338,39 @@ export default function ClaimOnboardingPage() {
         {/* Documents Step */}
         {step === "documents" && (
           <div className="space-y-6">
+            {/* Document Status */}
+            {documentStatus && (
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-2">
+                    {documentStatus === "approved" && (
+                      <>
+                        <CheckCircle className="h-5 w-5 text-green-600" />
+                        <span className="text-green-600 font-medium">Documents approuvés</span>
+                      </>
+                    )}
+                    {documentStatus === "rejected" && (
+                      <>
+                        <XCircle className="h-5 w-5 text-red-600" />
+                        <span className="text-red-600 font-medium">Documents rejetés</span>
+                      </>
+                    )}
+                    {documentStatus === "pending" && (
+                      <>
+                        <Clock className="h-5 w-5 text-yellow-600" />
+                        <span className="text-yellow-600 font-medium">Documents en cours de vérification</span>
+                      </>
+                    )}
+                  </div>
+                  {documentStatus === "rejected" && claimData?.rejection_reason && (
+                    <p className="mt-2 text-sm text-red-600">
+                      Motif: {claimData.rejection_reason}
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+            
             <Card>
               <CardHeader>
                 <CardTitle>Téléverser vos documents</CardTitle>
@@ -334,14 +386,21 @@ export default function ClaimOnboardingPage() {
                     {idDocumentFrontUrl ? (
                       <div className="relative w-32 h-32 border rounded-lg overflow-hidden">
                         <Image src={idDocumentFrontUrl} alt="Recto" fill className="object-cover" />
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          className="absolute top-1 right-1"
-                          onClick={() => setIdDocumentFrontUrl("")}
-                        >
-                          ×
-                        </Button>
+                        {documentStatus && documentStatus !== "pending" ? (
+                          <div className="absolute top-1 right-1 bg-white/80 rounded-full p-1">
+                            {documentStatus === "approved" && <CheckCircle className="h-4 w-4 text-green-600" />}
+                            {documentStatus === "rejected" && <XCircle className="h-4 w-4 text-red-600" />}
+                          </div>
+                        ) : (
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            className="absolute top-1 right-1"
+                            onClick={() => setIdDocumentFrontUrl("")}
+                          >
+                            ×
+                          </Button>
+                        )}
                       </div>
                     ) : (
                       <div className="space-y-2">
@@ -352,13 +411,13 @@ export default function ClaimOnboardingPage() {
                             const file = e.target.files?.[0]
                             if (file) handleUpload(file, "id_front")
                           }}
-                          disabled={uploading === "id_front"}
+                          disabled={uploading === "id_front" || !!(documentStatus && documentStatus !== "pending")}
                         />
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => startCamera("id_front")}
-                          disabled={!!cameraFor}
+                          disabled={!!cameraFor || !!(documentStatus && documentStatus !== "pending")}
                         >
                           <Camera className="h-4 w-4 mr-2" />
                           Prendre une photo
@@ -375,14 +434,21 @@ export default function ClaimOnboardingPage() {
                     {idDocumentBackUrl ? (
                       <div className="relative w-32 h-32 border rounded-lg overflow-hidden">
                         <Image src={idDocumentBackUrl} alt="Verso" fill className="object-cover" />
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          className="absolute top-1 right-1"
-                          onClick={() => setIdDocumentBackUrl("")}
-                        >
-                          ×
-                        </Button>
+                        {documentStatus && documentStatus !== "pending" ? (
+                          <div className="absolute top-1 right-1 bg-white/80 rounded-full p-1">
+                            {documentStatus === "approved" && <CheckCircle className="h-4 w-4 text-green-600" />}
+                            {documentStatus === "rejected" && <XCircle className="h-4 w-4 text-red-600" />}
+                          </div>
+                        ) : (
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            className="absolute top-1 right-1"
+                            onClick={() => setIdDocumentBackUrl("")}
+                          >
+                            ×
+                          </Button>
+                        )}
                       </div>
                     ) : (
                       <div className="space-y-2">
@@ -393,13 +459,13 @@ export default function ClaimOnboardingPage() {
                             const file = e.target.files?.[0]
                             if (file) handleUpload(file, "id_back")
                           }}
-                          disabled={uploading === "id_back"}
+                          disabled={uploading === "id_back" || !!(documentStatus && documentStatus !== "pending")}
                         />
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => startCamera("id_back")}
-                          disabled={!!cameraFor}
+                          disabled={!!cameraFor || !!(documentStatus && documentStatus !== "pending")}
                         >
                           <Camera className="h-4 w-4 mr-2" />
                           Prendre une photo
@@ -418,11 +484,18 @@ export default function ClaimOnboardingPage() {
                       placeholder="Numéro de registre de commerce"
                       value={rcNumber}
                       onChange={(e) => setRcNumber(e.target.value)}
+                      disabled={!!(documentStatus && documentStatus !== "pending")}
                     />
                     <div className="flex gap-4">
                       {rcDocumentUrl ? (
                         <div className="relative w-32 h-32 border rounded-lg overflow-hidden">
                           <Image src={rcDocumentUrl} alt="RC" fill className="object-cover" />
+                          {documentStatus && documentStatus !== "pending" ? (
+                          <div className="absolute top-1 right-1 bg-white/80 rounded-full p-1">
+                            {documentStatus === "approved" && <CheckCircle className="h-4 w-4 text-green-600" />}
+                            {documentStatus === "rejected" && <XCircle className="h-4 w-4 text-red-600" />}
+                          </div>
+                        ) : (
                           <Button
                             variant="destructive"
                             size="sm"
@@ -431,6 +504,7 @@ export default function ClaimOnboardingPage() {
                           >
                             ×
                           </Button>
+                        )}
                         </div>
                       ) : (
                         <div className="space-y-2">
@@ -441,13 +515,13 @@ export default function ClaimOnboardingPage() {
                               const file = e.target.files?.[0]
                               if (file) handleUpload(file, "rc_doc")
                             }}
-                            disabled={uploading === "rc_doc"}
+                            disabled={uploading === "rc_doc" || !!(documentStatus && documentStatus !== "pending")}
                           />
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => startCamera("rc_doc")}
-                            disabled={!!cameraFor}
+                            disabled={!!cameraFor || !!(documentStatus && documentStatus !== "pending")}
                           >
                             <Camera className="h-4 w-4 mr-2" />
                             Prendre une photo
@@ -477,28 +551,45 @@ export default function ClaimOnboardingPage() {
 
                 {/* Actions */}
                 <div className="flex gap-4 pt-4">
-                  <Button
-                    onClick={() => handleComplete(false)}
-                    variant="outline"
-                    disabled={submitting}
-                    className="flex-1"
-                  >
-                    Enregistrer pour plus tard
-                  </Button>
-                  <Button
-                    onClick={() => handleComplete(true)}
-                    disabled={!hasAllDocuments || submitting}
-                    className="flex-1"
-                  >
-                    {submitting ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Envoi...
-                      </>
-                    ) : (
-                      "Terminer maintenant"
-                    )}
-                  </Button>
+                  {documentStatus && documentStatus !== "pending" ? (
+                    <div className="flex-1 text-center">
+                      {documentStatus === "approved" && (
+                        <p className="text-green-600 font-medium">
+                          ✓ Documents déjà approuvés
+                        </p>
+                      )}
+                      {documentStatus === "rejected" && (
+                        <p className="text-red-600 font-medium">
+                          ✗ Documents rejetés - Veuillez contacter le support
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <>
+                      <Button
+                        onClick={() => handleComplete(false)}
+                        variant="outline"
+                        disabled={submitting}
+                        className="flex-1"
+                      >
+                        Enregistrer pour plus tard
+                      </Button>
+                      <Button
+                        onClick={() => handleComplete(true)}
+                        disabled={!hasAllDocuments || submitting}
+                        className="flex-1"
+                      >
+                        {submitting ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Envoi...
+                          </>
+                        ) : (
+                          "Terminer maintenant"
+                        )}
+                      </Button>
+                    </>
+                  )}
                 </div>
 
                 {!hasAllDocuments && (

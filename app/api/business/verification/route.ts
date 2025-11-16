@@ -97,13 +97,57 @@ export async function POST(request: Request) {
     // Récupérer l'entreprise de l'utilisateur
     console.log(`[Business Verification API] Récupération de l'entreprise pour l'utilisateur ${user.id}`);
     
-    // Vérifier d'abord avec owner_user_id, puis avec owner_id
+    // Debug: Vérifier les rôles et claims de l'utilisateur
+    const userRoles = await prisma.user_roles.findMany({
+      where: { user_id: user.id },
+      include: { roles: true, businesses: true }
+    });
+    console.log(`[Business Verification API] Rôles de l'utilisateur:`, userRoles.map(ur => ({
+      role: ur.roles.code,
+      business_id: ur.business_id,
+      business_name: ur.businesses?.public_name
+    })));
+    
+    const userClaims = await prisma.claims.findMany({
+      where: { user_id: user.id },
+      include: { businesses: true }
+    });
+    console.log(`[Business Verification API] Claims de l'utilisateur:`, userClaims.map(c => ({
+      id: c.id,
+      status: c.status,
+      business_id: c.business_id,
+      business_name: c.businesses?.public_name,
+      business_claim_status: c.businesses?.claim_status
+    })));
+    
+    // Vérifier d'abord avec owner_user_id, puis avec owner_id, puis via les rôles PRO
     const business = await prisma.businesses.findFirst({
       where: {
         OR: [
           { owner_user_id: user.id },
-          { owner_id: user.id }
+          { owner_id: user.id },
+          {
+            // Inclure les entreprises où l'utilisateur a un rôle PRO
+            user_roles: {
+              some: {
+                user_id: user.id,
+                roles: {
+                  code: "PRO"
+                }
+              }
+            }
+          }
         ]
+      },
+      include: {
+        user_roles: {
+          where: {
+            user_id: user.id,
+            roles: {
+              code: "PRO"
+            }
+          }
+        }
       },
       orderBy: { created_at: 'desc' }
     });
@@ -113,7 +157,7 @@ export async function POST(request: Request) {
       return errorResponse('Aucune entreprise trouvée pour votre compte. Veuillez d\'abord créer ou réclamer une entreprise.', 400, {
         userId: user.id,
         errorCode: 'NO_BUSINESS_FOUND',
-        checkedFields: ['owner_user_id', 'owner_id']
+        checkedFields: ['owner_user_id', 'owner_id', 'PRO_roles']
       });
     }
     
@@ -338,7 +382,7 @@ await prisma.businesses.update({
       await prisma.claims.updateMany({
         where: {
           business_id: business.id,
-          status: { in: ['pending', 'documents_pending', 'documents_submitted'] }
+          status: { in: ['pending', 'documents_submitted'] }
         },
         data: {
           status: 'documents_submitted',

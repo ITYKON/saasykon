@@ -1,42 +1,98 @@
 import * as nodemailer from "nodemailer";
 import { MailtrapTransport } from "mailtrap";
 
+// Mailtrap configuration
 const MAILTRAP_HOST = process.env.MAILTRAP_HOST || "sandbox.smtp.mailtrap.io";
-const MAILTRAP_PORT = Number(process.env.MAILTRAP_PORT || 587);
+const MAILTRAP_PORT = Number(process.env.MAILTRAP_PORT || 2525);
 const MAILTRAP_USER = process.env.MAILTRAP_USER || "";
 const MAILTRAP_PASS = process.env.MAILTRAP_PASS || "";
 const MAILTRAP_TOKEN = process.env.MAILTRAP_TOKEN || "";
-const MAILTRAP_USE_SMTP = process.env.MAILTRAP_USE_SMTP === "true";
+const MAILTRAP_USE_SMTP = process.env.MAILTRAP_USE_SMTP !== "false"; // Default to API, fallback to SMTP
 const MAILTRAP_TEST_INBOX_ID = process.env.MAILTRAP_TEST_INBOX_ID ? Number(process.env.MAILTRAP_TEST_INBOX_ID) : undefined;
 const MAILTRAP_SANDBOX = process.env.MAILTRAP_SANDBOX === "true";
+
+// Brevo (Sendinblue) configuration - fallback option
+const BREVO_HOST = process.env.BREVO_HOST || "smtp-relay.brevo.com";
+const BREVO_PORT = Number(process.env.BREVO_PORT || 587);
+const BREVO_USER = process.env.BREVO_USER || "";
+const BREVO_PASS = process.env.BREVO_PASS || "";
+
 const EMAIL_FROM = process.env.EMAIL_FROM || "no-reply@example.com";
 
-// Prefer Mailtrap API transport if token is provided; fallback to SMTP
-export const transporter = MAILTRAP_TOKEN && !MAILTRAP_USE_SMTP
-  ? nodemailer.createTransport(
+// Create transporter with fallback chain
+export const transporter = (() => {
+  // Try Mailtrap API first
+  if (MAILTRAP_TOKEN && !MAILTRAP_USE_SMTP) {
+    console.log('📧 Using Mailtrap API');
+    return nodemailer.createTransport(
       MailtrapTransport({ token: MAILTRAP_TOKEN, testInboxId: MAILTRAP_TEST_INBOX_ID })
-    )
-  : nodemailer.createTransport({
-      host: MAILTRAP_HOST,
-      port: MAILTRAP_PORT,
+    );
+  }
+  
+  // Try Brevo if configured
+  if (BREVO_USER && BREVO_PASS) {
+    console.log('📧 Using Brevo SMTP');
+    return nodemailer.createTransport({
+      host: BREVO_HOST,
+      port: BREVO_PORT,
+      secure: false,
       auth: {
-        user: MAILTRAP_USER,
-        pass: MAILTRAP_PASS,
+        user: BREVO_USER,
+        pass: BREVO_PASS,
       },
     });
+  }
+  
+  // Fallback to Mailtrap SMTP with increased timeouts
+  console.log('📧 Using Mailtrap SMTP (with increased timeouts)');
+  return nodemailer.createTransport({
+    host: MAILTRAP_HOST,
+    port: MAILTRAP_PORT,
+    auth: {
+      user: MAILTRAP_USER,
+      pass: MAILTRAP_PASS,
+    },
+    // Increased timeout settings for better reliability
+    connectionTimeout: 30000, // 30 seconds
+    greetingTimeout: 15000, // 15 seconds
+    socketTimeout: 30000, // 30 seconds
+    // Add additional options
+    tls: {
+      rejectUnauthorized: false
+    },
+    pool: true,
+    maxConnections: 1,
+    rateDelta: 20000,
+    rateLimit: 5
+  });
+})();
 
 export async function sendEmail(opts: { to: string; subject: string; html: string; text?: string; category?: string; sandbox?: boolean }) {
-  await transporter.sendMail({
-    from: EMAIL_FROM,
+  console.log('📧 Attempting to send email:', {
     to: opts.to,
     subject: opts.subject,
-    html: opts.html,
-    text: opts.text,
-    // Mailtrap API supports category and sandbox; SMTP will ignore unknown fields
-    category: opts.category,
-    sandbox: typeof opts.sandbox === "boolean" ? opts.sandbox : MAILTRAP_SANDBOX || undefined,
-    headers: opts.category ? { "X-Category": opts.category } : undefined,
+    transporterType: MAILTRAP_TOKEN && !MAILTRAP_USE_SMTP ? 'Mailtrap API' : 
+                    BREVO_USER && BREVO_PASS ? 'Brevo SMTP' : 'Mailtrap SMTP',
+    from: EMAIL_FROM
   });
+  
+  try {
+    const result = await transporter.sendMail({
+      from: EMAIL_FROM,
+      to: opts.to,
+      subject: opts.subject,
+      html: opts.html,
+      text: opts.text,
+      // Mailtrap API supports category and sandbox; SMTP will ignore unknown fields
+      category: opts.category,
+      sandbox: typeof opts.sandbox === "boolean" ? opts.sandbox : MAILTRAP_SANDBOX || undefined,
+      headers: opts.category ? { "X-Category": opts.category } : undefined,
+    });
+    console.log('✅ Email sent successfully:', result);
+  } catch (error) {
+    console.error('❌ Email sending failed:', error);
+    throw error;
+  }
 }
 
 export function inviteEmailTemplate(params: { firstName?: string | null; appUrl: string; token: string; validityHours?: number }) {

@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
   const claim = await prisma.claims.findFirst({
     where: {
       user_id: user.id,
-      status: { in: ["pending", "documents_pending", "documents_submitted"] },
+      status: { in: ["pending", "documents_submitted"] },
     },
     select: {
       id: true,

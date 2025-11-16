@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
     where: {
       business_id,
       user_id: user.id,
-      status: { in: ["pending", "documents_pending"] },
+      status: { in: ["pending"] },
     },
   });
 

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -108,6 +109,7 @@ export function SalonList({
               {showClaimStatus && <TableHead className="w-[20%] px-2 py-2">Revendication</TableHead>}
               <TableHead className="w-[15%] px-2 py-2">Localisation</TableHead>
               <TableHead className="w-[10%] px-2 py-2">Créé le</TableHead>
+              <TableHead className="w-[12%] px-2 py-2 text-right">Statut</TableHead>
               <TableHead className="w-[15%] px-2 py-2 text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -135,10 +137,12 @@ export function SalonList({
                 </TableCell>
               )}
               <TableCell className="px-2 py-2">
-                {salon.business_locations?.[0]?.cities?.name && (
+                {(salon.business_locations?.[0]?.cities?.name || salon.business_locations?.[0]?.address_line1) && (
                   <div className="flex items-center gap-1">
                     <MapPin className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                    <span className="text-sm truncate">{salon.business_locations[0].cities.name}</span>
+                    <span className="text-sm truncate">
+                      {salon.business_locations?.[0]?.cities?.name || salon.business_locations?.[0]?.address_line1}
+                    </span>
                   </div>
                 )}
               </TableCell>
@@ -150,8 +154,25 @@ export function SalonList({
                 )}
               </TableCell>
               <TableCell className="px-2 py-2">
+                <Select 
+                  value={salon.status || 'actif'} 
+                  onValueChange={(value) => onStatusChange(salon.id, value)}
+                >
+                  <SelectTrigger className="w-full h-7 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="actif">Actif</SelectItem>
+                    <SelectItem value="en attente">En attente</SelectItem>
+                    <SelectItem value="inactif">Inactif</SelectItem>
+                    <SelectItem value="suspendu">Suspendu</SelectItem>
+                  </SelectContent>
+                </Select>
+              </TableCell>
+              <TableCell className="px-2 py-2">
                 <div className="flex justify-end gap-1">
-                  {showActions ? (
+                  {showClaimStatus === false ? (
+                    // Show Validate/Reject buttons for pending claims
                     <>
                       <Button 
                         variant="outline" 
@@ -171,31 +192,36 @@ export function SalonList({
                       </Button>
                     </>
                   ) : (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
-                          <MoreVertical className="h-4 w-4" />
-                          <span className="sr-only">Menu</span>
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-40">
-                        <DropdownMenuItem onClick={() => onViewDetails(salon)} className="cursor-pointer">
-                          <Eye className="mr-2 h-4 w-4" />
-                          <span>Voir détails</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => onEdit(salon)} className="cursor-pointer">
-                          <Edit className="mr-2 h-4 w-4" />
-                          <span>Modifier</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem 
-                          onClick={() => onDelete(salon)} 
-                          className="cursor-pointer text-red-600 focus:text-red-600"
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          <span>Supprimer</span>
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    // Show Edit/View/Delete buttons for other tabs
+                    <>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-7 w-7 p-0"
+                        onClick={() => onViewDetails(salon)}
+                      >
+                        <Eye className="h-4 w-4" />
+                        <span className="sr-only">Voir</span>
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-7 w-7 p-0"
+                        onClick={() => onEdit(salon)}
+                      >
+                        <Edit className="h-4 w-4" />
+                        <span className="sr-only">Modifier</span>
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                        onClick={() => onDelete(salon)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        <span className="sr-only">Supprimer</span>
+                      </Button>
+                    </>
                   )}
                 </div>
               </TableCell>

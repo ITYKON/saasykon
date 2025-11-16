@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import Image from "next/image"
+import Link from "next/link"
 import { MapPin, Star, Filter, Info } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { prisma } from "@/lib/prisma"
@@ -102,7 +103,13 @@ export default async function BarbierVillePage({ params }: PageProps) {
                         <span className="text-sm text-gray-500 ml-1">(0 avis)</span>
                       </div>
                     </div>
-                    <Button className="bg-black hover:bg-gray-800 text-white">Prendre RDV</Button>
+                    {(loc.businesses.claim_status === "none" || loc.businesses.claim_status == null) ? (
+                      <Link href={`/claims?business_id=${loc.businesses.id}&business_name=${encodeURIComponent(loc.businesses.public_name || loc.businesses.legal_name || "")}`}>
+                        <Button className="bg-blue-600 hover:bg-blue-700 text-white">Revendiquer</Button>
+                      </Link>
+                    ) : (
+                      <Button className="bg-black hover:bg-gray-800 text-white">Prendre RDV</Button>
+                    )}
                   </div>
 
                   {/* Time Slots */}

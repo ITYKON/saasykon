@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
     updateData.documents_submitted_at = new Date();
     updateData.status = "documents_submitted";
   } else {
-    updateData.status = "documents_pending";
+    updateData.status = "pending";
   }
 
   await prisma.claims.update({
@@ -128,9 +128,13 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  // Create session if password was set
+  // Create session on successful completion
   let sessionResponse = null;
-  if (password) {
+  if (complete_now && hasAllDocuments) {
+    // Always create session when completing successfully
+    sessionResponse = await createSession(claim.user_id);
+  } else if (!complete_now) {
+    // Also create session when saving for later
     sessionResponse = await createSession(claim.user_id);
   }
 
@@ -167,7 +171,7 @@ export async function POST(req: NextRequest) {
   }).catch(() => {});
 
   if (sessionResponse) {
-    return sessionResponse; // Returns { ok: true } with cookies
+    return sessionResponse; // Returns { ok: true } with cookies and redirect handled by middleware
   }
 
   return NextResponse.json({

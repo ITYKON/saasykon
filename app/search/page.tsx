@@ -23,6 +23,7 @@ type Business = {
   cover_url?: string
   rating: number
   reviewCount: number
+  claim_status?: string
   location?: {
     address: string
     city?: string
@@ -346,9 +347,20 @@ export default function SearchPage() {
                           <Button size="sm" className="bg-black hover:bg-gray-800">
                             Offrir
                           </Button>
-                          <Button size="sm" variant="default" className="bg-black hover:bg-gray-800">
-                            Prendre RDV
-                          </Button>
+                          {/* Debug: claim_status = {JSON.stringify(business.claim_status)} */}
+                          {/* Debug: typeof claim_status = {typeof business.claim_status} */}
+                          {/* Debug: claim_status === "none" = {business.claim_status === "none"} */}
+                          {(business.claim_status === "none" || business.claim_status == null) ? (
+                            <Link href={`/claims?business_id=${business.id}&business_name=${encodeURIComponent(business.name)}`}>
+                              <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white">
+                                Revendiquer
+                              </Button>
+                            </Link>
+                          ) : (
+                            <Button size="sm" variant="default" className="bg-black hover:bg-gray-800">
+                              Prendre RDV
+                            </Button>
+                          )}
                         </div>
                       </div>
                     </Card>

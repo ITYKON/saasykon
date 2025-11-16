@@ -112,7 +112,6 @@ export default function AdminClaimsPage() {
   const getStatusBadge = (status: string) => {
     const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
       pending: "outline",
-      documents_pending: "secondary",
       documents_submitted: "default",
       approved: "default",
       rejected: "destructive",
@@ -120,7 +119,6 @@ export default function AdminClaimsPage() {
 
     const labels: Record<string, string> = {
       pending: "En attente",
-      documents_pending: "Documents en attente",
       documents_submitted: "Documents soumis",
       approved: "Approuvé",
       rejected: "Rejeté",

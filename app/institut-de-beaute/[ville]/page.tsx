@@ -1,6 +1,8 @@
+import type { Metadata } from "next"
 import { notFound } from "next/navigation"
-import { MapPin, Star, Filter } from "lucide-react"
+import Image from "next/image"
 import Link from "next/link"
+import { MapPin, Star, Filter, Info } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { prisma } from "@/lib/prisma"
@@ -184,17 +186,25 @@ export default async function CityInstitutePage({ params }: PageProps) {
 
                     {/* CTA Button */}
                     <div className="lg:ml-6">
-                      <Button className="bg-black hover:bg-gray-800 text-white px-6 py-2 w-full lg:w-auto" asChild>
-                        <a
-                          href={`/salon/${buildSalonSlug(
-                            loc.businesses.public_name || loc.businesses.legal_name || "",
-                            loc.businesses.id,
-                            loc.cities?.name || city.name
-                          )}`}
-                        >
-                          Prendre RDV
-                        </a>
-                      </Button>
+                      {(loc.businesses.claim_status === "none" || loc.businesses.claim_status == null) ? (
+                        <Link href={`/claims?business_id=${loc.businesses.id}&business_name=${encodeURIComponent(loc.businesses.public_name || loc.businesses.legal_name || "")}`}>
+                          <Button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 w-full lg:w-auto">
+                            Revendiquer
+                          </Button>
+                        </Link>
+                      ) : (
+                        <Button className="bg-black hover:bg-gray-800 text-white px-6 py-2 w-full lg:w-auto" asChild>
+                          <a
+                            href={`/salon/${buildSalonSlug(
+                              loc.businesses.public_name || loc.businesses.legal_name || "",
+                              loc.businesses.id,
+                              loc.cities?.name || city.name
+                            )}`}
+                          >
+                            Prendre RDV
+                          </a>
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </div>

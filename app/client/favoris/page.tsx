@@ -17,6 +17,7 @@ type Favorite = {
     phone?: string | null
     cover_image_url?: string | null
     city?: string | null
+    claim_status?: string
   }
 }
 
@@ -101,12 +102,20 @@ export default function ClientFavoris() {
               </div>
 
               <div className="flex gap-2">
-                <Button 
-                  className="flex-1 bg-black text-white hover:bg-gray-800"
-                  onClick={() => window.location.href = `/salon/${buildSalonSlug(fav.businesses.name || "", fav.businesses.id, fav.businesses.city)}`}
-                >
-                  Prendre RDV
-                </Button>
+                {(fav.businesses.claim_status === "none" || fav.businesses.claim_status == null) ? (
+                  <Link href={`/claims?business_id=${fav.businesses.id}&business_name=${encodeURIComponent(fav.businesses.name || "")}`}>
+                    <Button className="flex-1 bg-blue-600 text-white hover:bg-blue-700">
+                      Revendiquer
+                    </Button>
+                  </Link>
+                ) : (
+                  <Button 
+                    className="flex-1 bg-black text-white hover:bg-gray-800"
+                    onClick={() => window.location.href = `/salon/${buildSalonSlug(fav.businesses.name || "", fav.businesses.id, fav.businesses.city)}`}
+                  >
+                    Prendre RDV
+                  </Button>
+                )}
                 <Button asChild variant="outline" className="border-black text-black hover:bg-gray-50 bg-transparent">
                   <Link href={`/salon/${buildSalonSlug(fav.businesses.name || "", fav.businesses.id, fav.businesses.city)}`}>Voir profil</Link>
                 </Button>

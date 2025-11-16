@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
     updateData.documents_submitted_at = new Date();
     updateData.status = "documents_submitted";
   } else {
-    updateData.status = "documents_pending";
+    updateData.status = "pending";
   }
 
   await prisma.claims.update({

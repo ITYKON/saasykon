@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
   const claims = await prisma.claims.findMany({
     where: {
       user_id: user.id,
-      status: { in: ["pending", "documents_pending", "documents_submitted"] },
+      status: { in: ["pending", "documents_submitted"] },
     },
     include: {
       businesses: {
