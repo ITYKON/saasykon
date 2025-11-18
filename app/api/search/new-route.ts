@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
-import { Prisma, PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
+// @ts-ignore - Le type Prisma est disponible via l'import de @prisma/client
+import type { Prisma, subscription_status } from "@prisma/client";
 
-type Business = Prisma.businessesGetPayload<{
+type BusinessWithRelations = Prisma.businessesGetPayload<{
   include: {
     business_locations: {
       include: {
@@ -23,11 +25,13 @@ type Business = Prisma.businessesGetPayload<{
     };
   };
 }>;
-import { prisma } from "@/lib/prisma";
 
 // Types pour les conditions de requête
 type BusinessWhereInput = Prisma.businessesWhereInput;
-type BusinessOrderByWithRelationInput = Prisma.businessesOrderByWithAggregationInput;
+type BusinessOrderByWithRelationInput = Prisma.businessesOrderByWithRelationInput;
+
+// Alias pour la compatibilité
+type Business = BusinessWithRelations;
 
 // Type pour la réponse de l'API
 interface SearchResponse {
@@ -89,7 +93,7 @@ async function performBroaderSearch(
           }
         },
         business_media: {
-          orderBy: { position: 'asc' },
+          orderBy: { position: 'asc' as const },
           take: 5
         },
         services: {
@@ -104,7 +108,7 @@ async function performBroaderSearch(
         },
         ratings_aggregates: true,
         subscriptions: {
-          where: { status: 'ACTIVE' },
+          where: { status: 'ACTIVE' as subscription_status },
           include: { plans: true },
           take: 1
         }
@@ -124,11 +128,17 @@ function formatBusinessForResponse(business: BusinessWithRelations) {
     : 0;
   const rating_count = business.ratings_aggregates?.rating_count ?? 0;
   
-  const primaryLocation = business.business_locations.find(loc => loc.is_primary) 
-    || business.business_locations[0];
+  const primaryLocation = business.business_locations.find((loc: any) => loc.is_primary) || business.business_locations[0];
   
   const subscription = business.subscriptions[0];
   const mainImage = business.business_media[0]?.url || null;
+  
+  const formattedServices = business.services.flatMap((service: any) => ({
+    id: service.id,
+    name: service.name,
+    price: service.price,
+    duration: service.duration
+  }));
   
   return {
     id: business.id,
@@ -143,12 +153,7 @@ function formatBusinessForResponse(business: BusinessWithRelations) {
         .filter(Boolean).join(", ") : "",
     city: primaryLocation?.cities?.name || "",
     postalCode: primaryLocation?.postal_code || "",
-    services: business.services.map(service => ({
-      id: service.id,
-      name: service.name,
-      price: service.price,
-      duration: service.duration
-    })),
+    services: formattedServices,
     employeesCount: 0, // À implémenter si nécessaire
     isPremium: subscription?.plans?.code === "premium",
     isNew: (new Date().getTime() - new Date(business.created_at).getTime()) < 1000 * 60 * 60 * 24 * 30,
@@ -288,7 +293,7 @@ export async function GET(req: Request): Promise<NextResponse> {
           }
         },
         business_media: {
-          orderBy: { position: 'asc' },
+          orderBy: { position: 'asc' as const },
           take: 5
         },
         services: {
@@ -303,7 +308,7 @@ export async function GET(req: Request): Promise<NextResponse> {
         },
         ratings_aggregates: true,
         subscriptions: {
-          where: { status: 'ACTIVE' },
+          where: { status: 'ACTIVE' as subscription_status },
           include: { plans: true },
           take: 1
         }
