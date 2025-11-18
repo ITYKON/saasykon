@@ -73,20 +73,8 @@ export default function DocumentUploadPage() {
       }
       
       toast({
-        title: (
-          <div className="flex items-center gap-2">
-            <CheckCircle className="h-5 w-5 text-green-500" />
-            <span>Documents soumis avec succès</span>
-          </div>
-        ),
-        description: (
-          <div className="space-y-1">
-            <p>Vos documents sont en cours de vérification.</p>
-            <p className="text-sm text-muted-foreground">
-              Redirection vers le tableau de bord...
-            </p>
-          </div>
-        ),
+        title: 'Documents soumis avec succès',
+        description: 'Vos documents sont en cours de vérification. Redirection vers le tableau de bord...',
         duration: 2000,
         className: 'border-green-200 bg-green-50',
       });
