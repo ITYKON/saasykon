@@ -71,20 +71,19 @@ export async function POST(req: NextRequest) {
       "services_manage",
       "reports_view",
     ], space: 'pro' },
-    ] },
     { code: "receptionniste", name: "Réceptionniste", permissions: [
       "pro_portal_access",
       "agenda_view",
       "reservations_manage",
-    ] },
+    ], space: 'pro' },
     { code: "praticien", name: "Praticien", permissions: [
       "pro_portal_access",
       "agenda_view",
-    ] },
+    ], space: 'pro' },
     { code: "agent_commercial", name: "Agent commercial", permissions: [
       "pro_portal_access",
       "reports_view",
-    ] },
+    ], space: 'pro' },
     {
       code: "PRO",
       name: "Professionnel",
@@ -96,6 +95,7 @@ export async function POST(req: NextRequest) {
         "services_manage",
         "reports_view",
       ],
+      space: 'pro'
     },
     {
       code: "PROFESSIONNEL",
@@ -109,11 +109,12 @@ export async function POST(req: NextRequest) {
         "reports_view",
         "employees_manage",
       ],
+      space: 'pro'
     },
-    { code: "receptionniste", name: "Réceptionniste", permissions: ["pro_portal_access", "agenda_view", "reservations_manage"] },
-    { code: "praticien", name: "Praticien", permissions: ["pro_portal_access", "agenda_view"] },
-    { code: "gestion_clients", name: "Gestion clients", permissions: ["pro_portal_access", "clients_manage"] },
-    { code: "agent_commercial", name: "Agent commercial", permissions: ["pro_portal_access", "reports_view"] },
+    { code: "receptionniste", name: "Réceptionniste", permissions: ["pro_portal_access", "agenda_view", "reservations_manage"], space: 'pro' },
+    { code: "praticien", name: "Praticien", permissions: ["pro_portal_access", "agenda_view"], space: 'pro' },
+    { code: "gestion_clients", name: "Gestion clients", permissions: ["pro_portal_access", "clients_manage"], space: 'pro' },
+    { code: "agent_commercial", name: "Agent commercial", permissions: ["pro_portal_access", "reports_view"], space: 'pro' },
   ];
 
   await prisma.$transaction(async (tx) => {
@@ -121,9 +122,9 @@ export async function POST(req: NextRequest) {
     for (const p of PERMS) {
       const existing = await tx.permissions.findUnique({ where: { code: p.code } });
       if (existing) {
-        await tx.permissions.update({ where: { code: p.code }, data: { description: p.description, space: p.space as any } });
+        await tx.permissions.update({ where: { code: p.code }, data: { description: p.description } });
       } else {
-        await tx.permissions.create({ data: { code: p.code, description: p.description, space: p.space as any } });
+        await tx.permissions.create({ data: { code: p.code, description: p.description } });
       }
     }
 
@@ -131,8 +132,8 @@ export async function POST(req: NextRequest) {
     for (const r of ROLES) {
       const role = await tx.roles.upsert({
         where: { code: r.code },
-        update: { name: r.name, space: r.space as any },
-        create: { code: r.code, name: r.name, space: r.space as any },
+        update: { name: r.name },
+        create: { code: r.code, name: r.name },
       });
       // clear existing links
       await tx.role_permissions.deleteMany({ where: { role_id: role.id } });
