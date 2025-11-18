@@ -5,18 +5,38 @@
  * Usage: npx tsx scripts/fix-claim-status.ts
  */
 
-import { PrismaClient } from "@prisma/client";
+// Utilisation de l'instance prisma du projet
+import { prisma } from '../lib/prisma';
 
-const prisma = new PrismaClient();
+// Vérification de la connexion à la base de données
+async function checkConnection() {
+  try {
+    await prisma.$connect();
+    console.log("✅ Connecté à la base de données");
+    return true;
+  } catch (error) {
+    console.error("❌ Erreur de connexion à la base de données:", error);
+    return false;
+  }
+}
 
 async function fixClaimStatus() {
+  console.log("🔍 Vérification de la connexion à la base de données...");
+  const isConnected = await checkConnection();
+  
+  if (!isConnected) {
+    console.error("❌ Impossible de se connecter à la base de données. Arrêt du script.");
+    return;
+  }
+
   console.log("🔍 Recherche des salons avec des claims approuvés...");
 
-  // Trouver tous les claims approuvés
-  const approvedClaims = await prisma.claims.findMany({
-    where: {
-      status: "approved",
-    },
+  try {
+    // Trouver tous les claims approuvés
+    const approvedClaims = await prisma.claims.findMany({
+      where: {
+        status: "approved",
+      },
     select: {
       id: true,
       business_id: true,
@@ -86,49 +106,62 @@ async function fixClaimStatus() {
       },
     });
 
-    console.log(`📋 Trouvé ${businessesWithRealOwner.length} salons avec owner réel mais claim_status = 'none'`);
+      console.log(`📋 Trouvé ${businessesWithRealOwner.length} salons avec owner réel mais claim_status = 'none'`);
 
     let fixed = 0;
     for (const business of businessesWithRealOwner) {
-      // Vérifier s'il y a un claim approuvé pour ce business
-      const approvedClaim = await prisma.claims.findFirst({
-        where: {
-          business_id: business.id,
-          status: "approved",
-        },
-      });
+      try {
+        // Vérifier s'il y a un claim approuvé pour ce business
+        const approvedClaim = await prisma.claims.findFirst({
+          where: {
+            business_id: business.id,
+            status: "approved",
+          },
+        });
 
-      if (approvedClaim) {
-        // Mettre à jour à "approved"
-        await prisma.businesses.update({
-          where: { id: business.id },
-          data: {
-            claim_status: "approved",
-            updated_at: new Date(),
-          },
-        });
-        fixed++;
-        console.log(`✅ Business ${business.id} (${business.public_name}) mis à jour: claim_status = "approved"`);
-      } else {
-        // Sinon, mettre à "not_claimable" car il a déjà un propriétaire
-        await prisma.businesses.update({
-          where: { id: business.id },
-          data: {
-            claim_status: "not_claimable",
-            updated_at: new Date(),
-          },
-        });
-        fixed++;
-        console.log(`✅ Business ${business.id} (${business.public_name}) mis à jour: claim_status = "not_claimable"`);
+        if (approvedClaim) {
+          // Mettre à jour à "approved"
+          await prisma.businesses.update({
+            where: { id: business.id },
+            data: {
+              claim_status: "approved",
+              updated_at: new Date(),
+            },
+          });
+          fixed++;
+          console.log(`✅ Business ${business.id} (${business.public_name}) mis à jour: claim_status = "approved"`);
+        } else {
+          // Sinon, mettre à "not_claimable" car il a déjà un propriétaire
+          await prisma.businesses.update({
+            where: { id: business.id },
+            data: {
+              claim_status: "not_claimable",
+              updated_at: new Date(),
+            },
+          });
+          fixed++;
+          console.log(`✅ Business ${business.id} (${business.public_name}) mis à jour: claim_status = "not_claimable"`);
+        }
+      } catch (error) {
+        console.error(`❌ Erreur lors du traitement du business ${business.id}:`, error);
       }
     }
 
     console.log(`\n✅ ${fixed} salons corrigés`);
   }
-
+} catch (error) {
+  console.error("❌ Une erreur est survenue lors de la mise à jour des statuts:", error);
+  throw error; // Propager l'erreur pour qu'elle soit gérée par le bloc catch externe
+} finally {
+  // S'assurer que la connexion à la base de données est fermée
+  await prisma.$disconnect().catch(e => {
+    console.error("❌ Erreur lors de la fermeture de la connexion:", e);
+  });
   console.log("\n✨ Correction terminée!");
 }
+} // Added missing closing brace
 
+// Appel de la fonction principale
 fixClaimStatus()
   .catch((e) => {
     console.error("❌ Erreur:", e);
@@ -137,4 +170,3 @@ fixClaimStatus()
   .finally(async () => {
     await prisma.$disconnect();
   });
-
