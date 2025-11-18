@@ -72,11 +72,9 @@ export async function POST(
         business_id: businessId,
         current_owner_id: auth.userId,
         new_owner_id: newOwner.id,
-        documents: {
-          idDocumentFront: documents.idDocumentFront,
-          idDocumentBack: documents.idDocumentBack,
-          proofOfOwnership: documents.proofOfOwnership,
-        },
+        id_document_front_url: documents.idDocumentFront,
+        id_document_back_url: documents.idDocumentBack,
+        proof_of_ownership_url: documents.proofOfOwnership,
       },
     });
 
