@@ -1,6 +1,5 @@
 import { prisma } from './prisma';
 import { sendEmail } from './email';
-import { Prisma } from '@prisma/client';
 
 export async function sendDocumentReminders() {
   try {
@@ -10,27 +9,9 @@ export async function sendDocumentReminders() {
     sevenDaysFromNow.setDate(now.getDate() + 1); // Demain pour les rappels quotidiens
 
     // Définir le type pour l'inclusion des utilisateurs
-    const businessWithUsers = Prisma.validator<Prisma.businessesDefaultArgs>()({
-      include: {
-        owner: {
-          include: {
-            user: true
-          }
-        },
-        business_verifications: {
-          orderBy: {
-            created_at: 'desc'
-          },
-          take: 1
-        }
-      }
-    });
-
-    type BusinessWithUsers = Prisma.businessesGetPayload<typeof businessWithUsers>;
-
     const businessesNeedingReminder = await prisma.businesses.findMany({
       where: {
-        verification_status: 'PENDING',
+        verification_status: 'pending',
         trial_ends_at: {
           gte: now, // Seulement si la période d'essai n'est pas encore terminée
           lte: sevenDaysFromNow // Seulement si la période d'essai se termine bientôt
@@ -41,12 +22,7 @@ export async function sendDocumentReminders() {
         }
       },
       include: {
-        users: {
-          include: {
-            users: true
-          },
-          take: 1 // Prendre le premier utilisateur propriétaire
-        },
+        users_businesses_owner_user_idTousers: true,
         business_verifications: {
           orderBy: {
             created_at: 'desc'
@@ -56,8 +32,8 @@ export async function sendDocumentReminders() {
       }
     });
 
-    for (const business of businessesNeedingReminder as BusinessWithUsers[]) {
-      const user = business.owner?.user;
+    for (const business of businessesNeedingReminder) {
+      const user = business.users_businesses_owner_user_idTousers;
       if (!user) continue;
 
       const trialEndsAt = business.trial_ends_at ? new Date(business.trial_ends_at) : null;
@@ -75,13 +51,15 @@ export async function sendDocumentReminders() {
       await prisma.notifications.create({
         data: {
           user_id: user.id,
-          message: `Il vous reste ${daysLeft} jour(s) pour soumettre vos documents.`,
+          business_id: business.id,
           type: 'DOCUMENT_REMINDER',
-          read: false,
-          metadata: {
+          is_read: false,
+          payload: {
+            title: 'Rappel de documents',
+            message: `Il vous reste ${daysLeft} jour(s) pour soumettre vos documents.`,
             businessId: business.id,
             daysRemaining: daysLeft
-          } as Prisma.InputJsonValue
+          }
         }
       });
 
@@ -146,60 +124,58 @@ export async function checkAndBlockExpiredAccounts() {
     const now = new Date();
     
     // Trouver les entreprises dont la période de 7 jours est écoulée sans soumission de documents
-    const expiredBusinesses = await prisma.businesses.findMany({
+    const businesses = await prisma.businesses.findMany({
       where: {
-        verification_status: 'PENDING',
+        verification_status: 'pending',
         trial_ends_at: {
           lt: now
-        }
+        },
+        status: 'active'
       },
       include: {
-        owner: {
-          include: {
-            user: true
-          }
-        }
+        users_businesses_owner_user_idTousers: true
       }
     });
 
-    for (const business of expiredBusinesses) {
-      // Mettre à jour le statut de l'entreprise à BLOQUÉ
+    for (const business of businesses) {
+      // Mettre à jour le statut de l'entreprise
       await prisma.businesses.update({
         where: { id: business.id },
-        data: { 
-          verification_status: 'REJECTED',
-          is_active: false
+        data: {
+          status: 'pending_verification', // Utilisation d'une valeur valide de l'enum business_status
+          verification_status: 'rejected',
+          updated_at: now
         }
       });
 
-      // Envoyer un email à l'utilisateur propriétaire
-      if (business.owner?.user) {
-        const user = business.owner.user;
-        
-        // Envoyer un email de notification
+      // Notifier l'utilisateur
+      const owner = business.users_businesses_owner_user_idTousers;
+      if (owner) {
         await sendAccountBlockedEmail(
-          user.email, 
-          user.first_name || 'Cher client', 
-          business.public_name || 'votre entreprise'
+          owner.email,
+          owner.first_name || 'Cher client',
+          business.public_name
         );
-        
+
         // Créer une notification
         await prisma.notifications.create({
           data: {
-            user_id: user.id,
-            message: 'Votre compte a été bloqué en raison du non-respect des délais de soumission des documents.',
-            type: 'ACCOUNT_BLOCKED',
-            read: false,
-            metadata: {
+            user_id: owner.id,
+            business_id: business.id,
+            type: 'ACCOUNT_SUSPENDED',
+            is_read: false,
+            payload: {
+              title: 'Compte suspendu',
+              message: 'Votre compte a été suspendu en raison de documents manquants.',
               businessId: business.id,
-              reason: 'Documents non soumis dans les délais'
-            } as Prisma.InputJsonValue
+              reason: 'Documents manquants après la période d\'essai'
+            }
           }
         });
       }
     }
 
-    return { success: true, blockedCount: expiredBusinesses.length };
+    return { success: true, blockedCount: businesses.length };
   } catch (error) {
     console.error('Erreur lors de la vérification des comptes expirés:', error);
     return { success: false, error };
