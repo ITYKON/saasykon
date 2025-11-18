@@ -7,8 +7,7 @@
     "dev": "next dev",
     "lint": "next lint",
     "start": "next start",
-    "seed:plans": "node -r dotenv/config scripts/seed-plans.js",
-    "vercel-build": "prisma generate && next build"
+    "seed:plans": "node -r dotenv/config scripts/seed-plans.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
