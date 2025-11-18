@@ -20,7 +20,7 @@ export async function GET() {
         id: true,
         public_name: true,
         legal_name: true,
-        users: { select: { first_name: true, last_name: true, email: true } },
+        users_businesses_owner_user_idTousers: { select: { first_name: true, last_name: true, email: true } },
       },
       orderBy: { created_at: "desc" },
       take: 50,
