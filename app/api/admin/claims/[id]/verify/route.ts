@@ -107,7 +107,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       await prisma.business_verifications.update({
         where: { id: verification.id },
         data: {
-          status: "approved" as const,
+          status: "verified" as const,
           reviewed_by: auth.userId,
           reviewed_at: new Date(),
           notes: notes || null,
@@ -122,7 +122,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
           rc_document_url: claim.rc_document_url || null,
           id_document_front_url: claim.id_document_front_url || null,
           id_document_back_url: claim.id_document_back_url || null,
-          status: "approved" as const,
+          status: "verified" as const,
           reviewed_by: auth.userId,
           reviewed_at: new Date(),
           notes: notes || null,
