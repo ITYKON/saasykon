@@ -19,7 +19,7 @@ export async function POST(
       where: { id: businessId },
       select: {
         owner_user_id: true,
-        converted_from_lead_id: true,
+        converted_from_lead: true,
         legal_name: true,
       },
     });
@@ -40,7 +40,7 @@ export async function POST(
     }
 
     // Vérifier si le salon vient d'un lead
-    if (business.converted_from_lead_id) {
+    if (business.converted_from_lead) {
       return NextResponse.json(
         { error: "Ce salon a été créé via un lead et ne peut pas être revendiqué" },
         { status: 400 }
