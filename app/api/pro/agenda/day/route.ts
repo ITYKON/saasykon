@@ -113,7 +113,7 @@ export async function GET(req: NextRequest) {
     const employeeName = r.employees?.full_name || "Aucun";
     const duration = r.reservation_items.reduce((s: number, it: any) => s + (it.duration_minutes ?? it.service_variants?.duration_minutes ?? 0), 0);
     const price = r.reservation_items.reduce((s: number, it: any) => s + (it.price_cents ?? it.service_variants?.price_cents ?? 0), 0);
-    const titleParts = r.reservation_items.map((it) => {
+    const titleParts = r.reservation_items.map((it: { services?: { name: string }, service_variants?: { name: string } }) => {
       const sname = it.services?.name || "Service";
       const vname = it.service_variants?.name ? ` - ${it.service_variants.name}` : "";
       return sname + vname;
