@@ -64,7 +64,7 @@ export async function GET(request: Request) {
             orderBy: [{ deleted_at: "desc" }, { archived_at: "desc" }],
             skip,
             take,
-            include: { users: true }, // owner
+            include: { users_businesses_owner_user_idTousers: true }, // owner
           }),
           prisma.businesses.count({ where }),
         ]);
