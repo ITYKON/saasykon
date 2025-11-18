@@ -84,6 +84,7 @@ export default function ProAgenda() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
   const [search, setSearch] = useState("");
+  const [servicesText, setServicesText] = useState<string>(""); // Déclaration manquante ajoutée
   const [step, setStep] = useState<15 | 30>(15);
   const [availabilityOpen, setAvailabilityOpen] = useState(false);
   const [hideEmpty, setHideEmpty] = useState(false);
