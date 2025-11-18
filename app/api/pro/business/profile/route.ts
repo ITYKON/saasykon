@@ -4,6 +4,8 @@ import { getAuthUserFromCookies } from '@/lib/auth';
 import { getAuthContext } from '@/lib/authorization';
 import { logger } from '@/lib/logger';
 
+const defaultCountryCode = 'DZ';
+
 export async function GET() {
   try {
     // Auth: accepter owner OU utilisateur assigné (PRO/PROFESSIONNEL)
@@ -250,64 +252,184 @@ export async function PUT(request: Request) {
         }
       }
 
-      // 2. Résoudre la ville selon notation des wilayas (Algérie)
-      //    - Si la valeur fournie est un code wilaya (ex: "06"), on résout via wilaya_number
-      //    - Sinon on résout via le nom de ville normalisé (slug)
-      const norm = (s: string) => s
+      // Vérifier si le pays est défini, sinon utiliser l'Algérie par défaut
+      if (!country) {
+        logger.warn('Aucun pays trouvé, utilisation de l\'Algérie comme pays par défaut');
+        country = await prisma.countries.findFirst({
+          where: { code: 'DZ' }
+        });
+      }
+      
+      // On s'assure que country n'est pas null après cette étape
+      if (!country) {
+        throw new Error('Impossible de déterminer le pays pour cette adresse');
+      }
+      
+      // Maintenant que nous sommes sûrs que country n'est pas null, on peut l'utiliser
+      let safeCountry = country;
+      
+      // Vérifier à nouveau avant utilisation
+      if (!safeCountry) {
+        logger.warn('Aucun pays trouvé, utilisation de l\'Algérie comme pays par défaut');
+        const defaultCountry = await prisma.countries.findFirst({
+          where: { code: 'DZ' }
+        });
+        if (!defaultCountry) {
+          throw new Error('Impossible de trouver le pays par défaut (DZ)');
+        }
+        safeCountry = defaultCountry;
+      }
+
+      // 3. Résoudre la ville selon notation des wilayas (Algérie)
+      //    - Si la valeur fournie est un code wilaya (ex: "06"), on résoud via wilaya_number
+      //    - Sinon on résoud via le nom de ville normalisé (slug)
+      
+      // Interface pour représenter une ville
+      interface City {
+        id?: number;
+        name: string;
+        wilaya_number: number | null;
+        country_code: string;
+      }
+
+      // Fonction utilitaire pour normaliser les chaînes (suppression des accents, etc.)
+      const normalizeString = (s: string) => String(s || '')
         .toLowerCase()
         .normalize('NFD')
         .replace(/\p{Diacritic}/gu, '')
         .trim();
 
-      const rawCity = String(address.city || '').trim();
-      const numericWilayaMatch = rawCity.match(/^\d{1,2}$/); // ex: "06", "6"
-      let city = null as any;
+      // Fonction utilitaire pour créer une ville
+      const createCity = (data: {
+        name: string;
+        wilaya_number?: number | null;
+        country_code?: string;
+      }): City => ({
+        name: data.name,
+        wilaya_number: data.wilaya_number ?? null,
+        country_code: data.country_code || defaultCountryCode
+      });
 
+      // Récupérer et nettoyer le nom de la ville
+      const rawCity = String(address?.city || '').trim();
+      const numericWilayaMatch = rawCity.match(/^\d{1,2}$/);
+      let city: City | null = null;
+      
+      // S'assurer que safeCountry est défini
+      if (!safeCountry) {
+        logger.warn('Aucun pays trouvé, utilisation de l\'Algérie comme pays par défaut');
+        safeCountry = await prisma.countries.findFirst({
+          where: { code: defaultCountryCode }
+        }) || { code: defaultCountryCode, name: 'Algérie' };
+      }
+
+      // 1. Recherche par code wilaya si c'est un nombre
       if (numericWilayaMatch) {
         const wilayaNum = parseInt(rawCity, 10);
-        // contrainte simple: 1..58
-        if (!Number.isFinite(wilayaNum) || wilayaNum < 1 || wilayaNum > 58) {
-          logger.warn(`Code wilaya invalide: ${rawCity}, utilisation de la ville par défaut`);
-          // Au lieu de retourner une erreur, on utilise une ville par défaut
-          city = await prisma.cities.findFirst({
-            where: { country_code: country.code },
-            orderBy: { name: 'asc' },
+        
+        // Valider le numéro de wilaya (1-58 pour l'Algérie)
+        if (wilayaNum >= 1 && wilayaNum <= 58) {
+          const foundCity = await prisma.cities.findFirst({
+            where: { 
+              country_code: safeCountry?.code || defaultCountryCode, 
+              wilaya_number: wilayaNum 
+            }
+          });
+
+          if (foundCity) {
+            city = createCity({
+              name: foundCity.name,
+              wilaya_number: foundCity.wilaya_number,
+              country_code: safeCountry?.code || defaultCountryCode
+            });
+          } else {
+            // Si pas de correspondance exacte, créer une ville par défaut
+            city = createCity({
+              name: `Wilaya ${wilayaNum}`,
+              wilaya_number: wilayaNum,
+              country_code: safeCountry?.code || defaultCountryCode
+            });
+          }
+        }
+      }
+
+      // 2. Si pas trouvé par code wilaya, essayer par nom
+      if (!city && rawCity) {
+        // Essayer d'abord une recherche exacte
+        let foundCity = await prisma.cities.findFirst({
+          where: {
+            country_code: safeCountry?.code || defaultCountryCode,
+            name: { equals: rawCity, mode: 'insensitive' }
+          }
+        });
+
+        // Si pas trouvé, essayer une recherche partielle
+        if (!foundCity) {
+          foundCity = await prisma.cities.findFirst({
+            where: {
+              country_code: safeCountry?.code || defaultCountryCode,
+              name: { contains: rawCity, mode: 'insensitive' }
+            },
+            orderBy: { name: 'asc' }
+          });
+        }
+
+        if (foundCity) {
+          city = createCity({
+            name: foundCity.name,
+            wilaya_number: foundCity.wilaya_number,
+            country_code: safeCountry?.code || defaultCountryCode
           });
         } else {
-          city = await prisma.cities.findFirst({
-            where: { country_code: country.code, wilaya_number: wilayaNum },
+          // Créer une nouvelle entrée de ville
+          city = createCity({
+            name: rawCity,
+            wilaya_number: null,
+            country_code: safeCountry?.code || defaultCountryCode
           });
         }
-      } 
-      
-      // Si pas de ville trouvée ou pas de correspondance, on essaie avec le nom de la ville
-      if (!city && rawCity) {
-        // Recherche par nom normalisé (fallback exact puis approx.)
-        city = await prisma.cities.findFirst({
-          where: { country_code: country.code, name: rawCity },
-        });
-        if (!city) {
-          const allCities = await prisma.cities.findMany({ where: { country_code: country.code } });
-          const targetSlug = norm(rawCity);
-          city = allCities.find((c: any) => norm(c.name) === targetSlug) || null;
-        }
       }
-      
-      // Si toujours pas de ville, on prend la première ville du pays
+
+      // 3. Fallback si aucune ville n'est trouvée
       if (!city) {
-        logger.warn('Aucune ville valide fournie, utilisation de la première ville du pays');
-        city = await prisma.cities.findFirst({
-          where: { country_code: country.code },
-          orderBy: { name: 'asc' },
+        logger.warn('Aucune ville valide fournie, utilisation de la capitale par défaut');
+        city = createCity({
+          name: safeCountry?.name || 'Alger',
+          wilaya_number: safeCountry?.code === 'DZ' ? 16 : null,
+          country_code: safeCountry?.code || defaultCountryCode
         });
       }
       
-      // 3. Vérifier si une adresse principale existe déjà
+      // 4. Créer ou mettre à jour l'adresse de l'entreprise
       const existingLocation = await prisma.business_locations.findFirst({
-        where: { business_id: updatedBusiness.id, is_primary: true },
+        where: { business_id: business.id, is_primary: true },
       });
       
       logger.debug(existingLocation ? 'Mise à jour de l\'adresse existante' : 'Création d\'une nouvelle adresse');
+      
+      // Vérifier que la ville est bien définie
+      if (!city) {
+        throw new Error('Impossible de déterminer la ville pour cette adresse');
+      }
+      
+      // Rechercher d'abord une ville existante par nom et code pays
+      let dbCity = await prisma.cities.findFirst({
+        where: { 
+          name: city.name,
+          country_code: city.country_code || defaultCountryCode
+        }
+      });
+      
+      // Si la ville n'existe pas, la créer
+      if (!dbCity) {
+        dbCity = await prisma.cities.create({
+          data: {
+            name: city.name,
+            wilaya_number: city.wilaya_number,
+            country_code: city.country_code || defaultCountryCode
+          }
+        });
+      }
 
       if (existingLocation) {
         // Mettre à jour l'adresse existante
@@ -332,7 +454,7 @@ export async function PUT(request: Request) {
             address_line1: address.line1,
             address_line2: address.line2 || null,
             postal_code: address.postalCode || null,
-            city_id: city.id,
+            city_id: dbCity.id,
             country_code: country.code,
             latitude: address.latitude ? parseFloat(address.latitude) : null,
             longitude: address.longitude ? parseFloat(address.longitude) : null,
