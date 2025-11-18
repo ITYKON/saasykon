@@ -244,8 +244,7 @@ export async function GET(req: Request): Promise<NextResponse> {
       };
     });
 
-<<<<<<< HEAD
-      // Construction de la réponse
+// Construction de la réponse
       const responseData = {
         businesses: formattedResults,
         total,
@@ -257,20 +256,6 @@ export async function GET(req: Request): Promise<NextResponse> {
       console.log(`Recherche terminée: ${formattedResults.length} résultats sur ${total}`);
       
       return NextResponse.json(responseData);
-=======
-    // Construction de la réponse
-    const responseData = {
-      businesses: formattedResults,
-      total,
-      page,
-      pageSize,
-      totalPages: Math.ceil(total / pageSize)
-    };
-    
-    console.log(`Recherche terminée: ${formattedResults.length} résultats sur ${total}`);
-    
-    return NextResponse.json(responseData);
->>>>>>> 2c37b9c22c02e834d65626dd1dd0cb46d6106c6e
   } catch (error) {
     console.error('Erreur lors de la récupération des résultats:', error);
     return NextResponse.json(
