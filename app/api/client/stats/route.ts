@@ -113,7 +113,7 @@ export async function GET() {
     topServices.map(async (item) => {
       const service = await prisma.services.findUnique({
         where: { id: item.service_id },
-        select: { id: true, name: true, category: true }
+        select: { id: true, name: true, category_id: true }
       })
       return {
         service,
