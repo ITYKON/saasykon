@@ -61,7 +61,7 @@ export default function AdminLayout({
               .filter((item) => isAdmin || !item.permission || permissions.includes(item.permission))
               .map((item) => {
                 const Icon = item.icon as any;
-                const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+                const isActive = pathname ? (pathname === item.href || pathname.startsWith(item.href + "/")) : false;
                 return (
                   <Link
                     key={item.name}
