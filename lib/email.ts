@@ -1,15 +1,15 @@
 import * as nodemailer from "nodemailer";
-import { MailtrapTransport } from "mailtrap";
+// import { MailtrapTransport } from "mailtrap";
 
 // Mailtrap configuration
-const MAILTRAP_HOST = process.env.MAILTRAP_HOST || "sandbox.smtp.mailtrap.io";
-const MAILTRAP_PORT = Number(process.env.MAILTRAP_PORT || 2525);
-const MAILTRAP_USER = process.env.MAILTRAP_USER || "";
-const MAILTRAP_PASS = process.env.MAILTRAP_PASS || "";
-const MAILTRAP_TOKEN = process.env.MAILTRAP_TOKEN || "";
-const MAILTRAP_USE_SMTP = process.env.MAILTRAP_USE_SMTP !== "false"; // Default to API, fallback to SMTP
-const MAILTRAP_TEST_INBOX_ID = process.env.MAILTRAP_TEST_INBOX_ID ? Number(process.env.MAILTRAP_TEST_INBOX_ID) : undefined;
-const MAILTRAP_SANDBOX = process.env.MAILTRAP_SANDBOX === "true";
+// const MAILTRAP_HOST = process.env.MAILTRAP_HOST || "sandbox.smtp.mailtrap.io";
+// const MAILTRAP_PORT = Number(process.env.MAILTRAP_PORT || 2525);
+// const MAILTRAP_USER = process.env.MAILTRAP_USER || "";
+// const MAILTRAP_PASS = process.env.MAILTRAP_PASS || "";
+// const MAILTRAP_TOKEN = process.env.MAILTRAP_TOKEN || "";
+// const MAILTRAP_USE_SMTP = process.env.MAILTRAP_USE_SMTP !== "false"; // Default to API, fallback to SMTP
+// const MAILTRAP_TEST_INBOX_ID = process.env.MAILTRAP_TEST_INBOX_ID ? Number(process.env.MAILTRAP_TEST_INBOX_ID) : undefined;
+// const MAILTRAP_SANDBOX = process.env.MAILTRAP_SANDBOX === "true";
 
 // Brevo (Sendinblue) configuration - fallback option
 const BREVO_HOST = process.env.BREVO_HOST || "smtp-relay.brevo.com";
