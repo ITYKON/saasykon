@@ -1,78 +1,62 @@
-import * as nodemailer from "nodemailer";
-// import { MailtrapTransport } from "mailtrap";
+import nodemailer from "nodemailer";
 
-// Mailtrap configuration
-// const MAILTRAP_HOST = process.env.MAILTRAP_HOST || "sandbox.smtp.mailtrap.io";
-// const MAILTRAP_PORT = Number(process.env.MAILTRAP_PORT || 2525);
-// const MAILTRAP_USER = process.env.MAILTRAP_USER || "";
-// const MAILTRAP_PASS = process.env.MAILTRAP_PASS || "";
-// const MAILTRAP_TOKEN = process.env.MAILTRAP_TOKEN || "";
-// const MAILTRAP_USE_SMTP = process.env.MAILTRAP_USE_SMTP !== "false"; // Default to API, fallback to SMTP
-// const MAILTRAP_TEST_INBOX_ID = process.env.MAILTRAP_TEST_INBOX_ID ? Number(process.env.MAILTRAP_TEST_INBOX_ID) : undefined;
-// const MAILTRAP_SANDBOX = process.env.MAILTRAP_SANDBOX === "true";
+// Mailtrap SMTP configuration
+const MAILTRAP_HOST = process.env.MAILTRAP_HOST || "sandbox.smtp.mailtrap.io";
+const MAILTRAP_PORT = Number(process.env.MAILTRAP_PORT || 2525);
+const MAILTRAP_USER = process.env.MAILTRAP_USER || "";
+const MAILTRAP_PASS = process.env.MAILTRAP_PASS || "";
+const MAILTRAP_TEST_TO = process.env.MAILTRAP_TEST_TO || "";
 
-// Brevo (Sendinblue) configuration - fallback option
-const BREVO_HOST = process.env.BREVO_HOST || "smtp-relay.brevo.com";
-const BREVO_PORT = Number(process.env.BREVO_PORT || 587);
-const BREVO_USER = process.env.BREVO_USER || "";
-const BREVO_PASS = process.env.BREVO_PASS || "";
-
+// Email configuration
 const EMAIL_FROM = process.env.EMAIL_FROM || "no-reply@example.com";
 
-// Create transporter with fallback chain
-export const transporter = (() => {
-  // Try Mailtrap API first
-  if (MAILTRAP_TOKEN && !MAILTRAP_USE_SMTP) {
-    console.log('📧 Using Mailtrap API');
-    return nodemailer.createTransport(
-      MailtrapTransport({ token: MAILTRAP_TOKEN, testInboxId: MAILTRAP_TEST_INBOX_ID })
-    );
-  }
-  
-  // Try Brevo if configured
-  if (BREVO_USER && BREVO_PASS) {
-    console.log('📧 Using Brevo SMTP');
-    return nodemailer.createTransport({
-      host: BREVO_HOST,
-      port: BREVO_PORT,
-      secure: false,
-      auth: {
-        user: BREVO_USER,
-        pass: BREVO_PASS,
-      },
-    });
-  }
-  
-  // Fallback to Mailtrap SMTP with increased timeouts
-  console.log('📧 Using Mailtrap SMTP (with increased timeouts)');
-  return nodemailer.createTransport({
-    host: MAILTRAP_HOST,
-    port: MAILTRAP_PORT,
-    auth: {
-      user: MAILTRAP_USER,
-      pass: MAILTRAP_PASS,
-    },
-    // Increased timeout settings for better reliability
-    connectionTimeout: 30000, // 30 seconds
-    greetingTimeout: 15000, // 15 seconds
-    socketTimeout: 30000, // 30 seconds
-    // Add additional options
-    tls: {
-      rejectUnauthorized: false
-    },
-    pool: true,
-    maxConnections: 1,
-    rateDelta: 20000,
-    rateLimit: 5
-  });
-})();
+// Create a test email transporter
+const transporter = nodemailer.createTransport({
+  host: MAILTRAP_HOST,
+  port: MAILTRAP_PORT,
+  secure: false, // true for 465, false for other ports
+  auth: {
+    user: MAILTRAP_USER,
+    pass: MAILTRAP_PASS,
+  },
+  tls: {
+    // Do not fail on invalid certs
+    rejectUnauthorized: false
+  },
+  pool: true,
+  maxConnections: 1,
+  rateDelta: 20000
+});
 
+// Function to send a test email
+export async function sendTestEmail() {
+  try {
+    const info = await transporter.sendMail({
+      from: EMAIL_FROM,
+      to: MAILTRAP_TEST_TO || "test@example.com",
+      subject: "Test Email from SaaS YKON",
+      text: "This is a test email sent from SaaS YKON application.",
+      html: `
+        <h1>Test Email</h1>
+        <p>This is a test email sent from SaaS YKON application.</p>
+        <p>If you're seeing this, email sending is working correctly!</p>
+        <p>Sent at: ${new Date().toISOString()}</p>
+      `,
+    });
+
+    console.log("Test email sent:", info.messageId);
+    return { success: true, messageId: info.messageId };
+  } catch (error) {
+    console.error("Error sending test email:", error);
+    throw error;
+  }
+}
+
+// Function to send a generic email
 export async function sendEmail(opts: { to: string; subject: string; html: string; text?: string; category?: string; sandbox?: boolean }) {
   console.log('📧 Attempting to send email:', {
     to: opts.to,
     subject: opts.subject,
-    transporterType: MAILTRAP_TOKEN && !MAILTRAP_USE_SMTP ? 'Mailtrap API' : 
-                    BREVO_USER && BREVO_PASS ? 'Brevo SMTP' : 'Mailtrap SMTP',
     from: EMAIL_FROM
   });
   
@@ -84,8 +68,6 @@ export async function sendEmail(opts: { to: string; subject: string; html: strin
       html: opts.html,
       text: opts.text,
       // Mailtrap API supports category and sandbox; SMTP will ignore unknown fields
-      category: opts.category,
-      sandbox: typeof opts.sandbox === "boolean" ? opts.sandbox : MAILTRAP_SANDBOX || undefined,
       headers: opts.category ? { "X-Category": opts.category } : undefined,
     });
     console.log('✅ Email sent successfully:', result);
@@ -95,20 +77,29 @@ export async function sendEmail(opts: { to: string; subject: string; html: strin
   }
 }
 
-export function inviteEmailTemplate(params: { firstName?: string | null; appUrl: string; token: string; validityHours?: number }) {
+export function inviteEmailTemplate(params: { 
+  firstName?: string | null; 
+  appUrl: string; 
+  token: string; 
+  validityHours?: number 
+}) {
   const validity = params.validityHours ?? 24;
   const url = `${params.appUrl.replace(/\/$/, "")}/auth/invite?token=${encodeURIComponent(params.token)}`;
   const greeting = params.firstName ? `Bonjour ${params.firstName},` : "Bonjour,";
   const text = `${greeting}\n\nVotre compte est prêt. Cliquez pour activer et définir votre mot de passe : ${url}\n\nCe lien est valable ${validity}h.`;
+  
   const html = `
   <div style="font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height:1.5;">
     <p>${greeting}</p>
     <p>Votre compte est prêt. Cliquez pour activer et définir votre mot de passe.</p>
     <p style="margin:24px 0;">
-      <a href="${url}" style="display:inline-block;padding:12px 16px;background:#111;color:#fff;text-decoration:none;border-radius:8px;">Activer mon compte</a>
+      <a href="${url}" style="display:inline-block;padding:12px 16px;background:#111;color:#fff;text-decoration:none;border-radius:8px;">
+        Activer mon compte
+      </a>
     </p>
     <p>Ce lien est valable ${validity}h. S'il a expiré, répondez à cet email pour en recevoir un nouveau.</p>
   </div>`;
+  
   return { text, html };
 }
 
@@ -158,3 +149,6 @@ L'équipe de support`;
   
   return { text, html };
 }
+
+// Export the transporter for direct use if needed
+export { transporter };
