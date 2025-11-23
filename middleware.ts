@@ -7,6 +7,7 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isAuthPage = pathname.startsWith("/auth/");
   const isInvitePage = pathname.startsWith("/auth/invite");
+  const isResetPasswordPage = pathname.startsWith("/auth/reset-password");
   const isApiRequest = pathname.startsWith("/api/");
   if (pathname === "/auth/logout") {
     return NextResponse.next();
@@ -69,8 +70,8 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/pro/dashboard", request.url));
   }
 
-  // Do NOT auto-redirect away from the invite flow, even if a session exists
-  if (isAuthPage && !isInvitePage && sessionToken) {
+  // Do NOT auto-redirect away from the invite or password reset flow, even if a session exists
+  if (isAuthPage && !isInvitePage && !isResetPasswordPage && sessionToken) {
     // Redirect based on roles and business_id
     if (canAccessAdmin) {
       return NextResponse.redirect(new URL("/admin/dashboard", request.url));
