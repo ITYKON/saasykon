@@ -1,43 +1,46 @@
 # syntax=docker.io/docker/dockerfile:1
 
-FROM node:20-alpine AS base
-
+# ------------------------------
 # Base image
+# ------------------------------
+FROM node:18-alpine AS base
 WORKDIR /app
 
-# Install dependencies only when needed
-FROM base AS deps
 # Install compatibility libraries
-RUN apk add --no-cache libc6-compat
+RUN apk add --no-cache libc6-compat bash git
 
-# Copy lockfiles and package.json
-COPY package.json yarn.lock* package-lock.json* pnpm-lock.yaml* .npmrc* ./
+# ------------------------------
+# Install dependencies
+# ------------------------------
+FROM base AS deps
 
-# Install dependencies based on lockfile
-RUN \
-  if [ -f yarn.lock ]; then yarn --frozen-lockfile; \
-  elif [ -f package-lock.json ]; then npm install --legacy-peer-deps; \
-  elif [ -f pnpm-lock.yaml ]; then corepack enable pnpm && pnpm i --frozen-lockfile; \
-  else echo "Lockfile not found." && exit 1; \
-  fi
+# Copy package files
+COPY package.json package-lock.json* .npmrc* ./
 
-# Rebuild the source code only when needed
+# Install dependencies
+RUN if [ -f package-lock.json ]; then \
+        npm install --legacy-peer-deps; \
+    else \
+        echo "Lockfile not found." && exit 1; \
+    fi
+
+# ------------------------------
+# Build the Next.js app
+# ------------------------------
 FROM base AS builder
 WORKDIR /app
 
-# Copy node_modules from deps stage
+# Copy dependencies from deps stage
 COPY --from=deps /app/node_modules ./node_modules
+# Copy all source files
 COPY . .
 
 # Build Next.js app
-RUN \
-  if [ -f yarn.lock ]; then yarn run build; \
-  elif [ -f package-lock.json ]; then npm run build; \
-  elif [ -f pnpm-lock.yaml ]; then corepack enable pnpm && pnpm run build; \
-  else echo "Lockfile not found." && exit 1; \
-  fi
+RUN npm run build
 
+# ------------------------------
 # Production image
+# ------------------------------
 FROM base AS runner
 WORKDIR /app
 
@@ -46,16 +49,19 @@ ENV HOSTNAME="0.0.0.0"
 ENV PORT=3000
 
 # Create non-root user
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+RUN addgroup --system --gid 1001 nodejs \
+    && adduser --system --uid 1001 nextjs
 
-# Copy public and standalone output
+# Copy built app and static assets
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
+# Switch to non-root user
 USER nextjs
+
+# Expose port
 EXPOSE 3000
 
-# Run Next.js server
+# Run server
 CMD ["node", "server.js"]

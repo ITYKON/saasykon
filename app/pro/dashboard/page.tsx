@@ -14,15 +14,31 @@ export default async function ProDashboard() {
   const host = h.get("x-forwarded-host") || h.get("host");
   const proto = h.get("x-forwarded-proto") || "http";
   const origin = `${proto}://${host}`;
-  const resp = await fetch(`${origin}/api/pro/dashboard`, { cache: "no-store", headers: { cookie: h.get("cookie") || "" } });
+  console.log('Fetching dashboard data from:', `${origin}/api/pro/dashboard`);
+  const resp = await fetch(`${origin}/api/pro/dashboard`, { 
+    cache: "no-store", 
+    headers: { 
+      cookie: h.get("cookie") || "",
+      'Cache-Control': 'no-cache'
+    } 
+  });
+  
+  console.log('Response status:', resp.status);
+  
   if (!resp.ok) {
+    const errorText = await resp.text();
+    console.error('Error response:', errorText);
     return (
       <div className="p-6">
         <h2 className="text-xl font-semibold text-red-600">Erreur de chargement du tableau de bord</h2>
+        <p className="mt-2 text-sm text-gray-600">Code d'erreur: {resp.status}</p>
+        <p className="text-sm text-gray-600">Détails: {errorText}</p>
       </div>
     )
   }
-  const { kpis, todayAgenda, notifications, business, address } = await resp.json();
+  const data = await resp.json();
+  console.log('API Response:', JSON.stringify(data, null, 2));
+  const { kpis, todayAgenda, notifications, business, address } = data;
   
   // Fetch claim information
   let claimInfo: any = null;
