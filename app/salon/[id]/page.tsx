@@ -10,7 +10,6 @@ import Image from "next/image"
 import BookingWizard from "@/components/booking-wizard"
 import { useRouter } from "next/navigation"
 import { buildSalonSlug, extractSalonId } from "@/lib/salon-slug"
-import { Footer } from "@/components/footer"
 
 export default function SalonPage({ params }: { params: { id: string } }) {
   const router = useRouter()
@@ -55,8 +54,6 @@ export default function SalonPage({ params }: { params: { id: string } }) {
     if (!businessId) return
     let mounted = true
     setLoading(true)
-    // Debug: businessId = {businessId}
-    // Debug: params.id = {params.id}
     fetch(`/api/salon/${businessId}`, { cache: "no-store" })
       .then(async (r) => {
         const j = await r.json().catch(() => ({}))
@@ -246,23 +243,14 @@ export default function SalonPage({ params }: { params: { id: string } }) {
               <Share2 className="h-4 w-4 mr-1" />
               Partager
             </Button>
-            {/* Afficher le bouton de revendication uniquement si le salon peut être revendiqué (claim_status = "none" ou null) */}
-            {/* Les salons avec claim_status = "not_claimable" (leads convertis) ou "approved" (déjà revendiqués) ne peuvent pas être revendiqués */}
-            {/* Debug: claim_status = {JSON.stringify(data?.claim_status)} */}
-            {/* Debug: typeof claim_status = {typeof data?.claim_status} */}
-            {/* Debug: claim_status === "none" = {data?.claim_status === "none"} */}
-            {/* Debug: claim_status == "none" = {data?.claim_status == "none"} */}
-            {(data?.claim_status === "none" || data?.claim_status == null) ? (
-              <Link href={`/claims?business_id=${params.id}&business_name=${encodeURIComponent(salon?.name || '')}`}>
-                <Button className="bg-blue-600 hover:bg-blue-700 text-white">
-                  Revendiquer
-                </Button>
-              </Link>
-            ) : (
-              <Button className="bg-black hover:bg-gray-800 text-white" disabled={!salon} onClick={() => setShowBooking(true)}>
-                Prendre RDV
+            <Link href={`/claims?business_id=${businessId}&business_name=${encodeURIComponent(salon?.name || '')}`}>
+              <Button variant="outline" size="sm" className="bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200">
+                Revendiquer mon établissement
               </Button>
-            )}
+            </Link>
+            <Button className="bg-black hover:bg-gray-800 text-white" disabled={!salon} onClick={() => setShowBooking(true)}>
+              Prendre RDV
+            </Button>
           </div>
         </div>
 
@@ -474,7 +462,6 @@ export default function SalonPage({ params }: { params: { id: string } }) {
           </div>
         </div>
       </div>
-      <Footer />
     </div>
   )
 }

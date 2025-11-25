@@ -5,7 +5,7 @@ export const ServicesSection = () => {
     <div>
       <h3 className="font-semibold text-black mb-4">Services</h3>
       <ul className="space-y-2 text-gray-600">
-        <li>
+        {/* <li>
           <Link href="/coiffeur" className="hover:text-black transition-colors">
             Coiffeur
           </Link>
@@ -19,7 +19,7 @@ export const ServicesSection = () => {
           <Link href="/manucure" className="hover:text-black transition-colors">
             Manucure
           </Link>
-        </li>
+        </li> */}
         <li>
           <Link href="/institut" className="hover:text-black transition-colors">
             Institut de beauté

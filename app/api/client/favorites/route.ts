@@ -26,7 +26,6 @@ export async function GET(request: Request) {
             cover_url: true,
             logo_url: true,
             phone: true,
-            claim_status: true,
             created_at: true,
             business_locations: {
               where: { is_primary: true },

@@ -23,7 +23,6 @@ type Business = {
   cover_url?: string
   rating: number
   reviewCount: number
-  claim_status?: string
   location?: {
     address: string
     city?: string
@@ -129,7 +128,7 @@ export default function SearchPage() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-white">
+    <div className="min-h-screen bg-white">
       <Header />
 
       {/* Search Bar */}
@@ -213,7 +212,7 @@ export default function SearchPage() {
       </div>
 
       {/* Results Layout */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="mb-4">
           <h2 className="text-xl font-semibold text-black">
             Sélectionnez un salon
@@ -347,20 +346,9 @@ export default function SearchPage() {
                           <Button size="sm" className="bg-black hover:bg-gray-800">
                             Offrir
                           </Button>
-                          {/* Debug: claim_status = {JSON.stringify(business.claim_status)} */}
-                          {/* Debug: typeof claim_status = {typeof business.claim_status} */}
-                          {/* Debug: claim_status === "none" = {business.claim_status === "none"} */}
-                          {(business.claim_status === "none" || business.claim_status == null) ? (
-                            <Link href={`/claims?business_id=${business.id}&business_name=${encodeURIComponent(business.name)}`}>
-                              <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white">
-                                Revendiquer
-                              </Button>
-                            </Link>
-                          ) : (
-                            <Button size="sm" variant="default" className="bg-black hover:bg-gray-800">
-                              Prendre RDV
-                            </Button>
-                          )}
+                          <Button size="sm" variant="default" className="bg-black hover:bg-gray-800">
+                            Prendre RDV
+                          </Button>
                         </div>
                       </div>
                     </Card>
@@ -406,10 +394,8 @@ export default function SearchPage() {
           </div>
         </div>
       </div>
-      
-      <div className="mt-auto">
-        <Footer />
-      </div>
+
+      <Footer />
     </div>
   )
 }

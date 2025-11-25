@@ -3,44 +3,21 @@ import { prisma } from "@/lib/prisma";
 import { getAuthContext } from "@/lib/authorization";
 import { cookies } from "next/headers";
 
-function toUTCDate(date: Date): Date {
-  return new Date(Date.UTC(
-    date.getFullYear(),
-    date.getMonth(),
-    date.getDate(),
-    date.getHours(),
-    date.getMinutes(),
-    date.getSeconds()
-  ));
+function zonedDate(date: Date, timeZone: string) {
+  const fmt = new Intl.DateTimeFormat("en-US", { timeZone, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
+  const parts = fmt.formatToParts(date).reduce<Record<string, string>>((acc, p) => { if (p.type !== "literal") acc[p.type] = p.value; return acc; }, {});
+  const y = Number(parts.year), m = Number(parts.month), d = Number(parts.day), h = Number(parts.hour||"0"), mi = Number(parts.minute||"0"), s = Number(parts.second||"0");
+  return new Date(Date.UTC(y, m - 1, d, h, mi, s));
 }
-
-function zonedDate(date: Date, timeZone: string): Date {
-  const str = date.toLocaleString('en-US', { timeZone });
-  return new Date(str);
-}
-
-function startOfDayTZ(date: Date, timeZone: string): Date {
-  const d = zonedDate(date, timeZone);
-  const start = new Date(d);
-  start.setHours(0, 0, 0, 0);
-  return start;
-}
-
-function endOfDayTZ(date: Date, timeZone: string): Date {
-  const start = startOfDayTZ(date, timeZone);
-  const end = new Date(start);
-  end.setDate(end.getDate() + 1);
-  return end;
-}
-
-function startOfWeekTZ(date: Date, timeZone: string): Date {
-  const d = zonedDate(date, timeZone);
-  const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Lundi comme premier jour de la semaine
-  const monday = new Date(d);
-  monday.setDate(diff);
-  monday.setHours(0, 0, 0, 0);
-  return monday;
+function startOfDayTZ(date: Date, timeZone: string) { const z = zonedDate(date, timeZone); return new Date(Date.UTC(z.getUTCFullYear(), z.getUTCMonth(), z.getUTCDate(), 0, 0, 0)); }
+function endOfDayTZ(date: Date, timeZone: string) { const s = startOfDayTZ(date, timeZone); const x = new Date(s); x.setUTCDate(x.getUTCDate()+1); return x }
+function startOfWeekTZ(date: Date, timeZone: string) {
+  const z = zonedDate(date, timeZone);
+  const day = z.getUTCDay();
+  const diff = (day === 0 ? -6 : 1) - day; // Monday first
+  const ws = new Date(z);
+  ws.setUTCDate(ws.getUTCDate() + diff);
+  return new Date(Date.UTC(ws.getUTCFullYear(), ws.getUTCMonth(), ws.getUTCDate(), 0, 0, 0));
 }
 
 export async function GET(req: NextRequest) {
@@ -57,38 +34,14 @@ export async function GET(req: NextRequest) {
   const now = new Date();
   const primaryLoc = await prisma.business_locations.findFirst({ where: { business_id: businessId, is_primary: true }, select: { timezone: true } });
   const tz = primaryLoc?.timezone || "Europe/Paris";
-  
-  // Calcul des dates avec le fuseau horaire du salon
   const weekStart = startOfWeekTZ(now, tz);
-  const weekEnd = new Date(weekStart);
-  weekEnd.setDate(weekEnd.getDate() + 7);
-  
+  const weekEnd = new Date(weekStart); weekEnd.setUTCDate(weekEnd.getUTCDate() + 7);
   const dayStart = startOfDayTZ(now, tz);
   const dayEnd = endOfDayTZ(now, tz);
-  
-  console.log('Current time:', now);
-  console.log('Using timezone:', tz);
-  console.log('Week start (local):', weekStart.toLocaleString('fr-FR', { timeZone: tz }));
-  console.log('Week end (local):', weekEnd.toLocaleString('fr-FR', { timeZone: tz }));
 
-  console.log('Week start:', weekStart, 'Week end:', weekEnd);
-  
   const [paymentsAgg, bookingsCount, firsts, ratingAgg, todayReservations, notifications, unreadCount, latestPayment, businessInfo, primaryAddress] = await Promise.all([
-    prisma.payments.aggregate({ 
-      _sum: { amount_cents: true }, 
-      where: { 
-        business_id: businessId, 
-        status: { in: ["CAPTURED"] as any },
-        created_at: { gte: weekStart, lt: weekEnd }
-      } 
-    }),
-    prisma.reservations.count({ 
-      where: { 
-        business_id: businessId, 
-        status: { in: ["CONFIRMED", "COMPLETED"] as any },
-        starts_at: { gte: weekStart, lt: weekEnd }
-      } 
-    }),
+    prisma.payments.aggregate({ _sum: { amount_cents: true }, where: { business_id: businessId, status: { in: ["CAPTURED"] as any }, created_at: { gte: weekStart, lt: weekEnd } } }),
+    prisma.reservations.count({ where: { business_id: businessId, starts_at: { gte: weekStart, lt: weekEnd }, status: { in: ["CONFIRMED", "COMPLETED"] as any } } }),
     prisma.reservations.groupBy({ by: ["client_id"], where: { business_id: businessId, client_id: { not: null } }, _min: { starts_at: true } }),
     prisma.ratings_aggregates.findUnique({ where: { business_id: businessId } }).catch(() => null as any),
     prisma.reservations.findMany({
@@ -115,22 +68,7 @@ export async function GET(req: NextRequest) {
     }),
   ]);
 
-  const newClients = firsts.filter((g) => {
-    const startDate = g._min.starts_at;
-    return startDate && new Date(startDate) >= weekStart && new Date(startDate) < weekEnd;
-  }).length;
-  
-  console.log('New clients calculation:', {
-    firstsCount: firsts.length,
-    newClients,
-    weekStart,
-    weekEnd,
-    firsts: firsts.map(f => ({
-      clientId: f.client_id,
-      firstReservation: f._min.starts_at,
-      isInRange: f._min.starts_at && new Date(f._min.starts_at) >= weekStart && new Date(f._min.starts_at) < weekEnd
-    }))
-  });
+  const newClients = firsts.filter((g) => g._min.starts_at && g._min.starts_at >= weekStart && g._min.starts_at < weekEnd).length;
   const rating = (ratingAgg as any)?.rating_avg ? Number((ratingAgg as any).rating_avg) : 0;
   const kpis = {
     revenueCents: paymentsAgg._sum.amount_cents || 0,

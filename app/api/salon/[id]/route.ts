@@ -13,7 +13,6 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
         email: true,
         phone: true,
         description: true,
-        claim_status: true,
         business_locations: {
           where: { is_primary: true },
           take: 1,
@@ -102,7 +101,6 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
       services: Array.from(categoriesMap.values()),
       reviews,
       hours,
-      claim_status: business.claim_status, // Inclure claim_status dans la réponse
     });
   } catch (e) {
     return NextResponse.json({ error: "Server error" }, { status: 500 });
