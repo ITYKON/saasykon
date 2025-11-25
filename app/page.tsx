@@ -153,6 +153,44 @@ export default function HomePage() {
         </div>
       </section> */}
 
+      {/* instituts section */}
+       <section className="py-20 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <div className="text-sm font-semibold text-blue-600 mb-2 tracking-wide">DÉCOUVREZ NOS</div>
+            <h2 className="text-3xl md:text-4xl font-bold text-black mb-8 text-balance">Professionnels</h2>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-12 items-center">
+            <div className="relative">
+              <Image
+                src="images\YOKA.png"
+                alt="Peigne professionnel"
+                width={600}
+                 height={300} // ratio différent OK
+  style={{ height: "300px", width: "600px" }}
+                className="rounded-lg"
+              />
+            </div>
+            <div>
+              <h3 className="text-2xl font-bold text-black mb-4">Instituts de Beauté</h3>
+              <p className="text-gray-600 mb-6 text-lg leading-relaxed">
+                Découvrez des instituts raffinés où expertise, discrétion et bien-être se rencontrent.
+Des soins haut de gamme, réalisés par des professionnelles qualifiées, pour sublimer votre peau et révéler votre éclat naturel.
+              </p>
+              <Link href="/institut-de-beaute">
+              <Button
+                variant="outline"
+                className="border-black text-black hover:bg-black hover:text-white bg-transparent"
+              >
+                Voir plus
+              </Button>
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Recruitment Section */}
       <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
