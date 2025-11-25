@@ -8,6 +8,7 @@ import { Footer } from "@/components/footer";
 import { SearchForm } from "@/components/search-form";
 import Link from "next/link";
 import Image from "next/image";
+import { slugifySalonName } from "@/lib/salon-slug";
 
 interface FAQItem {
   question: string;
@@ -344,7 +345,7 @@ Des soins haut de gamme, réalisés par des professionnelles qualifiées, pour s
                 ].map((city) => (
                   <Link
                     key={city}
-                    href={`/institut/${city.toLowerCase()}`}
+                    href={`/institut-de-beaute/${slugifySalonName(city)}`}
                     className="block text-gray-600 hover:text-black text-sm"
                   >
                     {city}
