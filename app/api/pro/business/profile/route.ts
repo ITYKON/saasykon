@@ -189,7 +189,7 @@ export async function PUT(request: Request) {
       // Mapping des pays connus avec leurs codes ISO
       const knownCountries: Record<string, string> = {
         'algerie': 'DZ',
-        'france': 'FR',
+        'Algérie': 'FR',
         'maroc': 'MA',
         'tunisie': 'TN',
         // Ajouter d'autres pays au besoin

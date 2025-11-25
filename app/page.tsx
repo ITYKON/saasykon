@@ -207,7 +207,7 @@ Des soins haut de gamme, réalisés par des professionnelles qualifiées, pour s
             <div>
               <div className="text-sm font-semibold text-blue-600 mb-2 tracking-wide">PROFESSIONNEL</div>
               <h3 className="text-3xl font-bold text-black mb-4 text-balance">
-                YOKA recherche des profils dans toute la France pour digitaliser le secteur de la beauté
+                YOKA recherche des profils dans toute l'Algérie pour digitaliser le secteur de la beauté
               </h3>
               <p className="text-gray-600 mb-6 italic">Antoine Puymirat - CEO</p>
               <Link href="/offres">
@@ -245,16 +245,16 @@ Des soins haut de gamme, réalisés par des professionnelles qualifiées, pour s
       <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <div className="text-sm font-semibold text-blue-600 mb-2 tracking-wide">PARTOUT EN FRANCE</div>
-            <h2 className="text-3xl md:text-4xl font-bold text-black mb-8 text-balance">
-              Trouvez votre établissement beauté partout en France
+            <div className="text-sm font-semibold text-blue-600 mb-2 tracking-wide">PARTOUT EN ALGÉRIE</div>
+            <h2 className="text-3xl md:text-4xl font-bold text-black mb-4 text-balance">
+              Trouvez votre établissement beauté partout en ALGÉRIE
             </h2>
           </div>
 
-          <div className="grid md:grid-cols-5 gap-8">
-            <div>
+          <div>
+            {/* <div>
               <h3 className="font-bold text-black mb-4">Coiffeur</h3>
-              <p className="text-gray-600 text-sm mb-4">Nos salons de coiffure populaires en France</p>
+              <p className="text-gray-600 text-sm mb-4">Nos salons de coiffure populaires en Algérie</p>
               <div className="space-y-2">
                 {[
                   "Bordeaux",
@@ -277,10 +277,10 @@ Des soins haut de gamme, réalisés par des professionnelles qualifiées, pour s
                   </Link>
                 ))}
               </div>
-            </div>
-            <div>
+            </div> */}
+            {/* <div>
               <h3 className="font-bold text-black mb-4">Barbier</h3>
-              <p className="text-gray-600 text-sm mb-4">Nos barbiers populaires en France</p>
+              <p className="text-gray-600 text-sm mb-4">Nos barbiers populaires en Algérie</p>
               <div className="space-y-2">
                 {[
                   "Bordeaux",
@@ -303,10 +303,10 @@ Des soins haut de gamme, réalisés par des professionnelles qualifiées, pour s
                   </Link>
                 ))}
               </div>
-            </div>
-            <div>
+            </div> */}
+            {/* <div>
               <h3 className="font-bold text-black mb-4">Manucure</h3>
-              <p className="text-gray-600 text-sm mb-4">Nos salons de manucure populaires en France</p>
+              <p className="text-gray-600 text-sm mb-4">Nos salons de manucure populaires en Algérie</p>
               <div className="space-y-2">
                 {[
                   "Bordeaux",
@@ -329,22 +329,18 @@ Des soins haut de gamme, réalisés par des professionnelles qualifiées, pour s
                   </Link>
                 ))}
               </div>
-            </div>
-            <div>
-              <h3 className="font-bold text-black mb-4">Institut</h3>
-              <p className="text-gray-600 text-sm mb-4">Nos instituts de beauté populaires en France</p>
-              <div className="space-y-2">
+            </div> */}
+            <div className="text-center">
+              {/* <h3 className="font-bold text-black mb-4">Institut</h3> */}
+              <h3 className="text-center mb-6">Nos instituts de beauté populaires en Algérie</h3>
+              <div className="grid md:grid-cols-3 gap-8 justify-items-center">
                 {[
-                  "Bordeaux",
-                  "Lille",
-                  "Lyon",
-                  "Marseille",
-                  "Montpellier",
-                  "Nantes",
-                  "Nice",
-                  "Paris",
-                  "Strasbourg",
-                  "Toulouse",
+                  "Alger",
+                  "Oran",
+                  "Bejaia",
+                  "Constantine",
+                  "Annaba",
+                  "Sétif"
                 ].map((city) => (
                   <Link
                     key={city}
@@ -356,9 +352,9 @@ Des soins haut de gamme, réalisés par des professionnelles qualifiées, pour s
                 ))}
               </div>
             </div>
-            <div>
+            {/* <div>
               <h3 className="font-bold text-black mb-4">Massage</h3>
-              <p className="text-gray-600 text-sm mb-4">Nos massages populaires en France</p>
+              <p className="text-gray-600 text-sm mb-4">Nos massages populaires en Algérie</p>
               <div className="space-y-2">
                 {[
                   "Bordeaux",
@@ -381,7 +377,7 @@ Des soins haut de gamme, réalisés par des professionnelles qualifiées, pour s
                   </Link>
                 ))}
               </div>
-            </div>
+            </div> */}
           </div>
         </div>
       </section>

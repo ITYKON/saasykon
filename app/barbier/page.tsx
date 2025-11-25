@@ -9,7 +9,7 @@ import { redirect } from "next/navigation"
 export const metadata: Metadata = {
   title: "Barbier - Réservez votre rendez-vous en ligne | YOKA",
   description:
-    "Trouvez et réservez votre barbier partout en France. Réservation en ligne 24h/24, gratuite et confirmation immédiate.",
+    "Trouvez et réservez votre barbier partout en ALGÉRIE. Réservation en ligne 24h/24, gratuite et confirmation immédiate.",
 }
 
 const services = [

@@ -64,7 +64,7 @@ export default function ProfilInstitutPage() {
       line2: '',
       postalCode: '',
       city: '',
-      country: 'France',
+      country: 'Algérie',
     },
     photos: [],
     horaires: {
@@ -133,7 +133,7 @@ export default function ProfilInstitutPage() {
             line2: primaryLocation.address_line2 || '',
             postalCode: primaryLocation.postal_code || '',
             city: primaryLocation.city_name || '',
-            country: primaryLocation.country_name || 'France',
+            country: primaryLocation.country_name || 'Algérie',
           },
           photos: business.business_media?.map((media: any) => media.url) || [],
           horaires,
@@ -430,7 +430,7 @@ const responseData = await response.json();
                     name="address.country"
                     value={formData.address.country}
                     onChange={handleInputChange}
-                    placeholder="France"
+                    placeholder="Algérie"
                   />
                 </div>
               </CardContent>

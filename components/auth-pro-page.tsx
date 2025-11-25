@@ -323,7 +323,7 @@ export default function AuthProLanding() {
       <section className="w-full bg-muted/30">
         <div className="mx-auto max-w-6xl px-4 py-16 text-center">
           <div className="text-4xl font-semibold tracking-tight">14 000 000</div>
-          <p className="mt-2 text-muted-foreground">de réservations créées l'an dernier via notre réseau beauté en France.</p>
+          <p className="mt-2 text-muted-foreground">de réservations créées l'an dernier via notre réseau beauté en Algérie.</p>
           <div className="mt-6 flex justify-center"><Link href="#contact"><Button size="lg">Commencer maintenant</Button></Link></div>
         </div>
       </section>
