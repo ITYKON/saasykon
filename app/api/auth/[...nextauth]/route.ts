@@ -3,7 +3,7 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/prisma";
 import EmailProvider from "next-auth/providers/email";
 
-export const authOptions = {
+export const authOptions: NextAuthConfig = {
   adapter: PrismaAdapter(prisma),
 
   providers: [
@@ -38,3 +38,4 @@ const handler = NextAuth(authOptions);
 
 // Exports nécessaires pour l’App Router
 export { handler as GET, handler as POST };
+
