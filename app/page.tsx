@@ -423,14 +423,10 @@ Des soins haut de gamme, réalisés par des professionnelles qualifiées, pour s
       <section className="py-20 bg-gray-50">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <div className="mb-8">
-            <div className="text-2xl font-bold text-black tracking-wide mb-2">
-              YOKA
-              <span className="text-sm ml-1 text-gray-500">PRO</span>
-            </div>
           </div>
 
           <h2 className="text-4xl md:text-5xl font-bold text-black mb-6 text-balance">
-            Devenir partenaire YOKA Pro
+            Devenir partenaire YOKA <span className="text-sm ml-1 text-gray-500">PRO</span>
           </h2>
           <p className="text-xl text-gray-600 mb-8 text-pretty">
             Soyez visibles auprès de <strong>14 millions d'utilisateurs</strong>.
