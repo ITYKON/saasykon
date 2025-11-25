@@ -91,28 +91,28 @@ export default function HomePage() {
 
           <div className="grid md:grid-cols-3 gap-8">
             <div className="text-center p-6 border border-gray-200 rounded-lg">
-              <div className="text-4xl font-bold text-black mb-2">+ 50%</div>
-              <p className="text-gray-600">de fréquence sur les rdv pris en ligne</p>
+              <div className="text-4xl font-bold text-black mb-2">50%</div>
+              <p className="text-gray-600">de fréquence sur les rendez-vous pris en ligne</p>
             </div>
             <div className="text-center p-6 border border-gray-200 rounded-lg">
               <div className="text-4xl font-bold text-black mb-2">4x</div>
               <p className="text-gray-600">moins d'oublis avec les rappels sms des rendez-vous</p>
             </div>
             <div className="text-center p-6 border border-gray-200 rounded-lg">
-              <div className="text-4xl font-bold text-black mb-2">50%</div>
-              <p className="text-gray-600">des rdv en ligne pris en dehors des horaires d'ouverture</p>
+              <div className="text-4xl font-bold text-black mb-2">60%</div>
+              <p className="text-gray-600">des rendez-vous en ligne pris en dehors des horaires d'ouverture</p>
             </div>
             <div className="text-center p-6 border border-gray-200 rounded-lg">
-              <div className="text-4xl font-bold text-black mb-2">+50 000</div>
-              <p className="text-gray-600">professionnels nous font confiance</p>
+              <div className="text-4xl font-bold text-black mb-2">18%</div>
+              <p className="text-gray-600">de revenus par client avec la réservation en ligne</p>
             </div>
             <div className="text-center p-6 border border-gray-200 rounded-lg">
-              <div className="text-4xl font-bold text-black mb-2">5 RDV</div>
-              <p className="text-gray-600">pris chaque seconde sur YOKA</p>
+              <div className="text-4xl font-bold text-black mb-2">2,5x</div>
+              <p className="text-gray-600">plus de clients récurrents grâce au suivi</p>
             </div>
             <div className="text-center p-6 border border-gray-200 rounded-lg">
-              <div className="text-4xl font-bold text-black mb-2">&gt; 5 milliards €</div>
-              <p className="text-gray-600">de chiffre d'affaires généré</p>
+              <div className="text-4xl font-bold text-black mb-2">45%</div>
+              <p className="text-gray-600">d’augmentation des retours clients grâce à un système de réservation professionnel</p>
             </div>
           </div>
         </div>
