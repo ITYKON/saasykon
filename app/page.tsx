@@ -193,7 +193,7 @@ Des soins haut de gamme, réalisés par des professionnelles qualifiées, pour s
       </section>
 
       {/* Recruitment Section */}
-      <section className="py-20 bg-white">
+      {/* <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid md:grid-cols-2 gap-12 items-center">
             <div className="relative">
@@ -217,7 +217,7 @@ Des soins haut de gamme, réalisés par des professionnelles qualifiées, pour s
             </div>
           </div>
         </div>
-      </section>
+      </section> */}
 
       {/* Press Section */}
       <section className="py-20 bg-black">
