@@ -220,7 +220,7 @@ Des soins haut de gamme, réalisés par des professionnelles qualifiées, pour s
       </section> */}
 
       {/* Press Section */}
-      <section className="py-20 bg-black">
+      {/* <section className="py-20 bg-black">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <div className="text-sm font-semibold text-blue-400 mb-2 tracking-wide">PRESSE</div>
           <h2 className="text-3xl md:text-4xl font-bold text-white mb-12">Ils parlent de nous</h2>
@@ -240,14 +240,14 @@ Des soins haut de gamme, réalisés par des professionnelles qualifiées, pour s
             </div>
           </div>
         </div>
-      </section>
+      </section> */}
 
       {/* Locations Section */}
-      <section className="py-20 bg-white">
+      <section className="py-20 bg-black">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
+          <div className="text-center  mb-12">
             <div className="text-sm font-semibold text-blue-600 mb-2 tracking-wide">PARTOUT EN ALGÉRIE</div>
-            <h2 className="text-3xl md:text-4xl font-bold text-black mb-4 text-balance">
+            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4 text-balance">
               Trouvez votre établissement beauté partout en ALGÉRIE
             </h2>
           </div>
@@ -331,22 +331,23 @@ Des soins haut de gamme, réalisés par des professionnelles qualifiées, pour s
                 ))}
               </div>
             </div> */}
-            <div className="text-center">
+            <div className="text-center text-white">
               {/* <h3 className="font-bold text-black mb-4">Institut</h3> */}
               <h3 className="text-center mb-6">Nos instituts de beauté populaires en Algérie</h3>
-              <div className="grid md:grid-cols-3 gap-8 justify-items-center">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2 justify-items-center w-full">
                 {[
                   "Alger",
                   "Oran",
                   "Bejaia",
                   "Constantine",
                   "Annaba",
-                  "Sétif"
+                  "Sétif",
+                  "Voir plus"
                 ].map((city) => (
                   <Link
                     key={city}
-                    href={`/institut-de-beaute/${slugifySalonName(city)}`}
-                    className="block text-gray-600 hover:text-black text-sm"
+                    href={city === "Voir plus" ? "/instituts-de-beaute" : `/institut-de-beaute/${slugifySalonName(city)}`}
+                    className="w-full max-w-[200px] bg-white text-black font-medium py-3 px-4 rounded-md shadow-sm hover:shadow-md transition-all duration-200 text-center text-sm sm:text-base border border-gray-200 hover:border-gray-300"
                   >
                     {city}
                   </Link>
