@@ -334,25 +334,38 @@ Des soins haut de gamme, réalisés par des professionnelles qualifiées, pour s
             <div className="text-center text-white">
               {/* <h3 className="font-bold text-black mb-4">Institut</h3> */}
               <h3 className="text-center mb-6">Nos instituts de beauté populaires en Algérie</h3>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2 justify-items-center w-full">
-                {[
-                  "Alger",
-                  "Oran",
-                  "Bejaia",
-                  "Constantine",
-                  "Annaba",
-                  "Sétif",
-                  "Voir plus"
-                ].map((city) => (
-                  <Link
-                    key={city}
-                    href={city === "Voir plus" ? "/instituts-de-beaute" : `/institut-de-beaute/${slugifySalonName(city)}`}
-                    className="w-full max-w-[200px] bg-white text-black font-medium py-3 px-4 rounded-md shadow-sm hover:shadow-md transition-all duration-200 text-center text-sm sm:text-base border border-gray-200 hover:border-gray-300"
-                  >
-                    {city}
-                  </Link>
-                ))}
-              </div>
+             <div className="grid grid-cols-2 md:grid-cols-3 gap-x-2 gap-y-4 justify-items-center w-full">
+  {[
+    "Alger",
+    "Oran",
+    "Bejaia",
+    "Constantine",
+    "Annaba",
+    "Sétif",
+    "Voir plus"
+  ].map((city, index, array) => {
+    const isLast = index === array.length - 1;
+
+    return (
+<Link
+  key={city}
+  href={
+    city === "Voir plus"
+      ? "/institut-de-beaute" // => va charger app/institut-de-beaute/page.tsx
+      : `/institut-de-beaute/${slugifySalonName(city)}`
+  }
+  className={
+    `w-full max-w-[200px] bg-white text-black font-medium py-3 px-4 rounded-md shadow-sm hover:shadow-md transition-all duration-200 text-center text-sm sm:text-base border border-gray-200 hover:border-gray-300 ` +
+    (isLast ? "col-span-2 md:col-span-3" : "")
+  }
+>
+  {city}
+</Link>
+
+    );
+  })}
+</div>
+
             </div>
             {/* <div>
               <h3 className="font-bold text-black mb-4">Massage</h3>
