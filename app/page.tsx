@@ -56,7 +56,6 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-white">
-      <Header />
 
       {/* Hero Section */}
       <section className="relative min-h-[600px] flex items-center">
@@ -536,8 +535,6 @@ Des soins haut de gamme, réalisés par des professionnelles qualifiées, pour s
           </div>
         </div>
       </section>
-
-      <Footer />
     </div>
   )
 }

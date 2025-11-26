@@ -2,8 +2,6 @@
 
 import { useEffect, useState } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
-import { Header } from "@/components/header"
-import { Footer } from "@/components/footer"
 import { SearchMap } from "@/components/search-map"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -129,7 +127,6 @@ export default function SearchPage() {
 
   return (
     <div className="min-h-screen bg-white">
-      <Header />
 
       {/* Search Bar */}
       <div className="bg-white border-b border-gray-200 py-4">
@@ -394,8 +391,6 @@ export default function SearchPage() {
           </div>
         </div>
       </div>
-
-      <Footer />
     </div>
   )
 }

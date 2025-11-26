@@ -1,6 +1,5 @@
-import { Header } from "@/components/header";
 import ContactPage from "@/components/footer/a-propos/ContactPage";
-import { Footer } from "@/components/footer";
+
 
 export const metadata = {
   title: 'Contact - YOKA',
@@ -10,11 +9,9 @@ export const metadata = {
 export default function Contact() {
   return (
     <>
-      <Header />
       <main>
         <ContactPage />
       </main>
-      <Footer />
     </>
   );
 }

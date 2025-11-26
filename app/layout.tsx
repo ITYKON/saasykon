@@ -7,6 +7,9 @@ import { Suspense } from "react"
 import { Toaster } from "@/components/ui/toaster"
 import "./globals.css"
 
+import { Header } from "@/components/header";
+import { Footer } from "@/components/footer";
+
 export const metadata: Metadata = {
   title: "YOKA - Réservez en beauté",
   description:
@@ -23,7 +26,9 @@ export default function RootLayout({
     <html lang="fr">
       <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable} antialiased`}>
         <Suspense fallback={null}>
+          <Header />
           {children}
+          <Footer />
           <Analytics />
           <Toaster />
         </Suspense>

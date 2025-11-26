@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
+import { Header } from "@/components/header";
+import { Footer } from "@/components/footer";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -385,6 +387,7 @@ function Alternating(props: { image: string; title: string; description: string;
           <p className="text-background/80 md:max-w-[46ch]">{description}</p>
           <Link href={href}><Button variant="secondary">{cta}</Button></Link>
         </div>
+              <Footer />
       </div>
     </section>
   );

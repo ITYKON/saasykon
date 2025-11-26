@@ -1,6 +1,4 @@
 import { Metadata } from 'next';
-import { Header } from '@/components/header';
-import { Footer } from '@/components/footer';
 import MentionsLegales from '@/components/footer/a-propos/MentionsLegales';
 
 export const metadata: Metadata = {
@@ -11,9 +9,7 @@ export const metadata: Metadata = {
 export default function MentionsLegalesPage() {
   return (
     <main>
-      <Header />
       <MentionsLegales />
-      <Footer />
     </main>
   );
 }

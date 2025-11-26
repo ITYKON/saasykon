@@ -1,6 +1,5 @@
-import { Header } from "@/components/header";
 import { QuiSommesNous } from "@/components/footer/a-propos/QuiSommesNous";
-import { Footer } from "@/components/footer";
+
 
 export const metadata = {
   title: 'Qui sommes-nous - YOKA',
@@ -10,11 +9,9 @@ export const metadata = {
 export default function QuiSommesNousPage() {
   return (
     <>
-      <Header />
       <main>
         <QuiSommesNous />
       </main>
-      <Footer />
     </>
   );
 }
