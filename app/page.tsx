@@ -83,7 +83,8 @@ export default function HomePage() {
       <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <div className="text-sm font-semibold text-blue-600 mb-2 tracking-wide">UNE FORTE CROISSANCE</div>
+            <div className="text-sm font-semibold text-purple-700 mb-2 tracking-wide
+">UNE FORTE CROISSANCE</div>
             <h2 className="text-3xl md:text-4xl font-bold text-black mb-4 text-balance">
               Vous êtes un professionnel de la beauté ?<br />
               Découvrez la prise de RDV en ligne !
@@ -123,7 +124,7 @@ export default function HomePage() {
       {/* <section className="py-20 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <div className="text-sm font-semibold text-blue-600 mb-2 tracking-wide">DÉCOUVREZ NOS</div>
+            <div className="text-sm font-semibold text-purple-700 mb-2 tracking-wide   ">DÉCOUVREZ NOS</div>
             <h2 className="text-3xl md:text-4xl font-bold text-black mb-8 text-balance">Professionnels</h2>
           </div>
 
@@ -158,7 +159,7 @@ export default function HomePage() {
        <section className="py-20 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <div className="text-sm font-semibold text-blue-600 mb-2 tracking-wide">DÉCOUVREZ NOS</div>
+            <div className="text-sm font-semibold text-purple-700 mb-2 tracking-wide   ">DÉCOUVREZ NOS</div>
             <h2 className="text-3xl md:text-4xl font-bold text-black mb-8 text-balance">Professionnels</h2>
           </div>
 
@@ -206,7 +207,7 @@ Des soins haut de gamme, réalisés par des professionnelles qualifiées, pour s
               />
             </div>
             <div>
-              <div className="text-sm font-semibold text-blue-600 mb-2 tracking-wide">PROFESSIONNEL</div>
+              <div className="text-sm font-semibold text-purple-700 mb-2 tracking-wide   ">PROFESSIONNEL</div>
               <h3 className="text-3xl font-bold text-black mb-4 text-balance">
                 YOKA recherche des profils dans toute l'Algérie pour digitaliser le secteur de la beauté
               </h3>
@@ -246,7 +247,7 @@ Des soins haut de gamme, réalisés par des professionnelles qualifiées, pour s
       <section className="py-20 bg-black">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center  mb-12">
-            <div className="text-sm font-semibold text-blue-600 mb-2 tracking-wide">PARTOUT EN ALGÉRIE</div>
+            <div className="text-sm font-semibold text-purple-600 mb-2 tracking-wide   ">PARTOUT EN ALGÉRIE</div>
             <h2 className="text-3xl md:text-4xl font-bold text-white mb-4 text-balance">
               Trouvez votre établissement beauté partout en ALGÉRIE
             </h2>
@@ -403,7 +404,8 @@ Des soins haut de gamme, réalisés par des professionnelles qualifiées, pour s
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <div className="mb-8">
           </div>
-
+            <div className="text-sm font-semibold text-purple-700 mb-2 tracking-wide   ">Faites partie de la famille
+</div>
           <h2 className="text-4xl md:text-5xl font-bold text-black mb-6 text-balance">
             Devenir partenaire YOKA <span className="text-sm ml-1 text-gray-500">PRO</span>
           </h2>
@@ -494,7 +496,7 @@ Des soins haut de gamme, réalisés par des professionnelles qualifiées, pour s
       <section className="py-20 bg-gray-50" id="faq">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <div className="text-sm font-semibold text-blue-600 mb-2 tracking-wide">FAQ</div>
+            <div className="text-sm font-semibold text-purple-700 mb-2 tracking-wide   ">FAQ</div>
             <h2 className="text-3xl md:text-4xl font-bold text-black mb-8">Les questions fréquentes</h2>
           </div>
 
