@@ -178,16 +178,16 @@ export default function AuthProLanding() {
 
       <section className="w-full bg-muted/30">
         <div className="mx-auto grid max-w-6xl grid-cols-1 gap-6 px-4 py-10 sm:grid-cols-3">
-          <Metric label="utilisateurs" value="14 Millions" />
-          <Metric label="professionnels" value="+50 000" />
-          <Metric label="des rendez-vous en ligne" value="50%" />
+          <Metric label="des rendez-vous en ligne" value="60%" />
+          <Metric label="plus de clients récurrents" value="2.5x" />
+          <Metric label="de revenus par client avec la réservation en ligne" value="18%" />
         </div>
       </section>
 
       <section className="w-full">
         <div className="mx-auto grid max-w-6xl grid-cols-1 gap-10 px-4 py-16 md:grid-cols-2">
           <div className="space-y-5">
-            <h2 className="text-2xl font-semibold">Exaucez trois vœux d'un seul coup.</h2>
+            <h2 className="text-2xl font-semibold">Tout ce dont vous avez besoin, réuni en une seule plateforme.</h2>
             <ul className="space-y-6">
               <li>
                 <StepItem number="01" title="Plateforme de réservation" description="Offrez la réservation en ligne 24/7, synchronisée avec votre agenda et vos réseaux sociaux." />
@@ -196,108 +196,15 @@ export default function AuthProLanding() {
                 <StepItem number="02" title="Agenda connecté" description="Planifiez en un clin d'œil, assignez des prestations et gérez vos équipes." />
               </li>
               <li>
-                <StepItem number="03" title="Gestion de caisse" description="Suivez ventes, remises, TVA et rapports détaillés." />
+                <StepItem number="03" title="Page vitrine professionnelle" description="Présentez vos services, horaires, tarifs et photos sur une page professionnelle optimisée pour attirer plus de clients." />
               </li>
             </ul>
-            <div>
+            {/* <div>
               <Link href="/pro/abonnement"><Button variant="outline">Voir les fonctionnalités</Button></Link>
-            </div>
+            </div> */}
           </div>
           <div className="relative aspect-[4/3] w-full overflow-hidden rounded-lg bg-muted">
             <Image src="/modern-hair-salon-interior-with-styling-chairs.jpg" alt="Aperçu" fill className="object-cover" />
-          </div>
-        </div>
-      </section>
-
-      <Alternating
-        image="/elegant-beauty-salon-interior-with-warm-lighting-a.jpg"
-        title="Oh joie ! L'agenda se remplit tout seul"
-        description="Recevez des réservations directement depuis le web, Google et Instagram, avec confirmation automatique."
-        cta="Voir comment"
-        href="/pro/agenda"
-      />
-      <Alternating
-        reversed
-        image="/modern-spa-interior-marseille.jpg"
-        title="50% d'appels en moins au salon"
-        description="Rappels SMS et emails, confirmation automatique, listes d'attente et politiques d'annulation réduisent les appels et les no-shows."
-        cta="Réduire les no-shows"
-        href="/pro/reservations"
-      />
-      <Alternating
-        image="/modern-hair-salon-interior-with-stylish-people-getting-ha.jpg"
-        title="Des clients qui reviennent au rendez-vous"
-        description="Campagnes marketing, avis, cartes cadeaux et fidélité intégrée boostent votre récurrence."
-        cta="Booster la fidélité"
-        href="/pro/clients"
-      />
-
-      <section className="w-full">
-        <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-10 px-4 py-16 md:grid-cols-2">
-          <div className="relative aspect-[4/3] overflow-hidden rounded-lg bg-muted">
-            <Image src="/professional-hair-washing-station-in-salon.jpg" alt="Caisse" fill className="object-cover" />
-          </div>
-          <div className="space-y-4">
-            <h3 className="text-2xl font-semibold">En parfaite harmonie avec vos ventes</h3>
-            <p className="text-muted-foreground">Une caisse fluide reliée à vos rendez-vous, produits et statistiques. Factures, remises, taxes et rapports exportables.</p>
-            <Link href="/pro/statistiques"><Button>Voir les rapports</Button></Link>
-          </div>
-        </div>
-      </section>
-
-      <section className="w-full bg-muted/30">
-        <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-10 px-4 py-16 md:grid-cols-2">
-          <div className="relative aspect-[4/3] overflow-hidden rounded-lg bg-background">
-            <Image src="/calendar" alt="" fill className="hidden" />
-            <div className="flex h-full items-center justify-center rounded-lg border p-6">
-              <div className="w-full max-w-sm">
-                <div className="mb-3 text-sm font-medium text-muted-foreground">Exemple d'interface</div>
-                <div className="rounded-md border p-4">
-                  <div className="mb-2 text-lg font-semibold">Agenda</div>
-                  <div className="grid grid-cols-3 gap-2 text-sm">
-                    <span className="rounded bg-muted px-2 py-1 text-center">09:00</span>
-                    <span className="rounded bg-muted px-2 py-1 text-center">10:30</span>
-                    <span className="rounded bg-muted px-2 py-1 text-center">12:00</span>
-                    <span className="rounded bg-muted px-2 py-1 text-center">14:00</span>
-                    <span className="rounded bg-muted px-2 py-1 text-center">15:30</span>
-                    <span className="rounded bg-muted px-2 py-1 text-center">17:00</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div className="space-y-4">
-            <h3 className="text-2xl font-semibold">Enchantez vos clients. Un jeu d'enfant.</h3>
-            <p className="text-muted-foreground">Des interfaces claires pour vos équipes et vos clients, sur web et mobile. Tout est pensé pour aller vite et bien.</p>
-            <Link href="#contact"><Button variant="outline">Demander une démo</Button></Link>
-          </div>
-        </div>
-      </section>
-
-      <section className="w-full bg-foreground text-background">
-        <div className="mx-auto max-w-6xl px-4 py-16">
-          <div className="mb-8 text-center">
-            <h3 className="text-2xl font-semibold">Rejoignez nous les professionnels du bien-être.</h3>
-          </div>
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            <Card className="bg-background text-foreground">
-              <CardHeader>
-                <CardTitle>Vous êtes prêt ?</CardTitle>
-                <CardDescription>Créez votre compte professionnel et commencez en quelques minutes.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Link href="/auth/register"><Button size="lg">Créer mon compte Pro</Button></Link>
-              </CardContent>
-            </Card>
-            <Card className="bg-background text-foreground">
-              <CardHeader>
-                <CardTitle>Parlez avec un expert</CardTitle>
-                <CardDescription>Nos équipes vous accompagnent pour une mise en place aux petits soins.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Link href="#contact"><Button variant="secondary" size="lg">Être rappelé·e</Button></Link>
-              </CardContent>
-            </Card>
           </div>
         </div>
       </section>
@@ -307,46 +214,44 @@ export default function AuthProLanding() {
           <h3 className="mb-6 text-center text-2xl font-semibold">Les questions fréquentes</h3>
           <Accordion type="single" collapsible>
             <AccordionItem value="q1">
-              <AccordionTrigger>Combien de temps pour être opérationnel ?</AccordionTrigger>
-              <AccordionContent>La prise en main est immédiate. La plupart des établissements ouvrent leurs réservations en moins de 48h.</AccordionContent>
+              <AccordionTrigger>Qui peut s’inscrire sur YOKA ?</AccordionTrigger>
+              <AccordionContent>Tous les salons de coiffure, instituts de beautéet établissements de bien-être peuvent créer un compte pour gérer leurs réservations et leur activité.</AccordionContent>
             </AccordionItem>
             <AccordionItem value="q2">
-              <AccordionTrigger>Puis-je importer mes clients et mes rendez-vous ?</AccordionTrigger>
-              <AccordionContent>Oui, nos équipes vous assistent pour importer vos données depuis votre ancien logiciel.</AccordionContent>
+              <AccordionTrigger>Comment mes clients peuvent-ils réserver ?</AccordionTrigger>
+              <AccordionContent>Une fois votre compte créé, vous recevez un lien unique et une page professionnelle où vos clients peuvent réserver en ligne 24/7.</AccordionContent>
             </AccordionItem>
             <AccordionItem value="q3">
-              <AccordionTrigger>Y a-t-il un engagement ?</AccordionTrigger>
-              <AccordionContent>Les offres sont sans engagement. Arrêtez quand vous voulez.</AccordionContent>
+              <AccordionTrigger>Puis-je gérer mon agenda depuis mon téléphone ?</AccordionTrigger>
+              <AccordionContent>Oui ! L’interface YOKA est responsive et accessible depuis ordinateur, tablette ou smartphone.</AccordionContent>
+            </AccordionItem>
+              <AccordionItem value="q4">
+              <AccordionTrigger>Mes données sont-elles sécurisées ?</AccordionTrigger>
+              <AccordionContent>Oui. Toutes vos informations et celles de vos clients sont sécurisées et conformes aux normes de confidentialité.</AccordionContent>
+            </AccordionItem>
+              <AccordionItem value="q5">
+              <AccordionTrigger>Puis-je annuler ou modifier une réservation ?</AccordionTrigger>
+              <AccordionContent>Oui. Vous pouvez gérer, annuler ou reprogrammer toutes vos réservations directement depuis votre agenda YOKA.</AccordionContent>
             </AccordionItem>
           </Accordion>
         </div>
       </section>
 
-      <section className="w-full bg-muted/30">
-        <div className="mx-auto max-w-6xl px-4 py-16 text-center">
-          <div className="text-4xl font-semibold tracking-tight">14 000 000</div>
-          <p className="mt-2 text-muted-foreground">de réservations créées l'an dernier via notre réseau beauté en Algérie.</p>
-          <div className="mt-6 flex justify-center"><Link href="#contact"><Button size="lg">Commencer maintenant</Button></Link></div>
-        </div>
-      </section>
-
-      <section className="w-full">
+            <section className="w-full bg-foreground text-background">
         <div className="mx-auto max-w-6xl px-4 py-16">
-          <div className="mb-8 max-w-2xl">
-            <h3 className="text-2xl font-semibold">Plus de 50 000 professionnels ont transformé leurs rdv avec notre solution.</h3>
+          <div className="mb-8 text-center">
+            <h3 className="text-2xl font-semibold">Rejoignez nous les professionnels du bien-être.</h3>
           </div>
-          <div className="grid grid-cols-2 gap-6 sm:grid-cols-4">
-            {[
-              "/elegant-beauty-salon-interior-with-warm-lighting-a.jpg",
-              "/modern-hair-salon-interior-styling-chairs.jpg",
-              "/modern-beauty-salon-with-stylish-people-getting-ha.jpg",
-              "/traditional-barbershop-vintage-chairs-mirrors.jpg",
-            ].map((src, idx) => (
-              <div key={idx} className="relative aspect-square overflow-hidden rounded-lg">
-                <Image src={src} alt="client" fill className="object-cover" />
-              </div>
-            ))}
-          </div>
+        <div className="flex justify-center items-center">
+         <Card className="bg-background text-foreground">
+          <CardContent className="flex justify-center items-center">
+                 <Link href="#contact">
+                <Button className="bg-white text-black hover:bg-white hover:text-black"
+                   size="lg">Commencer maintenant!</Button>
+               </Link>
+             </CardContent>
+          </Card>
+        </div>
         </div>
       </section>
     </div>
