@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
@@ -397,42 +397,6 @@ Des soins haut de gamme, réalisés par des professionnelles qualifiées, pour s
         </div>
       </section>
 
-      {/* FAQ Section */}
-      <section className="py-20 bg-gray-50" id="faq">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <div className="text-sm font-semibold text-blue-600 mb-2 tracking-wide">FAQ</div>
-            <h2 className="text-3xl md:text-4xl font-bold text-black mb-8">Les questions fréquentes</h2>
-          </div>
-
-          <div className="space-y-4">
-            {faqItems.map((item, index) => (
-              <div key={index} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-                <button 
-                  onClick={() => toggleFaq(index)}
-                  className="w-full px-6 py-4 text-left flex items-center justify-between hover:bg-gray-50 focus:outline-none"
-                  aria-expanded={activeIndex === index}
-                  aria-controls={`faq-content-${index}`}
-                >
-                  <span className="font-medium text-black text-left">{item.question}</span>
-                  <ChevronDown 
-                    className={`h-5 w-5 text-gray-400 transition-transform duration-200 ${activeIndex === index ? 'transform rotate-180' : ''}`} 
-                  />
-                </button>
-                <div 
-                  id={`faq-content-${index}`}
-                  className={`px-6 pb-4 pt-0 transition-all duration-300 ${activeIndex === index ? 'block' : 'hidden'}`}
-                  aria-hidden={activeIndex !== index}
-                >
-                  <div className="text-gray-600">
-                    {item.answer}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
 
       {/* Partner Section */}
       <section className="py-20 bg-gray-50">
@@ -522,6 +486,45 @@ Des soins haut de gamme, réalisés par des professionnelles qualifiées, pour s
                 </div>
               </div>
             </Link>
+          </div>
+        </div>
+      </section>
+
+            {/* FAQ Section */}
+      <section className="py-20 bg-gray-50" id="faq">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <div className="text-sm font-semibold text-blue-600 mb-2 tracking-wide">FAQ</div>
+            <h2 className="text-3xl md:text-4xl font-bold text-black mb-8">Les questions fréquentes</h2>
+          </div>
+
+          <div className="space-y-4">
+            {faqItems.map((item, index) => (
+              <div key={index} className="bg-black rounded-lg border border-gray-700 overflow-hidden">
+                <button 
+                  onClick={() => toggleFaq(index)}
+                  className="w-full px-6 py-4 text-left flex items-center focus:outline-none transition-colors duration-200 bg-black text-white hover:bg-gray-900"
+                  aria-expanded={activeIndex === index}
+                  aria-controls={`faq-content-${index}`}
+                >
+                  <ChevronRight
+                    className={`h-5 w-5 transition-all duration-200 text-white ${
+                      activeIndex === index ? 'rotate-90' : ''
+                    }`}
+                  />
+                  <span className="font-medium text-left px-2">{item.question}</span>
+                </button>
+                <div 
+                  id={`faq-content-${index}`}
+                  className={`px-6 pb-4 pt-0 transition-all duration-300 bg-black ${activeIndex === index ? 'block' : 'hidden'}`}
+                  aria-hidden={activeIndex !== index}
+                >
+                  <div className="text-white py-0 pb-2 px-4">
+                    {item.answer}
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
