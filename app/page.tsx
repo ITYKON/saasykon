@@ -410,7 +410,7 @@ Des soins haut de gamme, réalisés par des professionnelles qualifiées, pour s
             Devenir partenaire YOKA <span className="text-sm ml-1 text-gray-500">PRO</span>
           </h2>
           <p className="text-xl text-gray-600 mb-8 text-pretty">
-            Soyez visibles auprès de <strong>14 millions d'utilisateurs</strong>.
+            Gagnez en <strong>visibilité</strong> et <strong>développez</strong> votre institut de beauté !
           </p>
 
           <div className="flex flex-col sm:flex-row justify-center items-center space-y-2 sm:space-y-0 sm:space-x-8 mb-12">
@@ -437,7 +437,7 @@ Des soins haut de gamme, réalisés par des professionnelles qualifiées, pour s
           </div>
 
           <div className="space-y-4 max-w-2xl mx-auto">
-            <Link href="/pro/register" className="block">
+            <Link href="/auth/pro" className="block">
               <div className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-md transition-shadow cursor-pointer">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
