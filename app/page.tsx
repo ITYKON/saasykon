@@ -244,7 +244,7 @@ Des soins haut de gamme, réalisés par des professionnelles qualifiées, pour s
       </section> */}
 
       {/* Locations Section */}
-      <section className="py-20 bg-black">
+      <section className="py-16 bg-black">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center  mb-12">
             <div className="text-sm font-semibold text-purple-600 mb-2 tracking-wide   ">PARTOUT EN ALGÉRIE</div>
@@ -332,42 +332,48 @@ Des soins haut de gamme, réalisés par des professionnelles qualifiées, pour s
                 ))}
               </div>
             </div> */}
-            <div className="text-center text-white">
-              {/* <h3 className="font-bold text-black mb-4">Institut</h3> */}
-              <h3 className="text-center mb-6">Nos instituts de beauté populaires en Algérie</h3>
-             <div className="grid grid-cols-2 md:grid-cols-3 gap-x-2 gap-y-4 justify-items-center w-full">
-  {[
-    "Alger",
-    "Oran",
-    "Bejaia",
-    "Constantine",
-    "Annaba",
-    "Sétif",
-    "Voir plus"
-  ].map((city, index, array) => {
-    const isLast = index === array.length - 1;
+<div className="text-center text-white">
+  <h3 className="text-center mb-6">Nos instituts de beauté populaires en Algérie</h3>
+  <div className="grid grid-cols-2 md:grid-cols-3 gap-x-2 gap-y-4 justify-items-center w-full">
+    {[
+      "Alger",
+      "Oran",
+      "Bejaia",
+      "Constantine",
+      "Annaba",
+      "Sétif",
+      "Voir plus"
+    ].map((city, index, array) => {
+      const isLast = index === array.length - 1;
 
-    return (
-<Link
-  key={city}
-  href={
-    city === "Voir plus"
-      ? "/institut-de-beaute" // => va charger app/institut-de-beaute/page.tsx
-      : `/institut-de-beaute/${slugifySalonName(city)}`
-  }
-  className={
-    `w-full max-w-[200px] bg-white text-black font-medium py-3 px-4 rounded-md shadow-sm hover:shadow-md transition-all duration-200 text-center text-sm sm:text-base border border-gray-200 hover:border-gray-300 ` +
-    (isLast ? "col-span-2 md:col-span-3" : "")
-  }
->
-  {city}
-</Link>
+      if (isLast) {
+        // Dernier élément → utiliser le Button
+        return (
+          <Button
+            key={city}
+            variant="outline"
+            asChild
+            className="col-span-2 md:col-span-3 border-white text-white bg-transparent mt-8 max-w-[200px]"
+          >
+            <Link href="/institut-de-beaute">{city}</Link>
+          </Button>
+        );
+      }
 
-    );
-  })}
+      // Les autres éléments restent des Link classiques
+      return (
+        <Link
+          key={city}
+          href={`/institut-de-beaute/${slugifySalonName(city)}`}
+          className="w-full max-w-[200px] bg-white text-black font-medium py-3 px-4 rounded-md shadow-sm hover:shadow-md transition-all duration-200 text-center text-sm sm:text-base border border-gray-200 hover:border-gray-300"
+        >
+          {city}
+        </Link>
+      );
+    })}
+  </div>
 </div>
 
-            </div>
             {/* <div>
               <h3 className="font-bold text-black mb-4">Massage</h3>
               <p className="text-gray-600 text-sm mb-4">Nos massages populaires en Algérie</p>
@@ -400,7 +406,7 @@ Des soins haut de gamme, réalisés par des professionnelles qualifiées, pour s
 
 
       {/* Partner Section */}
-      <section className="py-20 bg-gray-50">
+      <section className="py-10 bg-gray-50">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <div className="mb-8">
           </div>
