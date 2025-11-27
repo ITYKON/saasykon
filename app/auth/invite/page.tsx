@@ -10,9 +10,9 @@ import { useToast } from "@/hooks/use-toast";
 
 export default function InvitePage() {
   const router = useRouter();
-  const params = useSearchParams();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
-  const token = params.get("token") || "";
+  const token = searchParams?.get("token") || "";
 
   const [loading, setLoading] = useState(true);
   const [valid, setValid] = useState(false);

@@ -16,7 +16,7 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
   const router = useRouter()
-  const params = useSearchParams()
+  const searchParams = useSearchParams()
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -90,7 +90,7 @@ export default function LoginPage() {
                         return
                       }
                       // Redirect accordingly (consider special admin business id)
-                      const next = params.get("next")
+                      const next = searchParams?.get("next")
                       if (next) return router.push(next)
 
                       const me = await fetch("/api/auth/me").then((r) => r.json()).catch(() => null)

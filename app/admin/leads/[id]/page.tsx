@@ -15,7 +15,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Phone, MessageSquareText, CheckCircle } from "lucide-react";
 
 export default function LeadDetailPage() {
-  const { id } = useParams<{ id: string }>();
+  const params = useParams<{ id: string }>();
+  const id = params?.id;
+  
+  if (!id) {
+    return <div>ID non trouvé</div>; // Ou une autre gestion d'erreur appropriée
+  }
+  
   const { toast } = useToast();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
