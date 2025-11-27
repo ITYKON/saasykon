@@ -262,8 +262,9 @@ export default function OffresPage() {
 
       {/* Pricing Cards - Design minimaliste */}
       <section className="py-4 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+ <div className="max-w-7xl mx-auto">
+  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 justify-center mx-auto">
+
             {plans.map((plan) => {
               const { icon: Icon, color } = getPlanIcon(plan.code);
               const isPopular = plan.code === "pro";
@@ -425,26 +426,11 @@ export default function OffresPage() {
             <Link href="/auth/pro">
               <Button size="lg" className="bg-white text-black hover:bg-gray-100">
                 Commencer gratuitement
-                <ArrowRight className="h-5 w-5 ml-2" />
-              </Button>
-            </Link>
-            <Link href="/auth/pro#contact">
-              <Button size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-black">
-                Demander une démo
               </Button>
             </Link>
           </div>
         </div>
       </section>
-
-      {/* Footer */}
-      <footer className="bg-gray-900 text-gray-400 py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto text-center">
-          <p className="text-sm">
-            © 2025 YOKA. Tous droits réservés. | <Link href="/mentions-legales" className="hover:text-white">Mentions légales</Link> | <Link href="/cgv" className="hover:text-white">CGV</Link>
-          </p>
-        </div>
-      </footer>
     </div>
   );
 }
