@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma';
 import { getAuthUserFromCookies } from '@/lib/auth';
 import type { DashboardStatistics } from '@/types/statistics';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   console.log('Début de la récupération des statistiques');
   try {

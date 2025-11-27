@@ -30,6 +30,12 @@ const transporter = nodemailer.createTransport({
 
 // Function to send a test email
 export async function sendTestEmail() {
+  // Ne pas envoyer d'emails pendant le build
+  if (process.env.NEXT_PHASE === 'phase-production-build' || process.env.NODE_ENV === 'test') {
+    console.log('Skipping test email during build or test environment');
+    return { success: true, messageId: 'skipped-during-build' };
+  }
+
   try {
     const info = await transporter.sendMail({
       from: EMAIL_FROM,

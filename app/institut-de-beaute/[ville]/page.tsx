@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { notFound } from "next/navigation"
 import { MapPin, Star, Filter } from "lucide-react"
 import Link from "next/link"
@@ -6,6 +8,14 @@ import { Badge } from "@/components/ui/badge"
 import { prisma } from "@/lib/prisma"
 import { Footer } from "@/components/footer"
 import { buildSalonSlug } from "@/lib/salon-slug"
+
+// Désactiver la génération statique
+export const dynamicParams = false;
+
+// Ne pas générer de pages statiques
+export function generateStaticParams() {
+  return [];
+}
 
 interface PageProps {
   params: {
@@ -211,9 +221,3 @@ export default async function CityInstitutePage({ params }: PageProps) {
     </div>
   )
 }
-
-export async function generateStaticParams() {
-  const cities = await prisma.cities.findMany({ select: { name: true } })
-  return cities.map((c) => ({ ville: slugifyCity(c.name) }))
-}
-

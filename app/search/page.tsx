@@ -44,9 +44,9 @@ export default function SearchPage() {
   const [loading, setLoading] = useState(true)
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
-  const [query, setQuery] = useState(searchParams.get("q") || "")
-  const [location, setLocation] = useState(searchParams.get("location") || "")
-  const [category, setCategory] = useState(searchParams.get("category") || "")
+  const [query, setQuery] = useState(searchParams?.get("q") ?? "")
+const [location, setLocation] = useState(searchParams?.get("location") ?? "")
+const [category, setCategory] = useState(searchParams?.get("category") ?? "")
   const [selectedService, setSelectedService] = useState<string | null>(null)
   const [showFilters, setShowFilters] = useState(false)
   

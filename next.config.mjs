@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: 'standalone', // indispensable pour Docker
   eslint: {
     ignoreDuringBuilds: false,
   },
@@ -9,7 +10,6 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-  // Désactive le rechargement rapide problématique
   webpack: (config, { dev }) => {
     if (dev) {
       config.watchOptions = {
@@ -20,16 +20,10 @@ const nextConfig = {
     }
     return config;
   },
-  // Ignore les erreurs de connexion WebSocket
   experimental: {
-    // Désactive la vérification TypeScript pendant le build
-    // pour éviter les erreurs de types liées aux WebSockets
     externalDir: false,
   },
-  // Ensure certain external packages are transpiled by Next.js bundler
-  transpilePackages: [
-    "@vis.gl/react-google-maps",
-  ],
-}
+  transpilePackages: ["@vis.gl/react-google-maps"],
+};
 
-export default nextConfig
+export default nextConfig;

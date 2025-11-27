@@ -262,76 +262,7 @@ Des soins haut de gamme, réalisés par des professionnelles qualifiées, pour s
                   "Lille",
                   "Lyon",
                   "Marseille",
-                  "Montpellier",
-                  "Nantes",
-                  "Nice",
-                  "Paris",
-                  "Strasbourg",
-                  "Toulouse",
-                ].map((city) => (
-                  <Link
-                    key={city}
-                    href={`/coiffeur/${city.toLowerCase()}`}
-                    className="block text-gray-600 hover:text-black text-sm"
-                  >
-                    {city}
-                  </Link>
-                ))}
-              </div>
-            </div> */}
-            {/* <div>
-              <h3 className="font-bold text-black mb-4">Barbier</h3>
-              <p className="text-gray-600 text-sm mb-4">Nos barbiers populaires en Algérie</p>
-              <div className="space-y-2">
-                {[
-                  "Bordeaux",
-                  "Lille",
-                  "Lyon",
-                  "Marseille",
-                  "Montpellier",
-                  "Nantes",
-                  "Nice",
-                  "Paris",
-                  "Strasbourg",
-                  "Toulouse",
-                ].map((city) => (
-                  <Link
-                    key={city}
-                    href={`/barbier/${city.toLowerCase()}`}
-                    className="block text-gray-600 hover:text-black text-sm"
-                  >
-                    {city}
-                  </Link>
-                ))}
-              </div>
-            </div> */}
-            {/* <div>
-              <h3 className="font-bold text-black mb-4">Manucure</h3>
-              <p className="text-gray-600 text-sm mb-4">Nos salons de manucure populaires en Algérie</p>
-              <div className="space-y-2">
-                {[
-                  "Bordeaux",
-                  "Lille",
-                  "Lyon",
-                  "Marseille",
-                  "Montpellier",
-                  "Nantes",
-                  "Nice",
-                  "Paris",
-                  "Strasbourg",
-                  "Toulouse",
-                ].map((city) => (
-                  <Link
-                    key={city}
-                    href={`/manucure/${city.toLowerCase()}`}
-                    className="block text-gray-600 hover:text-black text-sm"
-                  >
-                    {city}
-                  </Link>
-                ))}
-              </div>
-            </div> */}
-<div className="text-center text-white">
+            <div className="text-center text-white">
   <h3 className="text-center mb-6">Nos instituts de beauté populaires en Algérie</h3>
   <div className="grid grid-cols-2 md:grid-cols-3 gap-x-2 gap-y-4 justify-items-center w-full">
     {[

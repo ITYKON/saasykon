@@ -15,8 +15,8 @@ function ClaimPageContent() {
   const searchParams = useSearchParams()
   const [loading, setLoading] = useState(false)
   
-  const businessId = searchParams.get("business_id")
-  const businessName = searchParams.get("business_name") || ""
+  const businessId = searchParams?.get("business_id") ?? null
+  const businessName = searchParams?.get("business_name") ?? ""
   
   const [formData, setFormData] = useState({
     full_name: "",

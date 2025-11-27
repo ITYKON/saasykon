@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { getAuthContext } from "@/lib/authorization";
 import { cookies } from "next/headers";
 
+export const dynamic = 'force-dynamic';
+
 // Map a /pro path to required permission codes (any-of)
 function requiredForPath(pathname: string): string[] | null {
   // Normalize

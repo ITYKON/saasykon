@@ -1,6 +1,10 @@
 "use client"
 import { useEffect, useState } from "react"
 import { useRouter, useParams } from "next/navigation"
+
+type PageParams = {
+  id: string
+}
 import { Calendar, Clock, MapPin, User, ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -23,7 +27,7 @@ type Booking = {
 }
 
 export default function EditBookingPage() {
-  const params = useParams()
+  const params = useParams() as PageParams
   const router = useRouter()
   const { toast } = useToast()
   const [booking, setBooking] = useState<Booking | null>(null)
@@ -35,9 +39,10 @@ export default function EditBookingPage() {
   })
 
   useEffect(() => {
-    if (!params.id) return
+    const bookingId = params?.id
+    if (!bookingId) return
     
-    fetch(`/api/client/bookings/${params.id}`)
+    fetch(`/api/client/bookings/${bookingId}`)
       .then(res => res.json())
       .then(data => {
         if (data.booking) {
@@ -58,7 +63,7 @@ export default function EditBookingPage() {
         })
         setLoading(false)
       })
-  }, [params.id, toast])
+  }, [params?.id, toast])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -69,7 +74,7 @@ export default function EditBookingPage() {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          id: params.id,
+          id: params?.id,
           starts_at: new Date(formData.starts_at).toISOString(),
           notes: formData.notes
         })
