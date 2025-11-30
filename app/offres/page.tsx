@@ -131,15 +131,15 @@ export default function OffresPage() {
   function getPlanIcon(code: string) {
     switch (code) {
       case "decouverte":
-        return { icon: Gift, color: "bg-green-100 text-green-800", gradient: "from-green-400 to-green-600" };
+        return { icon: Gift, color: "bg-white text-black border border-gray-100", gradient: "from-green-400 to-green-600" };
       case "starter":
-        return { icon: Rocket, color: "bg-blue-100 text-blue-800", gradient: "from-blue-400 to-blue-600" };
+        return { icon: Rocket, color: "bg-white text-black border border-gray-100", gradient: "from-blue-400 to-blue-600" };
       case "pro":
-        return { icon: Star, color: "bg-purple-100 text-purple-800", gradient: "from-purple-400 to-purple-600" };
+        return { icon: Star, color: "bg-white text-black border border-gray-100", gradient: "from-purple-400 to-purple-600" };
       case "business":
-        return { icon: Crown, color: "bg-yellow-100 text-yellow-800", gradient: "from-yellow-400 to-yellow-600" };
+        return { icon: Crown, color: "bg-white text-black border border-gray-100", gradient: "from-yellow-400 to-yellow-600" };
       default:
-        return { icon: Gift, color: "bg-gray-100 text-gray-800", gradient: "from-gray-400 to-gray-600" };
+        return { icon: Gift, color: "bg-white text-black border border-gray-100", gradient: "from-gray-400 to-gray-600" };
     }
   }
 
@@ -263,7 +263,7 @@ export default function OffresPage() {
       {/* Pricing Cards - Design minimaliste */}
       <section className="py-4 px-4 sm:px-6 lg:px-8">
  <div className="max-w-7xl mx-auto">
-  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 justify-center mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 justify-center justify-items-center mx-auto">
 
             {plans.map((plan) => {
               const { icon: Icon, color } = getPlanIcon(plan.code);
@@ -273,7 +273,7 @@ export default function OffresPage() {
               return (
                 <div
                   key={plan.id}
-                  className={`bg-white rounded-2xl p-6 transition-all duration-300 hover:shadow-lg ${
+                  className={`w-full max-w-sm mx-auto bg-white rounded-2xl p-6 transition-all duration-300 hover:shadow-lg ${
                     isPopular ? "border-2 border-purple-500" : "border border-gray-200"
                   }`}
                 >
@@ -297,7 +297,7 @@ export default function OffresPage() {
                   <ul className="space-y-3 mb-8">
                     {plan.features.map((feature, index) => (
                       <li key={index} className="flex items-start gap-2">
-                        <Check className="h-4 w-4 text-green-500 flex-shrink-0 mt-0.5" />
+                        <Check className="h-4 w-4 text-black flex-shrink-0 mt-0.5" />
                         <span className="text-sm text-gray-700">{formatFeatureName(feature)}</span>
                       </li>
                     ))}
@@ -340,8 +340,8 @@ export default function OffresPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <Card className="border-none shadow-lg">
               <CardHeader>
-                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
-                  <Calendar className="h-6 w-6 text-blue-600" />
+                <div className="w-12 h-12 bg-white rounded-lg border border-gray-100 flex items-center justify-center mb-4">
+                  <Calendar className="h-6 w-6 text-black" />
                 </div>
                 <CardTitle>Gestion des rendez-vous</CardTitle>
                 <CardDescription>
@@ -352,8 +352,8 @@ export default function OffresPage() {
 
             <Card className="border-none shadow-lg">
               <CardHeader>
-                <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-4">
-                  <Users className="h-6 w-6 text-purple-600" />
+                <div className="w-12 h-12 bg-white rounded-lg border border-gray-100 flex items-center justify-center mb-4">
+                  <Users className="h-6 w-6 text-black" />
                 </div>
                 <CardTitle>Gestion d'équipe</CardTitle>
                 <CardDescription>
@@ -364,8 +364,8 @@ export default function OffresPage() {
 
             <Card className="border-none shadow-lg">
               <CardHeader>
-                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-4">
-                  <BarChart3 className="h-6 w-6 text-green-600" />
+                <div className="w-12 h-12 bg-white rounded-lg border border-gray-100 flex items-center justify-center mb-4">
+                  <BarChart3 className="h-6 w-6 text-black" />
                 </div>
                 <CardTitle>Statistiques & Rapports</CardTitle>
                 <CardDescription>
@@ -376,8 +376,8 @@ export default function OffresPage() {
 
             <Card className="border-none shadow-lg">
               <CardHeader>
-                <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center mb-4">
-                  <MessageSquare className="h-6 w-6 text-yellow-600" />
+                <div className="w-12 h-12 bg-white rounded-lg border border-gray-100 flex items-center justify-center mb-4">
+                  <MessageSquare className="h-6 w-6 text-black" />
                 </div>
                 <CardTitle>Communication client</CardTitle>
                 <CardDescription>
@@ -388,8 +388,8 @@ export default function OffresPage() {
 
             <Card className="border-none shadow-lg">
               <CardHeader>
-                <div className="w-12 h-12 bg-pink-100 rounded-lg flex items-center justify-center mb-4">
-                  <Instagram className="h-6 w-6 text-pink-600" />
+                <div className="w-12 h-12 bg-white rounded-lg border border-gray-100 flex items-center justify-center mb-4">
+                  <Instagram className="h-6 w-6 text-black" />
                 </div>
                 <CardTitle>Intégration réseaux sociaux</CardTitle>
                 <CardDescription>
@@ -400,8 +400,8 @@ export default function OffresPage() {
 
             <Card className="border-none shadow-lg">
               <CardHeader>
-                <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center mb-4">
-                  <Mail className="h-6 w-6 text-red-600" />
+                <div className="w-12 h-12 bg-white rounded-lg border border-gray-100 flex items-center justify-center mb-4">
+                  <Mail className="h-6 w-6 text-black" />
                 </div>
                 <CardTitle>Marketing automation</CardTitle>
                 <CardDescription>
