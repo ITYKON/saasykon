@@ -1,0 +1,27 @@
+
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: ./app/Dockerfile
+      args:
+        - NEXT_PUBLIC_API_URL=http://localhost:3000/api
+    container_name: saasykon-app
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - HOSTNAME=0.0.0.0
+      - PORT=3000
+      - NEXT_PUBLIC_API_URL=http://localhost:3000/api
+      - INTERNAL_API_URL=http://host.docker.internal:3000/api
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    networks:
+      - saasykon-network
+
+networks:
+  saasykon-network:
+    driver: bridge

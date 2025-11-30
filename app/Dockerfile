@@ -1,67 +1,46 @@
 # syntax=docker/dockerfile:1
-
-# ------------------------------
-# Base image
-# ------------------------------
-FROM node:18-alpine AS base
+FROM node:18-alpine AS builder
 WORKDIR /app
 
-# Install compatibility libraries
-RUN apk add --no-cache libc6-compat bash git
+# Définir les variables de build
+ARG NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 
-# ------------------------------
-# Install dependencies
-# ------------------------------
-FROM base AS deps
+# Copier les fichiers de dépendances
+COPY package*.json ./
+RUN npm ci --legacy-peer-deps
 
-# Copy package files
-COPY package.json package-lock.json* .npmrc* ./
-
-# Install dependencies
-RUN if [ -f package-lock.json ]; then \
-        npm install --legacy-peer-deps; \
-    else \
-        echo "Lockfile not found." && exit 1; \
-    fi
-
-# ------------------------------
-# Build the Next.js app
-# ------------------------------
-FROM base AS builder
-WORKDIR /app
-
-# Copy dependencies from deps stage
-COPY --from=deps /app/node_modules ./node_modules
-# Copy all source files
+# Copier le reste du code
 COPY . .
 
-# Build Next.js app
+# Build Next.js
 RUN npm run build
 
-# ------------------------------
-# Production image
-# ------------------------------
-FROM base AS runner
+# Image de production
+FROM node:18-alpine
 WORKDIR /app
 
+# Variables d'environnement
 ENV NODE_ENV=production
-ENV HOSTNAME="0.0.0.0"
+ENV HOSTNAME=0.0.0.0
 ENV PORT=3000
+ENV NEXT_TELEMETRY_DISABLED=1
 
-# Create non-root user
-RUN addgroup --system --gid 1001 nodejs \
-    && adduser --system --uid 1001 nextjs
+# Créer un utilisateur non-root
+RUN addgroup -g 1001 -S nodejs && adduser -S nextjs -u 1001
 
-# Copy built app and static assets
-COPY --from=builder /app/public ./public
+# Copier les fichiers buildés
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Switch to non-root user
+# Donner les bonnes permissions
+RUN chown -R nextjs:nodejs /app
+
 USER nextjs
 
-# Expose port
+# Exposer le port
 EXPOSE 3000
 
-# Run server
+# Commande de démarrage
 CMD ["node", "server.js"]
