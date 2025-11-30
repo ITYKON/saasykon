@@ -100,9 +100,6 @@ export default function AuthProLanding() {
               <Link href="/offres">
                 <Button size="lg">Découvrir les offres</Button>
               </Link>
-              <Link href="#contact">
-                <Button variant="secondary" size="lg">Être recontacté</Button>
-              </Link>
             </div>
           </div>
           <Card className="md:ml-auto">
