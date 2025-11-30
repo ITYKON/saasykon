@@ -9,7 +9,8 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
 
   // Pages où on cache Header + Footer
   const hideLayout = pathname?.startsWith("/admin") ||
-  pathname?.startsWith("/pro");
+  pathname?.startsWith("/pro") ||
+  pathname?.startsWith("/client");
 
   return (
     <>
