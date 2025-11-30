@@ -2,8 +2,16 @@
 const nextConfig = {
   output: 'standalone',
   eslint: { ignoreDuringBuilds: false },
-  typescript: { ignoreBuildErrors: false },
+  typescript: { 
+    ignoreBuildErrors: false,
+    tsconfigPath: './tsconfig.json' // Explicitly point to tsconfig
+  },
   images: { unoptimized: true },
+  experimental: {
+    // This is needed to ensure the @ alias works correctly
+    // with the Next.js compiler
+    externalDir: true,
+  },
   webpack: (config, { dev }) => {
     // Ignorer les dossiers système problématiques
     config.watchOptions = {
@@ -26,9 +34,6 @@ const nextConfig = {
     ];
 
     return config;
-  },
-  experimental: {
-    externalDir: false,
   },
   transpilePackages: ["@vis.gl/react-google-maps"],
 };
