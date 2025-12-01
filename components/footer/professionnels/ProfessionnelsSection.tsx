@@ -16,7 +16,7 @@ export const ProfessionnelsSection = () => {
           </Link>
         </li>
         <li>
-          <Link href="/support" className="hover:text-black transition-colors">
+          <Link href="/Professionnels/support" className="hover:text-black transition-colors">
             Support
           </Link>
         </li>
