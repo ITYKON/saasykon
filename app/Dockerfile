@@ -18,7 +18,7 @@ COPY . .
 RUN npx prisma generate
 
 # pour regler le prb des var d env: ahlem
-COPY .env.mock ./.env.production
+COPY .env.mock.txt ./.env.production
 
 # Build Next.js
 RUN npm run build
