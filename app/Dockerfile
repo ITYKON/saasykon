@@ -13,6 +13,10 @@ RUN npm ci --legacy-peer-deps
 # Copier le reste du code
 COPY . .
 
+
+# Generer le client prisma: ahlem
+RUN npx prisma generate
+
 # Build Next.js
 RUN npm run build
 
