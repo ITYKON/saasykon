@@ -15,7 +15,11 @@ import {
   BookOpen,
   Shield,
   Archive,
+  Menu,
+  X,
 } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 
 export default function ProLayout({
   children,
@@ -26,18 +30,42 @@ export default function ProLayout({
   const linkBase = "flex items-center px-6 py-3 rounded-lg font-medium transition-colors"
   const inactive = "text-gray-700 hover:bg-gray-100"
   const active = "bg-gray-100 text-gray-900"
-
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [me, setMe] = useState<{ employee: { name: string | null; role: string | null } | null; permissions: string[] }>({ employee: null, permissions: [] })
   const perms = me.permissions || []
   const [roles, setRoles] = useState<string[]>([])
 
+  // Gestion du redimensionnement de la fenêtre
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 1024) {
+        setIsMobileMenuOpen(false)
+      }
+    }
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
+  // Gestion de la touche Échap pour fermer le menu
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsMobileMenuOpen(false)
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
+  // Chargement des données utilisateur
   useEffect(() => {
     let mounted = true
     fetch('/api/pro/me').then(async (r) => {
       const data = await r.json().catch(() => ({}))
       if (mounted && r.ok) setMe({ employee: data?.employee || null, permissions: data?.permissions || [] })
     }).catch(() => {})
-    // read roles from cookie for owner/pro accounts
+    
+    // Lecture des rôles depuis les cookies pour les comptes propriétaires/pro
     try {
       const m = typeof document !== 'undefined' ? document.cookie.match(/(?:^|; )saas_roles=([^;]+)/) : null
       const val = m ? decodeURIComponent(m[1]) : ''
@@ -57,8 +85,24 @@ export default function ProLayout({
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Barre de navigation mobile */}
+      <div className="lg:hidden flex items-center justify-between p-4 bg-white border-b border-gray-200 sticky top-0 z-40">
+        <h2 className="text-xl font-bold text-gray-900">YOKA</h2>
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          aria-label={isMobileMenuOpen ? "Fermer le menu" : "Ouvrir le menu"}
+        >
+          {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+        </Button>
+      </div>
+
       {/* Sidebar Navigation */}
-      <aside className="fixed inset-y-0 left-0 w-64 bg-white shadow-lg border-r h-screen overflow-y-auto scrollbar-hide z-30">
+      <aside className={cn(
+        "fixed inset-y-0 left-0 w-64 bg-white shadow-lg border-r h-screen overflow-y-auto transition-transform duration-300 ease-in-out z-30",
+        isMobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+      )}>
         <div className="p-6 border-b">
           <h2 className="text-xl font-bold text-gray-900">YOKA</h2>
           {/* Hide employee identity for PRO/ADMIN accounts */}
@@ -158,7 +202,21 @@ export default function ProLayout({
         </div>
       </aside>
 
-      <main className="ml-64">{children}</main>
+      {/* Overlay pour fermer le menu en cliquant à côté (mobile uniquement) */}
+      {isMobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 z-20 lg:hidden"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
+      {/* Contenu principal avec marge conditionnelle */}
+      <main className={cn(
+        "transition-all duration-300 pt-16 lg:pt-0",
+        isMobileMenuOpen ? "ml-64" : "lg:ml-64"
+      )}>
+        {children}
+      </main>
     </div>
   )
 }

@@ -2,8 +2,10 @@
 import type React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, Users, Building2, CreditCard, Settings, Calendar, TrendingUp, Shield, Archive, FileText, CheckCircle2 } from "lucide-react";
+import { BarChart3, Users, Building2, CreditCard, Settings, Calendar, TrendingUp, Shield, Archive, FileText, CheckCircle2, Menu, X } from "lucide-react";
 import useAuth from "@/hooks/useAuth";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 // Map navigation items to an optional permission code required to view them.
 const navigation = [
@@ -30,6 +32,29 @@ export default function AdminLayout({
   const { auth } = useAuth();
   const permissions = auth?.permissions || [];
   const isAdmin = auth?.roles?.includes("ADMIN");
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // Gestion du redimensionnement de la fenêtre
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 1024) {
+        setIsMobileMenuOpen(false);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Gestion de la touche Échap pour fermer le menu
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsMobileMenuOpen(false);
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
   // Compute display info for current user
   const roleLabelMap: Record<string, string> = {
     ADMIN: "Admin",
@@ -47,9 +72,25 @@ export default function AdminLayout({
   const fullName = [auth?.first_name, auth?.last_name].filter(Boolean).join(" ");
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="flex">
-        {/* Sidebar */}
-        <div className="w-64 bg-white shadow-sm border-r sticky top-0 h-screen overflow-y-auto">
+      {/* Barre de navigation mobile */}
+      <div className="lg:hidden flex items-center justify-between p-4 bg-white border-b border-gray-200 sticky top-0 z-40">
+        <h2 className="text-xl font-bold text-gray-900">Administration</h2>
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          aria-label={isMobileMenuOpen ? "Fermer le menu" : "Ouvrir le menu"}
+        >
+          {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+        </Button>
+      </div>
+
+      <div className="flex flex-col lg:flex-row">
+        {/* Sidebar - maintenant conditionnelle sur mobile */}
+        <div className={cn(
+          "fixed inset-y-0 left-0 w-64 bg-white shadow-sm border-r h-screen overflow-y-auto z-30 transition-transform duration-300 ease-in-out",
+          isMobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+        )}>
           <div className="p-6">
             {/* Title becomes the main role */}
             <h2 className="text-xl font-bold text-gray-900">{primaryRoleLabel || "Admin"}</h2>
@@ -90,8 +131,22 @@ export default function AdminLayout({
             </button>
           </nav>
         </div>
-        {/* Main content */}
-        <div className="flex-1">{children}</div>
+
+        {/* Overlay pour fermer le menu en cliquant à côté (mobile uniquement) */}
+        {isMobileMenuOpen && (
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-50 z-20 lg:hidden"
+            onClick={() => setIsMobileMenuOpen(false)}
+          />
+        )}
+
+        {/* Contenu principal avec marge conditionnelle */}
+        <div className={cn(
+          "w-full transition-all duration-300 pt-16 lg:pt-0 min-h-screen",
+          isMobileMenuOpen ? "ml-64" : "lg:ml-64"
+        )}>
+          {children}
+        </div>
       </div>
     </div>
   );
