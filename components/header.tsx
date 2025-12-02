@@ -63,15 +63,6 @@ export function Header() {
         {isMenuOpen && (
           <div className="md:hidden border-t border-gray-200 py-4">
             <nav className="flex flex-col space-y-4">
-              <Link href="/coiffeur" className="text-gray-700 hover:text-black transition-colors">
-                Coiffeur
-              </Link>
-              <Link href="/barbier" className="text-gray-700 hover:text-black transition-colors">
-                Barbier
-              </Link>
-              <Link href="/manucure" className="text-gray-700 hover:text-black transition-colors">
-                Manucure
-              </Link>
               <Link href="/institut-de-beaute" className="text-gray-700 hover:text-black transition-colors">
                 Institut de beauté
               </Link>
