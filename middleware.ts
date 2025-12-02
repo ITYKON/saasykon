@@ -10,7 +10,38 @@ export async function middleware(request: NextRequest) {
   const isResetPasswordPage = pathname.startsWith("/auth/reset-password");
   const isApiRequest = pathname.startsWith("/api/");
   if (pathname === "/auth/logout") {
-    return NextResponse.next();
+    const response = NextResponse.redirect(new URL('/auth/login', request.url));
+    
+    // Supprimer les cookies
+    response.cookies.set(SESSION_COOKIE_NAME, '', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      domain: process.env.NODE_ENV === 'production' ? '.railway.app' : undefined,
+      expires: new Date(0)
+    });
+    
+    response.cookies.set('saas_roles', '', {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      domain: process.env.NODE_ENV === 'production' ? '.railway.app' : undefined,
+      expires: new Date(0)
+    });
+
+    // Supprimer également le cookie business_id
+    response.cookies.set('business_id', '', {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      domain: process.env.NODE_ENV === 'production' ? '.railway.app' : undefined,
+      expires: new Date(0)
+    });
+    
+    return response;
   }
   const isProtected = ["/admin", "/pro", "/client", "/api/admin", "/api/client"].some((p) => pathname.startsWith(p));
 

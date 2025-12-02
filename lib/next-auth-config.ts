@@ -19,11 +19,26 @@ export const authConfig: AuthOptions = {
     }),
   ],
   secret: process.env.NEXTAUTH_SECRET,
-  session: { strategy: "jwt" },
+  session: { 
+    strategy: "jwt",
+    maxAge: 7 * 24 * 60 * 60, // 7 jours
+  },
   pages: {
     signIn: "/auth/signin",
     verifyRequest: "/auth/verify-request",
     error: "/auth/error",
   },
   debug: process.env.NODE_ENV === "development",
+  cookies: {
+    sessionToken: {
+      name: process.env.SESSION_COOKIE_NAME || "saas_session",
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: process.env.NODE_ENV === 'production',
+        domain: process.env.NODE_ENV === 'production' ? '.railway.app' : undefined
+      }
+    }
+  }
 };

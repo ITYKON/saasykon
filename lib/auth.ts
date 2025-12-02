@@ -135,16 +135,47 @@ export async function createSession(userId: string) {
 export async function destroySessionFromRequestCookie() {
   const cookieStore = cookies();
   const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+  
   if (token) {
     await prisma.sessions.delete({ where: { token } }).catch(() => {});
   }
-  const res = NextResponse.json({ ok: true });
-  // Suppression du cookie pour tous les chemins et domaines
-  res.cookies.set(SESSION_COOKIE_NAME, "", { httpOnly: true, expires: new Date(0), path: "/" });
-  res.cookies.set(SESSION_COOKIE_NAME, "", { httpOnly: true, expires: new Date(0), path: "/", domain: getRequestDomain() });
-  res.cookies.set("saas_roles", "", { httpOnly: false, expires: new Date(0), path: "/" });
-  res.cookies.set("saas_roles", "", { httpOnly: false, expires: new Date(0), path: "/", domain: getRequestDomain() });
-  return res;
+
+  const isProduction = process.env.NODE_ENV === 'production';
+  const domain = isProduction ? '.railway.app' : 'localhost';
+  
+  const response = NextResponse.json({ ok: true });
+  
+  // Suppression du cookie de session
+  response.cookies.set(SESSION_COOKIE_NAME, '', {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: 'lax',
+    path: '/',
+    domain: isProduction ? domain : undefined,
+    expires: new Date(0)
+  });
+
+  // Suppression du cookie des rôles
+  response.cookies.set('saas_roles', '', {
+    httpOnly: false,
+    secure: isProduction,
+    sameSite: 'lax',
+    path: '/',
+    domain: isProduction ? domain : undefined,
+    expires: new Date(0)
+  });
+
+  // Suppression du cookie business_id
+  response.cookies.set('business_id', '', {
+    httpOnly: false,
+    secure: isProduction,
+    sameSite: 'lax',
+    path: '/',
+    domain: isProduction ? domain : undefined,
+    expires: new Date(0)
+  });
+
+  return response;
 }
 
 function getRequestDomain() {
