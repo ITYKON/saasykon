@@ -10,7 +10,7 @@ import "./globals.css";
 import LayoutWrapper from "../components/LayoutWrapper";
 
 export const metadata: Metadata = {
-  title: "YOKA - Réservez en beauté",
+  title: "YOKA - Réservez en beauté avec yoka",
   description:
     "Trouvez rapidement un salon de coiffure, institut de beauté, un barbier près de chez vous. RDV en ligne 24/7. Confirmation immédiate.",
   generator: "YOKA",
