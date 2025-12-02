@@ -8,7 +8,7 @@ export default function SupportPage() {
     <div className="support-page">
         <section className="bg-white py-16">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <h1 className="text-4xl font-bold text-gray-900 mb-6">Comment pouvons-nous vous aider ? test pr ci</h1>
+            <h1 className="text-4xl font-bold text-gray-900 mb-6">Comment pouvons-nous vous aider ?</h1>
             <div className="relative max-w-2xl mx-auto">
               <input
                 type="text"
