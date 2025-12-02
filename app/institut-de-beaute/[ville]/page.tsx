@@ -200,7 +200,6 @@ export default async function CityInstitutePage({ params }: PageProps) {
         </div>
       </div>
 
-      <Footer />
     </div>
   )
 }
