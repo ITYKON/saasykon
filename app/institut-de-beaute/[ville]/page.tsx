@@ -78,23 +78,6 @@ export default async function CityInstitutePage({ params }: PageProps) {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Filters Bar */}
-      <div className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex flex-wrap gap-3">
-            <Button variant="outline" className="flex items-center gap-2 bg-transparent">
-              <Filter className="h-4 w-4" />
-              Filtres
-            </Button>
-            {categories.map((category) => (
-              <Button key={category} variant="outline" className="hover:bg-gray-100 bg-transparent">
-                {category}
-              </Button>
-            ))}
-          </div>
-        </div>
-      </div>
-
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
