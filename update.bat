@@ -13,4 +13,4 @@ docker run -d -p 3000:3000 --name saasykon-auto ghcr.io/itykon/saasykon-app:late
 echo Waiting 3 s...
 timeout /t 3 /nobreak >nul
 echo ✅ Done - http://localhost:3000
-start http://localhost:3000s
+start http://localhost:3000
