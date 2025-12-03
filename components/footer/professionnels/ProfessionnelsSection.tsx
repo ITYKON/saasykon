@@ -11,8 +11,8 @@ export const ProfessionnelsSection = () => {
           </Link>
         </li>
         <li>
-          <Link href="/pro/login" className="hover:text-black transition-colors">
-            Espace pro
+          <Link href="../offres" className="hover:text-black transition-colors">
+            Nos offres
           </Link>
         </li>
         <li>
