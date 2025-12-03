@@ -21,7 +21,7 @@ export const ServicesSection = () => {
           </Link>
         </li> */}
         <li>
-          <Link href="/institut" className="hover:text-black transition-colors">
+          <Link href="../institut-de-beaute" className="hover:text-black transition-colors">
             Institut de beauté
           </Link>
         </li>
