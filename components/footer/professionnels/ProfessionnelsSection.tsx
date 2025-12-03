@@ -6,8 +6,8 @@ export const ProfessionnelsSection = () => {
       <h3 className="font-semibold text-black mb-4">Professionnels</h3>
       <ul className="space-y-2 text-gray-600">
         <li>
-          <Link href="/pro/register" className="hover:text-black transition-colors">
-            Devenir partenaire
+          <Link href="/auth/pro" className="hover:text-black transition-colors">
+            Rejoignez nous
           </Link>
         </li>
         <li>
