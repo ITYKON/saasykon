@@ -126,7 +126,7 @@ export const QuiSommesNous = () => {
               Rejoignez nous
             </Link>
             <Link 
-              href="/contact" 
+              href="/a-propos/contact" 
               className="bg-transparent border-2 border-gray-900 text-gray-900 px-8 py-3 rounded-md text-lg font-medium hover:bg-gray-100 transition-colors"
             >
               Nous contacter
