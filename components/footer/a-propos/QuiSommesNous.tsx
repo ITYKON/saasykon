@@ -120,10 +120,10 @@ export const QuiSommesNous = () => {
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
             <Link 
-              href="/pro/register" 
+              href="/auth/pro" 
               className="bg-gray-900 text-white px-8 py-3 rounded-md text-lg font-medium hover:bg-gray-800 transition-colors"
             >
-              Devenir partenaire
+              Rejoignez nous
             </Link>
             <Link 
               href="/contact" 
