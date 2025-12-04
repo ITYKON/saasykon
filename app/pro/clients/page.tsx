@@ -1,5 +1,5 @@
 "use client"
-import { Users, Filter, Phone, Mail, Calendar, Star, Eye, Pencil, Trash2 } from "lucide-react"
+import { Users, Filter, Phone, Mail, Calendar, Star, Eye, Pencil, Trash2, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -111,21 +111,27 @@ export default function ProClients() {
   }
 
   return (
-    <div className="space-y-6">
-        <header className="bg-white border-b border-gray-200">
-          <div className="px-6 py-4">
-            <div className="flex justify-between items-center">
-        <div>
-        <h1 className="text-2xl font-bold text-black">Mes clients</h1>
-        <p className="text-gray-600">Gérer vos clients</p>
-        </div>
-              <div className="flex gap-2">
-                <Button variant="outline">
-                  <Filter className="h-4 w-4 mr-2" />
-                  Filtres
+    <div className="space-y-4 md:space-y-6">
+        <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
+          <div className="px-4 py-3 sm:px-6">
+            <div className="flex flex-col space-y-2 sm:space-y-0 sm:flex-row sm:justify-between sm:items-center">
+              <div className="flex-1 min-w-0">
+                <h1 className="text-xl font-bold text-gray-900 truncate">Mes clients</h1>
+                <p className="text-sm text-gray-500">Gérer vos clients</p>
+              </div>
+              <div className="flex items-center space-x-2 mt-2 sm:mt-0">
+                <Button variant="outline" size="sm" className="h-9 px-3 flex-1 sm:flex-none">
+                  <Filter className="h-4 w-4 sm:mr-2" />
+                  <span className="sr-only sm:not-sr-only">Filtres</span>
                 </Button>
                 <CreateClientModal
-                  trigger={<Button>+ Ajouter un client</Button>}
+                  trigger={
+                    <Button size="sm" className="h-9 flex-1 sm:flex-none">
+                      <Plus className="h-4 w-4 sm:mr-1" />
+                      <span className="sr-only sm:not-sr-only">Ajouter</span>
+                      <span className="hidden sm:inline"> un client</span>
+                    </Button>
+                  }
                   onCreated={async () => {
                     const params = new URLSearchParams()
                     if (q) params.set("q", q)
@@ -137,9 +143,9 @@ export default function ProClients() {
                   }}
                 />
               </div>
-      </div>
-      </div>
-</header>
+            </div>
+          </div>
+        </header>
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card>
