@@ -18,7 +18,7 @@ COPY . .
 RUN npx prisma generate
 
 # pour regler le prb des var d env: ahlem
-COPY .env.docker.build ./.env.production
+COPY docker-env-config.txt ./.env.production
 
 # Build Next.js
 RUN npm run build
