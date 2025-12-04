@@ -13,12 +13,11 @@ RUN npm ci --legacy-peer-deps
 # Copier le reste du code
 COPY . .
 
-
-# Generer le client prisma: ahlem
+# Generer le client prisma
 RUN npx prisma generate
 
-# pour regler le prb des var d env: ahlem
-COPY docker-env-config.txt ./.env.production
+# ✅ CORRECTION : Utiliser le bon nom de fichier
+COPY .env.docker.build ./.env.production
 
 # Build Next.js
 RUN npm run build
@@ -38,7 +37,7 @@ RUN addgroup -g 1001 -S nodejs && adduser -S nextjs -u 1001
 
 # Copier les fichiers buildés
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./"
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 # Donner les bonnes permissions

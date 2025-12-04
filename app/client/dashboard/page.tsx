@@ -95,86 +95,96 @@ export default function ClientDashboard() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white border-b border-gray-200">
-        <div className="px-8 py-6">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-3xl font-bold text-black">Bonjour {userName || "!"}</h1>
-              <p className="text-gray-600 mt-1">Gérez vos rendez-vous beauté en toute simplicité.</p>
+        <div className="px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="w-full sm:w-auto">
+              <h1 className="text-2xl sm:text-3xl font-bold text-black">Bonjour {userName || "!"}</h1>
+              <p className="text-gray-600 mt-1 text-sm sm:text-base">Gérez vos rendez-vous beauté en toute simplicité.</p>
             </div>
-            <Button className="bg-black text-white hover:bg-gray-800" asChild>
+            <Button className="w-full sm:w-auto bg-black text-white hover:bg-gray-800" asChild>
               <Link href="/institut-de-beaute">Prendre rendez-vous</Link>
             </Button>
           </div>
         </div>
       </header>
 
-      <div className="p-8">
-        <div className="grid grid-cols-3 gap-8 mb-8">
-          <Card className="text-center border-0 shadow-none">
-            <CardContent className="p-6">
-              <div className="text-4xl font-bold text-black mb-2">{stats.upcomingCount}</div>
-              <div className="text-gray-600">Rendez-vous à venir</div>
+      <div className="p-4 sm:p-6 lg:p-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
+          <Card className="text-center border-0 shadow-sm">
+            <CardContent className="p-4 sm:p-6">
+              <div className="text-3xl sm:text-4xl font-bold text-black mb-1 sm:mb-2">{stats.upcomingCount}</div>
+              <div className="text-sm sm:text-base text-gray-600">Rendez-vous à venir</div>
             </CardContent>
           </Card>
 
-          <Card className="text-center border-0 shadow-none">
-            <CardContent className="p-6">
-              <div className="text-4xl font-bold text-black mb-2">{stats.monthCount}</div>
-              <div className="text-gray-600">Rendez-vous ce mois</div>
+          <Card className="text-center border-0 shadow-sm">
+            <CardContent className="p-4 sm:p-6">
+              <div className="text-3xl sm:text-4xl font-bold text-black mb-1 sm:mb-2">{stats.monthCount}</div>
+              <div className="text-sm sm:text-base text-gray-600">Rendez-vous ce mois</div>
             </CardContent>
           </Card>
 
-          <Card className="text-center border-0 shadow-none">
-            <CardContent className="p-6">
-              <div className="text-4xl font-bold text-black mb-2">{stats.favoritesCount}</div>
-              <div className="text-gray-600">Salons favoris</div>
+          <Card className="text-center border-0 shadow-sm">
+            <CardContent className="p-4 sm:p-6">
+              <div className="text-3xl sm:text-4xl font-bold text-black mb-1 sm:mb-2">{stats.favoritesCount}</div>
+              <div className="text-sm sm:text-base text-gray-600">Salons favoris</div>
             </CardContent>
           </Card>
         </div>
 
         <div className="mb-8">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold text-black">Prochains rendez-vous</h2>
-            <Button className="bg-black text-white hover:bg-gray-800" asChild>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+            <h2 className="text-xl sm:text-2xl font-bold text-black">Prochains rendez-vous</h2>
+            <Button className="w-full sm:w-auto bg-black text-white hover:bg-gray-800" asChild>
               <Link href="/institut-de-beaute">Prendre rendez-vous</Link>
             </Button>
           </div>
 
           {upcomingBookings.map((booking) => (
             <Card key={booking.id} className="border-l-4 border-l-green-500 mb-4">
-              <CardContent className="p-6">
-                <div className="flex justify-between items-start">
-                  <div className="space-y-2">
-                    <div className="flex items-center space-x-2">
-                      <MapPin className="h-4 w-4 text-gray-500" />
-                      <span className="font-semibold text-black text-lg">{booking.businesses?.name || "Salon"}</span>
-                      <Badge className="bg-green-100 text-green-800 border-0">{booking.status}</Badge>
+              <CardContent className="p-4 sm:p-6">
+                <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+                  <div className="space-y-2 flex-1 w-full">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <MapPin className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                      <span className="font-semibold text-black text-base sm:text-lg break-words">
+                        {booking.businesses?.name || "Salon"}
+                      </span>
+                      <Badge className="bg-green-100 text-green-800 border-0 text-xs sm:text-sm">
+                        {booking.status}
+                      </Badge>
                     </div>
 
                     <div className="text-gray-600">
-                      <p className="font-medium">{booking.reservation_items?.[0]?.services?.name || "Service"}</p>
-                      <p className="text-sm">{booking.employees?.full_name || "Professionnel"}</p>
+                      <p className="font-medium text-sm sm:text-base">
+                        {booking.reservation_items?.[0]?.services?.name || "Service"}
+                      </p>
+                      <p className="text-xs sm:text-sm text-gray-500">
+                        {booking.employees?.full_name || "Professionnel"}
+                      </p>
                     </div>
 
-                    <div className="flex items-center space-x-4 text-sm text-gray-600">
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs sm:text-sm text-gray-600">
                       <div className="flex items-center">
-                        <Calendar className="h-4 w-4 mr-1" />
+                        <Calendar className="h-3 w-3 sm:h-4 sm:w-4 mr-1 flex-shrink-0" />
                         {new Date(booking.starts_at).toLocaleDateString()}
                       </div>
                       <div className="flex items-center">
-                        <Clock className="h-4 w-4 mr-1" />
+                        <Clock className="h-3 w-3 sm:h-4 sm:w-4 mr-1 flex-shrink-0" />
                         {new Date(booking.starts_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </div>
                     </div>
                   </div>
 
-                  <div className="text-right space-y-2">
-                    <div className="text-2xl font-bold text-black">{booking.reservation_items?.[0]?.price_cents ? (booking.reservation_items[0].price_cents / 100 + " DA") : ""}</div>
-                    <div className="flex space-x-2">
+                  <div className="w-full sm:w-auto sm:text-right space-y-2 mt-3 sm:mt-0">
+                    <div className="text-xl sm:text-2xl font-bold text-black">
+                      {booking.reservation_items?.[0]?.price_cents ? (booking.reservation_items[0].price_cents / 100 + " DA") : ""}
+                    </div>
+                    <div className="flex flex-col sm:flex-row gap-2">
                       <Button 
                         variant="outline" 
                         size="sm" 
-                        className="bg-transparent"
+                        className="bg-transparent w-full sm:w-auto"
                         onClick={() => handleModifyBooking(booking.id)}
                       >
                         Modifier
@@ -182,7 +192,7 @@ export default function ClientDashboard() {
                       <Button 
                         variant="outline" 
                         size="sm" 
-                        className="text-red-600 border-red-600 bg-transparent"
+                        className="text-red-600 border-red-600 bg-transparent w-full sm:w-auto"
                         onClick={() => handleCancelBooking(booking.id)}
                         disabled={cancellingId === booking.id}
                       >
