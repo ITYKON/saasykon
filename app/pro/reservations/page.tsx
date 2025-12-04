@@ -408,78 +408,157 @@ export default function ReservationsPage() {
   })
 
   return (
-    <div className="p-6">
-      <div className="mb-8">
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Gestion des réservations</h1>
-            <p className="text-gray-600">Gérez toutes les réservations de votre institut.</p>
+    <div className="p-3 sm:p-4">
+      <div className="mb-4">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+          <div className="mb-2 sm:mb-0">
+            <h1 className="text-lg sm:text-xl font-bold text-gray-900">Réservations</h1>
+            <p className="text-xs sm:text-sm text-gray-500">Gérez vos réservations</p>
           </div>
           
-          <div className="flex items-center gap-4">
-            <div className="hidden md:block w-72">
-              <Input
-                placeholder="Rechercher: client, email, téléphone, service"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            <div className="w-full sm:w-48">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Rechercher..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-8 h-9 text-sm"
+                />
+              </div>
             </div>
             
-            {businessId && (
-              <CreateReservationModal 
-                businessId={businessId}
-                onCreated={fetchReservations}
-                trigger={
-                  <Button>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Nouvelle réservation
-                  </Button>
-                }
-              />
-            )}
-            
-            <div className="w-48">
+            <div className="w-full sm:w-40">
               <Select 
                 value={statusFilter} 
                 onValueChange={setStatusFilter}
                 defaultValue="all"
               >
-                <SelectTrigger className="w-[180px]">
-                  <Filter className="h-4 w-4 mr-2" />
-                  <SelectValue placeholder="Filtrer par statut" />
+                <SelectTrigger className="w-full h-9 text-sm">
+                  <Filter className="h-3.5 w-3.5 mr-1.5" />
+                  <SelectValue placeholder="Filtrer" className="text-sm" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Tous les statuts</SelectItem>
-                  <SelectItem value="En attente">En attente</SelectItem>
-                  <SelectItem value="Confirmé">Confirmé</SelectItem>
-                  <SelectItem value="Terminé">Terminé</SelectItem>
-                  <SelectItem value="Annulé">Annulé</SelectItem>
+                  <SelectItem value="all" className="text-sm">Tous les statuts</SelectItem>
+                  <SelectItem value="En attente" className="text-sm">En attente</SelectItem>
+                  <SelectItem value="Confirmé" className="text-sm">Confirmé</SelectItem>
+                  <SelectItem value="Terminé" className="text-sm">Terminé</SelectItem>
+                  <SelectItem value="Annulé" className="text-sm">Annulé</SelectItem>
                 </SelectContent>
               </Select>
             </div>
+
+            {businessId && (
+              <CreateReservationModal 
+                businessId={businessId}
+                onCreated={fetchReservations}
+                trigger={
+                  <Button className="w-full sm:w-auto h-9 px-3 text-sm">
+                    <Plus className="h-3.5 w-3.5 sm:mr-1.5" />
+                    <span className="hidden sm:inline">Nouvelle</span>
+                    <span className="sm:hidden">+</span>
+                  </Button>
+                }
+              />
+            )}
           </div>
         </div>
       </div>
 
-      {/* Reservations Table */}
-      <div className="bg-white rounded-lg shadow-sm border">
-        <div className="p-6 border-b">
+      {/* Affichage mobile */}
+      <div className="sm:hidden space-y-3">
+        {filteredReservations.map((reservation) => (
+          <div key={reservation.id} className="bg-white rounded-lg border p-4 shadow-sm">
+            <div className="flex justify-between items-start mb-2">
+              <div>
+                <h3 className="font-medium">{reservation.client}</h3>
+                <p className="text-sm text-gray-600">{reservation.service}</p>
+              </div>
+              <div className="text-right">
+                <div className="text-sm font-medium">{reservation.prix}</div>
+                <div className="text-xs text-gray-500">
+                  {new Date(reservation.date).toLocaleDateString("fr-FR")} à {reservation.heure}
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex items-center justify-between text-sm text-gray-600">
+              <span>{reservation.employe}</span>
+              {getStatusBadge(reservation.status)}
+            </div>
+            
+            <div className="mt-3 flex justify-end gap-2">
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-8">
+                    <Eye className="h-3.5 w-3.5" />
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Détails de la réservation</DialogTitle>
+                    <DialogDescription>Informations complètes de la réservation</DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div>
+                      <h4 className="font-semibold mb-2">Client</h4>
+                      <p>{reservation.client}</p>
+                      <p className="text-sm text-gray-500">{reservation.email}</p>
+                      <p className="text-sm text-gray-500">{reservation.telephone}</p>
+                    </div>
+                    <div>
+                      <h4 className="font-semibold mb-2">Service</h4>
+                      <p>{reservation.service}</p>
+                      <p className="text-sm text-gray-500">Durée: {reservation.duree}</p>
+                    </div>
+                    <div>
+                      <h4 className="font-semibold mb-2">Rendez-vous</h4>
+                      <p>
+                        {new Date(reservation.date).toLocaleDateString("fr-FR")} à{" "}
+                        {reservation.heure}
+                      </p>
+                      <p className="text-sm text-gray-500">Avec {reservation.employe}</p>
+                    </div>
+                    <div>
+                      <h4 className="font-semibold mb-2">Paiement</h4>
+                      <p className="font-semibold">{reservation.prix}</p>
+                      <p className="text-sm text-gray-500">{reservation.paiement}</p>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+              <Button variant="outline" size="sm" className="h-8" onClick={() => openEdit(reservation)}>
+                <Edit className="h-3.5 w-3.5" />
+              </Button>
+              <Button variant="outline" size="sm" className="h-8 text-red-600" onClick={() => openDelete(reservation.id)}>
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Tableau pour les écrans plus larges */}
+      <div className="hidden sm:block bg-white rounded-lg shadow-sm border overflow-hidden">
+        <div className="p-4 border-b">
           <h2 className="text-lg font-semibold">Réservations ({filteredReservations.length})</h2>
         </div>
-
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Client</TableHead>
-              <TableHead>Service</TableHead>
-              <TableHead>Employé</TableHead>
-              <TableHead>Date & Heure</TableHead>
-              <TableHead>Prix</TableHead>
-              <TableHead>Paiement</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
+        
+        <div className="min-w-full overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Client</TableHead>
+                <TableHead>Service</TableHead>
+                <TableHead>Employé</TableHead>
+                <TableHead>Date & Heure</TableHead>
+                <TableHead>Prix</TableHead>
+                <TableHead>Paiement</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
           <TableBody>
             {filteredReservations.map((reservation) => (
               <TableRow key={reservation.id}>
@@ -602,8 +681,9 @@ export default function ReservationsPage() {
           </TableBody>
         </Table>
       </div>
+    </div>
 
-      {/* Confirmation de suppression */}
+    {/* Confirmation de suppression */}
       <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
