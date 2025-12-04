@@ -536,6 +536,184 @@ interface BookingWizardProps {
         <div>
           <h3 className="font-semibold mb-4">3. Identification</h3>
 
+          {identMode === 'signup' && (
+            <div className="bg-white border rounded-xl p-6 shadow-sm space-y-6">
+              {error && <div className="text-sm text-red-600">{error}</div>}
+              <div className="space-y-6">
+                <div>
+                  <Label className="block text-sm font-medium text-gray-700 mb-1">Téléphone portable *</Label>
+                  <div className="mt-1 relative rounded-md shadow-sm">
+                    <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                      <span className="text-gray-500 sm:text-sm">+213</span>
+                    </div>
+                    <Input 
+                      type="tel" 
+                      placeholder="Entrez votre numéro..." 
+                      className="pl-16" 
+                      value={signupPhone} 
+                      onChange={e => setSignupPhone(e.target.value.replace(/\D/g, ''))}
+                    />
+                  </div>
+                </div>
+                
+                <div>
+                  <Label className="block text-sm font-medium text-gray-700 mb-1">Email *</Label>
+                  <Input 
+                    type="email" 
+                    placeholder="Email" 
+                    className="mt-1" 
+                    value={signupEmail} 
+                    onChange={e => setSignupEmail(e.target.value)} 
+                  />
+                </div>
+                
+                <div>
+                  <Label className="block text-sm font-medium text-gray-700 mb-1">Mot de passe *</Label>
+                  <div className="relative">
+                    <Input 
+                      type={signupCGU ? 'text' : 'password'} 
+                      placeholder="Mot de passe" 
+                      className="mt-1 pr-10" 
+                      value={signupPassword} 
+                      onChange={e => setSignupPassword(e.target.value)} 
+                    />
+                    <button 
+                      type="button" 
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                      onClick={() => setSignupCGU(!signupCGU)}
+                    >
+                      {signupCGU ? (
+                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                        </svg>
+                      ) : (
+                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="flex items-start">
+                  <div className="flex items-center h-5">
+                    <input 
+                      id="cgu" 
+                      type="checkbox" 
+                      checked={signupCGU} 
+                      onChange={e => setSignupCGU(e.target.checked)} 
+                      className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                    />
+                  </div>
+                  <label htmlFor="cgu" className="ml-2 block text-sm text-gray-700">
+                    J'accepte les CGU de Yoka
+                  </label>
+                </div>
+                
+                <p className="text-xs text-gray-500">
+                  En créant votre compte, vous acceptez notre politique de confidentialité et nos conditions d'utilisation.
+                   La politique de confidentialité et les conditions d'utilisation de Google s'appliquent.
+                </p>
+              </div>
+              <div className="grid grid-cols-1 gap-3">
+                <Button 
+                  className="w-full bg-black text-white hover:bg-gray-800" 
+                  disabled={authSubmitting || !signupPhone || !signupEmail || !signupPassword || !signupCGU}
+                  onClick={async () => {
+                    try {
+                      setAuthSubmitting(true)
+                      setError(null)
+                      
+                      const userData = {
+                        phone: signupPhone,
+                        email: signupEmail,
+                        password: signupPassword,
+                        name: signupEmail.split('@')[0] // Utiliser la partie avant @ de l'email comme nom par défaut
+                      };
+                      
+                      console.log('[Inscription] Envoi des données d\'inscription :', {
+                        ...userData,
+                        password: '***' // Ne pas logger le mot de passe en clair
+                      });
+                      
+                      const startTime = Date.now();
+                      const res = await fetch('/api/auth/register', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(userData)
+                      });
+                      
+                      console.log(`[Inscription] Réponse reçue en ${Date.now() - startTime}ms`, {
+                        status: res.status,
+                        statusText: res.statusText,
+                        headers: Object.fromEntries(res.headers.entries())
+                      });
+                      
+                      if (!res.ok) {
+                        let errorData;
+                        try {
+                          errorData = await res.json();
+                          console.error('[Inscription] Erreur détaillée du serveur:', errorData);
+                        } catch (e) {
+                          console.error('[Inscription] Erreur lors de la lecture de la réponse d\'erreur:', e);
+                          errorData = { message: 'Réserve d\'erreur invalide du serveur' };
+                        }
+                        
+                        console.error(`[Inscription] Échec de l'inscription avec le statut ${res.status}:`, errorData);
+                        
+                        if (res.status === 409) {
+                          console.error('[Inscription] Conflit détecté. Données en conflit:', errorData);
+                          if (errorData.field === 'email') {
+                            throw new Error('Cette adresse email est déjà utilisée. Veuillez vous connecter ou utiliser une autre adresse.')
+                          } else if (errorData.field === 'phone') {
+                            throw new Error('Ce numéro de téléphone est déjà utilisé. Veuillez vous connecter ou utiliser un autre numéro.')
+                          }
+                        }
+                        
+                        const errorMessage = errorData?.message || 'Erreur lors de la création du compte. Veuillez réessayer.';
+                        console.error('[Inscription] Message d\'erreur à afficher à l\'utilisateur:', errorMessage);
+                        throw new Error(errorMessage);
+                      }
+                      
+                      // Connexion automatique après inscription
+                      const loginRes = await fetch('/api/auth/login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          email: signupEmail,
+                          password: signupPassword
+                        })
+                      })
+                      
+                      if (!loginRes.ok) {
+                        throw new Error('Compte créé mais échec de la connexion automatique')
+                      }
+                      
+                      setAuthOverride(true)
+                      setSignupOkMsg('Compte créé avec succès !')
+                      setIdentMode('none')
+                      
+                    } catch (e: any) {
+                      setError(e?.message || 'Erreur lors de la création du compte')
+                    } finally {
+                      setAuthSubmitting(false)
+                    }
+                  }}
+                >
+                  {authSubmitting ? 'Création...' : 'Créer mon compte'}
+                </Button>
+                <div className="flex items-center gap-3 text-gray-400 text-sm">
+                  <div className="flex-1 h-px bg-gray-200"/>
+                  <span>ou</span>
+                  <div className="flex-1 h-px bg-gray-200"/>
+                </div>
+                <Button variant="outline" className="w-full" onClick={() => setIdentMode('login')}>
+                  Se connecter
+                </Button>
+              </div>
+            </div>
+          )}
           {identMode === 'login' && (
             <div className="bg-white border rounded-xl p-6 shadow-sm space-y-4">
               {error && <div className="text-sm text-red-600">{error}</div>}
