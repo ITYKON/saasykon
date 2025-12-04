@@ -1416,58 +1416,60 @@ export default function ProAgenda() {
   return (
     <div className="min-h-screen bg-neutral-50">
       <div className="sticky top-0 z-30 bg-white/70 supports-[backdrop-filter]:bg-white/60 backdrop-blur border-b border-neutral-200">
-        <div className="px-6 py-4">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="px-3 sm:px-4 md:px-6 py-2 sm:py-3 md:py-4">
+          <div className="flex flex-col gap-2 sm:gap-3 md:flex-row md:items-center md:justify-between">
             {/* Left: navigation + date */}
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="icon"
-                className="rounded-lg"
-                onClick={onPrev}
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="outline"
-                className="rounded-lg"
-                onClick={() => setCurrentDate(new Date())}
-              >
-                Aujourd'hui
-              </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                className="rounded-lg"
-                onClick={onNext}
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-              <h2 className="ml-3 text-lg md:text-xl font-semibold text-black capitalize tracking-tight">
+            <div className="flex items-center flex-wrap gap-1 sm:gap-2">
+              <div className="flex items-center">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="rounded-lg h-8 w-8 sm:h-9 sm:w-9"
+                  onClick={onPrev}
+                >
+                  <ChevronLeft className="h-3 w-3 sm:h-4 sm:w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  className="rounded-lg h-8 text-xs sm:text-sm px-2 sm:px-3"
+                  onClick={() => setCurrentDate(new Date())}
+                >
+                  Aujourd'hui
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="rounded-lg h-8 w-8 sm:h-9 sm:w-9"
+                  onClick={onNext}
+                >
+                  <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4" />
+                </Button>
+              </div>
+              <h2 className="text-sm sm:text-base md:text-lg lg:text-xl font-semibold text-black capitalize tracking-tight ml-1 sm:ml-3">
                 {dateTitle}
               </h2>
             </div>
 
             {/* Right: view switch + filters popover + primary action */}
-            <div className="flex items-center gap-2">
-              <div className="bg-neutral-100 rounded-lg p-1 inline-flex">
+            <div className="flex items-center gap-1 sm:gap-2 mt-2 sm:mt-0">
+              <div className="bg-neutral-100 rounded-lg p-0.5 sm:p-1 inline-flex">
                 <Button
                   variant={view === "day" ? "default" : "ghost"}
-                  className="rounded-md px-3"
+                  className="rounded-md px-2 sm:px-3 h-8 text-xs sm:text-sm"
                   onClick={() => setView("day")}
                 >
                   Jour
                 </Button>
                 <Button
                   variant={view === "week" ? "default" : "ghost"}
-                  className="rounded-md px-3"
+                  className="rounded-md px-2 sm:px-3 h-8 text-xs sm:text-sm"
                   onClick={() => setView("week")}
                 >
                   Semaine
                 </Button>
                 <Button
                   variant={view === "month" ? "default" : "ghost"}
-                  className="rounded-md px-3"
+                  className="rounded-md px-2 sm:px-3 h-8 text-xs sm:text-sm"
                   onClick={() => setView("month")}
                 >
                   Mois

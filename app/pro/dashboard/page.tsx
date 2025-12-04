@@ -49,24 +49,26 @@ export default async function ProDashboard() {
       {/* Main Content */}
         {/* Header */}
         <header className="bg-white border-b border-gray-200">
-          <div className="px-6 py-4">
-            <div className="flex justify-between items-center">
-              <div>
-                <h2 className="text-2xl font-bold text-black">{business?.public_name || business?.legal_name || "Mon salon"}</h2>
+          <div className="px-4 sm:px-6 py-3 sm:py-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
+              <div className="w-full sm:w-auto">
+                <h2 className="text-xl sm:text-2xl font-bold text-black truncate">
+                  {business?.public_name || business?.legal_name || "Mon salon"}
+                </h2>
                 {address?.address_line1 ? (
-                  <p className="text-gray-600">{address.address_line1}</p>
+                  <p className="text-sm sm:text-base text-gray-600 truncate">{address.address_line1}</p>
                 ) : (
-                  <p className="text-gray-600">&nbsp;</p>
+                  <p className="text-sm sm:text-base text-gray-600">&nbsp;</p>
                 )}
               </div>
-              <div className="flex items-center space-x-4">
+              <div className="w-full sm:w-auto flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
                 {business?.id && (
                   <CreateReservationModal
                     businessId={business.id}
                     trigger={
-                      <Button className="bg-black text-white hover:bg-gray-800">
-                        <Plus className="h-4 w-4 mr-2" />
-                        Nouveau RDV
+                      <Button size="sm" className="w-full sm:w-auto bg-black text-white hover:bg-gray-800 text-sm">
+                        <Plus className="h-4 w-4 mr-1 sm:mr-2 flex-shrink-0" />
+                        <span>Nouveau RDV</span>
                       </Button>
                     }
                   />
@@ -75,16 +77,17 @@ export default async function ProDashboard() {
                   href={
                     business?.id
                       ? `/salon/${buildSalonSlug(
-                        business.public_name || business.legal_name || "",
-                        business.id,
-                        address?.cities?.name || null
-                      )}`
+                          business.public_name || business.legal_name || "",
+                          business.id,
+                          address?.cities?.name || null
+                        )}`
                       : "#"
                   }
+                  className="w-full sm:w-auto"
                 >
-                  <Button variant="outline">
-                    <Eye className="h-4 w-4 mr-2" />
-                    Voir ma page
+                  <Button variant="outline" size="sm" className="w-full sm:w-auto text-sm">
+                    <Eye className="h-4 w-4 mr-1 sm:mr-2 flex-shrink-0" />
+                    <span>Voir ma page</span>
                   </Button>
                 </Link>
               </div>
