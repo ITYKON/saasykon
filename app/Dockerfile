@@ -17,7 +17,7 @@ COPY . .
 RUN npx prisma generate
 
 # ✅ CORRECTION : Utiliser le bon nom de fichier
-COPY .env.docker.build ./.env.production
+COPY app/.env.docker.build ./.env.production
 
 # Build Next.js
 RUN npm run build
