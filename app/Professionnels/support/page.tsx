@@ -84,8 +84,8 @@ export default function SupportPage() {
                     </Link>
                   </li>
                   <li className="border-t border-gray-100 pt-3">
-                    <Link href="#optimisation" className="text-blue-600 hover:underline">
-                      Optimiser son profil Pro
+                    <Link href="/Professionnels/support/articles/optimiser-profil-pro" className="text-blue-600 hover:underline">
+                      Comment gérer les services et prestations de mon salon ?
                     </Link>
                   </li>
                 </ul>
@@ -106,18 +106,18 @@ export default function SupportPage() {
                 </div>
                 <ul className="space-y-3">
                   <li>
-                    <Link href="#gerer-clients" className="text-blue-600 hover:underline">
+                    <Link href="/Professionnels/support/articles/gerer-clients" className="text-blue-600 hover:underline">
                       Comment gérer mes clients ?
                     </Link>
                   </li>
                   <li className="border-t border-gray-100 pt-3">
-                    <Link href="#rdv" className="text-blue-600 hover:underline">
+                    <Link href="/Professionnels/support/articles/gestion-rendez-vous" className="text-blue-600 hover:underline">
                       Gestion des rendez-vous
                     </Link>
                   </li>
                   <li className="border-t border-gray-100 pt-3">
-                    <Link href="#avis" className="text-blue-600 hover:underline">
-                      Gérer les avis clients
+                    <Link href="/Professionnels/support/articles/gerer-avis-clients" className="text-blue-600 hover:underline">
+                      Comment analyser l'historique et le comportement de mes clients ?
                     </Link>
                   </li>
                 </ul>

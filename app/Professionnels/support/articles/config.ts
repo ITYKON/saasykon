@@ -60,6 +60,52 @@ export const articles: Article[] = [
       "Yoka propose plusieurs offres adaptées aux besoins des salons. Pour consulter les détails complets, y compris les tarifs, avantages et conditions, vous pouvez visiter la page [Nos Offres](/Professionnels/offres) dans le menu principal.",
       "Depuis votre espace pro, vous pouvez choisir l'offre qui vous convient et suivre votre abonnement en temps réel. Si vous souhaitez changer d'offre ou obtenir une assistance sur la facturation, notre équipe support est là pour vous accompagner."
     ]
+  },
+  {
+    slug: 'optimiser-profil-pro',
+    category: 'services',
+    title: 'Comment gérer les services et prestations de mon salon ?',
+    description: 'Guide pour gérer efficacement vos services et prestations sur Yoka',
+    content: [
+      "Depuis votre espace pro Yoka, vous pouvez gérer facilement tous les services et prestations proposés par votre salon. Une fois connecté à votre tableau de bord, il vous suffit d'accéder à la section 'Services' pour ajouter, modifier ou supprimer une prestation.",
+      "Pour ajouter un nouveau service, vous devez renseigner son nom, sa durée et son prix. Vous pouvez également le classer dans la catégorie qui correspond à votre spécialité afin de permettre aux clients de comprendre rapidement ce que vous proposez.",
+      "Si vous souhaitez mettre à jour une prestation existante, vous pouvez modifier ses informations à tout moment : ajuster le tarif, changer la durée ou mettre à jour sa description. En cas de service que vous ne proposez plus, vous pouvez simplement le supprimer.",
+      "Une gestion correcte de vos services garantit une meilleure visibilité de votre salon et une expérience plus claire pour vos clients sur Yoka."
+    ]
+  },
+  {
+    slug: 'gerer-clients',
+    category: 'clients',
+    title: 'Comment gérer mes clients ?',
+    description: 'Guide pour suivre et gérer efficacement votre clientèle sur Yoka',
+    content: [
+      "Depuis votre espace pro Yoka, vous pouvez suivre et gérer facilement les clients qui interagissent avec votre salon. Dans votre tableau de bord, la section 'Clients' vous permet de consulter la liste de vos clients, leurs informations de base et leur historique d'interactions avec votre établissement.",
+      "Vous pouvez rechercher un client, voir les détails de ses réservations, suivre sa fréquence de visites ou vérifier les prestations qu'il a déjà effectuées. Ces informations vous aident à mieux comprendre leurs besoins et à améliorer votre relation avec eux.",
+      "La gestion de vos clients dans Yoka vous permet d'organiser votre activité plus facilement et de maintenir un suivi clair et structuré de votre relation avec votre clientèle."
+    ]
+  },
+  {
+    slug: 'gestion-rendez-vous',
+    category: 'clients',
+    title: 'Gestion des rendez-vous',
+    description: 'Guide pour gérer efficacement vos rendez-vous et réservations sur Yoka',
+    content: [
+      "La gestion des rendez-vous sur Yoka vous permet de suivre facilement toutes les demandes et réservations liées à votre salon. Depuis votre tableau de bord, la section 'Rendez-vous' vous donne une vue d'ensemble de votre planning : demandes en attente, rendez-vous confirmés, annulations et historiques.",
+      "Lorsque vous recevez une nouvelle demande, vous pouvez l'accepter ou la refuser directement depuis cette interface. Une fois confirmée, la réservation s'ajoute automatiquement à votre agenda, ce qui vous permet d'organiser votre journée sans confusion.",
+      "Vous pouvez également consulter les détails de chaque rendez-vous : service choisi, prix, durée et informations du client. Si un changement survient, vous pouvez mettre à jour le rendez-vous.",
+      "Cette gestion centralisée vous aide à garder un planning clair, à éviter les chevauchements et à offrir une meilleure expérience à vos clients."
+    ]
+  },
+  {
+    slug: 'gerer-avis-clients',
+    category: 'clients',
+    title: 'Comment analyser l\'historique et le comportement de mes clients ?',
+    description: 'Guide pour comprendre et gérer efficacement les avis de vos clients sur Yoka',
+    content: [
+      "Dans votre espace pro Yoka, vous pouvez consulter l'historique et le comportement de chacun de vos clients pour mieux comprendre leurs habitudes et améliorer votre service. Depuis la section 'Clients', il vous suffit de sélectionner un client pour accéder à toutes ses informations.",
+      "Vous y trouverez son historique complet : les rendez-vous qu'il a effectués, les services qu'il choisit le plus souvent, sa fréquence de visites et les éventuelles notes internes que vous avez ajoutées. Ces données vous permettent d'identifier vos clients réguliers, de repérer leurs préférences et d'adapter vos prestations en conséquence.",
+      "L'analyse de cet historique vous aide à offrir une expérience plus personnalisée, à fidéliser vos clients et à organiser votre activité de manière plus efficace."
+    ]
   }
 ];
 
