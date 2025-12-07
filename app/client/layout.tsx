@@ -23,10 +23,7 @@ function ClientSidebar({ onLinkClick }: { onLinkClick?: () => void }) {
   const pathname = usePathname()
   const [authUser, setAuthUser] = useState<AuthUser | null>(null)
   
-  // Fermer le menu après la navigation sur mobile
-  useEffect(() => {
-    if (onLinkClick) onLinkClick()
-  }, [pathname, onLinkClick])
+  // La fermeture du menu est maintenant gérée directement dans le onClick des liens
 
   useEffect(() => {
     fetch("/api/auth/me")
@@ -43,15 +40,27 @@ function ClientSidebar({ onLinkClick }: { onLinkClick?: () => void }) {
   ]
 
   return (
-    <aside className="w-80 bg-white border-r border-gray-200 h-screen sticky top-0 self-start overflow-y-auto">
+    <aside className="w-full h-full overflow-y-auto">
       <div className="p-6">
         <div className="text-center mb-8">
-          <Avatar className="h-20 w-20 mx-auto mb-4 bg-gray-200">
-            {authUser?.avatar_url ? <AvatarImage src={authUser.avatar_url} /> : null}
-            <AvatarFallback className="text-gray-600 text-xl font-medium">
-              {`${(authUser?.first_name?.[0] || "M").toUpperCase()}${(authUser?.last_name?.[0] || "D").toUpperCase()}`}
-            </AvatarFallback>
-          </Avatar>
+          <div className="flex justify-center mb-6">
+            <div className="relative h-28 w-28 rounded-full border-2 border-gray-200 overflow-hidden flex items-center justify-center">
+              {authUser?.avatar_url ? (
+                <img 
+                  src={authUser.avatar_url} 
+                  alt="Photo de profil"
+                  className="h-full w-full object-cover object-center"
+                  style={{ objectPosition: 'center 30%' }}
+                />
+              ) : (
+                <div className="h-full w-full bg-gray-200 flex items-center justify-center">
+                <span className="text-gray-600 text-3xl font-medium">
+                  {`${(authUser?.first_name?.[0] || "M").toUpperCase()}${(authUser?.last_name?.[0] || "D").toUpperCase()}`}
+                </span>
+              </div>
+              )}
+            </div>
+          </div>
           <h2 className="text-xl font-semibold text-black">{authUser ? `${authUser.first_name || ""} ${authUser.last_name || ""}`.trim() : "Utilisateur"}</h2>
           <p className="text-gray-600 text-sm">{authUser?.email || ""}</p>
         </div>
@@ -63,14 +72,23 @@ function ClientSidebar({ onLinkClick }: { onLinkClick?: () => void }) {
             const activeClasses = "text-white bg-black"
             const inactiveClasses = "text-gray-700 hover:bg-gray-100"
             return (
-              <Link key={href} href={href} className={`${base} ${active ? activeClasses : inactiveClasses}`}>
+              <Link 
+                key={href} 
+                href={href} 
+                className={`${base} ${active ? activeClasses : inactiveClasses}`}
+                onClick={() => onLinkClick?.()}
+              >
                 <Icon className="h-5 w-5 mr-3" />
                 {label}
               </Link>
             )
           })}
 
-          <a href="/auth/logout" className="flex items-center px-4 py-3 text-red-600 hover:bg-red-50 rounded-lg">
+          <a 
+            href="/auth/logout" 
+            className="flex items-center px-4 py-3 text-red-600 hover:bg-red-50 rounded-lg"
+            onClick={() => onLinkClick?.()}
+          >
             <LogOut className="h-5 w-5 mr-3" />
             Se déconnecter
           </a>
@@ -110,7 +128,7 @@ export default function ClientLayout({
   }, [])
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Barre de navigation mobile */}
       <div className="lg:hidden flex items-center justify-between p-4 bg-white border-b border-gray-200 sticky top-0 z-40">
         <h2 className="text-xl font-bold text-gray-900">Mon Espace Client</h2>
@@ -124,30 +142,23 @@ export default function ClientLayout({
         </Button>
       </div>
 
-      <div className="flex flex-col lg:flex-row">
-        {/* Sidebar - maintenant conditionnelle sur mobile */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Sidebar */}
         <div className={cn(
-          "fixed inset-y-0 left-0 w-80 bg-white border-r border-gray-200 h-screen z-30 transition-transform duration-300 ease-in-out",
-          isMobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+          "fixed inset-y-0 left-0 w-80 bg-white border-r border-gray-200 z-30 transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 lg:z-auto lg:h-[calc(100vh-64px)] lg:flex-shrink-0",
+          isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
         )}>
-          <ClientSidebar onLinkClick={() => setIsMobileMenuOpen(false)} />
+          <div className="h-full overflow-y-auto">
+            <ClientSidebar onLinkClick={() => setIsMobileMenuOpen(false)} />
+          </div>
         </div>
 
-        {/* Overlay pour fermer le menu en cliquant à côté (mobile uniquement) */}
-        {isMobileMenuOpen && (
-          <div 
-            className="fixed inset-0 bg-black bg-opacity-50 z-20 lg:hidden"
-            onClick={() => setIsMobileMenuOpen(false)}
-          />
-        )}
-
-        {/* Contenu principal avec marge conditionnelle */}
-        <div className={cn(
-          "w-full transition-all duration-300 pt-16 lg:pt-0 min-h-screen",
-          isMobileMenuOpen ? "ml-80" : "lg:ml-80"
-        )}>
-          {children}
-        </div>
+        {/* Contenu principal */}
+        <main className="flex-1 overflow-y-auto p-4 lg:p-6 lg:ml-0 bg-white lg:bg-gray-50" style={{ minHeight: 'calc(100vh - 64px)' }}>
+          <div className="max-w-7xl mx-auto w-full">
+            {children}
+          </div>
+        </main>
       </div>
       <Toaster />
     </div>

@@ -1451,25 +1451,25 @@ export default function ProAgenda() {
             </div>
 
             {/* Right: view switch + filters popover + primary action */}
-            <div className="flex items-center gap-1 sm:gap-2 mt-2 sm:mt-0">
-              <div className="bg-neutral-100 rounded-lg p-0.5 sm:p-1 inline-flex">
+            <div className="flex items-center w-full sm:w-auto mt-2 sm:mt-0">
+              <div className="bg-neutral-100 rounded-lg p-0.5 w-full sm:w-auto flex justify-between sm:inline-flex">
                 <Button
                   variant={view === "day" ? "default" : "ghost"}
-                  className="rounded-md px-2 sm:px-3 h-8 text-xs sm:text-sm"
+                  className="rounded-md px-2 sm:px-3 h-8 text-xs sm:text-sm flex-1 sm:flex-none"
                   onClick={() => setView("day")}
                 >
                   Jour
                 </Button>
                 <Button
                   variant={view === "week" ? "default" : "ghost"}
-                  className="rounded-md px-2 sm:px-3 h-8 text-xs sm:text-sm"
+                  className="rounded-md px-2 sm:px-3 h-8 text-xs sm:text-sm flex-1 sm:flex-none"
                   onClick={() => setView("week")}
                 >
                   Semaine
                 </Button>
                 <Button
                   variant={view === "month" ? "default" : "ghost"}
-                  className="rounded-md px-2 sm:px-3 h-8 text-xs sm:text-sm"
+                  className="rounded-md px-2 sm:px-3 h-8 text-xs sm:text-sm flex-1 sm:flex-none"
                   onClick={() => setView("month")}
                 >
                   Mois

@@ -13,12 +13,11 @@ RUN npm ci --legacy-peer-deps
 # Copier le reste du code
 COPY . .
 
-
-# Generer le client prisma: ahlem
+# Generer le client prisma
 RUN npx prisma generate
 
-# pour regler le prb des var d env: ahlem
-COPY docker-env-config.txt ./.env.production
+# ✅ CORRECTION : Utiliser le bon nom de fichier
+COPY app/.env.docker.build ./.env.production
 
 # Build Next.js
 RUN npm run build
