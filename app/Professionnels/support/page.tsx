@@ -57,11 +57,11 @@ export default function SupportPage() {
                     </Link>
                   </li>
                 </ul>
-                <div className="mt-6">
+                {/* <div className="mt-6">
                   <Link href="#tous-articles-comptes" className="text-blue-600 font-medium hover:underline flex items-center gap-1">
                     Voir tous les articles <ChevronRight className="h-4 w-4" />
                   </Link>
-                </div>
+                </div> */}
               </div>
 
               {/* Carte Services Pro */}
@@ -89,11 +89,11 @@ export default function SupportPage() {
                     </Link>
                   </li>
                 </ul>
-                <div className="mt-6">
+                {/* <div className="mt-6">
                   <Link href="#tous-articles-services" className="text-blue-600 font-medium hover:underline flex items-center gap-1">
                     Voir tous les articles <ChevronRight className="h-4 w-4" />
                   </Link>
-                </div>
+                </div> */}
               </div>
 
               {/* Carte Gestion des clients */}
@@ -121,11 +121,11 @@ export default function SupportPage() {
                     </Link>
                   </li>
                 </ul>
-                <div className="mt-6">
+                {/* <div className="mt-6">
                   <Link href="#tous-articles-clients" className="text-blue-600 font-medium hover:underline flex items-center gap-1">
                     Voir tous les articles <ChevronRight className="h-4 w-4" />
                   </Link>
-                </div>
+                </div> */}
               </div>
             </div>
           </div>

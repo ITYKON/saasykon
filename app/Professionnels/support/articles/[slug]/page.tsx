@@ -62,9 +62,9 @@ export default function ArticlePage({ params }: { params: { slug: string } }) {
                 </div>
               </>
             ) : (
-              <div className="flex items-center space-x-2 text-gray-900">
-                <CheckCircle className="h-5 w-5 text-green-600" />
-                <p className="text-gray-900">
+              <div className="flex items-start md:items-center space-x-2 text-gray-900">
+                <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5 md:mt-0" />
+                <p className="text-gray-900 flex-1">
                   {isHelpful 
                     ? "Merci pour votre retour ! Nous sommes ravis que cet article vous ait été utile."
                     : "Merci pour votre retour ! Nous prenons vos avis en compte pour améliorer nos articles."
