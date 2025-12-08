@@ -166,6 +166,21 @@ export async function POST(request: Request) {
         const expiresAt = new Date(Date.now() + (Number(process.env.SESSION_TTL_SECONDS || 60 * 60 * 24 * 7)) * 1000);
         res.cookies.set("saas_roles", roleCodes, { httpOnly: false, sameSite: "lax", secure: process.env.NODE_ENV === "production", expires: expiresAt, path: "/" });
       }
+      
+      // Définir le business_id pour les utilisateurs PRO
+      const userRoles = assignments.map(ur => ur.roles.code);
+      if (userRoles.includes('PRO') && owned.length > 0) {
+        const businessId = owned[0].id; // Prend le premier business de la liste
+        const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 7); // 7 jours
+        res.cookies.set("business_id", businessId, {
+          httpOnly: false,
+          sameSite: "lax",
+          secure: process.env.NODE_ENV === "production",
+          expires: expiresAt,
+          path: "/",
+        });
+        console.log('Définition du business_id:', businessId);
+      }
     } catch {}
     return res;
   } catch (error) {
