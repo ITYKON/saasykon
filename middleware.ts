@@ -147,24 +147,48 @@ export async function middleware(request: NextRequest) {
 
   // Fine-grained guard for PRO area: verify permissions against employee assignments
   if (isProPath && !isProOnboarding) {
+    // Skip if we're already in a redirect loop
+    if (pathname === '/pro' && request.nextUrl.searchParams.get('denied') === '1') {
+      // Return a 403 Forbidden response instead of redirecting
+      return NextResponse.json(
+        { error: 'Accès refusé' }, 
+        { status: 403 }
+      );
+    }
+
     try {
       const url = new URL(request.url)
       // Skip API calls from middleware cycle
       if (!isApiRequest) {
         const guardUrl = new URL("/api/pro/guard", url.origin)
         guardUrl.searchParams.set("path", pathname)
-        const res = await fetch(guardUrl, { headers: { cookie: request.headers.get("cookie") || "" } })
+        const res = await fetch(guardUrl, { 
+          headers: { 
+            cookie: request.headers.get("cookie") || "",
+            'x-middleware-request': 'true' // Add this header to identify middleware requests
+          } 
+        })
+        
         if (!res.ok) {
-          // Unauthorized or forbidden: bounce to /pro (dashboard)
+          const data = await res.json().catch(() => ({}));
+          console.log('Guard check failed:', { status: res.status, reason: data.reason });
+          
+          if (res.status === 403) {
+            // For 403 Forbidden, show an error page instead of redirecting
+            return NextResponse.rewrite(new URL('/pro/access-denied', request.url));
+          }
+          
+          // For other errors, redirect to /pro with denied=1
           const redirectTo = new URL("/pro", request.url)
           redirectTo.searchParams.set("denied", "1")
           return NextResponse.redirect(redirectTo)
         }
       }
-    } catch {
-      // On error, be safe and redirect to /pro
+    } catch (error) {
+      console.error('Error in PRO guard middleware:', error);
+      // On error, redirect to /pro with error message
       const redirectTo = new URL("/pro", request.url)
-      redirectTo.searchParams.set("denied", "1")
+      redirectTo.searchParams.set("error", "internal_error")
       return NextResponse.redirect(redirectTo)
     }
   }
