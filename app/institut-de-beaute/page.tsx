@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input"
 import Link from "next/link"
 import { prisma } from "@/lib/prisma"
 import { redirect } from "next/navigation"
-
+export const dynamic = 'force-dynamic';
 
 function slugifyCity(name: string) {
   return name
