@@ -39,7 +39,7 @@ export async function middleware(request: NextRequest) {
   // Gestion de la déconnexion
   if (pathname === "/auth/logout") {
     const isProduction = process.env.NODE_ENV === 'production'
-    const domain = isProduction ? '.railway.app' : 'localhost'
+    const domain = isProduction ? 'saasykon-production.up.railway.app' : 'localhost'
     
     const response = NextResponse.redirect(new URL('/auth/login', request.url))
     
