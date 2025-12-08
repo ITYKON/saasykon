@@ -984,9 +984,105 @@ export default function ProAgenda() {
     return Array.from({ length: 7 }, (_, i) => addDays(monday, i));
   };
 
+  // Fonction pour formater l'heure au format 12h
+  const formatTime12h = (time24: string) => {
+    const [hours, minutes] = time24.split(':').map(Number);
+    const period = hours >= 12 ? 'PM' : 'AM';
+    const hours12 = hours % 12 || 12;
+    return `${hours12}:${minutes < 10 ? '0' + minutes : minutes} ${period}`;
+  };
+
   const renderWeekView = () => {
     const weekDays = getWeekDays(currentDate);
-    // Determine dynamic week baseline from actual events so the grid isn't stuck at 09:00
+    const today = new Date();
+    const todayKey = fmtKey(today);
+    
+    // Pour la vue mobile, on prépare les événements par jour
+    const mobileEventsByDay: Record<string, Appointment[]> = {};
+    weekDays.forEach(day => {
+      const key = fmtKey(day);
+      mobileEventsByDay[key] = (liveWeekDays && liveWeekDays[key]) || [];
+    });
+
+    // Sur mobile, on affiche une vue liste au lieu d'une grille
+    if (isMobile) {
+      return (
+        <div className="space-y-4">
+          {/* En-tête avec la semaine */}
+          <div className="flex items-center justify-between px-2 py-2 bg-white rounded-lg shadow-sm">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => setCurrentDate(addDays(currentDate, -7))}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <div className="text-sm font-medium">
+              {new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric' }).format(currentDate)}
+            </div>
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={() => setCurrentDate(addDays(currentDate, 7))}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+
+          {/* Liste des jours avec événements */}
+          <div className="space-y-2">
+            {weekDays.map((day, dayIdx) => {
+              const dayKey = fmtKey(day);
+              const isToday = dayKey === todayKey;
+              const events = mobileEventsByDay[dayKey] || [];
+              
+              return (
+                <div key={dayIdx} className="bg-white rounded-lg shadow-sm overflow-hidden">
+                  <div className={`p-3 ${isToday ? 'bg-blue-50' : 'bg-white'}`}>
+                    <div className="flex items-center">
+                      <div className="text-center mr-3">
+                        <div className="text-sm font-medium text-gray-500">
+                          {new Intl.DateTimeFormat('fr-FR', { weekday: 'short' }).format(day)}
+                        </div>
+                        <div className={`text-lg font-bold ${isToday ? 'text-blue-600' : 'text-gray-900'}`}>
+                          {day.getDate()}
+                        </div>
+                      </div>
+                      <div className="flex-1">
+                        {events.length > 0 ? (
+                          <div className="space-y-2">
+                            {events.map((event, eventIdx) => (
+                              <div 
+                                key={eventIdx}
+                                className="p-2 rounded border-l-4 border-blue-500 bg-blue-50"
+                              >
+                                <div className="text-sm font-medium text-gray-900">{event.title}</div>
+                                <div className="text-xs text-gray-500">
+                                  {formatTime12h(event.start)} - {formatTime12h(event.end)}
+                                </div>
+                                {event.client && (
+                                  <div className="text-xs text-gray-600 mt-1">
+                                    👤 {event.client}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="h-4"></div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    }
+
+    // Vue originale pour les écrans de bureau
     let minStart = workingStartMin;
     let maxEnd = workingEndMin;
     const allDayKeys = weekDays.map((d) => fmtKey(d));
@@ -1022,28 +1118,31 @@ export default function ProAgenda() {
       setOpenSignal((s) => s + 1);
     };
     return (
-      <div className="bg-white rounded-xl p-4 border border-gray-200">
+      <div className="bg-white rounded-xl p-2 sm:p-4 border border-gray-200 overflow-x-auto">
         {/* Header days */}
         <div
-          className="mb-2 grid"
+          className="mb-2 grid min-w-[600px]" // Ajout d'une largeur minimale pour éviter l'écrasement
           style={{
-            gridTemplateColumns: `72px repeat(${weekDays.length}, minmax(0, 1fr))`,
+            gridTemplateColumns: `60px repeat(${weekDays.length}, minmax(80px, 1fr))`,
           }}
         >
           <div></div>
           {weekDays.map((d, i) => (
-            <div key={i} className="px-2">
+            <div key={i} className="px-1 sm:px-2">
               <div
-                className={`flex items-center gap-2 ${
-                  fmtKey(d) === fmtKey(new Date()) ? "text-black" : ""
+                className={`flex flex-col items-center ${
+                  fmtKey(d) === fmtKey(new Date()) ? "text-black font-semibold" : "text-gray-700"
                 }`}
               >
-                <div className="text-sm font-medium capitalize">
+                <div className="text-xs sm:text-sm capitalize">
                   {new Intl.DateTimeFormat("fr-FR", {
-                    weekday: "short",
-                    day: "2-digit",
-                    month: "short",
+                    weekday: isMobile ? "narrow" : "short",
                   }).format(d)}
+                </div>
+                <div className={`text-sm font-medium rounded-full w-6 h-6 flex items-center justify-center ${
+                  fmtKey(d) === fmtKey(new Date()) ? "bg-blue-600 text-white" : ""
+                }`}>
+                  {d.getDate()}
                 </div>
               </div>
             </div>
@@ -1138,9 +1237,9 @@ export default function ProAgenda() {
         )}
 
         <div
-          className="grid"
+          className="grid min-w-[600px]" // Même largeur minimale que l'en-tête
           style={{
-            gridTemplateColumns: `72px repeat(${weekDays.length}, minmax(0, 1fr))`,
+            gridTemplateColumns: `60px repeat(${weekDays.length}, minmax(80px, 1fr))`,
           }}
         >
           {/* gutter */}
@@ -1155,7 +1254,7 @@ export default function ProAgenda() {
                   className="absolute left-0 right-0"
                   style={{ top: i * hourHeight }}
                 >
-                  <div className="text-[11px] text-gray-500 pr-2 h-4 leading-4 text-right">
+                  <div className="text-[10px] sm:text-[11px] text-gray-500 pr-1 sm:pr-2 h-4 leading-4 text-right">
                     {pad(Math.floor(m / 60))}:00
                   </div>
                 </div>
@@ -1171,12 +1270,15 @@ export default function ProAgenda() {
               liveWeekDays && liveWeekDays[key] ? liveWeekDays[key] : [];
             const positioned = layoutEvents(timed, startMin);
             return (
-              <div key={dayIdx} className="px-2">
+              <div key={dayIdx} className="px-1 sm:px-2">
                 <div
                   className={`relative rounded-md border overflow-hidden ${
                     [6, 0].includes(d.getDay()) ? "bg-gray-50" : "bg-white"
                   }`}
-                  style={{ height: (endMin - startMin) * pxPerMinute }}
+                  style={{ 
+                    height: (endMin - startMin) * pxPerMinute,
+                    minHeight: "400px" // Hauteur minimale pour les petits écrans
+                  }}
                   onDoubleClick={(e) =>
                     openAtWeek(
                       e.clientY,

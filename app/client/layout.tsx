@@ -84,14 +84,23 @@ function ClientSidebar({ onLinkClick }: { onLinkClick?: () => void }) {
             )
           })}
 
-          <a 
-            href="/auth/logout" 
-            className="flex items-center px-4 py-3 text-red-600 hover:bg-red-50 rounded-lg"
-            onClick={() => onLinkClick?.()}
+          <button 
+            onClick={async (e) => {
+              e.preventDefault();
+              onLinkClick?.();
+              try {
+                await fetch("/api/auth/logout", { method: "POST" });
+                window.location.href = "/auth/login";
+              } catch (error) {
+                console.error("Erreur lors de la déconnexion:", error);
+                window.location.href = "/auth/login";
+              }
+            }}
+            className="w-full flex items-center px-4 py-3 text-red-600 hover:bg-red-50 rounded-lg text-left"
           >
             <LogOut className="h-5 w-5 mr-3" />
             Se déconnecter
-          </a>
+          </button>
         </nav>
       </div>
     </aside>
