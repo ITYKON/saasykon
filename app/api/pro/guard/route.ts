@@ -34,9 +34,6 @@ export async function GET(req: NextRequest) {
     const rawPath = qpPath || url.pathname.replace(/\/api\/pro\/guard$/, "");
     const pathname = (rawPath || "/pro").trim();
 
-    // ADMIN and PRO can access everything in PRO area
-    if (ctx.roles.includes("ADMIN") || ctx.roles.includes("PRO")) return NextResponse.json({ ok: true });
-
     const needed = requiredForPath(pathname);
     if (!needed || needed.length === 0) return NextResponse.json({ ok: true });
 
@@ -45,9 +42,29 @@ export async function GET(req: NextRequest) {
     const businessId = cookieStore.get("business_id")?.value || "";
     if (!businessId) return NextResponse.json({ ok: false, reason: "no_business" }, { status: 400 });
 
-    // Find employee for this user
-    const acc = await prisma.employee_accounts.findUnique({ where: { user_id: ctx.userId } }).catch(() => null);
-    if (!acc) return NextResponse.json({ ok: false, reason: "no_employee" }, { status: 403 });
+    // Check if user is ADMIN or owner (PRO) of the business
+    if (ctx.roles.includes("ADMIN") || 
+        (ctx.roles.includes("PRO") && ctx.assignments.some(a => 
+          a.role === "PRO" && a.business_id === businessId
+        ))) {
+      return NextResponse.json({ ok: true });
+    }
+
+    // If not ADMIN/PRO owner, check employee permissions
+    const acc = await prisma.employee_accounts.findUnique({ 
+      where: { user_id: ctx.userId } 
+    }).catch(() => null);
+    
+    if (!acc) return NextResponse.json({ 
+      ok: false, 
+      reason: "no_employee_or_owner",
+      details: { 
+        userId: ctx.userId, 
+        roles: ctx.roles, 
+        businessId,
+        assignments: ctx.assignments
+      } 
+    }, { status: 403 });
 
     // Load permissions for this employee in current business
     const perms = await prisma.employee_permissions.findMany({
