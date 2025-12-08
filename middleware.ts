@@ -145,52 +145,47 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/client/dashboard", request.url))
   }
 
+  // Log des informations de base pour le débogage
+  console.log('=== MIDDLEWARE DEBUG ===');
+  console.log('Path:', pathname);
+  console.log('Is API Request:', isApiRequest);
+  console.log('Session Token:', sessionToken ? 'Present' : 'Missing');
+  console.log('User Roles:', roles);
+  console.log('Business ID:', businessId || 'Not set');
+  console.log('Onboarding Done:', request.cookies.get('onboarding_done')?.value || 'false');
+  console.log('=======================');
+
   // Fine-grained guard for PRO area: verify permissions against employee assignments
   if (isProPath && !isProOnboarding) {
+    console.log('=== PRO AREA ACCESS CHECK ===');
+    console.log('Checking access to PRO area...');
+    
     // Skip if we're already in a redirect loop
     if (pathname === '/pro' && request.nextUrl.searchParams.get('denied') === '1') {
-      // Return a 403 Forbidden response instead of redirecting
-      return NextResponse.json(
-        { error: 'Accès refusé' }, 
-        { status: 403 }
-      );
+      console.log('Redirect loop detected, showing access denied');
+      return NextResponse.redirect(new URL('/pro/access-denied', request.url));
     }
 
-    try {
-      const url = new URL(request.url)
-      // Skip API calls from middleware cycle
-      if (!isApiRequest) {
-        const guardUrl = new URL("/api/pro/guard", url.origin)
-        guardUrl.searchParams.set("path", pathname)
-        const res = await fetch(guardUrl, { 
-          headers: { 
-            cookie: request.headers.get("cookie") || "",
-            'x-middleware-request': 'true' // Add this header to identify middleware requests
-          } 
-        })
-        
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          console.log('Guard check failed:', { status: res.status, reason: data.reason });
-          
-          if (res.status === 403) {
-            // For 403 Forbidden, show an error page instead of redirecting
-            return NextResponse.rewrite(new URL('/pro/access-denied', request.url));
-          }
-          
-          // For other errors, redirect to /pro with denied=1
-          const redirectTo = new URL("/pro", request.url)
-          redirectTo.searchParams.set("denied", "1")
-          return NextResponse.redirect(redirectTo)
-        }
-      }
-    } catch (error) {
-      console.error('Error in PRO guard middleware:', error);
-      // On error, redirect to /pro with error message
-      const redirectTo = new URL("/pro", request.url)
-      redirectTo.searchParams.set("error", "internal_error")
-      return NextResponse.redirect(redirectTo)
+    // Vérification basique des rôles sans faire d'appel fetch
+    const hasProRole = roles.includes('PRO');
+    const hasAdminRole = roles.includes('ADMIN');
+    const hasBusinessId = !!businessId;
+
+    console.log('Role Check - PRO:', hasProRole, 'ADMIN:', hasAdminRole, 'Business ID Present:', hasBusinessId);
+
+    // Si l'utilisateur n'a pas le rôle PRO/ADMIN, on refuse l'accès
+    if (!hasProRole && !hasAdminRole) {
+      console.log('Access denied: User has neither PRO nor ADMIN role');
+      return NextResponse.redirect(new URL('/pro/access-denied', request.url));
     }
+
+    // Si l'utilisateur est PRO mais n'a pas de business_id, on redirige vers l'onboarding
+    if (hasProRole && !hasAdminRole && !hasBusinessId) {
+      console.log('Redirecting to onboarding: PRO user without business_id');
+      return NextResponse.redirect(new URL('/pro/onboarding', request.url));
+    }
+
+    console.log('Access granted to PRO area');
   }
 
   return NextResponse.next()
