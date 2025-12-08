@@ -94,8 +94,9 @@ export default function AuthProLanding() {
         <div className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-8 px-4 py-12 md:grid-cols-2 md:py-20">
           <div className="space-y-5">
             <span className="inline-block rounded-full bg-muted px-3 py-1 text-xs">Solution Pro</span>
-            <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">La plateforme n°1 pour gérer votre salon ou institut</h1>
-            <p className="text-muted-foreground">Réservations en ligne, agenda intelligent, rappels automatiques et outils marketing pour développer votre activité.</p>
+            <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">Gérez votre institut en toute simplicité</h1>
+            <p className="text-muted-foreground">Un outil complet pour gérer vos rendez-vous, votre planning, vos clients et votre communication.
+Créez votre compte gratuitement et commencez dès maintenant.</p>
             <div className="flex gap-3 pt-2">
               <Link href="/offres">
                 <Button size="lg">Découvrir les offres</Button>
@@ -104,8 +105,8 @@ export default function AuthProLanding() {
           </div>
           <Card className="md:ml-auto">
             <CardHeader>
-              <CardTitle>Demandez une démonstration</CardTitle>
-              <CardDescription>Parlez-nous de votre établissement. Un expert vous rappelle.</CardDescription>
+              <CardTitle>Créer votre compte et rejoignez nous</CardTitle>
+              <CardDescription>Renseignez vos informations pour démarrer. Votre compte sera prêt en quelques secondes.</CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={onSubmit} className="grid grid-cols-1 gap-4" id="contact">
@@ -163,10 +164,10 @@ export default function AuthProLanding() {
                 <div className="flex items-start gap-3">
                   <Checkbox id="consent" checked={form.consent} onCheckedChange={(v) => update("consent", Boolean(v))} />
                   <Label htmlFor="consent" className="text-sm font-normal text-muted-foreground">
-                    J'accepte d'être contacté·e et la politique de confidentialité.
+                    J’accepte les conditions d’utilisation et la politique de confidentialité.
                   </Label>
                 </div>
-                <Button type="submit" disabled={submitting}>{submitting ? "Envoi..." : "Être recontacté·e"}</Button>
+                <Button type="submit" disabled={submitting}>{submitting ? "Envoi..." : "S’inscrire"}</Button>
               </form>
             </CardContent>
           </Card>
