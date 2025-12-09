@@ -170,18 +170,19 @@ export async function middleware(request: NextRequest) {
     const hasProRole = roles.includes('PRO');
     const hasAdminRole = roles.includes('ADMIN');
     const hasBusinessId = !!businessId;
+    const hasEmployeeRole = roles.includes('EMPLOYEE');
 
-    console.log('Role Check - PRO:', hasProRole, 'ADMIN:', hasAdminRole, 'Business ID Present:', hasBusinessId);
+    console.log('Role Check - PRO:', hasProRole, 'ADMIN:', hasAdminRole, 'EMPLOYEE:', hasEmployeeRole, 'Business ID Present:', hasBusinessId);
 
-    // Si l'utilisateur n'a pas le rôle PRO/ADMIN, on refuse l'accès
-    if (!hasProRole && !hasAdminRole) {
-      console.log('Access denied: User has neither PRO nor ADMIN role');
+    // Si l'utilisateur n'a aucun rôle autorisé, on refuse l'accès
+    if (!hasProRole && !hasAdminRole && !hasEmployeeRole) {
+      console.log('Access denied: User has no authorized role');
       return NextResponse.redirect(new URL('/pro/access-denied', request.url));
     }
 
-    // Si l'utilisateur est PRO mais n'a pas de business_id, on redirige vers l'onboarding
-    if (hasProRole && !hasAdminRole && !hasBusinessId) {
-      console.log('Redirecting to onboarding: PRO user without business_id');
+    // Si l'utilisateur est PRO/EMPLOYEE mais n'a pas de business_id, on redirige vers l'onboarding
+    if ((hasProRole || hasEmployeeRole) && !hasAdminRole && !hasBusinessId) {
+      console.log('Redirecting to onboarding: User without business_id');
       return NextResponse.redirect(new URL('/pro/onboarding', request.url));
     }
 

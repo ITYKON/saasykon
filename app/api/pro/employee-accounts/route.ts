@@ -151,7 +151,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "user_email required" }, { status: 400 });
   }
 
+  // D'abord, effectuons la transaction pour mettre à jour la base de données
   await prisma.$transaction(async (tx) => {
+    // S'assurer que le rôle EMPLOYEE existe
+    const employeeRole = await tx.roles.upsert({
+      where: { code: 'EMPLOYEE' },
+      update: {},
+      create: { code: 'EMPLOYEE', name: 'Employé du salon' }
+    });
+
     // Link account
     await tx.employee_accounts.upsert({
       where: { user_id: user.id },
@@ -159,7 +167,24 @@ export async function POST(req: NextRequest) {
       create: { user_id: user.id, employee_id: employee_id },
     } as any);
 
-    // Set employee role with the exact label provided (no STAFF/MANAGER mapping)
+    // Ajouter le rôle EMPLOYEE à l'utilisateur
+    await tx.user_roles.upsert({
+      where: {
+        user_id_role_id_business_id: {
+          user_id: user.id,
+          role_id: employeeRole.id,
+          business_id: businessId
+        }
+      },
+      update: {},
+      create: {
+        user_id: user.id,
+        role_id: employeeRole.id,
+        business_id: businessId
+      }
+    });
+
+    // Set employee role with the exact label provided
     if (typeof employee_role === "string" && employee_role.trim()) {
       const norm = employee_role.trim().toLowerCase();
       const labelMap: Record<string, string> = {
@@ -173,26 +198,65 @@ export async function POST(req: NextRequest) {
       const exactRole = labelMap[norm] || employee_role.trim();
       await tx.employee_roles.deleteMany({ where: { employee_id } });
       await tx.employee_roles.create({ data: { employee_id, role: exactRole } });
-      // Keep profession_label aligned for UI display
-      await tx.employees.update({ where: { id: employee_id }, data: { profession_label: exactRole } });
+      await tx.employees.update({ 
+        where: { id: employee_id }, 
+        data: { profession_label: exactRole } 
+      });
     }
 
-    // Persist direct pro permissions for the employee (scoped to business)
+    // Gérer les permissions
     if (Array.isArray(permission_codes)) {
-      await tx.employee_permissions.deleteMany({ where: { employee_id, business_id: businessId } });
-      const perms = await tx.pro_permissions.findMany({ where: { code: { in: permission_codes } }, select: { id: true } });
-      if (perms.length) {
-        await tx.employee_permissions.createMany({ data: perms.map((p) => ({ employee_id, permission_id: p.id, business_id: businessId })) });
+      await tx.employee_permissions.deleteMany({ 
+        where: { employee_id, business_id: businessId } 
+      });
+      
+      if (permission_codes.length > 0) {
+        const perms = await tx.pro_permissions.findMany({ 
+          where: { code: { in: permission_codes } }, 
+          select: { id: true } 
+        });
+        
+        if (perms.length > 0) {
+          await tx.employee_permissions.createMany({ 
+            data: perms.map((p) => ({ 
+              employee_id, 
+              permission_id: p.id, 
+              business_id: businessId 
+            })) 
+          });
+        }
       }
     }
   });
 
-  // Send invite email with magic link if we created a new user just now
+  // Après la transaction, récupérer les rôles mis à jour
+  const updatedUserRoles = await prisma.user_roles.findMany({
+    where: { user_id: user.id },
+    include: { roles: true }
+  });
+
+  const roles = updatedUserRoles.map(ur => ur.roles.code);
+  
+  // Créer une réponse avec le cookie de rôle mis à jour
+  const response = NextResponse.json({ ok: true });
+  
+  // Définir le cookie saas_roles avec les rôles mis à jour
+  response.cookies.set('saas_roles', roles.join(','), {
+    httpOnly: false,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    path: '/',
+    maxAge: 60 * 60 * 24 * 7 // 7 jours
+  });
+  
+  // Envoyer un email d'invitation si c'est un nouvel utilisateur
   if (newUserCreated && user?.email) {
     try {
       const rawToken = randomBytes(32).toString("base64url");
       const tokenHash = createHash("sha256").update(rawToken).digest("hex");
       const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24); // 24h
+      
+      // Créer un jeton d'invitation
       await prisma.invite_tokens.create({
         data: {
           user_id: user.id,
@@ -200,18 +264,41 @@ export async function POST(req: NextRequest) {
           token_hash: tokenHash,
           expires_at: expiresAt,
           used: false,
-          created_by: ctx.userId,
+          created_by: ctx?.userId || user.id, // Utiliser l'ID de l'utilisateur actuel ou de l'utilisateur créé
         },
       } as any);
 
+      // Envoyer l'email d'invitation
       const appUrl = process.env.APP_URL || "http://localhost:3000";
-      const tpl = inviteEmailTemplate({ firstName: null, appUrl, token: rawToken, validityHours: 24 });
-      await sendEmail({ to: user.email, subject: "Activez votre compte employé", html: tpl.html, text: tpl.text, category: "employee_invite" });
+      const tpl = inviteEmailTemplate({ 
+        firstName: null, 
+        appUrl, 
+        token: rawToken, 
+        validityHours: 24 
+      });
+      
+      await sendEmail({ 
+        to: user.email, 
+        subject: "Activez votre compte employé", 
+        html: tpl.html, 
+        text: tpl.text, 
+        category: "employee_invite" 
+      });
     } catch (e) {
-      // Non-bloquant: on log mais on ne casse pas la création
-      await prisma.event_logs.create({ data: { event_name: "employee.invite_email_error", payload: { error: (e as any)?.message, user_id: user?.id, email: user?.email } } }).catch(() => {});
+      // Journaliser l'erreur sans bloquer le processus
+      await prisma.event_logs.create({ 
+        data: { 
+          event_name: "employee.invite_email_error", 
+          payload: { 
+            error: (e as Error)?.message || 'Erreur inconnue',
+            user_id: user?.id, 
+            email: user?.email || 'inconnu@example.com'
+          } 
+        } 
+      }).catch(() => {});
     }
   }
-
-  return NextResponse.json({ ok: true });
+  
+  // Retourner la réponse avec le cookie défini
+  return response;
 }

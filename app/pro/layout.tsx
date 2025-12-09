@@ -3,6 +3,7 @@ import type React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useEffect, useState } from "react"
+import { Toaster } from "sonner"
 import {
   Calendar,
   Users,
@@ -356,9 +357,10 @@ export default function ProLayout({
         "transition-all duration-300 ease-in-out min-h-[calc(var(--vh,1vh)*100)] w-full",
         isMobileMenuOpen ? "lg:pl-64" : "lg:pl-64"
       )}>
-        <div className="p-4 sm:p-6 w-full max-w-full mx-auto">
-          {children}
-        </div>
+        <main className="flex-1 overflow-y-auto p-6 md:p-8">
+        {children}
+        <Toaster position="top-center" richColors closeButton />
+      </main>
       </main>
     </div>
   )

@@ -4,7 +4,7 @@ import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import { Analytics } from "@vercel/analytics/next";
 import { Suspense } from "react";
-import { Toaster } from "@/components/ui/toaster";
+import { Toaster as SonnerToaster } from "sonner";
 import "./globals.css";
 
 import LayoutWrapper from "../components/LayoutWrapper";
@@ -30,7 +30,7 @@ export default function RootLayout({
           </LayoutWrapper>
 
           <Analytics />
-          <Toaster />
+          <SonnerToaster position="top-center" richColors />
         </Suspense>
       </body>
     </html>

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
+import { toast } from "sonner"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
@@ -321,15 +322,47 @@ export default function EmployeesPage() {
     setIsViewDialogOpen(true)
   }
 
+  // Vérification que la fonction toast est disponible
+  console.log('Fonction toast de Sonner disponible:', { toast: typeof toast })
+
   async function handleDeleteEmployee(id: string) {
-    if (!confirm("Supprimer cet employé ?")) return
+    console.log('Tentative de suppression de l\'employé:', id)
+    if (!confirm("Êtes-vous sûr de vouloir supprimer cet employé ? Cette action est irréversible.")) return
+    
     try {
-      const res = await fetch(`/api/pro/employees/${id}`, { method: "DELETE" })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data?.error || "Suppression impossible")
+      // 1. D'abord, supprimer le compte employé
+      const accountRes = await fetch(`/api/pro/employees/${id}/account`, { 
+        method: "DELETE" 
+      });
+      
+      if (!accountRes.ok) {
+        const accountData = await accountRes.json().catch(() => ({}));
+        throw new Error(accountData?.error || "Erreur lors de la suppression du compte employé");
+      }
+
+      // 2. Ensuite, désactiver l'employé
+      const employeeRes = await fetch(`/api/pro/employees/${id}`, { 
+        method: "DELETE" 
+      });
+      
+      if (!employeeRes.ok) {
+        const employeeData = await employeeRes.json().catch(() => ({}));
+        throw new Error(employeeData?.error || "Erreur lors de la suppression de l'employé");
+      }
+      
+      // Notification de succès avec Sonner
+      console.log('Envoi de la notification de succès avec Sonner')
+      toast.success("L'employé et son compte ont été supprimés avec succès")
+      console.log('Notification de succès envoyée avec Sonner')
+      
+      // Recharger la liste des employés
       await loadEmployees()
-    } catch (e: any) {
-      alert(e?.message || "Erreur lors de la suppression")
+      
+    } catch (error: any) {
+      // Notification d'erreur avec Sonner
+      console.error('Erreur lors de la suppression:', error)
+      toast.error(error?.message || "Une erreur est survenue lors de la suppression de l'employé")
+      console.log('Notification d\'erreur envoyée avec Sonner')
     }
   }
 

@@ -97,9 +97,9 @@ export default function LoginPage() {
                       const roles = me?.user?.roles || []
                       // Prefer explicit YOKA ADMIN role to determine admin access. The API /api/auth/me
                       // now returns permissions and assignments; do not trust the business_id cookie
-                      // alone to grant full admin access to avoid over-privilege for sub-admins.
+                      // Redirection en fonction du rôle de l'utilisateur
                       if (roles.includes("ADMIN")) return router.push("/admin/dashboard")
-                      if (roles.includes("PRO")) return router.push("/pro/dashboard")
+                      if (roles.includes("PRO") || roles.includes("EMPLOYEE")) return router.push("/pro/dashboard")
                       return router.push("/client/dashboard")
                     } catch (e) {
                       setError("Erreur réseau")

@@ -42,8 +42,9 @@ export async function GET(req: NextRequest) {
     const businessId = cookieStore.get("business_id")?.value || "";
     if (!businessId) return NextResponse.json({ ok: false, reason: "no_business" }, { status: 400 });
 
-    // Check if user is ADMIN or owner (PRO) of the business
+    // Check if user is ADMIN, owner (PRO) of the business, or has EMPLOYEE role
     if (ctx.roles.includes("ADMIN") || 
+        ctx.roles.includes("EMPLOYEE") ||
         (ctx.roles.includes("PRO") && ctx.assignments.some(a => 
           a.role === "PRO" && a.business_id === businessId
         ))) {

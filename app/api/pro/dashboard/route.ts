@@ -28,8 +28,18 @@ export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const businessId = url.searchParams.get("business_id") || cookieStore.get("business_id")?.value || ctx.assignments[0]?.business_id;
   if (!businessId) return NextResponse.json({ error: "business_id required" }, { status: 400 });
-  const allowed = ctx.roles.includes("ADMIN") || ctx.assignments.some((a) => a.business_id === businessId && (a.role === "PRO" || a.role === "PROFESSIONNEL"));
-  if (!allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  // Vérifier si l'utilisateur est ADMIN, PRO ou EMPLOYEE
+  const allowed = 
+    ctx.roles.includes("ADMIN") || 
+    ctx.roles.includes("EMPLOYEE") ||
+    ctx.assignments.some((a) => a.business_id === businessId && (a.role === "PRO" || a.role === "PROFESSIONNEL"));
+  
+  if (!allowed) {
+    return NextResponse.json({ 
+      error: "Forbidden",
+      details: "Vous n'avez pas les permissions nécessaires pour accéder à cette ressource."
+    }, { status: 403 });
+  }
 
   const now = new Date();
   const primaryLoc = await prisma.business_locations.findFirst({ where: { business_id: businessId, is_primary: true }, select: { timezone: true } });

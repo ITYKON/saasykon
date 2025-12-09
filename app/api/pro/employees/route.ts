@@ -10,21 +10,49 @@ export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const businessId = url.searchParams.get("business_id") || cookieStore.get("business_id")?.value || ctx.assignments[0]?.business_id;
   if (!businessId) return NextResponse.json({ error: "business_id required" }, { status: 400 });
-  let allowed = ctx.roles.includes("ADMIN") || ctx.assignments.some((a) => a.business_id === businessId && (a.role === "PRO" || a.role === "PROFESSIONNEL"));
-  if (!allowed) {
+  // Vérifier si l'utilisateur est ADMIN, PRO ou EMPLOYEE avec les bonnes permissions
+  let allowed = 
+    ctx.roles.includes("ADMIN") || 
+    ctx.roles.includes("EMPLOYEE") ||
+    ctx.assignments.some((a) => a.business_id === businessId && (a.role === "PRO" || a.role === "PROFESSIONNEL"));
+  
+  // Si l'utilisateur est un employé, vérifier les permissions spécifiques
+  if (ctx.roles.includes("EMPLOYEE") && !allowed) {
     try {
-      const acc = await prisma.employee_accounts.findUnique({ where: { user_id: ctx.userId } }).catch(() => null);
+      const acc = await prisma.employee_accounts.findUnique({ 
+        where: { user_id: ctx.userId } 
+      }).catch(() => null);
+      
       if (acc) {
+        // Vérifier si l'employé a les permissions nécessaires
         const perms = await prisma.employee_permissions.findMany({
-          where: { employee_id: acc.employee_id, business_id: businessId },
-          include: { pro_permissions: { select: { code: true } } },
-        } as any);
-        const codes = new Set<string>(perms.map((p: any) => p.pro_permissions?.code).filter(Boolean));
-        allowed = codes.has("employees") || codes.has("employees_manage");
+          where: { 
+            employee_id: acc.employee_id, 
+            business_id: businessId,
+            pro_permissions: {
+              code: { in: ["employees", "employees_manage"] }
+            }
+          },
+          include: { 
+            pro_permissions: { 
+              select: { code: true } 
+            } 
+          },
+        });
+        
+        allowed = perms.length > 0;
       }
-    } catch {}
+    } catch (error) {
+      console.error("Error checking employee permissions:", error);
+    }
   }
-  if (!allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  
+  if (!allowed) {
+    return NextResponse.json({ 
+      error: "Forbidden",
+      details: "Vous n'avez pas les permissions nécessaires pour accéder à cette ressource."
+    }, { status: 403 });
+  }
 
   const q = (url.searchParams.get("q") || "").trim();
   const include = (url.searchParams.get("include") || "").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
