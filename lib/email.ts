@@ -1,31 +1,37 @@
 import nodemailer from "nodemailer";
 
-// Mailtrap SMTP configuration
-const MAILTRAP_HOST = process.env.MAILTRAP_HOST || "sandbox.smtp.mailtrap.io";
-const MAILTRAP_PORT = Number(process.env.MAILTRAP_PORT || 2525);
-const MAILTRAP_USER = process.env.MAILTRAP_USER || "";
-const MAILTRAP_PASS = process.env.MAILTRAP_PASS || "";
-const MAILTRAP_TEST_TO = process.env.MAILTRAP_TEST_TO || "";
+// Configuration SMTP
+const SMTP_HOST = process.env.SMTP_HOST || "localhost";
+const SMTP_PORT = Number(process.env.SMTP_PORT || 1025);
+const SMTP_SECURE = process.env.SMTP_SECURE === 'true';
+const SMTP_USER = process.env.SMTP_USER || "";
+const SMTP_PASS = process.env.SMTP_PASS || "";
 
 // Email configuration
 const EMAIL_FROM = process.env.EMAIL_FROM || "no-reply@example.com";
+const EMAIL_TEST_TO = process.env.EMAIL_TEST_TO || "test@example.com";
 
-// Create a test email transporter
+// Create email transporter
 const transporter = nodemailer.createTransport({
-  host: MAILTRAP_HOST,
-  port: MAILTRAP_PORT,
-  secure: false, // true for 465, false for other ports
-  auth: {
-    user: MAILTRAP_USER,
-    pass: MAILTRAP_PASS,
-  },
+  host: SMTP_HOST,
+  port: SMTP_PORT,
+  secure: SMTP_SECURE, // true for 465, false for other ports
+  auth: SMTP_USER ? { user: SMTP_USER, pass: SMTP_PASS } : undefined,
   tls: {
-    // Do not fail on invalid certs
-    rejectUnauthorized: false
+    // Do not fail on invalid certs in development
+    rejectUnauthorized: process.env.NODE_ENV === 'production'
   },
   pool: true,
   maxConnections: 1,
   rateDelta: 20000
+});
+
+// Log SMTP configuration (without sensitive data)
+console.log('📧 SMTP Configuration:', {
+  host: SMTP_HOST,
+  port: SMTP_PORT,
+  secure: SMTP_SECURE,
+  auth: SMTP_USER ? 'configured' : 'not configured'
 });
 
 // Function to send a test email
@@ -39,7 +45,7 @@ export async function sendTestEmail() {
   try {
     const info = await transporter.sendMail({
       from: EMAIL_FROM,
-      to: MAILTRAP_TEST_TO || "test@example.com",
+      to: EMAIL_TEST_TO,
       subject: "Test Email from SaaS YKON",
       text: "This is a test email sent from SaaS YKON application.",
       html: `
