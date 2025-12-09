@@ -1,37 +1,29 @@
 import nodemailer from "nodemailer";
 
-// Configuration SMTP
-const SMTP_HOST = process.env.SMTP_HOST || "localhost";
-const SMTP_PORT = Number(process.env.SMTP_PORT || 1025);
-const SMTP_SECURE = process.env.SMTP_SECURE === 'true';
-const SMTP_USER = process.env.SMTP_USER || "";
-const SMTP_PASS = process.env.SMTP_PASS || "";
+// Configuration SMTP pour MailDev
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST || 'localhost',
+  port: Number(process.env.SMTP_PORT || 1025),
+  secure: process.env.SMTP_SECURE === 'true',
+  auth: process.env.SMTP_USER
+    ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
+    : undefined,
+  tls: {
+    // Ne pas échouer sur les certificats auto-signés en développement
+    rejectUnauthorized: process.env.NODE_ENV === 'production'
+  }
+});
 
 // Email configuration
 const EMAIL_FROM = process.env.EMAIL_FROM || "no-reply@example.com";
 const EMAIL_TEST_TO = process.env.EMAIL_TEST_TO || "test@example.com";
 
-// Create email transporter
-const transporter = nodemailer.createTransport({
-  host: SMTP_HOST,
-  port: SMTP_PORT,
-  secure: SMTP_SECURE, // true for 465, false for other ports
-  auth: SMTP_USER ? { user: SMTP_USER, pass: SMTP_PASS } : undefined,
-  tls: {
-    // Do not fail on invalid certs in development
-    rejectUnauthorized: process.env.NODE_ENV === 'production'
-  },
-  pool: true,
-  maxConnections: 1,
-  rateDelta: 20000
-});
-
 // Log SMTP configuration (without sensitive data)
 console.log('📧 SMTP Configuration:', {
-  host: SMTP_HOST,
-  port: SMTP_PORT,
-  secure: SMTP_SECURE,
-  auth: SMTP_USER ? 'configured' : 'not configured'
+  host: process.env.SMTP_HOST || 'localhost',
+  port: process.env.SMTP_PORT || 1025,
+  secure: process.env.SMTP_SECURE === 'true',
+  auth: process.env.SMTP_USER ? 'configured' : 'not configured'
 });
 
 // Function to send a test email
