@@ -75,6 +75,7 @@ export async function createSession(userId: string) {
   const token = generateSessionToken();
   const expiresAt = new Date(Date.now() + SESSION_TTL_SECONDS * 1000);
 
+  // Créer la session en base de données
   await prisma.sessions.create({
     data: {
       user_id: userId,
@@ -83,9 +84,28 @@ export async function createSession(userId: string) {
     },
   });
 
-  const cookieValue = token;
-  const response = NextResponse.json({ ok: true });
-  response.cookies.set(SESSION_COOKIE_NAME, cookieValue, {
+  // Récupérer les rôles de l'utilisateur
+  const userRoles = await prisma.user_roles.findMany({
+    where: { user_id: userId },
+    include: { roles: true },
+  });
+  
+  const roles = userRoles.map((ur) => ur.roles.code);
+  const isPro = roles.includes('PRO');
+  
+  // Récupérer les informations de l'utilisateur
+  const user = await prisma.users.findUnique({
+    where: { id: userId },
+    select: { id: true, email: true, first_name: true, last_name: true },
+  });
+
+  // Créer une réponse de redirection si l'utilisateur est un PRO, sinon une réponse JSON standard
+  const response = isPro 
+    ? NextResponse.redirect(new URL('/pro/dashboard', process.env.NEXTAUTH_URL || 'http://localhost:3000'))
+    : NextResponse.json({ ok: true });
+
+  // Définir le cookie de session
+  response.cookies.set(SESSION_COOKIE_NAME, token, {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
@@ -93,22 +113,24 @@ export async function createSession(userId: string) {
     path: "/",
   });
 
-  // Also set a readable roles cookie for middleware/client redirects
-  const userRoles = await prisma.user_roles.findMany({
-    where: { user_id: userId },
-    include: { roles: true },
-  });
-  
-  const roleCodes = userRoles.map((ur) => ur.roles.code).join(",");
-  
-  response.cookies.set("saas_roles", roleCodes, {
-    httpOnly: false,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    expires: expiresAt,
-    path: "/",
-  });
-  
+  // Définir le cookie utilisateur avec les rôles
+  response.cookies.set(
+    "user",
+    JSON.stringify({
+      id: user?.id,
+      email: user?.email,
+      name: [user?.first_name, user?.last_name].filter(Boolean).join(' ') || user?.email,
+      roles,
+    }),
+    {
+      httpOnly: false,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      expires: expiresAt,
+      path: "/",
+    },
+  );
+
   // Set business_id cookie for middleware
   // If user has ANY role with business_id '00000000-0000-0000-0000-000000000000', use that; otherwise first business_id
   let businessId = "";
