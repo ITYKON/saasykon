@@ -65,24 +65,10 @@ export default function ClaimOnboardingPage() {
       setClaimData(data.claim)
       
       // Vérifier si l'utilisateur a déjà un mot de passe
-      console.log('L\'utilisateur a un mot de passe défini:', data.user?.has_password || data.user?.hasPassword);
-      if (data.user?.has_password || data.user?.hasPassword) {
-        console.log('Passage à l\'étape des documents');
-        setStep("documents")
-      } else {
-        console.log('Passage à l\'étape de création de mot de passe');
-        setStep("password")
-      }
+      const hasPassword = data.claim?.user?.has_password || data.claim?.user?.hasPassword;
+      console.log('L\'utilisateur a un mot de passe défini:', hasPassword);
       
-      // Vérifier l'état des documents
-      console.log('URL des documents reçues:', {
-        rc_document_url: data.claim?.rc_document_url,
-        id_document_front_url: data.claim?.id_document_front_url,
-        id_document_back_url: data.claim?.id_document_back_url,
-        status: data.claim?.status
-      });
-      
-      // Mettre à jour les URLs des documents même si certains sont manquants
+      // Mettre à jour les URLs des documents
       console.log('Mise à jour des URLs des documents');
       setRcDocumentUrl(data.claim?.rc_document_url || '')
       setIdDocumentFrontUrl(data.claim?.id_document_front_url || '')
@@ -99,8 +85,14 @@ export default function ClaimOnboardingPage() {
       console.log('Données du claim:', data.claim);
       console.log('Statut des documents:', documentStatus);
       
-      // Forcer l'affichage de la section des documents
-      setStep("documents");
+      // Définir l'étape en fonction de la présence d'un mot de passe
+      if (!hasPassword) {
+        console.log('Redirection vers la page de création de mot de passe');
+        setStep("password");
+      } else {
+        console.log('Redirection vers la page des documents');
+        setStep("documents");
+      }
       
       if (data.claim?.rc_number) {
         console.log('Numéro de RC trouvé:', data.claim.rc_number);
@@ -386,17 +378,17 @@ export default function ClaimOnboardingPage() {
       
       // Afficher le message de succès approprié
       if (completeNow) {
-        notifySuccess({
-          title: "Demande soumise avec succès !",
-          description: "Nous allons examiner vos documents sous 24-48h. Vous recevrez une notification par email.",
-          duration: 15000
-        });
         setStep("complete");
+        notifySuccess({
+          title: "Documents soumis avec succès",
+          description: "Vos documents ont été envoyés pour vérification. Vous serez notifié par email une fois l'approbation effectuée.",
+          duration: 10000
+        });
       } else {
         notifySuccess({
           title: "Progression enregistrée",
-          description: `Vous avez jusqu'au ${new Date(claimData.expires_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })} pour compléter votre demande.`,
-          duration: 10000
+          description: "Vos modifications ont été enregistrées. Vous pouvez continuer plus tard.",
+          duration: 5000
         });
         // Ne pas changer d'étape, laisser l'utilisateur sur la page des documents
       }
