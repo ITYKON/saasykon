@@ -6,13 +6,14 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { toast } from "sonner"
 import { Loader2 } from "lucide-react"
 import Link from "next/link"
+import { useNotification } from "@/hooks/use-notification"
 
 function ClaimPageContent(): JSX.Element {
   const searchParams = useSearchParams()
   const [loading, setLoading] = useState(false)
+  const { error: notifyError, success: notifySuccess } = useNotification()
   
   const businessId = searchParams?.get("business_id") ?? null
   const businessName = searchParams?.get("business_name") ?? ""
@@ -26,22 +27,31 @@ function ClaimPageContent(): JSX.Element {
 
   useEffect(() => {
     if (!businessId) {
-      toast.error("ID de l'établissement manquant. Veuillez accéder à cette page depuis la page de l'établissement.")
+      notifyError({
+        title: "ID manquant",
+        description: "Veuillez accéder à cette page depuis la page de l'établissement."
+      })
     }
-  }, [businessId, toast])
+  }, [businessId, notifyError])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
     // Vérification de l'ID de l'établissement
     if (!businessId) {
-      toast.error("ID de l'établissement manquant. Veuillez réessayer en accédant à la page depuis la fiche de l'établissement.")
+      notifyError({
+        title: "ID manquant",
+        description: "Veuillez réessayer en accédant à la page depuis la fiche de l'établissement."
+      })
       return
     }
     
     // Vérification des champs requis
     if (!formData.full_name || !formData.email || !formData.phone) {
-      toast.error("Veuillez remplir tous les champs obligatoires.")
+      notifyError({
+        title: "Champs manquants",
+        description: "Veuillez remplir tous les champs obligatoires."
+      })
       return
     }
     
@@ -67,7 +77,11 @@ function ClaimPageContent(): JSX.Element {
       }
 
       // Afficher la notification de succès
-      toast.success(`Votre demande pour ${businessName} a été traitée avec succès.`)
+      notifySuccess({
+        title: "Demande envoyée",
+        description: `Votre demande pour ${businessName} a été traitée avec succès.`,
+        duration: 10000
+      })
 
       // Réinitialiser le formulaire
       setFormData({
@@ -79,7 +93,10 @@ function ClaimPageContent(): JSX.Element {
       // Passage à l'écran de succès
       setIsSubmitted(true)
     } catch (error: any) {
-      toast.error(error.message || "Une erreur est survenue lors de la soumission du formulaire")
+      notifyError({
+        title: "Erreur",
+        description: error.message || "Une erreur est survenue lors de la soumission du formulaire"
+      })
     } finally {
       setLoading(false)
     }

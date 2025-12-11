@@ -158,7 +158,10 @@ export async function middleware(request: NextRequest) {
   // Fine-grained guard for PRO area: verify permissions against employee assignments
   if (isProPath && !isProOnboarding) {
     console.log('=== PRO AREA ACCESS CHECK ===');
-    console.log('Checking access to PRO area...');
+    console.log('Path:', pathname);
+    console.log('Session Token:', sessionToken ? 'Present' : 'Missing');
+    console.log('User Roles:', roles);
+    console.log('Business ID:', businessId || 'Not set');
     
     // Skip if we're already in a redirect loop
     if (pathname === '/pro' && request.nextUrl.searchParams.get('denied') === '1') {
@@ -177,13 +180,31 @@ export async function middleware(request: NextRequest) {
     // Si l'utilisateur n'a aucun rôle autorisé, on refuse l'accès
     if (!hasProRole && !hasAdminRole && !hasEmployeeRole) {
       console.log('Access denied: User has no authorized role');
-      return NextResponse.redirect(new URL('/pro/access-denied', request.url));
+      // Si l'utilisateur a une session mais pas de rôle, le déconnecter
+      if (sessionToken) {
+        console.log('User has session but no valid role, redirecting to logout');
+        return NextResponse.redirect(new URL('/auth/logout', request.url));
+      }
+      return NextResponse.redirect(new URL('/auth/signin?error=unauthorized', request.url));
     }
 
     // Si l'utilisateur est PRO/EMPLOYEE mais n'a pas de business_id, on redirige vers l'onboarding
     if ((hasProRole || hasEmployeeRole) && !hasAdminRole && !hasBusinessId) {
       console.log('Redirecting to onboarding: User without business_id');
       return NextResponse.redirect(new URL('/pro/onboarding', request.url));
+    }
+
+    // Si l'utilisateur a le rôle ADMIN mais pas de business_id, on utilise le business_id spécial
+    if (hasAdminRole && !hasBusinessId) {
+      console.log('Admin user without business_id, using special business_id');
+      const response = NextResponse.next();
+      response.cookies.set('business_id', '00000000-0000-0000-0000-000000000000', {
+        httpOnly: false,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+      });
+      return response;
     }
 
     console.log('Access granted to PRO area');

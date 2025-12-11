@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { useToast } from "@/hooks/use-toast"
+import { useNotification } from "@/hooks/use-notification"
 import { Loader2, Upload, Camera, CheckCircle2, AlertCircle, CheckCircle, XCircle, Clock } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
@@ -14,7 +14,7 @@ import Link from "next/link"
 export default function ClaimOnboardingPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { toast } = useToast()
+  const { error: notifyError, success: notifySuccess, info: notifyInfo, warning: notifyWarning } = useNotification()
   const token = searchParams?.get("token") ?? null
 
   const [loading, setLoading] = useState(true)
@@ -37,71 +37,104 @@ export default function ClaimOnboardingPage() {
 
   useEffect(() => {
     if (!token) {
-      toast({
-        title: "Token manquant",
-        description: "Le lien de revendication est invalide.",
-        variant: "destructive",
+      notifyError({
+        title: "Lien invalide",
+        description: "Le lien de revendication est invalide ou a expiré. Veuillez réessayer.",
+        duration: 10000
       })
-      router.push("/claims")
+      setTimeout(() => router.push("/claims"), 3000)
       return
     }
 
     fetchClaimData()
-  }, [token])
+  }, [token, router, notifyError])
 
   const fetchClaimData = async () => {
     try {
-      const response = await fetch(`/api/claims/verify?token=${encodeURIComponent(token!)}`)
+      const response = await fetch(`/api/claims/verify?token=${token}`)
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error || "Token invalide")
+        throw new Error(data.error || "Erreur lors de la vérification du token")
       }
 
       setClaimData(data.claim)
       
-      // If user already has password, skip password step
-      if (data.claim.user.has_password) {
-        setStep("documents")
-      } else {
-        setStep("password")
-      }
-
-      // Load existing documents if any
-      if (data.claim.documents_submitted) {
-        // Load existing documents to show their status
-        if (data.claim.rc_document_url) {
-          setRcDocumentUrl(data.claim.rc_document_url)
-        }
-        if (data.claim.id_document_front_url) {
-          setIdDocumentFrontUrl(data.claim.id_document_front_url)
-        }
-        if (data.claim.id_document_back_url) {
-          setIdDocumentBackUrl(data.claim.id_document_back_url)
-        }
-        if (data.claim.rc_number) {
-          setRcNumber(data.claim.rc_number)
-        }
-        // Set document status based on claim status
-        if (data.claim.status === "approved") {
-          setDocumentStatus("approved")
-        } else if (data.claim.status === "rejected") {
-          setDocumentStatus("rejected")
-        } else {
-          setDocumentStatus("pending")
-        }
-        // Show documents page to see status and traceability
+      // Si le mot de passe est déjà défini, passer à l'étape des documents
+      if (data.user?.hasPassword) {
         setStep("documents")
       }
-    } catch (error: any) {
-      toast({
-        title: "Erreur",
-        description: error.message || "Impossible de charger les données",
-        variant: "destructive",
+      
+      // Vérifier l'état des documents
+      if (data.claim?.rc_document_url && data.claim?.id_document_front_url && data.claim?.id_document_back_url) {
+        setRcDocumentUrl(data.claim.rc_document_url)
+        setIdDocumentFrontUrl(data.claim.id_document_front_url)
+        setIdDocumentBackUrl(data.claim.id_document_back_url)
+        setDocumentStatus(data.claim.status === "approved" ? "approved" : "pending")
+      }
+      
+      if (data.claim?.rc_number) {
+        setRcNumber(data.claim.rc_number)
+      }
+      
+    } catch (error) {
+      console.error("Error fetching claim data:", error)
+      notifyError({
+        title: "Erreur de chargement",
+        description: "Impossible de charger les données de la revendication. Veuillez réessayer plus tard.",
+        duration: 10000
       })
-      router.push("/claims")
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleFileUpload = async (file: File, type: "rc_doc" | "id_front" | "id_back") => {
+    setUploading(type)
+    try {
+      // Vérifier la taille du fichier (max 5MB)
+      const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
+      if (file.size > MAX_FILE_SIZE) {
+        throw new Error("Le fichier est trop volumineux. Taille maximale : 5MB.")
+      }
+
+      // Vérifier le type de fichier
+      const validTypes = ['image/jpeg', 'image/png', 'application/pdf']
+      if (!validTypes.includes(file.type)) {
+        throw new Error("Type de fichier non supporté. Utilisez JPG, PNG ou PDF.")
+      }
+
+      // Simuler un téléchargement
+      await new Promise(resolve => setTimeout(resolve, 2000))
+      
+      // Générer une URL locale pour l'aperçu
+      const url = URL.createObjectURL(file)
+      
+      switch (type) {
+        case "rc_doc":
+          setRcDocumentUrl(url)
+          break
+        case "id_front":
+          setIdDocumentFrontUrl(url)
+          break
+        case "id_back":
+          setIdDocumentBackUrl(url)
+          break
+      }
+      
+      notifySuccess({
+        title: "Fichier téléchargé",
+        description: `${file.name} a été téléchargé avec succès.`,
+        duration: 5000
+      })
+    } catch (error: any) {
+      notifyError({
+        title: "Erreur de téléchargement",
+        description: error.message || `Une erreur est survenue lors du téléchargement du fichier.`,
+        duration: 10000
+      })
+    } finally {
+      setUploading(null)
     }
   }
 
@@ -115,7 +148,7 @@ export default function ClaimOnboardingPage() {
         body: formData,
       })
 
-      if (!response.ok) throw new Error("Upload failed")
+      if (!response.ok) throw new Error("Échec du téléversement")
       const data = await response.json()
       const url = data?.url
 
@@ -127,15 +160,17 @@ export default function ClaimOnboardingPage() {
         setIdDocumentBackUrl(url)
       }
 
-      toast({
+      notifySuccess({
         title: "Document téléversé",
         description: "Votre document a été enregistré avec succès.",
+        duration: 5000
       })
     } catch (error: any) {
-      toast({
-        title: "Erreur",
-        description: error.message || "Impossible de téléverser le document",
-        variant: "destructive",
+      console.error("Erreur lors du téléversement:", error)
+      notifyError({
+        title: "Erreur de téléversement",
+        description: error.message || "Impossible de téléverser le document. Veuillez réessayer.",
+        duration: 10000
       })
     } finally {
       setUploading(null)
@@ -154,10 +189,11 @@ export default function ClaimOnboardingPage() {
         await videoRef.current.play()
       }
     } catch (error) {
-      toast({
-        title: "Erreur",
-        description: "Impossible d'accéder à la caméra",
-        variant: "destructive",
+      console.error("Error starting camera:", error)
+      notifyError({
+        title: "Erreur de caméra",
+        description: "Impossible d'accéder à la caméra. Veuillez vérifier les autorisations et réessayer.",
+        duration: 10000
       })
     }
   }
@@ -187,20 +223,23 @@ export default function ClaimOnboardingPage() {
     }
   }
 
-  const handlePasswordSubmit = async () => {
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
     if (password.length < 8) {
-      toast({
+      notifyError({
         title: "Mot de passe trop court",
-        description: "Le mot de passe doit contenir au moins 8 caractères",
-        variant: "destructive",
+        description: "Votre mot de passe doit contenir au moins 8 caractères.",
+        duration: 10000
       })
       return
     }
 
     if (password !== confirmPassword) {
-      toast({
-        title: "Les mots de passe ne correspondent pas",
-        variant: "destructive",
+      notifyError({
+        title: "Mots de passe différents",
+        description: "Les mots de passe que vous avez saisis ne correspondent pas. Veuillez réessayer.",
+        duration: 10000
       })
       return
     }
@@ -223,8 +262,14 @@ export default function ClaimOnboardingPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Impossible de définir le mot de passe");
+        throw new Error(data.error || "Erreur lors de la mise à jour du mot de passe")
       }
+
+      notifySuccess({
+        title: "Mot de passe mis à jour",
+        description: "Votre mot de passe a été enregistré avec succès.",
+        duration: 5000
+      })
 
       // Mettre à jour le statut local pour indiquer que le mot de passe est défini
       setClaimData((prev: any) => ({
@@ -236,18 +281,13 @@ export default function ClaimOnboardingPage() {
       }));
 
       // Passer à l'étape suivante
-      toast({
-        title: "Mot de passe défini avec succès",
-        description: "Vous pouvez maintenant continuer avec la soumission des documents.",
-      });
-      
       setStep("documents");
     } catch (error: any) {
       console.error("Erreur lors de la définition du mot de passe:", error);
-      toast({
-        title: "Erreur",
-        description: error.message || "Une erreur est survenue lors de la définition du mot de passe",
-        variant: "destructive",
+      notifyError({
+        title: "Erreur de mise à jour",
+        description: error.message || "Impossible de mettre à jour votre mot de passe. Veuillez réessayer.",
+        duration: 10000
       });
     } finally {
       setSubmitting(false);
@@ -255,42 +295,44 @@ export default function ClaimOnboardingPage() {
   }
 
   const handleComplete = async (completeNow: boolean) => {
-    setSubmitting(true)
+    setSubmitting(true);
     
     // Vérification des documents requis si l'utilisateur soumet
     if (completeNow) {
-      const missingDocuments = []
-      if (!rcDocumentUrl) missingDocuments.push("Document du registre de commerce")
-      if (!idDocumentFrontUrl) missingDocuments.push("Recto de la pièce d'identité")
-      if (!idDocumentBackUrl) missingDocuments.push("Verso de la pièce d'identité")
+      const missingDocuments = [];
+      if (!rcDocumentUrl) missingDocuments.push("Document du registre de commerce");
+      if (!idDocumentFrontUrl) missingDocuments.push("Recto de la pièce d'identité");
+      if (!idDocumentBackUrl) missingDocuments.push("Verso de la pièce d'identité");
       
       if (missingDocuments.length > 0) {
-        toast({
+        notifyError({
           title: "Documents manquants",
           description: `Veuvez fournir les documents suivants : ${missingDocuments.join(", ")}`,
-          variant: "destructive",
-        })
-        setSubmitting(false)
-        return
+          duration: 10000
+        });
+        setSubmitting(false);
+        return;
       }
       
       if (!rcNumber) {
-        toast({
+        notifyError({
           title: "Champ manquant",
           description: "Veuvez renseigner le numéro de registre de commerce",
-          variant: "destructive",
-        })
-        setSubmitting(false)
-        return
+          duration: 10000
+        });
+        setSubmitting(false);
+        return;
       }
     }
     
     try {
+      console.log('Envoi de la requête à /api/claims/complete...');
       const response = await fetch("/api/claims/complete", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
+        credentials: 'include', // Important pour envoyer les cookies
         body: JSON.stringify({
           token,
           password: step === "password" ? password : undefined,
@@ -300,43 +342,78 @@ export default function ClaimOnboardingPage() {
           id_document_back_url: idDocumentBackUrl,
           complete_now: completeNow,
         }),
-      })
+      });
 
-      const data = await response.json()
+      const data = await response.json();
+      console.log('Réponse du serveur:', data);
 
       if (!response.ok) {
-        throw new Error(data.error || "Une erreur est survenue lors de la soumission")
+        throw new Error(data.error || "Une erreur est survenue lors de la soumission");
       }
 
       // Afficher le message de succès approprié
       if (completeNow) {
-        toast({
-          title: "Votre demande a été soumise avec succès !",
+        notifySuccess({
+          title: "Demande soumise avec succès !",
           description: "Nous allons examiner vos documents sous 24-48h. Vous recevrez une notification par email.",
-          variant: "default",
-        })
+          duration: 15000
+        });
       } else {
-        toast({
+        notifySuccess({
           title: "Progression enregistrée",
           description: `Vous avez jusqu'au ${new Date(claimData.expires_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })} pour compléter votre demande.`,
-          variant: "default",
-        })
+          duration: 10000
+        });
       }
       
-      // Rediriger vers le tableau de bord
-      setTimeout(() => {
-        window.location.href = "/pro/dashboard"
-      }, 2000)
+      // Attendre un peu avant de vérifier les cookies pour s'assurer qu'ils sont bien définis
+      setTimeout(async () => {
+        try {
+          console.log('Vérification des cookies...');
+          console.log('Tous les cookies:', document.cookie);
+          
+          // Vérifier les rôles de l'utilisateur
+          const rolesCookie = document.cookie
+            .split('; ')
+            .find(row => row.startsWith('saas_roles='))
+            ?.split('=')[1];
+            
+          console.log('Cookie saas_roles:', rolesCookie);
+          
+          const businessId = document.cookie
+            .split('; ')
+            .find(row => row.startsWith('business_id='))
+            ?.split('=')[1];
+            
+          console.log('Cookie business_id:', businessId);
+          
+          // Vérifier si l'utilisateur a le rôle PRO
+          const hasProRole = rolesCookie?.includes('PRO');
+          console.log('L\'utilisateur a le rôle PRO:', hasProRole);
+          
+          if (hasProRole && businessId) {
+            console.log('Redirection vers /pro/dashboard');
+            window.location.href = "/pro/dashboard";
+          } else {
+            console.log('Rôle PRO ou business_id manquant, redirection vers /auth/signin');
+            window.location.href = "/auth/signin?error=missing_role";
+          }
+        } catch (error) {
+          console.error('Erreur lors de la vérification des cookies:', error);
+          // En cas d'erreur, rediriger vers la page de connexion
+          window.location.href = "/auth/signin?error=session_error";
+        }
+      }, 1000);
       
     } catch (error: any) {
-      console.error("Erreur lors de la soumission:", error)
-      toast({
-        title: "Erreur",
+      console.error("Erreur lors de la soumission:", error);
+      notifyError({
+        title: "Erreur de soumission",
         description: error.message || "Une erreur est survenue lors de la soumission. Veuillez réessayer.",
-        variant: "destructive",
-      })
+        duration: 10000
+      });
     } finally {
-      setSubmitting(false)
+      setSubmitting(false);
     }
   }
 
