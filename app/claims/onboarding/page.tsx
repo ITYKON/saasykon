@@ -64,8 +64,8 @@ export default function ClaimOnboardingPage() {
       console.log('Données de la revendication reçues:', data);
       setClaimData(data.claim)
       
-      // Vérifier si l'utilisateur a déjà un mot de passe
-      const hasPassword = data.claim?.user?.has_password || data.claim?.user?.hasPassword;
+      // Vérifier si l'utilisateur a déjà un mot de passe en vérifiant le password_hash
+      const hasPassword = !!data.claim?.user?.password_hash;
       console.log('L\'utilisateur a un mot de passe défini:', hasPassword);
       
       // Mettre à jour les URLs des documents
