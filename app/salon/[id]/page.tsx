@@ -171,25 +171,6 @@ export default function SalonPage({ params }: { params: { id: string } }) {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <Link href="/" className="text-2xl font-bold text-black tracking-wide">
-              YOKA
-            </Link>
-            <div className="flex items-center space-x-4">
-              <Button variant="outline" size="sm" className="hidden sm:flex bg-transparent">
-                Je suis un professionnel de beauté
-              </Button>
-              <Button size="sm" className="bg-black text-white hover:bg-gray-800">
-                Mon compte
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
-
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4">
           <div>
@@ -255,12 +236,13 @@ export default function SalonPage({ params }: { params: { id: string } }) {
         </div>
 
         <div className="relative mb-8">
-          <div className="aspect-video lg:aspect-[21/9] rounded-lg overflow-hidden">
+          <div className="aspect-video lg:aspect-[21/6] rounded-lg overflow-hidden">
             <Image
               src={(salon?.images?.[currentImageIndex]) || "/placeholder.svg"}
               alt={`${salon?.name || "Salon"} ${currentImageIndex + 1}`}
               fill
               className="object-cover"
+              priority
             />
           </div>
           {salon?.images?.length > 1 && (
