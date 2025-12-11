@@ -20,6 +20,7 @@ export default function ClaimOnboardingPage() {
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [claimData, setClaimData] = useState<any>(null)
+  const [documentsLoaded, setDocumentsLoaded] = useState(true)
   const [step, setStep] = useState<"welcome" | "password" | "documents" | "complete">("welcome")
 
   const [password, setPassword] = useState("")
@@ -51,29 +52,58 @@ export default function ClaimOnboardingPage() {
 
   const fetchClaimData = async () => {
     try {
+      console.log('Récupération des données de la revendication...');
       const response = await fetch(`/api/claims/verify?token=${token}`)
       const data = await response.json()
 
       if (!response.ok) {
+        console.error('Erreur lors de la récupération des données:', data.error);
         throw new Error(data.error || "Erreur lors de la vérification du token")
       }
 
+      console.log('Données de la revendication reçues:', data);
       setClaimData(data.claim)
       
-      // Si le mot de passe est déjà défini, passer à l'étape des documents
-      if (data.user?.hasPassword) {
+      // Vérifier si l'utilisateur a déjà un mot de passe
+      console.log('L\'utilisateur a un mot de passe défini:', data.user?.has_password || data.user?.hasPassword);
+      if (data.user?.has_password || data.user?.hasPassword) {
+        console.log('Passage à l\'étape des documents');
         setStep("documents")
+      } else {
+        console.log('Passage à l\'étape de création de mot de passe');
+        setStep("password")
       }
       
       // Vérifier l'état des documents
-      if (data.claim?.rc_document_url && data.claim?.id_document_front_url && data.claim?.id_document_back_url) {
-        setRcDocumentUrl(data.claim.rc_document_url)
-        setIdDocumentFrontUrl(data.claim.id_document_front_url)
-        setIdDocumentBackUrl(data.claim.id_document_back_url)
-        setDocumentStatus(data.claim.status === "approved" ? "approved" : "pending")
+      console.log('URL des documents reçues:', {
+        rc_document_url: data.claim?.rc_document_url,
+        id_document_front_url: data.claim?.id_document_front_url,
+        id_document_back_url: data.claim?.id_document_back_url,
+        status: data.claim?.status
+      });
+      
+      // Mettre à jour les URLs des documents même si certains sont manquants
+      console.log('Mise à jour des URLs des documents');
+      setRcDocumentUrl(data.claim?.rc_document_url || '')
+      setIdDocumentFrontUrl(data.claim?.id_document_front_url || '')
+      setIdDocumentBackUrl(data.claim?.id_document_back_url || '')
+      
+      // Définir le statut des documents
+      if (data.claim?.status) {
+        setDocumentStatus(data.claim.status === "approved" ? "approved" : 
+                         data.claim.status === "rejected" ? "rejected" : "pending")
+      } else {
+        setDocumentStatus(null)
       }
       
+      console.log('Données du claim:', data.claim);
+      console.log('Statut des documents:', documentStatus);
+      
+      // Forcer l'affichage de la section des documents
+      setStep("documents");
+      
       if (data.claim?.rc_number) {
+        console.log('Numéro de RC trouvé:', data.claim.rc_number);
         setRcNumber(data.claim.rc_number)
       }
       
@@ -351,6 +381,9 @@ export default function ClaimOnboardingPage() {
         throw new Error(data.error || "Une erreur est survenue lors de la soumission");
       }
 
+          // Mettre à jour le statut local pour indiquer que les documents sont soumis
+      setDocumentStatus("pending");
+      
       // Afficher le message de succès approprié
       if (completeNow) {
         notifySuccess({
@@ -358,12 +391,14 @@ export default function ClaimOnboardingPage() {
           description: "Nous allons examiner vos documents sous 24-48h. Vous recevrez une notification par email.",
           duration: 15000
         });
+        setStep("complete");
       } else {
         notifySuccess({
           title: "Progression enregistrée",
           description: `Vous avez jusqu'au ${new Date(claimData.expires_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })} pour compléter votre demande.`,
           duration: 10000
         });
+        // Ne pas changer d'étape, laisser l'utilisateur sur la page des documents
       }
       
       // Attendre un peu avant de vérifier les cookies pour s'assurer qu'ils sont bien définis
@@ -506,7 +541,7 @@ export default function ClaimOnboardingPage() {
         )}
 
         {/* Documents Step */}
-        {step === "documents" && (
+        {(step === "documents" || step === "complete") && (
           <div className="space-y-6">
             {/* Document Status */}
             {documentStatus && (
