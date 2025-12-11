@@ -205,11 +205,86 @@ export default function ClaimOnboardingPage() {
       return
     }
 
-    setStep("documents")
+    try {
+      setSubmitting(true);
+      
+      // Appel à l'API pour définir le mot de passe
+      const response = await fetch("/api/auth/set-password", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: claimData?.user?.email,
+          password: password,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Impossible de définir le mot de passe");
+      }
+
+      // Mettre à jour le statut local pour indiquer que le mot de passe est défini
+      setClaimData((prev: any) => ({
+        ...prev,
+        user: {
+          ...prev.user,
+          has_password: true,
+        },
+      }));
+
+      // Passer à l'étape suivante
+      toast({
+        title: "Mot de passe défini avec succès",
+        description: "Vous pouvez maintenant continuer avec la soumission des documents.",
+      });
+      
+      setStep("documents");
+    } catch (error: any) {
+      console.error("Erreur lors de la définition du mot de passe:", error);
+      toast({
+        title: "Erreur",
+        description: error.message || "Une erreur est survenue lors de la définition du mot de passe",
+        variant: "destructive",
+      });
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   const handleComplete = async (completeNow: boolean) => {
     setSubmitting(true)
+    
+    // Vérification des documents requis si l'utilisateur soumet
+    if (completeNow) {
+      const missingDocuments = []
+      if (!rcDocumentUrl) missingDocuments.push("Document du registre de commerce")
+      if (!idDocumentFrontUrl) missingDocuments.push("Recto de la pièce d'identité")
+      if (!idDocumentBackUrl) missingDocuments.push("Verso de la pièce d'identité")
+      
+      if (missingDocuments.length > 0) {
+        toast({
+          title: "Documents manquants",
+          description: `Veuvez fournir les documents suivants : ${missingDocuments.join(", ")}`,
+          variant: "destructive",
+        })
+        setSubmitting(false)
+        return
+      }
+      
+      if (!rcNumber) {
+        toast({
+          title: "Champ manquant",
+          description: "Veuvez renseigner le numéro de registre de commerce",
+          variant: "destructive",
+        })
+        setSubmitting(false)
+        return
+      }
+    }
+    
     try {
       const response = await fetch("/api/claims/complete", {
         method: "POST",
@@ -230,27 +305,34 @@ export default function ClaimOnboardingPage() {
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error || "Erreur lors de la soumission")
+        throw new Error(data.error || "Une erreur est survenue lors de la soumission")
       }
 
-      if (data.ok && (completeNow || !completeNow)) {
-        // Session created, reload page to let middleware handle redirect
+      // Afficher le message de succès approprié
+      if (completeNow) {
         toast({
-          title: completeNow && data.has_all_documents 
-            ? "Documents soumis" 
-            : "Documents enregistrés",
-          description: completeNow && data.has_all_documents
-            ? "Vos documents sont en cours de vérification."
-            : "Vous pouvez compléter plus tard depuis votre tableau de bord.",
+          title: "Votre demande a été soumise avec succès !",
+          description: "Nous allons examiner vos documents sous 24-48h. Vous recevrez une notification par email.",
+          variant: "default",
         })
-        window.location.href = "/pro/dashboard"
       } else {
-        setStep("complete")
+        toast({
+          title: "Progression enregistrée",
+          description: `Vous avez jusqu'au ${new Date(claimData.expires_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })} pour compléter votre demande.`,
+          variant: "default",
+        })
       }
+      
+      // Rediriger vers le tableau de bord
+      setTimeout(() => {
+        window.location.href = "/pro/dashboard"
+      }, 2000)
+      
     } catch (error: any) {
+      console.error("Erreur lors de la soumission:", error)
       toast({
         title: "Erreur",
-        description: error.message || "Impossible de soumettre les documents",
+        description: error.message || "Une erreur est survenue lors de la soumission. Veuillez réessayer.",
         variant: "destructive",
       })
     } finally {
@@ -328,8 +410,19 @@ export default function ClaimOnboardingPage() {
                   placeholder="Répétez le mot de passe"
                 />
               </div>
-              <Button onClick={handlePasswordSubmit} className="w-full" disabled={!password || !confirmPassword}>
-                Continuer
+              <Button 
+                onClick={handlePasswordSubmit} 
+                className="w-full" 
+                disabled={!password || !confirmPassword || submitting}
+              >
+                {submitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Traitement...
+                  </>
+                ) : (
+                  'Continuer'
+                )}
               </Button>
             </CardContent>
           </Card>
@@ -582,7 +675,7 @@ export default function ClaimOnboardingPage() {
                         {submitting ? (
                           <>
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Envoi...
+                            Traitement...
                           </>
                         ) : (
                           "Terminer maintenant"

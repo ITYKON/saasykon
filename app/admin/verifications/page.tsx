@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,11 +34,22 @@ export default function AdminVerificationsPage() {
   const { toast } = useToast();
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState<string>("pending");
+  const [status, setStatus] = useState<string>("all");
   const [q, setQ] = useState("");
   const [notes, setNotes] = useState<string>("");
   const [act, setAct] = useState<{ id: string; business_id: string } | null>(null);
   const [activeTab, setActiveTab] = useState<string>("all");
+
+  // Fonction pour filtrer les lignes en fonction de l'onglet actif
+  const filteredRows = useMemo(() => {
+    if (activeTab === "all") return rows;
+    if (activeTab === "pending") return rows.filter(row => row.status === "pending");
+    if (activeTab === "verified") return rows.filter(row => row.status === "verified");
+    if (activeTab === "rejected") return rows.filter(row => row.status === "rejected");
+    if (activeTab === "claimed") return rows.filter(row => row.claim_status === "approved" || row.claim_status === "pending");
+    if (activeTab === "from_leads") return rows.filter(row => row.claim_status === "not_claimable");
+    return rows;
+  }, [rows, activeTab]);
 
   async function load() {
     setLoading(true);
@@ -105,15 +116,6 @@ export default function AdminVerificationsPage() {
     }
   };
 
-  // Filtrer les rows par onglet actif
-  const filteredRows = rows.filter((r) => {
-    if (activeTab === "claimed") {
-      return r.claim_status === "approved" || r.claim_status === "pending";
-    } else if (activeTab === "from_leads") {
-      return r.claim_status === "not_claimable";
-    }
-    return true; // "all" affiche tout
-  });
 
   // Calculer les statistiques
   const stats = {
@@ -139,43 +141,28 @@ export default function AdminVerificationsPage() {
         </div>
         <div>
           <Label>Statut de vérification</Label>
-          <Select value={status} onValueChange={setStatus}>
-            <SelectTrigger className="w-48"><SelectValue placeholder="Statut" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tous</SelectItem>
-              <SelectItem value="pending">En attente</SelectItem>
-              <SelectItem value="verified">Validé</SelectItem>
-              <SelectItem value="rejected">Rejeté</SelectItem>
-            </SelectContent>
-          </Select>
+          <Tabs defaultValue="all" className="space-y-4" onValueChange={setActiveTab}>
+            <TabsList>
+              <TabsTrigger value="all">Tous ({rows.length})</TabsTrigger>
+              <TabsTrigger value="pending">En attente ({rows.filter(r => r.status === 'pending').length})</TabsTrigger>
+              <TabsTrigger value="verified">Validés ({rows.filter(r => r.status === 'verified').length})</TabsTrigger>
+              <TabsTrigger value="rejected">Rejetés ({rows.filter(r => r.status === 'rejected').length})</TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
         <Button onClick={load} disabled={loading}>{loading ? "Chargement…" : "Filtrer"}</Button>
       </div>
 
       {/* Onglets pour séparer les types de salons */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full mb-6">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="all">
-            Tous ({stats.all})
-          </TabsTrigger>
-          <TabsTrigger value="claimed">
-            Salons revendiqués ({stats.claimed})
-          </TabsTrigger>
-          <TabsTrigger value="from_leads">
-            Depuis leads ({stats.from_leads})
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="all" className="mt-6">
-          <VerificationsList rows={filteredRows} loading={loading} notes={notes} setNotes={setNotes} verify={verify} getStatusBadge={getStatusBadge} getClaimStatusBadge={getClaimStatusBadge} />
-        </TabsContent>
-        <TabsContent value="claimed" className="mt-6">
-          <VerificationsList rows={filteredRows} loading={loading} notes={notes} setNotes={setNotes} verify={verify} getStatusBadge={getStatusBadge} getClaimStatusBadge={getClaimStatusBadge} />
-        </TabsContent>
-        <TabsContent value="from_leads" className="mt-6">
-          <VerificationsList rows={filteredRows} loading={loading} notes={notes} setNotes={setNotes} verify={verify} getStatusBadge={getStatusBadge} getClaimStatusBadge={getClaimStatusBadge} />
-        </TabsContent>
-      </Tabs>
+      <VerificationsList 
+        rows={filteredRows} 
+        loading={loading} 
+        notes={notes} 
+        setNotes={setNotes} 
+        verify={verify} 
+        getStatusBadge={getStatusBadge} 
+        getClaimStatusBadge={getClaimStatusBadge} 
+      />
     </div>
   );
 }

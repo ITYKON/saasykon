@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
   const q = searchParams.get("q") || "";
 
   const where: any = {};
-  if (status && status !== "all") where.status = status;
+  // On ne filtre plus par statut côté serveur, on laisse le client gérer le filtrage
   if (q) {
     where.businesses = { public_name: { contains: q, mode: "insensitive" } } as any;
   }
