@@ -6,17 +6,17 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { useToast } from "@/hooks/use-toast"
+import { toast } from "sonner"
 import { Loader2 } from "lucide-react"
 import Link from "next/link"
 
-function ClaimPageContent() {
-  const { toast } = useToast()
+function ClaimPageContent(): JSX.Element {
   const searchParams = useSearchParams()
   const [loading, setLoading] = useState(false)
   
   const businessId = searchParams?.get("business_id") ?? null
   const businessName = searchParams?.get("business_name") ?? ""
+  const [isSubmitted, setIsSubmitted] = useState(false)
   
   const [formData, setFormData] = useState({
     full_name: "",
@@ -26,23 +26,22 @@ function ClaimPageContent() {
 
   useEffect(() => {
     if (!businessId) {
-      toast({
-        title: "Erreur",
-        description: "ID de l'établissement manquant. Veuillez accéder à cette page depuis la page de l'établissement.",
-        variant: "destructive",
-      })
+      toast.error("ID de l'établissement manquant. Veuillez accéder à cette page depuis la page de l'établissement.")
     }
   }, [businessId, toast])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
+    // Vérification de l'ID de l'établissement
     if (!businessId) {
-      toast({
-        title: "Erreur",
-        description: "ID de l'établissement manquant",
-        variant: "destructive",
-      })
+      toast.error("ID de l'établissement manquant. Veuillez réessayer en accédant à la page depuis la fiche de l'établissement.")
+      return
+    }
+    
+    // Vérification des champs requis
+    if (!formData.full_name || !formData.email || !formData.phone) {
+      toast.error("Veuillez remplir tous les champs obligatoires.")
       return
     }
     
@@ -67,23 +66,20 @@ function ClaimPageContent() {
         throw new Error(data.error || "Erreur lors de la création de la revendication")
       }
 
-      toast({
-        title: "Demande créée avec succès",
-        description: "Un email de confirmation a été envoyé à votre adresse email.",
-      })
+      // Afficher la notification de succès
+      toast.success(`Votre demande pour ${businessName} a été traitée avec succès.`)
 
-      // Reset form
+      // Réinitialiser le formulaire
       setFormData({
         full_name: "",
         email: "",
         phone: "",
       })
+      
+      // Passage à l'écran de succès
+      setIsSubmitted(true)
     } catch (error: any) {
-      toast({
-        title: "Erreur",
-        description: error.message || "Une erreur est survenue",
-        variant: "destructive",
-      })
+      toast.error(error.message || "Une erreur est survenue lors de la soumission du formulaire")
     } finally {
       setLoading(false)
     }
@@ -101,6 +97,64 @@ function ClaimPageContent() {
             <Link href="/">
               <Button variant="outline">Retour à l'accueil</Button>
             </Link>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  if (isSubmitted) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+        <Card className="max-w-md w-full">
+          <CardContent className="pt-6 text-center">
+            <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4">
+              <svg className="h-10 w-10 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h2 className="mt-2 text-2xl font-bold text-gray-900">Votre demande est confirmée !</h2>
+            <p className="text-green-600 mt-2">Nous avons bien reçu votre demande de revendication.</p>
+            <div className="mt-4 space-y-2 text-left bg-green-50 p-4 rounded-lg">
+              <p className="text-sm text-gray-700">
+                <span className="font-semibold">Établissement :</span> {businessName}
+              </p>
+              <p className="text-sm text-gray-700">
+                <span className="font-semibold">Email de confirmation :</span> {formData.email}
+              </p>
+              <p className="text-sm text-gray-700">
+                <span className="font-semibold">Date :</span> {new Date().toLocaleDateString('fr-FR', {
+                  day: '2-digit',
+                  month: 'long',
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                })}
+              </p>
+            </div>
+            <div className="mt-6 space-y-3">
+              <p className="text-sm text-gray-600">
+                ✅ Votre demande a été transmise avec succès à notre équipe. Nous allons examiner votre demande et vous contacterons sous 24-48h pour la suite du processus.
+              </p>
+              <div className="p-3 bg-blue-50 rounded-lg border border-blue-100 mt-3">
+                <h4 className="font-medium text-blue-800 mb-1">Prochaines étapes :</h4>
+                <ol className="list-decimal list-inside text-sm text-gray-700 space-y-1">
+                  <li>Vérification de votre demande par notre équipe</li>
+                  <li>Validation de votre identité</li>
+                  <li>Accès à votre espace professionnel</li>
+                </ol>
+              </div>
+              <div className="pt-2">
+                <Link href="/">
+                  <Button className="bg-blue-600 hover:bg-blue-700 w-full">
+                    Retour à l'accueil
+                  </Button>
+                </Link>
+              </div>
+              <p className="text-xs text-gray-500 mt-4">
+                Vous pouvez suivre l'avancement de votre demande depuis votre espace personnel.
+              </p>
+            </div>
           </CardContent>
         </Card>
       </div>

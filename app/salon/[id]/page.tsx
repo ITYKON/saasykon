@@ -224,14 +224,17 @@ export default function SalonPage({ params }: { params: { id: string } }) {
               <Share2 className="h-4 w-4 mr-1" />
               Partager
             </Button>
-            <Link href={`/claims?business_id=${businessId}&business_name=${encodeURIComponent(salon?.name || '')}`}>
-              <Button variant="outline" size="sm" className="bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200">
-                Revendiquer mon établissement
+            {data?.claimStatus === 'none' ? (
+              <Link href={`/claims?business_id=${businessId}&business_name=${encodeURIComponent(salon?.name || '')}`}>
+                <Button variant="outline" size="sm" className="bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200">
+                  Revendiquer mon établissement
+                </Button>
+              </Link>
+            ) : (
+              <Button className="bg-black hover:bg-gray-800 text-white" disabled={!salon} onClick={() => setShowBooking(true)}>
+                Prendre RDV
               </Button>
-            </Link>
-            <Button className="bg-black hover:bg-gray-800 text-white" disabled={!salon} onClick={() => setShowBooking(true)}>
-              Prendre RDV
-            </Button>
+            )}
           </div>
         </div>
 

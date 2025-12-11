@@ -48,7 +48,19 @@ export default async function CityInstitutePage({ params }: PageProps) {
   // Fetch business locations in this city with their businesses
   let locations = await prisma.business_locations.findMany({
     where: { city_id: city.id },
-    include: { businesses: { include: { working_hours: true } }, cities: true },
+    include: { 
+      businesses: {
+        select: {
+          id: true,
+          public_name: true,
+          legal_name: true,
+          cover_url: true,
+          claim_status: true,
+          working_hours: true
+        }
+      }, 
+      cities: true 
+    },
     orderBy: { created_at: "desc" },
   })
 
@@ -62,7 +74,19 @@ export default async function CityInstitutePage({ params }: PageProps) {
     if (cityIds.length > 0) {
       locations = await prisma.business_locations.findMany({
         where: { city_id: { in: cityIds } },
-        include: { businesses: { include: { working_hours: true } }, cities: true },
+        include: { 
+          businesses: {
+            select: {
+              id: true,
+              public_name: true,
+              legal_name: true,
+              cover_url: true,
+              claim_status: true,
+              working_hours: true
+            }
+          }, 
+          cities: true 
+        },
         orderBy: { created_at: "desc" },
       })
     }
@@ -176,17 +200,27 @@ export default async function CityInstitutePage({ params }: PageProps) {
 
                     {/* CTA Button */}
                     <div className="lg:ml-6">
-                      <Button className="bg-black hover:bg-gray-800 text-white px-6 py-2 w-full lg:w-auto" asChild>
-                        <a
-                          href={`/salon/${buildSalonSlug(
-                            loc.businesses.public_name || loc.businesses.legal_name || "",
-                            loc.businesses.id,
-                            loc.cities?.name || city.name
-                          )}`}
-                        >
-                          Prendre RDV
-                        </a>
-                      </Button>
+                      {loc.businesses.claim_status === 'none' ? (
+                        <Button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 w-full lg:w-auto" asChild>
+                          <Link
+                            href={`/claims?business_id=${loc.businesses.id}&business_name=${encodeURIComponent(loc.businesses.public_name || loc.businesses.legal_name || '')}`}
+                          >
+                            Revendiquer
+                          </Link>
+                        </Button>
+                      ) : (
+                        <Button className="bg-black hover:bg-gray-800 text-white px-6 py-2 w-full lg:w-auto" asChild>
+                          <a
+                            href={`/salon/${buildSalonSlug(
+                              loc.businesses.public_name || loc.businesses.legal_name || "",
+                              loc.businesses.id,
+                              loc.cities?.name || city.name
+                            )}`}
+                          >
+                            Prendre RDV
+                          </a>
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </div>

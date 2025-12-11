@@ -125,85 +125,87 @@ export default function AdminDashboard() {
 
   return (
     <ProtectedAdminPage requiredPermission="statistics">
-      <>
+      <div className="px-2 sm:px-3 lg:px-4 py-2">
         {/* Header */}
-        <header className="bg-white border-b border-gray-200 mb-6">
-          <div className="px-6 py-4">
-            <div className="flex justify-between items-center">
-              <div>
-                <h2 className="text-2xl font-bold text-black">Dashboard Administrateur</h2>
-                <p className="text-gray-600">Vue d'ensemble de la plateforme Planity</p>
-              </div>
-              <div className="flex items-center space-x-4">
-                <Button variant="outline">Exporter données</Button>
-                <Button className="bg-black text-white hover:bg-gray-800">Paramètres système</Button>
-              </div>
+        <header className="bg-white border-b border-gray-200 mb-2 pb-2">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <h2 className="text-xl sm:text-2xl font-bold text-black">Dashboard Administrateur</h2>
+              <p className="text-sm sm:text-base text-gray-600">Vue d'ensemble de la plateforme</p>
+            </div>
+            <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+              <Button variant="outline" size="sm" className="text-xs sm:text-sm">
+                Exporter données
+              </Button>
+              <Button size="sm" className="bg-black text-white hover:bg-gray-800 text-xs sm:text-sm">
+                Paramètres système
+              </Button>
             </div>
           </div>
         </header>
         {/* Global Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-1.5 sm:gap-2 mb-3">
           <Card>
-            <CardContent className="p-6">
+            <CardContent className="p-2 sm:p-3">
               <div className="flex items-center">
-                <Building className="h-8 w-8 text-blue-600" />
-                <div className="ml-4">
-                  <p className="text-2xl font-bold text-black">{globalStats?.totalSalons ?? "--"}</p>
-                  <p className="text-gray-600">Salons inscrits</p>
+                <Building className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5" />
+                <div className="ml-2">
+                  <p className="text-sm font-bold text-black">{globalStats?.totalSalons ?? "--"}</p>
+                  <p className="text-[11px] text-gray-600">Salons inscrits</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardContent className="p-6">
+            <CardContent className="p-2 sm:p-3">
               <div className="flex items-center">
-                <Users className="h-8 w-8 text-green-600" />
-                <div className="ml-4">
-                  <p className="text-2xl font-bold text-black">{globalStats?.totalUsers ?? "--"}</p>
-                  <p className="text-gray-600">Utilisateurs actifs</p>
+                <Users className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
+                <div className="ml-2">
+                  <p className="text-sm font-bold text-black">{globalStats?.totalUsers ?? "--"}</p>
+                  <p className="text-[11px] text-gray-600">Utilisateurs actifs</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardContent className="p-6">
+            <CardContent className="p-2 sm:p-3">
               <div className="flex items-center">
-                <DollarSign className="h-8 w-8 text-yellow-600" />
-                <div className="ml-4">
-                  <p className="text-2xl font-bold text-black">{formatDA(globalStats?.monthlyRevenueCents)}</p>
-                  <p className="text-gray-600">Revenus ce mois</p>
+                <DollarSign className="h-4 w-4 text-yellow-600 flex-shrink-0 mt-0.5" />
+                <div className="ml-2">
+                  <p className="text-sm font-bold text-black">{formatDA(globalStats?.monthlyRevenueCents)}</p>
+                  <p className="text-[11px] text-gray-600">Revenus ce mois</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardContent className="p-6">
+            <CardContent className="p-2 sm:p-3">
               <div className="flex items-center">
-                <Calendar className="h-8 w-8 text-purple-600" />
-                <div className="ml-4">
-                  <p className="text-2xl font-bold text-black">{globalStats?.activeBookings ?? "--"}</p>
-                  <p className="text-gray-600">RDV actifs</p>
+                <Calendar className="h-4 w-4 text-purple-600 flex-shrink-0 mt-0.5" />
+                <div className="ml-2">
+                  <p className="text-sm font-bold text-black">{globalStats?.activeBookings ?? "--"}</p>
+                  <p className="text-[11px] text-gray-600">RDV actifs</p>
                 </div>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-3">
           {/* Recent Salons */}
           <Card>
-            <CardHeader>
-              <CardTitle className="text-xl font-bold text-black">Salons récents</CardTitle>
+            <CardHeader className="p-3 pb-1">
+              <CardTitle className="text-lg sm:text-xl font-bold text-black">Salons récents</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-2 p-3">
               {recentSalons.map((salon) => (
-                <div key={salon.id} className="border border-gray-200 rounded-lg p-4">
-                  <div className="flex justify-between items-start mb-3">
+                <div key={salon.id} className="border border-gray-200 rounded p-2 text-sm">
+                  <div className="flex justify-between items-start mb-1">
                     <div>
-                      <h3 className="font-semibold text-black">{salon.name}</h3>
+                      <h3 className="font-semibold text-black text-sm">{salon.name}</h3>
                       {salon.owner && <p className="text-sm text-gray-600">Par {salon.owner}</p>}
                       {salon.location && <p className="text-sm text-gray-500">{salon.location}</p>}
                     </div>
@@ -221,7 +223,7 @@ export default function AdminDashboard() {
                         {salon.status}
                       </Badge>
                       {salon.subscription && (
-                        <p className="text-xs text-gray-500 mt-1">{salon.subscription}</p>
+                        <p className="text-xs text-gray-600 mt-1">{salon.subscription}</p>
                       )}
                     </div>
                   </div>
@@ -232,7 +234,7 @@ export default function AdminDashboard() {
                     )}
                   </div>
 
-                  <div className="flex space-x-2 mt-3">
+                  <div className="flex space-x-2 mt-2">
                     <Button
                       variant="outline"
                       size="sm"
@@ -247,20 +249,20 @@ export default function AdminDashboard() {
           </Card>
 
           {/* System Alerts & Quick Actions */}
-          <div className="space-y-6">
+          <div className="space-y-3">
             <Card>
-              <CardHeader>
-                <CardTitle className="text-xl font-bold text-black">Alertes système</CardTitle>
+              <CardHeader className="p-3 pb-1">
+                <CardTitle className="text-lg sm:text-xl font-bold text-black">Alertes système</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="space-y-1.5 p-3">
                 {systemAlerts.map((alert) => (
-                  <div key={alert.id} className="flex items-start space-x-3 p-3 rounded-lg bg-gray-50">
-                    {alert.type === "warning" && <AlertCircle className="h-5 w-5 text-orange-500 mt-0.5" />}
-                    {alert.type === "error" && <AlertCircle className="h-5 w-5 text-red-500 mt-0.5" />}
-                    {alert.type === "success" && <CheckCircle className="h-5 w-5 text-green-500 mt-0.5" />}
+                  <div key={alert.id} className="flex items-start space-x-2 p-1.5 rounded bg-gray-50 text-xs">
+                    {alert.type === "warning" && <AlertCircle className="h-4 w-4 text-orange-500 mt-0.5 flex-shrink-0" />}
+                    {alert.type === "error" && <AlertCircle className="h-4 w-4 text-red-500 mt-0.5 flex-shrink-0" />}
+                    {alert.type === "success" && <CheckCircle className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />}
                     <div className="flex-1">
-                      <p className="text-sm text-black">{alert.message}</p>
-                      <p className="text-xs text-gray-500">{alert.time}</p>
+                      <p className="text-xs text-black leading-tight">{alert.message}</p>
+                      <p className="text-[11px] text-gray-500">{alert.time}</p>
                     </div>
                   </div>
                 ))}
@@ -268,27 +270,27 @@ export default function AdminDashboard() {
             </Card>
 
             <Card>
-              <CardHeader>
-                <CardTitle className="text-xl font-bold text-black">Actions rapides</CardTitle>
+              <CardHeader className="p-3 pb-1">
+                <CardTitle className="text-lg sm:text-xl font-bold text-black">Actions rapides</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
-                <Button className="w-full bg-black text-white hover:bg-gray-800" onClick={openValidateModal}>
-                  <Building className="h-4 w-4 mr-2" />
+              <CardContent className="space-y-1.5 p-3">
+                <Button className="w-full bg-black text-white hover:bg-gray-800 text-xs h-7 px-2" onClick={openValidateModal}>
+                  <Building className="h-3.5 w-3.5 mr-1.5" />
                   Valider les salons en attente
                 </Button>
 
-                <Button variant="outline" className="w-full border-black text-black hover:bg-gray-50 bg-transparent" onClick={handleGoUsers}>
-                  <Users className="h-4 w-4 mr-2" />
+                <Button variant="outline" size="sm" className="w-full border-black text-black hover:bg-gray-50 bg-transparent text-xs h-7 px-2" onClick={handleGoUsers}>
+                  <Users className="h-3.5 w-3.5 mr-1.5" />
                   Gérer les utilisateurs
                 </Button>
 
-                <Button variant="outline" className="w-full border-black text-black hover:bg-gray-50 bg-transparent" onClick={handleExportFinancials}>
-                  <DollarSign className="h-4 w-4 mr-2" />
+                <Button variant="outline" size="sm" className="w-full border-black text-black hover:bg-gray-50 bg-transparent text-xs h-7 px-2" onClick={handleExportFinancials}>
+                  <DollarSign className="h-3.5 w-3.5 mr-1.5" />
                   Rapports financiers
                 </Button>
 
-                <Button variant="outline" className="w-full border-black text-black hover:bg-gray-50 bg-transparent" onClick={handleGoStats}>
-                  <TrendingUp className="h-4 w-4 mr-2" />
+                <Button variant="outline" size="sm" className="w-full border-black text-black hover:bg-gray-50 bg-transparent text-xs h-7 px-2" onClick={handleGoStats}>
+                  <TrendingUp className="h-3.5 w-3.5 mr-1.5" />
                   Statistiques détaillées
                 </Button>
               </CardContent>
@@ -333,7 +335,7 @@ export default function AdminDashboard() {
             </div>
           </DialogContent>
         </Dialog>
-      </>
+      </div>
     </ProtectedAdminPage>
   )
 }

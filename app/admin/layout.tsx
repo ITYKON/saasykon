@@ -71,7 +71,7 @@ export default function AdminLayout({
   const primaryRoleLabel = primaryRoleCode ? (roleLabelMap[primaryRoleCode] || primaryRoleCode) : "";
   const fullName = [auth?.first_name, auth?.last_name].filter(Boolean).join(" ");
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 flex flex-col lg:flex-row">
       {/* Barre de navigation mobile */}
       <div className="lg:hidden flex items-center justify-between p-4 bg-white border-b border-gray-200 sticky top-0 z-40">
         <h2 className="text-xl font-bold text-gray-900">Administration</h2>
@@ -85,74 +85,74 @@ export default function AdminLayout({
         </Button>
       </div>
 
-      <div className="flex flex-col lg:flex-row">
-        {/* Barre latérale */}
-        <div className={cn(
-          "fixed lg:sticky inset-y-0 left-0 w-64 bg-white shadow-sm border-r h-screen overflow-y-auto z-30 transition-transform duration-300 ease-in-out lg:translate-x-0",
-          isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
-        )}>
-          <div className="h-full flex flex-col">
-            <div className="p-6">
-              <h2 className="text-xl font-bold text-gray-900">{primaryRoleLabel || "Admin"}</h2>
-              {fullName && <div className="mt-1 text-sm text-gray-500">{fullName}</div>}
+      {/* Barre latérale */}
+      <div className={cn(
+        "fixed lg:relative z-30 h-screen w-64 bg-white shadow-sm border-r transition-transform duration-300 ease-in-out transform",
+        isMobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+      )}>
+        <div className="h-full flex flex-col">
+          <div className="p-6">
+            <h2 className="text-xl font-bold text-gray-900">{primaryRoleLabel || "Admin"}</h2>
+            {fullName && <div className="mt-1 text-sm text-gray-500">{fullName}</div>}
+          </div>
+          
+          <nav className="px-4 space-y-2 flex-1 overflow-y-auto">
+            <div className="space-y-1">
+              {navigation
+                .filter((item) => isAdmin || !item.permission || permissions.includes(item.permission))
+                .map((item) => {
+                  const Icon = item.icon as any;
+                  const isActive = pathname ? (pathname === item.href || pathname.startsWith(item.href + "/")) : false;
+                  return (
+                    <Link
+                      key={item.name}
+                      href={item.href}
+                      className={`flex items-center gap-3 px-3 py-2 rounded-lg font-medium transition-colors text-gray-700 hover:bg-gray-100 ${isActive ? "bg-gray-100 text-gray-900" : ""}`}
+                    >
+                      <Icon className={`h-5 w-5 ${isActive ? "text-primary" : "text-gray-500"}`} />
+                      {item.name}
+                    </Link>
+                  );
+                })}
             </div>
-            
-            <nav className="px-4 space-y-2 flex-1 overflow-y-auto">
-              <div className="space-y-1">
-                {navigation
-                  .filter((item) => isAdmin || !item.permission || permissions.includes(item.permission))
-                  .map((item) => {
-                    const Icon = item.icon as any;
-                    const isActive = pathname ? (pathname === item.href || pathname.startsWith(item.href + "/")) : false;
-                    return (
-                      <Link
-                        key={item.name}
-                        href={item.href}
-                        className={`flex items-center gap-3 px-3 py-2 rounded-lg font-medium transition-colors text-gray-700 hover:bg-gray-100 ${isActive ? "bg-gray-100 text-gray-900" : ""}`}
-                      >
-                        <Icon className={`h-5 w-5 ${isActive ? "text-primary" : "text-gray-500"}`} />
-                        {item.name}
-                      </Link>
-                    );
-                  })}
-              </div>
-            </nav>
-            
-            {/* Bouton se déconnecter en bas */}
-            <div className="p-4 border-t mt-auto">
-              <button
-                onClick={async () => {
-                  try {
-                    await fetch("/api/auth/logout", { method: "POST" });
-                  } catch (err) {
-                    console.error("Erreur réseau :", err);
-                  }
-                  window.location.href = "/auth/login";
-                }}
-                className="flex items-center justify-center gap-2 w-full px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-md transition-colors"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a2 2 0 01-2 2H7a2 2 0 01-2-2V7a2 2 0 012-2h6a2 2 0 012 2v1" />
-                </svg>
-                Se déconnecter
-              </button>
-            </div>
+          </nav>
+          
+          {/* Bouton se déconnecter en bas */}
+          <div className="p-4 border-t mt-auto">
+            <button
+              onClick={async () => {
+                try {
+                  await fetch("/api/auth/logout", { method: "POST" });
+                } catch (err) {
+                  console.error("Erreur réseau :", err);
+                }
+                window.location.href = "/auth/login";
+              }}
+              className="flex items-center justify-center gap-2 w-full px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-md transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a2 2 0 01-2 2H7a2 2 0 01-2-2V7a2 2 0 012-2h6a2 2 0 012 2v1" />
+              </svg>
+              Se déconnecter
+            </button>
           </div>
         </div>
+      </div>
 
-        {/* Overlay pour fermer le menu en cliquant à côté (mobile uniquement) */}
-        {isMobileMenuOpen && (
-          <div 
-            className="fixed inset-0 bg-black bg-opacity-50 z-20 lg:hidden"
-            onClick={() => setIsMobileMenuOpen(false)}
-          />
-        )}
+      {/* Overlay pour fermer le menu en cliquant à côté (mobile uniquement) */}
+      {isMobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 z-20 lg:hidden"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
 
-        {/* Contenu principal */}
-        <div className="flex-1 min-h-screen transition-all duration-300 pt-16 lg:pt-0 lg:pl-64">
+      {/* Contenu principal */}
+      <main className="flex-1 w-full lg:w-[calc(100%-16rem)] lg:ml-64 min-h-screen transition-all duration-300">
+        <div className="p-6 w-full h-full overflow-auto">
           {children}
         </div>
-      </div>
+      </main>
     </div>
   );
 }
