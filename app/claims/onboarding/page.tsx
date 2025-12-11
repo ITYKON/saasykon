@@ -401,44 +401,15 @@ export default function ClaimOnboardingPage() {
         // Ne pas changer d'étape, laisser l'utilisateur sur la page des documents
       }
       
-      // Attendre un peu avant de vérifier les cookies pour s'assurer qu'ils sont bien définis
-      setTimeout(async () => {
-        try {
-          console.log('Vérification des cookies...');
-          console.log('Tous les cookies:', document.cookie);
-          
-          // Vérifier les rôles de l'utilisateur
-          const rolesCookie = document.cookie
-            .split('; ')
-            .find(row => row.startsWith('saas_roles='))
-            ?.split('=')[1];
-            
-          console.log('Cookie saas_roles:', rolesCookie);
-          
-          const businessId = document.cookie
-            .split('; ')
-            .find(row => row.startsWith('business_id='))
-            ?.split('=')[1];
-            
-          console.log('Cookie business_id:', businessId);
-          
-          // Vérifier si l'utilisateur a le rôle PRO
-          const hasProRole = rolesCookie?.includes('PRO');
-          console.log('L\'utilisateur a le rôle PRO:', hasProRole);
-          
-          if (hasProRole && businessId) {
-            console.log('Redirection vers /pro/dashboard');
-            window.location.href = "/pro/dashboard";
-          } else {
-            console.log('Rôle PRO ou business_id manquant, redirection vers /auth/signin');
-            window.location.href = "/auth/signin?error=missing_role";
-          }
-        } catch (error) {
-          console.error('Erreur lors de la vérification des cookies:', error);
-          // En cas d'erreur, rediriger vers la page de connexion
-          window.location.href = "/auth/signin?error=session_error";
-        }
-      }, 1000);
+      // Redirection après soumission
+      if (completeNow) {
+        // Si l'utilisateur a terminé, on le redirige vers la page de confirmation
+        setStep("complete");
+      } else {
+        // Si l'utilisateur a enregistré pour plus tard, on le redirige vers le tableau de bord pro
+        // On utilise une redirection côté client avec le router Next.js
+        router.push("/pro/dashboard");
+      }
       
     } catch (error: any) {
       console.error("Erreur lors de la soumission:", error);
@@ -563,7 +534,7 @@ export default function ClaimOnboardingPage() {
                     {documentStatus === "pending" && (
                       <>
                         <Clock className="h-5 w-5 text-yellow-600" />
-                        <span className="text-yellow-600 font-medium">Documents en cours de vérification</span>
+                        <span className="text-yellow-600 font-medium">Documents soumis</span>
                       </>
                     )}
                   </div>
