@@ -117,7 +117,19 @@ export default function RegisterPage() {
                 </div>
               </div>
 
-              {error ? <p className="text-sm text-red-600">{error}</p> : null}
+              {error && (
+                <div className="p-4 mb-4 text-sm text-red-700 bg-red-100 rounded-lg border border-red-200">
+                  <div className="flex items-center">
+                    <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h2a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd"></path>
+                    </svg>
+                    <span className="font-medium">Erreur</span>
+                  </div>
+                  <div className="mt-2">
+                    {error}
+                  </div>
+                </div>
+              )}
               <Button
                 className="w-full bg-black hover:bg-gray-800 text-white"
                 disabled={isPending}
@@ -137,8 +149,35 @@ export default function RegisterPage() {
                         }),
                       })
                       if (!res.ok) {
-                        const data = await res.json().catch(() => ({}))
-                        setError(data.error || "Impossible de créer le compte")
+                        try {
+                          const data = await res.json();
+                          console.log('Réponse d\'erreur du serveur:', data);
+                          
+                          // Afficher le message d'erreur du serveur s'il existe
+                          if (data && data.error) {
+                            setError(data.error);
+                          } else {
+                            // Gestion spécifique des codes d'erreur
+                            switch(res.status) {
+                              case 400:
+                                setError("Données invalides. Vérifiez les informations saisies.");
+                                break;
+                              case 409:
+                                setError("Cette adresse email est déjà utilisée. Si c'est la vôtre, veuillez vous connecter ou utiliser la fonction 'Mot de passe oublié'.");
+                                break;
+                              case 500:
+                                setError("Erreur interne du serveur. Veuillez réessayer plus tard.");
+                                break;
+                              default:
+                                setError("Une erreur est survenue lors de la création du compte.");
+                            }
+                          }
+                          
+                          console.error(`Erreur ${res.status}`);
+                        } catch (e) {
+                          console.error('Erreur inattendue:', e);
+                          setError("Une erreur inattendue s'est produite. Veuillez réessayer.");
+                        }
                         return
                       }
                       router.push("/client/dashboard")

@@ -870,8 +870,10 @@ interface BookingWizardProps {
                           }
                         }
                         
-                        const errorMessage = errorData?.message || 'Erreur lors de la création du compte. Veuillez réessayer.';
-                        console.error('[Inscription] Message d\'erreur à afficher à l\'utilisateur:', errorMessage);
+const errorMessage = res.status === 409 
+  ? 'Cette adresse email est déjà utilisée. Si c\'est la vôtre, veuillez vous connecter ou utiliser la fonction "Mot de passe oublié".'
+  : errorData?.message || 'Erreur lors de la création du compte. Veuillez réessayer.';
+                          console.error('[Inscription] Message d\'erreur à afficher à l\'utilisateur:', errorMessage);
                         throw new Error(errorMessage);
                       }
                       
@@ -893,9 +895,13 @@ interface BookingWizardProps {
                       setSignupOkMsg('Compte créé avec succès !')
                       setIdentMode('none')
                       
-                    } catch (e: any) {
-                      setError(e?.message || 'Erreur lors de la création du compte')
-                    } finally {
+                   } catch (e: any) {
+  let errorMessage = e?.message || 'Erreur lors de la création du compte';
+  if (e?.message?.includes('409') || e?.message?.includes('email')) {
+    errorMessage = 'Cette adresse email est déjà utilisée. Si c\'est la vôtre, veuillez vous connecter ou utiliser la fonction "Mot de passe oublié".';
+  }
+  setError(errorMessage);
+}finally {
                       setAuthSubmitting(false)
                     }
                   }}

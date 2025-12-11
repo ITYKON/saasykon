@@ -37,7 +37,15 @@ export async function POST(request: Request) {
 
     return await createSession(user.id);
   } catch (error) {
-    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
+    console.error('Erreur lors de l\'inscription:', error);
+    if (error instanceof Error) {
+      return NextResponse.json({ 
+        error: `Erreur lors de la création du compte: ${error.message}` 
+      }, { status: 500 });
+    }
+    return NextResponse.json({ 
+      error: "Une erreur inattendue est survenue lors de la création du compte" 
+    }, { status: 500 });
   }
 }
 
