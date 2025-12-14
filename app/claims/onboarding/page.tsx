@@ -1,274 +1,333 @@
-"use client"
+"use client";
 
-import { useEffect, useState, useRef } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { useNotification } from "@/hooks/use-notification"
-import { Loader2, Upload, Camera, CheckCircle2, AlertCircle, CheckCircle, XCircle, Clock } from "lucide-react"
-import Image from "next/image"
-import Link from "next/link"
+import { useEffect, useState, useRef } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useNotification } from "@/hooks/use-notification";
+import {
+  Loader2,
+  Upload,
+  Camera,
+  CheckCircle2,
+  AlertCircle,
+  CheckCircle,
+  XCircle,
+  Clock,
+} from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
 
 export default function ClaimOnboardingPage() {
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const { error: notifyError, success: notifySuccess, info: notifyInfo, warning: notifyWarning } = useNotification()
-  const token = searchParams?.get("token") ?? null
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const {
+    error: notifyError,
+    success: notifySuccess,
+    info: notifyInfo,
+    warning: notifyWarning,
+  } = useNotification();
+  const token = searchParams?.get("token") ?? null;
 
-  const [loading, setLoading] = useState(true)
-  const [submitting, setSubmitting] = useState(false)
-  const [claimData, setClaimData] = useState<any>(null)
-  const [documentsLoaded, setDocumentsLoaded] = useState(true)
-  const [step, setStep] = useState<"welcome" | "password" | "documents" | "complete">("welcome")
-  const [error, setError] = useState<string | null>(null)
-  const [password, setPassword] = useState("")
-  const [confirmPassword, setConfirmPassword] = useState("")
-  const [rcNumber, setRcNumber] = useState("")
-  const [rcDocumentUrl, setRcDocumentUrl] = useState("")
-  const [idDocumentFrontUrl, setIdDocumentFrontUrl] = useState("")
-  const [idDocumentBackUrl, setIdDocumentBackUrl] = useState("")
-  const [uploading, setUploading] = useState<string | null>(null)
-  const [documentStatus, setDocumentStatus] = useState<"pending" | "approved" | "rejected" | null>(null)
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [claimData, setClaimData] = useState<any>(null);
+  const [documentsLoaded, setDocumentsLoaded] = useState(true);
+  const [step, setStep] = useState<
+    "welcome" | "password" | "documents" | "complete"
+  >("welcome");
+  const [error, setError] = useState<string | null>(null);
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [rcNumber, setRcNumber] = useState("");
+  const [rcDocumentUrl, setRcDocumentUrl] = useState("");
+  const [idDocumentFrontUrl, setIdDocumentFrontUrl] = useState("");
+  const [idDocumentBackUrl, setIdDocumentBackUrl] = useState("");
+  const [uploading, setUploading] = useState<string | null>(null);
+  const [documentStatus, setDocumentStatus] = useState<
+    "pending" | "approved" | "rejected" | null
+  >(null);
 
-  const [cameraFor, setCameraFor] = useState<"rc_doc" | "id_front" | "id_back" | null>(null)
-  const videoRef = useRef<HTMLVideoElement | null>(null)
-  const streamRef = useRef<MediaStream | null>(null)
+  const [cameraFor, setCameraFor] = useState<
+    "rc_doc" | "id_front" | "id_back" | null
+  >(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => {
     if (!token) {
       notifyError({
         title: "Lien invalide",
-        description: "Le lien de revendication est invalide ou a expiré. Veuillez réessayer.",
-        duration: 10000
-      })
-      setTimeout(() => router.push("/claims"), 3000)
-      return
+        description:
+          "Le lien de revendication est invalide ou a expiré. Veuillez réessayer.",
+        duration: 10000,
+      });
+      setTimeout(() => router.push("/claims"), 3000);
+      return;
     }
 
-    fetchClaimData()
-  }, [token, router, notifyError])
+    fetchClaimData();
+  }, [token, router, notifyError]);
 
   const fetchClaimData = async () => {
     try {
-      console.log('Récupération des données de la revendication...');
-      const response = await fetch(`/api/claims/verify?token=${token}`)
-      const data = await response.json()
+      console.log("Récupération des données de la revendication...");
+      const response = await fetch(`/api/claims/verify?token=${token}`);
+      const data = await response.json();
 
       if (!response.ok) {
-        console.error('Erreur lors de la récupération des données:', data.error);
-        throw new Error(data.error || "Erreur lors de la vérification du token")
+        console.error(
+          "Erreur lors de la récupération des données:",
+          data.error
+        );
+        throw new Error(
+          data.error || "Erreur lors de la vérification du token"
+        );
       }
 
-      console.log('Données de la revendication reçues:', data);
-      setClaimData(data.claim)
-      
+      console.log("Données de la revendication reçues:", data);
+      setClaimData(data.claim);
+
       // Vérifier si l'utilisateur a déjà un mot de passe
       const hasPassword = data.claim?.user?.password_hash;
-      console.log('L\'utilisateur a un mot de passe défini:', !!hasPassword);
-      
+      console.log("L'utilisateur a un mot de passe défini:", !!hasPassword);
+
       // Mettre à jour les URLs des documents
-      console.log('Mise à jour des URLs des documents');
-      setRcDocumentUrl(data.claim?.rc_document_url || '')
-      setIdDocumentFrontUrl(data.claim?.id_document_front_url || '')
-      setIdDocumentBackUrl(data.claim?.id_document_back_url || '')
-      
+      console.log("Mise à jour des URLs des documents");
+      setRcDocumentUrl(data.claim?.rc_document_url || "");
+      setIdDocumentFrontUrl(data.claim?.id_document_front_url || "");
+      setIdDocumentBackUrl(data.claim?.id_document_back_url || "");
+
       // Définir le statut des documents
       if (data.claim?.status) {
-        setDocumentStatus(data.claim.status === "approved" ? "approved" : 
-                         data.claim.status === "rejected" ? "rejected" : "pending")
+        setDocumentStatus(
+          data.claim.status === "approved"
+            ? "approved"
+            : data.claim.status === "rejected"
+            ? "rejected"
+            : "pending"
+        );
       } else {
-        setDocumentStatus(null)
+        setDocumentStatus(null);
       }
-      
-      console.log('Données du claim:', data.claim);
-      console.log('Statut des documents:', documentStatus);
-      
+
+      console.log("Données du claim:", data.claim);
+      console.log("Statut des documents:", documentStatus);
+
       // Définir l'étape en fonction de la présence d'un mot de passe
       if (!hasPassword) {
-        console.log('Redirection vers la page de création de mot de passe');
+        console.log("Redirection vers la page de création de mot de passe");
         setStep("password");
       } else {
-        console.log('Redirection vers la page des documents');
+        console.log("Redirection vers la page des documents");
         setStep("documents");
       }
-      
+
       if (data.claim?.rc_number) {
-        console.log('Numéro de RC trouvé:', data.claim.rc_number);
-        setRcNumber(data.claim.rc_number)
+        console.log("Numéro de RC trouvé:", data.claim.rc_number);
+        setRcNumber(data.claim.rc_number);
       }
-      
     } catch (error) {
-      console.error("Error fetching claim data:", error)
+      console.error("Error fetching claim data:", error);
       notifyError({
         title: "Erreur de chargement",
-        description: "Impossible de charger les données de la revendication. Veuillez réessayer plus tard.",
-        duration: 10000
-      })
+        description:
+          "Impossible de charger les données de la revendication. Veuillez réessayer plus tard.",
+        duration: 10000,
+      });
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
-  const handleFileUpload = async (file: File, type: "rc_doc" | "id_front" | "id_back") => {
-    setUploading(type)
+  const handleFileUpload = async (
+    file: File,
+    type: "rc_doc" | "id_front" | "id_back"
+  ) => {
+    setUploading(type);
     try {
       // Vérifier la taille du fichier (max 5MB)
-      const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
+      const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
       if (file.size > MAX_FILE_SIZE) {
-        throw new Error("Le fichier est trop volumineux. Taille maximale : 5MB.")
+        throw new Error(
+          "Le fichier est trop volumineux. Taille maximale : 5MB."
+        );
       }
 
       // Vérifier le type de fichier
-      const validTypes = ['image/jpeg', 'image/png', 'application/pdf']
+      const validTypes = ["image/jpeg", "image/png", "application/pdf"];
       if (!validTypes.includes(file.type)) {
-        throw new Error("Type de fichier non supporté. Utilisez JPG, PNG ou PDF.")
+        throw new Error(
+          "Type de fichier non supporté. Utilisez JPG, PNG ou PDF."
+        );
       }
 
       // Simuler un téléchargement
-      await new Promise(resolve => setTimeout(resolve, 2000))
-      
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
       // Générer une URL locale pour l'aperçu
-      const url = URL.createObjectURL(file)
-      
+      const url = URL.createObjectURL(file);
+
       switch (type) {
         case "rc_doc":
-          setRcDocumentUrl(url)
-          break
+          setRcDocumentUrl(url);
+          break;
         case "id_front":
-          setIdDocumentFrontUrl(url)
-          break
+          setIdDocumentFrontUrl(url);
+          break;
         case "id_back":
-          setIdDocumentBackUrl(url)
-          break
+          setIdDocumentBackUrl(url);
+          break;
       }
-      
+
       notifySuccess({
         title: "Fichier téléchargé",
         description: `${file.name} a été téléchargé avec succès.`,
-        duration: 5000
-      })
+        duration: 5000,
+      });
     } catch (error: any) {
       notifyError({
         title: "Erreur de téléchargement",
-        description: error.message || `Une erreur est survenue lors du téléchargement du fichier.`,
-        duration: 10000
-      })
+        description:
+          error.message ||
+          `Une erreur est survenue lors du téléchargement du fichier.`,
+        duration: 10000,
+      });
     } finally {
-      setUploading(null)
+      setUploading(null);
     }
-  }
+  };
 
-  const handleUpload = async (file: File, type: "rc_doc" | "id_front" | "id_back") => {
-    setUploading(type)
+  const handleUpload = async (
+    file: File,
+    type: "rc_doc" | "id_front" | "id_back"
+  ) => {
+    setUploading(type);
     try {
-      const formData = new FormData()
-      formData.append("file", file)
+      const formData = new FormData();
+      formData.append("file", file);
       const response = await fetch("/api/uploads/onboarding", {
         method: "POST",
         body: formData,
-      })
+      });
 
-      if (!response.ok) throw new Error("Échec du téléversement")
-      const data = await response.json()
-      const url = data?.url
+      if (!response.ok) throw new Error("Échec du téléversement");
+      const data = await response.json();
+      const url = data?.url;
 
       if (type === "rc_doc") {
-        setRcDocumentUrl(url)
+        setRcDocumentUrl(url);
       } else if (type === "id_front") {
-        setIdDocumentFrontUrl(url)
+        setIdDocumentFrontUrl(url);
       } else if (type === "id_back") {
-        setIdDocumentBackUrl(url)
+        setIdDocumentBackUrl(url);
       }
 
       notifySuccess({
         title: "Document téléversé",
         description: "Votre document a été enregistré avec succès.",
-        duration: 5000
-      })
+        duration: 5000,
+      });
     } catch (error: any) {
-      console.error("Erreur lors du téléversement:", error)
+      console.error("Erreur lors du téléversement:", error);
       notifyError({
         title: "Erreur de téléversement",
-        description: error.message || "Impossible de téléverser le document. Veuillez réessayer.",
-        duration: 10000
-      })
+        description:
+          error.message ||
+          "Impossible de téléverser le document. Veuillez réessayer.",
+        duration: 10000,
+      });
     } finally {
-      setUploading(null)
+      setUploading(null);
     }
-  }
+  };
 
   const startCamera = async (type: "rc_doc" | "id_front" | "id_back") => {
-    setCameraFor(type)
+    setCameraFor(type);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "environment" },
-      })
-      streamRef.current = stream
+      });
+      streamRef.current = stream;
       if (videoRef.current) {
-        videoRef.current.srcObject = stream
-        await videoRef.current.play()
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
       }
     } catch (error) {
-      console.error("Error starting camera:", error)
+      console.error("Error starting camera:", error);
       notifyError({
         title: "Erreur de caméra",
-        description: "Impossible d'accéder à la caméra. Veuillez vérifier les autorisations et réessayer.",
-        duration: 10000
-      })
+        description:
+          "Impossible d'accéder à la caméra. Veuillez vérifier les autorisations et réessayer.",
+        duration: 10000,
+      });
     }
-  }
+  };
 
   const stopCamera = () => {
-    streamRef.current?.getTracks().forEach((track) => track.stop())
-    streamRef.current = null
-    setCameraFor(null)
-  }
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+    setCameraFor(null);
+  };
 
   const capturePhoto = async () => {
-    if (!videoRef.current || !cameraFor) return
+    if (!videoRef.current || !cameraFor) return;
 
-    const canvas = document.createElement("canvas")
-    canvas.width = videoRef.current.videoWidth
-    canvas.height = videoRef.current.videoHeight
-    const ctx = canvas.getContext("2d")
+    const canvas = document.createElement("canvas");
+    canvas.width = videoRef.current.videoWidth;
+    canvas.height = videoRef.current.videoHeight;
+    const ctx = canvas.getContext("2d");
     if (ctx) {
-      ctx.drawImage(videoRef.current, 0, 0)
-      canvas.toBlob(async (blob) => {
-        if (blob) {
-          const file = new File([blob], `photo_${Date.now()}.jpg`, { type: "image/jpeg" })
-          await handleUpload(file, cameraFor)
-          stopCamera()
-        }
-      }, "image/jpeg", 0.9)
+      ctx.drawImage(videoRef.current, 0, 0);
+      canvas.toBlob(
+        async (blob) => {
+          if (blob) {
+            const file = new File([blob], `photo_${Date.now()}.jpg`, {
+              type: "image/jpeg",
+            });
+            await handleUpload(file, cameraFor);
+            stopCamera();
+          }
+        },
+        "image/jpeg",
+        0.9
+      );
     }
-  }
+  };
 
   const handlePasswordSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
+    e.preventDefault();
+
     if (password.length < 8) {
       notifyError({
         title: "Mot de passe trop court",
         description: "Votre mot de passe doit contenir au moins 8 caractères.",
-        duration: 10000
-      })
-      return
+        duration: 10000,
+      });
+      return;
     }
 
     if (password !== confirmPassword) {
       notifyError({
         title: "Mots de passe différents",
-        description: "Les mots de passe que vous avez saisis ne correspondent pas. Veuillez réessayer.",
-        duration: 10000
-      })
-      return
+        description:
+          "Les mots de passe que vous avez saisis ne correspondent pas. Veuillez réessayer.",
+        duration: 10000,
+      });
+      return;
     }
 
     try {
       setSubmitting(true);
-      
+
       // Appel à l'API pour définir le mot de passe
       const response = await fetch("/api/auth/set-password", {
         method: "POST",
@@ -278,14 +337,16 @@ export default function ClaimOnboardingPage() {
         body: JSON.stringify({
           email: claimData?.user?.email,
           password: password,
-          claimToken: token // Envoyer le token de revendication
+          claimToken: token, // Envoyer le token de revendication
         }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Erreur lors de la définition du mot de passe")
+        throw new Error(
+          data.error || "Erreur lors de la définition du mot de passe"
+        );
       }
 
       // Si le mot de passe a été défini avec succès
@@ -293,7 +354,7 @@ export default function ClaimOnboardingPage() {
         notifySuccess({
           title: "Mot de passe défini",
           description: "Votre mot de passe a été enregistré avec succès.",
-          duration: 5000
+          duration: 5000,
         });
 
         // Mettre à jour le statut local pour indiquer que le mot de passe est défini
@@ -312,53 +373,60 @@ export default function ClaimOnboardingPage() {
       console.error("Erreur lors de la définition du mot de passe:", error);
       notifyError({
         title: "Erreur de mise à jour",
-        description: error.message || "Impossible de mettre à jour votre mot de passe. Veuillez réessayer.",
-        duration: 10000
+        description:
+          error.message ||
+          "Impossible de mettre à jour votre mot de passe. Veuillez réessayer.",
+        duration: 10000,
       });
     } finally {
       setSubmitting(false);
     }
-  }
+  };
 
   const handleComplete = async (completeNow: boolean) => {
     setSubmitting(true);
-    
+
     // Vérification des documents requis si l'utilisateur soumet
     if (completeNow) {
       const missingDocuments = [];
-      if (!rcDocumentUrl) missingDocuments.push("Document du registre de commerce");
-      if (!idDocumentFrontUrl) missingDocuments.push("Recto de la pièce d'identité");
-      if (!idDocumentBackUrl) missingDocuments.push("Verso de la pièce d'identité");
-      
+      if (!rcDocumentUrl)
+        missingDocuments.push("Document du registre de commerce");
+      if (!idDocumentFrontUrl)
+        missingDocuments.push("Recto de la pièce d'identité");
+      if (!idDocumentBackUrl)
+        missingDocuments.push("Verso de la pièce d'identité");
+
       if (missingDocuments.length > 0) {
         notifyError({
           title: "Documents manquants",
-          description: `Veuvez fournir les documents suivants : ${missingDocuments.join(", ")}`,
-          duration: 10000
+          description: `Veuvez fournir les documents suivants : ${missingDocuments.join(
+            ", "
+          )}`,
+          duration: 10000,
         });
         setSubmitting(false);
         return;
       }
-      
+
       if (!rcNumber) {
         notifyError({
           title: "Champ manquant",
           description: "Veuvez renseigner le numéro de registre de commerce",
-          duration: 10000
+          duration: 10000,
         });
         setSubmitting(false);
         return;
       }
     }
-    
+
     try {
-      console.log('Envoi de la requête à /api/claims/complete...');
+      console.log("Envoi de la requête à /api/claims/complete...");
       const response = await fetch("/api/claims/complete", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        credentials: 'include', // Important pour envoyer les cookies
+        credentials: "include", // Important pour envoyer les cookies
         body: JSON.stringify({
           token,
           password: step === "password" ? password : undefined,
@@ -371,32 +439,36 @@ export default function ClaimOnboardingPage() {
       });
 
       const data = await response.json();
-      console.log('Réponse du serveur:', data);
+      console.log("Réponse du serveur:", data);
 
       if (!response.ok) {
-        throw new Error(data.error || "Une erreur est survenue lors de la soumission");
+        throw new Error(
+          data.error || "Une erreur est survenue lors de la soumission"
+        );
       }
 
-          // Mettre à jour le statut local pour indiquer que les documents sont soumis
+      // Mettre à jour le statut local pour indiquer que les documents sont soumis
       setDocumentStatus("pending");
-      
+
       // Afficher le message de succès approprié
       if (completeNow) {
         setStep("complete");
         notifySuccess({
           title: "Documents soumis avec succès",
-          description: "Vos documents ont été envoyés pour vérification. Vous serez notifié par email une fois l'approbation effectuée.",
-          duration: 10000
+          description:
+            "Vos documents ont été envoyés pour vérification. Vous serez notifié par email une fois l'approbation effectuée.",
+          duration: 10000,
         });
       } else {
         notifySuccess({
           title: "Progression enregistrée",
-          description: "Vos modifications ont été enregistrées. Vous pouvez continuer plus tard.",
-          duration: 5000
+          description:
+            "Vos modifications ont été enregistrées. Vous pouvez continuer plus tard.",
+          duration: 5000,
         });
         // Ne pas changer d'étape, laisser l'utilisateur sur la page des documents
       }
-      
+
       // Redirection après soumission
       if (completeNow) {
         // Si l'utilisateur a terminé, on le redirige vers la page de confirmation
@@ -406,25 +478,26 @@ export default function ClaimOnboardingPage() {
         // On utilise une redirection côté client avec le router Next.js
         router.push("/pro/dashboard");
       }
-      
     } catch (error: any) {
       console.error("Erreur lors de la soumission:", error);
       notifyError({
         title: "Erreur de soumission",
-        description: error.message || "Une erreur est survenue lors de la soumission. Veuillez réessayer.",
-        duration: 10000
+        description:
+          error.message ||
+          "Une erreur est survenue lors de la soumission. Veuillez réessayer.",
+        duration: 10000,
       });
     } finally {
       setSubmitting(false);
     }
-  }
+  };
 
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-gray-600" />
       </div>
-    )
+    );
   }
 
   if (!claimData) {
@@ -436,76 +509,38 @@ export default function ClaimOnboardingPage() {
           </CardContent>
         </Card>
       </div>
-    )
+    );
   }
 
-  const hasAllDocuments = rcDocumentUrl && idDocumentFrontUrl && idDocumentBackUrl
-  const daysRemaining = claimData.days_remaining || 0
+  const hasAllDocuments =
+    rcDocumentUrl && idDocumentFrontUrl && idDocumentBackUrl;
+  const daysRemaining = claimData.days_remaining || 0;
 
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Bienvenue {claimData.full_name} !</h1>
+          <h1 className="text-3xl font-bold text-gray-900">
+            Bienvenue {claimData.full_name} !
+          </h1>
           <p className="mt-2 text-gray-600">
-            Complétez votre revendication pour l'établissement <strong>{claimData.business.public_name}</strong>
+            Complétez votre revendication pour l'établissement{" "}
+            <strong>{claimData.business.public_name}</strong>
           </p>
           {daysRemaining > 0 && (
             <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
               <p className="text-sm text-yellow-800">
                 <AlertCircle className="inline h-4 w-4 mr-2" />
-                Il vous reste <strong>{daysRemaining} jour{daysRemaining > 1 ? "s" : ""}</strong> pour soumettre vos documents
+                Il vous reste{" "}
+                <strong>
+                  {daysRemaining} jour{daysRemaining > 1 ? "s" : ""}
+                </strong>{" "}
+                pour soumettre vos documents
               </p>
             </div>
           )}
         </div>
-
-        {/* Password Step */}
-        {step === "password" && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Créer votre mot de passe</CardTitle>
-              <CardDescription>Choisissez un mot de passe sécurisé pour votre compte</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="password">Mot de passe</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Minimum 8 caractères"
-                />
-              </div>
-              <div>
-                <Label htmlFor="confirmPassword">Confirmer le mot de passe</Label>
-                <Input
-                  id="confirmPassword"
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Répétez le mot de passe"
-                />
-              </div>
-              <Button 
-                onClick={handlePasswordSubmit} 
-                className="w-full" 
-                disabled={!password || !confirmPassword || submitting}
-              >
-                {submitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Traitement...
-                  </>
-                ) : (
-                  'Continuer'
-                )}
-              </Button>
-            </CardContent>
-          </Card>
-        )}
 
         {/* Password Step */}
         {step === "password" && (
@@ -534,7 +569,9 @@ export default function ClaimOnboardingPage() {
                   </p>
                 </div>
                 <div>
-                  <Label htmlFor="confirmPassword">Confirmer le mot de passe *</Label>
+                  <Label htmlFor="confirmPassword">
+                    Confirmer le mot de passe *
+                  </Label>
                   <Input
                     id="confirmPassword"
                     type="password"
@@ -552,7 +589,7 @@ export default function ClaimOnboardingPage() {
                       Traitement...
                     </>
                   ) : (
-                    'Définir le mot de passe et continuer'
+                    "Définir le mot de passe et continuer"
                   )}
                 </Button>
               </form>
@@ -571,36 +608,44 @@ export default function ClaimOnboardingPage() {
                     {documentStatus === "approved" && (
                       <>
                         <CheckCircle className="h-5 w-5 text-green-600" />
-                        <span className="text-green-600 font-medium">Documents approuvés</span>
+                        <span className="text-green-600 font-medium">
+                          Documents approuvés
+                        </span>
                       </>
                     )}
                     {documentStatus === "rejected" && (
                       <>
                         <XCircle className="h-5 w-5 text-red-600" />
-                        <span className="text-red-600 font-medium">Documents rejetés</span>
+                        <span className="text-red-600 font-medium">
+                          Documents rejetés
+                        </span>
                       </>
                     )}
                     {documentStatus === "pending" && (
                       <>
                         <Clock className="h-5 w-5 text-yellow-600" />
-                        <span className="text-yellow-600 font-medium">Documents soumis</span>
+                        <span className="text-yellow-600 font-medium">
+                          Documents soumis
+                        </span>
                       </>
                     )}
                   </div>
-                  {documentStatus === "rejected" && claimData?.rejection_reason && (
-                    <p className="mt-2 text-sm text-red-600">
-                      Motif: {claimData.rejection_reason}
-                    </p>
-                  )}
+                  {documentStatus === "rejected" &&
+                    claimData?.rejection_reason && (
+                      <p className="mt-2 text-sm text-red-600">
+                        Motif: {claimData.rejection_reason}
+                      </p>
+                    )}
                 </CardContent>
               </Card>
             )}
-            
+
             <Card>
               <CardHeader>
                 <CardTitle>Téléverser vos documents</CardTitle>
                 <CardDescription>
-                  Pour vérifier votre identité et votre établissement, nous avons besoin de ces documents
+                  Pour vérifier votre identité et votre établissement, nous
+                  avons besoin de ces documents
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -610,11 +655,20 @@ export default function ClaimOnboardingPage() {
                   <div className="mt-2 flex gap-4">
                     {idDocumentFrontUrl ? (
                       <div className="relative w-32 h-32 border rounded-lg overflow-hidden">
-                        <Image src={idDocumentFrontUrl} alt="Recto" fill className="object-cover" />
+                        <Image
+                          src={idDocumentFrontUrl}
+                          alt="Recto"
+                          fill
+                          className="object-cover"
+                        />
                         {documentStatus && documentStatus !== "pending" ? (
                           <div className="absolute top-1 right-1 bg-white/80 rounded-full p-1">
-                            {documentStatus === "approved" && <CheckCircle className="h-4 w-4 text-green-600" />}
-                            {documentStatus === "rejected" && <XCircle className="h-4 w-4 text-red-600" />}
+                            {documentStatus === "approved" && (
+                              <CheckCircle className="h-4 w-4 text-green-600" />
+                            )}
+                            {documentStatus === "rejected" && (
+                              <XCircle className="h-4 w-4 text-red-600" />
+                            )}
                           </div>
                         ) : (
                           <Button
@@ -633,16 +687,22 @@ export default function ClaimOnboardingPage() {
                           type="file"
                           accept="image/*"
                           onChange={(e) => {
-                            const file = e.target.files?.[0]
-                            if (file) handleUpload(file, "id_front")
+                            const file = e.target.files?.[0];
+                            if (file) handleUpload(file, "id_front");
                           }}
-                          disabled={uploading === "id_front" || !!(documentStatus && documentStatus !== "pending")}
+                          disabled={
+                            uploading === "id_front" ||
+                            !!(documentStatus && documentStatus !== "pending")
+                          }
                         />
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => startCamera("id_front")}
-                          disabled={!!cameraFor || !!(documentStatus && documentStatus !== "pending")}
+                          disabled={
+                            !!cameraFor ||
+                            !!(documentStatus && documentStatus !== "pending")
+                          }
                         >
                           <Camera className="h-4 w-4 mr-2" />
                           Prendre une photo
@@ -658,11 +718,20 @@ export default function ClaimOnboardingPage() {
                   <div className="mt-2 flex gap-4">
                     {idDocumentBackUrl ? (
                       <div className="relative w-32 h-32 border rounded-lg overflow-hidden">
-                        <Image src={idDocumentBackUrl} alt="Verso" fill className="object-cover" />
+                        <Image
+                          src={idDocumentBackUrl}
+                          alt="Verso"
+                          fill
+                          className="object-cover"
+                        />
                         {documentStatus && documentStatus !== "pending" ? (
                           <div className="absolute top-1 right-1 bg-white/80 rounded-full p-1">
-                            {documentStatus === "approved" && <CheckCircle className="h-4 w-4 text-green-600" />}
-                            {documentStatus === "rejected" && <XCircle className="h-4 w-4 text-red-600" />}
+                            {documentStatus === "approved" && (
+                              <CheckCircle className="h-4 w-4 text-green-600" />
+                            )}
+                            {documentStatus === "rejected" && (
+                              <XCircle className="h-4 w-4 text-red-600" />
+                            )}
                           </div>
                         ) : (
                           <Button
@@ -681,16 +750,22 @@ export default function ClaimOnboardingPage() {
                           type="file"
                           accept="image/*"
                           onChange={(e) => {
-                            const file = e.target.files?.[0]
-                            if (file) handleUpload(file, "id_back")
+                            const file = e.target.files?.[0];
+                            if (file) handleUpload(file, "id_back");
                           }}
-                          disabled={uploading === "id_back" || !!(documentStatus && documentStatus !== "pending")}
+                          disabled={
+                            uploading === "id_back" ||
+                            !!(documentStatus && documentStatus !== "pending")
+                          }
                         />
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => startCamera("id_back")}
-                          disabled={!!cameraFor || !!(documentStatus && documentStatus !== "pending")}
+                          disabled={
+                            !!cameraFor ||
+                            !!(documentStatus && documentStatus !== "pending")
+                          }
                         >
                           <Camera className="h-4 w-4 mr-2" />
                           Prendre une photo
@@ -709,27 +784,38 @@ export default function ClaimOnboardingPage() {
                       placeholder="Numéro de registre de commerce"
                       value={rcNumber}
                       onChange={(e) => setRcNumber(e.target.value)}
-                      disabled={!!(documentStatus && documentStatus !== "pending")}
+                      disabled={
+                        !!(documentStatus && documentStatus !== "pending")
+                      }
                     />
                     <div className="flex gap-4">
                       {rcDocumentUrl ? (
                         <div className="relative w-32 h-32 border rounded-lg overflow-hidden">
-                          <Image src={rcDocumentUrl} alt="RC" fill className="object-cover" />
+                          <Image
+                            src={rcDocumentUrl}
+                            alt="RC"
+                            fill
+                            className="object-cover"
+                          />
                           {documentStatus && documentStatus !== "pending" ? (
-                          <div className="absolute top-1 right-1 bg-white/80 rounded-full p-1">
-                            {documentStatus === "approved" && <CheckCircle className="h-4 w-4 text-green-600" />}
-                            {documentStatus === "rejected" && <XCircle className="h-4 w-4 text-red-600" />}
-                          </div>
-                        ) : (
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            className="absolute top-1 right-1"
-                            onClick={() => setRcDocumentUrl("")}
-                          >
-                            ×
-                          </Button>
-                        )}
+                            <div className="absolute top-1 right-1 bg-white/80 rounded-full p-1">
+                              {documentStatus === "approved" && (
+                                <CheckCircle className="h-4 w-4 text-green-600" />
+                              )}
+                              {documentStatus === "rejected" && (
+                                <XCircle className="h-4 w-4 text-red-600" />
+                              )}
+                            </div>
+                          ) : (
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              className="absolute top-1 right-1"
+                              onClick={() => setRcDocumentUrl("")}
+                            >
+                              ×
+                            </Button>
+                          )}
                         </div>
                       ) : (
                         <div className="space-y-2">
@@ -737,16 +823,22 @@ export default function ClaimOnboardingPage() {
                             type="file"
                             accept="image/*,.pdf"
                             onChange={(e) => {
-                              const file = e.target.files?.[0]
-                              if (file) handleUpload(file, "rc_doc")
+                              const file = e.target.files?.[0];
+                              if (file) handleUpload(file, "rc_doc");
                             }}
-                            disabled={uploading === "rc_doc" || !!(documentStatus && documentStatus !== "pending")}
+                            disabled={
+                              uploading === "rc_doc" ||
+                              !!(documentStatus && documentStatus !== "pending")
+                            }
                           />
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => startCamera("rc_doc")}
-                            disabled={!!cameraFor || !!(documentStatus && documentStatus !== "pending")}
+                            disabled={
+                              !!cameraFor ||
+                              !!(documentStatus && documentStatus !== "pending")
+                            }
                           >
                             <Camera className="h-4 w-4 mr-2" />
                             Prendre une photo
@@ -761,7 +853,11 @@ export default function ClaimOnboardingPage() {
                 {cameraFor && (
                   <Card>
                     <CardContent className="pt-6">
-                      <video ref={videoRef} autoPlay className="w-full rounded-lg" />
+                      <video
+                        ref={videoRef}
+                        autoPlay
+                        className="w-full rounded-lg"
+                      />
                       <div className="mt-4 flex gap-2">
                         <Button onClick={capturePhoto} className="flex-1">
                           Prendre la photo
@@ -819,7 +915,8 @@ export default function ClaimOnboardingPage() {
 
                 {!hasAllDocuments && (
                   <p className="text-sm text-gray-500 text-center">
-                    * Tous les documents sont requis pour terminer la revendication
+                    * Tous les documents sont requis pour terminer la
+                    revendication
                   </p>
                 )}
               </CardContent>
@@ -834,7 +931,8 @@ export default function ClaimOnboardingPage() {
               <CheckCircle2 className="h-16 w-16 text-green-500 mx-auto mb-4" />
               <h2 className="text-2xl font-bold mb-2">Documents soumis !</h2>
               <p className="text-gray-600 mb-6">
-                Vos documents sont en cours de vérification. Vous serez notifié une fois la vérification terminée.
+                Vos documents sont en cours de vérification. Vous serez notifié
+                une fois la vérification terminée.
               </p>
               <Button onClick={() => router.push("/pro/dashboard")}>
                 Aller au tableau de bord
@@ -844,6 +942,5 @@ export default function ClaimOnboardingPage() {
         )}
       </div>
     </div>
-  )
+  );
 }
-
