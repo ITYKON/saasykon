@@ -4,7 +4,7 @@ import { hashPassword } from "@/lib/auth"
 
 export async function POST(request: Request) {
   try {
-    const { email, password } = await request.json()
+    const { email, password, claimToken } = await request.json()
 
     if (!email || !password) {
       return NextResponse.json(
@@ -13,15 +13,42 @@ export async function POST(request: Request) {
       )
     }
 
-    // Vérifier si l'utilisateur existe
+    // Vérifier si l'utilisateur existe et ses revendications en cours
     const user = await prisma.users.findUnique({
       where: { email: email.toLowerCase() },
+      include: {
+        claims: {
+          where: {
+            status: "pending",
+            claim_token: claimToken ? { equals: claimToken } : undefined,
+            token_expires_at: {
+              gte: new Date()
+            }
+          }
+        }
+      }
     })
 
     if (!user) {
       return NextResponse.json(
         { error: "Utilisateur non trouvé" },
         { status: 404 }
+      )
+    }
+
+    // Si un token de revendication est fourni, vérifier qu'il est valide
+    if (claimToken && (!user.claims || user.claims.length === 0)) {
+      return NextResponse.json(
+        { error: "Lien de revendication invalide ou expiré" },
+        { status: 400 }
+      )
+    }
+
+    // Vérifier si l'utilisateur a déjà un mot de passe
+    if (user.password_hash) {
+      return NextResponse.json(
+        { error: "Un mot de passe est déjà défini pour ce compte" },
+        { status: 400 }
       )
     }
 
@@ -44,7 +71,8 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ 
       ok: true,
-      userId: user.id
+      userId: user.id,
+      hasPassword: true
     })
   } catch (error) {
     console.error("Erreur lors de la définition du mot de passe:", error)

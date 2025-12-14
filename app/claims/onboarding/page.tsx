@@ -22,7 +22,7 @@ export default function ClaimOnboardingPage() {
   const [claimData, setClaimData] = useState<any>(null)
   const [documentsLoaded, setDocumentsLoaded] = useState(true)
   const [step, setStep] = useState<"welcome" | "password" | "documents" | "complete">("welcome")
-
+  const [error, setError] = useState<string | null>(null)
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [rcNumber, setRcNumber] = useState("")
@@ -65,8 +65,8 @@ export default function ClaimOnboardingPage() {
       setClaimData(data.claim)
       
       // Vérifier si l'utilisateur a déjà un mot de passe
-      const hasPassword = data.claim?.user?.has_password || data.claim?.user?.hasPassword;
-      console.log('L\'utilisateur a un mot de passe défini:', hasPassword);
+      const hasPassword = data.claim?.user?.password_hash;
+      console.log('L\'utilisateur a un mot de passe défini:', !!hasPassword);
       
       // Mettre à jour les URLs des documents
       console.log('Mise à jour des URLs des documents');
@@ -278,32 +278,36 @@ export default function ClaimOnboardingPage() {
         body: JSON.stringify({
           email: claimData?.user?.email,
           password: password,
+          claimToken: token // Envoyer le token de revendication
         }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Erreur lors de la mise à jour du mot de passe")
+        throw new Error(data.error || "Erreur lors de la définition du mot de passe")
       }
 
-      notifySuccess({
-        title: "Mot de passe mis à jour",
-        description: "Votre mot de passe a été enregistré avec succès.",
-        duration: 5000
-      })
+      // Si le mot de passe a été défini avec succès
+      if (data.ok) {
+        notifySuccess({
+          title: "Mot de passe défini",
+          description: "Votre mot de passe a été enregistré avec succès.",
+          duration: 5000
+        });
 
-      // Mettre à jour le statut local pour indiquer que le mot de passe est défini
-      setClaimData((prev: any) => ({
-        ...prev,
-        user: {
-          ...prev.user,
-          has_password: true,
-        },
-      }));
+        // Mettre à jour le statut local pour indiquer que le mot de passe est défini
+        setClaimData((prev: any) => ({
+          ...prev,
+          user: {
+            ...prev.user,
+            has_password: true,
+          },
+        }));
 
-      // Passer à l'étape suivante
-      setStep("documents");
+        // Passer à l'étape des documents
+        setStep("documents");
+      }
     } catch (error: any) {
       console.error("Erreur lors de la définition du mot de passe:", error);
       notifyError({
@@ -499,6 +503,59 @@ export default function ClaimOnboardingPage() {
                   'Continuer'
                 )}
               </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Password Step */}
+        {step === "password" && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Définir votre mot de passe</CardTitle>
+              <CardDescription>
+                Créez un mot de passe sécurisé pour accéder à votre compte
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handlePasswordSubmit} className="space-y-4">
+                <div>
+                  <Label htmlFor="password">Nouveau mot de passe *</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Minimum 8 caractères"
+                    required
+                    minLength={8}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Le mot de passe doit contenir au moins 8 caractères
+                  </p>
+                </div>
+                <div>
+                  <Label htmlFor="confirmPassword">Confirmer le mot de passe *</Label>
+                  <Input
+                    id="confirmPassword"
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Confirmez votre mot de passe"
+                    required
+                    minLength={8}
+                  />
+                </div>
+                <Button type="submit" className="w-full" disabled={submitting}>
+                  {submitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Traitement...
+                    </>
+                  ) : (
+                    'Définir le mot de passe et continuer'
+                  )}
+                </Button>
+              </form>
             </CardContent>
           </Card>
         )}
