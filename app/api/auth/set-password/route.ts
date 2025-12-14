@@ -1,16 +1,16 @@
-import { NextResponse } from "next/server"
-import { prisma } from "@/lib/prisma"
-import { hashPassword } from "@/lib/auth"
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { hashPassword, createSession } from "@/lib/auth";
 
 export async function POST(request: Request) {
   try {
-    const { email, password, claimToken } = await request.json()
+    const { email, password, claimToken } = await request.json();
 
     if (!email || !password) {
       return NextResponse.json(
         { error: "Email et mot de passe requis" },
         { status: 400 }
-      )
+      );
     }
 
     // Vérifier si l'utilisateur existe et ses revendications en cours
@@ -22,18 +22,18 @@ export async function POST(request: Request) {
             status: "pending",
             claim_token: claimToken ? { equals: claimToken } : undefined,
             token_expires_at: {
-              gte: new Date()
-            }
-          }
-        }
-      }
-    })
+              gte: new Date(),
+            },
+          },
+        },
+      },
+    });
 
     if (!user) {
       return NextResponse.json(
         { error: "Utilisateur non trouvé" },
         { status: 404 }
-      )
+      );
     }
 
     // Si un token de revendication est fourni, vérifier qu'il est valide
@@ -41,7 +41,7 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: "Lien de revendication invalide ou expiré" },
         { status: 400 }
-      )
+      );
     }
 
     // Vérifier si l'utilisateur a déjà un mot de passe
@@ -49,36 +49,46 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: "Un mot de passe est déjà défini pour ce compte" },
         { status: 400 }
-      )
+      );
     }
 
-    console.log('Définition du mot de passe pour l\'utilisateur:', user.id);
-    
+    console.log("Définition du mot de passe pour l'utilisateur:", user.id);
+
     // Hacher le mot de passe
-    const hashedPassword = await hashPassword(password)
-    console.log('Mot de passe haché avec succès');
+    const hashedPassword = await hashPassword(password);
+    console.log("Mot de passe haché avec succès");
 
     // Mettre à jour le mot de passe de l'utilisateur
     await prisma.users.update({
       where: { id: user.id },
-      data: { 
-        password_hash: hashedPassword, 
-        updated_at: new Date() 
+      data: {
+        password_hash: hashedPassword,
+        updated_at: new Date(),
       },
-    })
+    });
 
-    console.log('Mot de passe mis à jour avec succès pour l\'utilisateur:', user.id);
+    console.log(
+      "Mot de passe mis à jour avec succès pour l'utilisateur:",
+      user.id
+    );
 
-    return NextResponse.json({ 
+    // Créer une session pour l'utilisateur
+    const sessionResponse = await createSession(user.id);
+
+    if (sessionResponse) {
+      return sessionResponse;
+    }
+
+    return NextResponse.json({
       ok: true,
       userId: user.id,
-      hasPassword: true
-    })
+      hasPassword: true,
+    });
   } catch (error) {
-    console.error("Erreur lors de la définition du mot de passe:", error)
+    console.error("Erreur lors de la définition du mot de passe:", error);
     return NextResponse.json(
       { error: "Erreur lors de la définition du mot de passe" },
       { status: 500 }
-    )
+    );
   }
 }
