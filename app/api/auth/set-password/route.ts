@@ -58,6 +58,15 @@ export async function POST(request: Request) {
     const hashedPassword = await hashPassword(password)
     console.log('Mot de passe haché avec succès');
 
+    // Trouver l'ID du rôle PRO
+    const proRole = await prisma.roles.findUnique({
+      where: { code: 'PRO' }
+    });
+
+    if (!proRole) {
+      throw new Error("Rôle PRO non trouvé");
+    }
+
     // Mettre à jour le mot de passe de l'utilisateur
     await prisma.users.update({
       where: { id: user.id },
@@ -65,9 +74,42 @@ export async function POST(request: Request) {
         password_hash: hashedPassword, 
         updated_at: new Date() 
       },
-    })
+    });
 
-    console.log('Mot de passe mis à jour avec succès pour l\'utilisateur:', user.id);
+    // Vérifier si l'utilisateur a déjà le rôle PRO
+    const existingRole = await prisma.user_roles.findFirst({
+      where: {
+        user_id: user.id,
+        role_id: proRole.id,
+        business_id: claimToken ? {
+          in: await prisma.claims.findMany({
+            where: { claim_token: claimToken },
+            select: { business_id: true }
+          }).then(claims => claims.map(c => c.business_id))
+        } : undefined
+      }
+    });
+
+    // Si l'utilisateur n'a pas le rôle PRO, l'ajouter
+    if (!existingRole && claimToken) {
+      // Récupérer l'ID du business depuis la revendication
+      const claim = await prisma.claims.findFirst({
+        where: { claim_token: claimToken },
+        select: { business_id: true }
+      });
+
+      if (claim && claim.business_id) {
+        await prisma.user_roles.create({
+          data: {
+            user_id: user.id,
+            role_id: proRole.id,
+            business_id: claim.business_id
+          }
+        });
+      }
+    }
+
+    console.log('Mot de passe et rôle PRO mis à jour avec succès pour l\'utilisateur:', user.id);
 
     return NextResponse.json({ 
       ok: true,

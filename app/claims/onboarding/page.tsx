@@ -269,45 +269,51 @@ export default function ClaimOnboardingPage() {
     try {
       setSubmitting(true);
       
-      // Appel à l'API pour définir le mot de passe
-      const response = await fetch("/api/auth/set-password", {
+      // 1. Définir le mot de passe
+      const setPasswordResponse = await fetch("/api/auth/set-password", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: claimData?.user?.email,
           password: password,
-          claimToken: token // Envoyer le token de revendication
+          claimToken: token
         }),
       });
 
-      const data = await response.json();
+      const setPasswordData = await setPasswordResponse.json();
 
-      if (!response.ok) {
-        throw new Error(data.error || "Erreur lors de la définition du mot de passe")
+      if (!setPasswordResponse.ok) {
+        throw new Error(setPasswordData.error || "Erreur lors de la définition du mot de passe");
       }
 
-      // Si le mot de passe a été défini avec succès
-      if (data.ok) {
-        notifySuccess({
-          title: "Mot de passe défini",
-          description: "Votre mot de passe a été enregistré avec succès.",
-          duration: 5000
-        });
+      // 2. Connecter automatiquement l'utilisateur
+      const loginResponse = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: claimData?.user?.email,
+          password: password,
+          redirectTo: "/pro/dashboard"
+        }),
+        credentials: "include"
+      });
 
-        // Mettre à jour le statut local pour indiquer que le mot de passe est défini
-        setClaimData((prev: any) => ({
-          ...prev,
-          user: {
-            ...prev.user,
-            has_password: true,
-          },
-        }));
+      const loginData = await loginResponse.json();
 
-        // Passer à l'étape des documents
-        setStep("documents");
+      if (!loginResponse.ok) {
+        throw new Error(loginData.error || "Erreur lors de la connexion automatique");
       }
+
+      // 3. Mettre à jour l'état local
+      notifySuccess({
+        title: "Mot de passe défini",
+        description: "Vous êtes maintenant connecté avec votre nouveau mot de passe.",
+        duration: 5000
+      });
+
+      // 4. Rediriger vers le tableau de bord PRO
+      window.location.href = "/pro/dashboard";
+      
     } catch (error: any) {
       console.error("Erreur lors de la définition du mot de passe:", error);
       notifyError({
