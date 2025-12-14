@@ -292,8 +292,7 @@ export default function ClaimOnboardingPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: claimData?.user?.email,
-          password: password,
-          redirectTo: "/pro/dashboard"
+          password: password
         }),
         credentials: "include"
       });
@@ -311,7 +310,23 @@ export default function ClaimOnboardingPage() {
         duration: 5000
       });
 
-      // 4. Passer à l'étape des documents
+      // 4. Mettre à jour le statut de la réclamation
+      const updateClaimResponse = await fetch(`/api/claims/update-claim-status`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          token,
+          status: "documents_pending"
+        }),
+        credentials: "include"
+      });
+
+      if (!updateClaimResponse.ok) {
+        const errorData = await updateClaimResponse.json();
+        console.error("Erreur lors de la mise à jour du statut de la réclamation:", errorData);
+      }
+
+      // 5. Passer à l'étape des documents
       setStep("documents");
       
     } catch (error: any) {
