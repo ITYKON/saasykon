@@ -122,45 +122,14 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/admin/dashboard", request.url))
   }
 
-  // Vérifier si l'utilisateur est en cours d'onboarding via un token de réclamation
-  const isClaimOnboarding = pathname.startsWith("/claims/onboarding")
+  // Allow PRO users to access dashboard even if onboarding is not completed
+  // They will see a banner with a link to complete onboarding
   const onboardingDone = request.cookies.get("onboarding_done")?.value === "true"
   
-  console.log('[Middleware] Vérification du statut d\'onboarding:', {
-    pathname,
-    isClaimOnboarding,
-    onboardingDone,
-    hasProRole: roles.includes("PRO"),
-    isProOnboardingPath: pathname.startsWith("/pro/onboarding"),
-    referer: request.headers.get('referer')
-  })
-  
-  // Si l'utilisateur est en cours d'onboarding de réclamation, on le laisse continuer
-  if (isClaimOnboarding) {
-    console.log('[Middleware] Accès autorisé à la page d\'onboarding de réclamation')
-    return NextResponse.next()
-  }
-
-  // Vérifier si la requête vient de l'onboarding de réclamation
-  const referer = request.headers.get('referer') || ''
-  const isComingFromClaimOnboarding = referer.includes('/claims/onboarding')
-  
-  // Ne pas rediriger vers /pro/onboarding si l'utilisateur vient de /claims/onboarding
-  if (isComingFromClaimOnboarding) {
-    console.log('[Middleware] Requête venant de l\'onboarding de réclamation, pas de redirection')
-    return NextResponse.next()
-  }
-  
-  // Rediriger vers l'onboarding si l'utilisateur est PRO, n'a pas terminé l'onboarding
-  // et n'est pas déjà sur une page d'onboarding
-  if (roles.includes("PRO") && !onboardingDone && !pathname.startsWith("/pro/onboarding")) {
-    console.log('[Middleware] Redirection vers l\'onboarding PRO car:', {
-      isPro: roles.includes("PRO"),
-      onboardingNotDone: !onboardingDone,
-      notAlreadyOnOnboarding: !pathname.startsWith("/pro/onboarding"),
-      isComingFromClaimOnboarding
-    })
-    return NextResponse.redirect(new URL("/pro/onboarding", request.url))
+  // Only redirect to onboarding if the user explicitly navigates to /pro/onboarding
+  // Otherwise, they can access the dashboard and complete onboarding later
+  if (roles.includes("PRO") && pathname === "/pro/onboarding" && onboardingDone) {
+    return NextResponse.redirect(new URL("/pro/dashboard", request.url))
   }
 
   // Do NOT auto-redirect away from the invite or password reset flow, even if a session exists
@@ -193,12 +162,6 @@ export async function middleware(request: NextRequest) {
     console.log('Session Token:', sessionToken ? 'Present' : 'Missing');
     console.log('User Roles:', roles);
     console.log('Business ID:', businessId || 'Not set');
-    console.log('Is Claim Onboarding Path:', pathname.startsWith('/claims/onboarding'));
-    console.log('Cookies:', {
-      onboarding_done: request.cookies.get('onboarding_done')?.value,
-      saas_roles: request.cookies.get('saas_roles')?.value,
-      business_id: request.cookies.get('business_id')?.value
-    });
     
     // Skip if we're already in a redirect loop
     if (pathname === '/pro' && request.nextUrl.searchParams.get('denied') === '1') {
@@ -257,7 +220,6 @@ export const config = {
     "/client/:path*", 
     "/auth/:path*", 
     "/api/admin/:path*", 
-    "/api/client/:path*",
-    "/claims/onboarding/:path*"
+    "/api/client/:path*"
   ]
 }

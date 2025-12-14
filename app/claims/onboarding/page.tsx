@@ -227,150 +227,98 @@ export default function ClaimOnboardingPage() {
   }
 
   const capturePhoto = async () => {
-    if (!videoRef.current || !cameraFor) return;
+    if (!videoRef.current || !cameraFor) return
 
-    const canvas = document.createElement("canvas");
-    canvas.width = videoRef.current.videoWidth;
-    canvas.height = videoRef.current.videoHeight;
-    const ctx = canvas.getContext("2d");
-    
-    if (!ctx) return;
-    
-    try {
-      ctx.drawImage(videoRef.current, 0, 0);
-      const blob = await new Promise<Blob | null>((resolve) => {
-        canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.9);
-      });
-      
-      if (!blob) {
-        throw new Error("Impossible de capturer la photo");
-      }
-      
-      const file = new File([blob], `photo_${Date.now()}.jpg`, { type: "image/jpeg" });
-      await handleUpload(file, cameraFor);
-      stopCamera();
-      
-    } catch (error: any) {
-      console.error('Erreur lors de la capture de la photo:', error);
-      notifyError({
-        title: "Erreur",
-        description: error?.message || "Une erreur est survenue lors de la capture de la photo.",
-        duration: 10000
-      });
+    const canvas = document.createElement("canvas")
+    canvas.width = videoRef.current.videoWidth
+    canvas.height = videoRef.current.videoHeight
+    const ctx = canvas.getContext("2d")
+    if (ctx) {
+      ctx.drawImage(videoRef.current, 0, 0)
+      canvas.toBlob(async (blob) => {
+        if (blob) {
+          const file = new File([blob], `photo_${Date.now()}.jpg`, { type: "image/jpeg" })
+          await handleUpload(file, cameraFor)
+          stopCamera()
+        }
+      }, "image/jpeg", 0.9)
     }
   }
 
   const handlePasswordSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    console.log('[Onboarding] handlePasswordSubmit - Début de la soumission du mot de passe');
-    console.log('[Onboarding] Email:', claimData?.user?.email);
-    console.log('[Onboarding] Token:', token);
+    e.preventDefault()
     
     if (password.length < 8) {
-      console.log('[Onboarding] Erreur: Mot de passe trop court');
       notifyError({
         title: "Mot de passe trop court",
         description: "Votre mot de passe doit contenir au moins 8 caractères.",
         duration: 10000
-      });
-      return;
+      })
+      return
     }
 
     if (password !== confirmPassword) {
-      console.log('[Onboarding] Erreur: Les mots de passe ne correspondent pas');
       notifyError({
         title: "Mots de passe différents",
         description: "Les mots de passe que vous avez saisis ne correspondent pas. Veuillez réessayer.",
         duration: 10000
-      });
-      return;
+      })
+      return
     }
 
     try {
       setSubmitting(true);
       
-      console.log('[Onboarding] Début de la définition du mot de passe');
-      
-      // 1. Définir le mot de passe
-      console.log('[Onboarding] Envoi de la requête à /api/auth/set-password');
-      const requestBody = {
-        email: claimData?.user?.email,
-        password: password,
-        claimToken: token
-      };
-      console.log('[Onboarding] Corps de la requête:', requestBody);
-      
-      const setPasswordResponse = await fetch("/api/auth/set-password", {
+      // Appel à l'API pour définir le mot de passe
+      const response = await fetch("/api/auth/set-password", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(requestBody),
-        credentials: "include" // Important pour que les cookies soient enregistrés
-      });
-
-      const setPasswordData = await setPasswordResponse.json().catch(e => {
-        console.error('[Onboarding] Erreur lors du parsing de la réponse:', e);
-        return { error: 'Réponse invalide du serveur' };
-      });
-      
-      console.log('[Onboarding] Réponse de set-password:', {
-        status: setPasswordResponse.status,
-        statusText: setPasswordResponse.statusText,
-        data: setPasswordData
-      });
-
-      if (!setPasswordResponse.ok) {
-        const errorMsg = setPasswordData?.error || "Erreur lors de la définition du mot de passe";
-        console.error('[Onboarding] Erreur du serveur:', errorMsg);
-        throw new Error(errorMsg);
-      }
-
-      console.log('[Onboarding] Mot de passe défini avec succès');
-
-      // 2. Mettre à jour le statut de la réclamation
-      console.log('[Onboarding] Mise à jour du statut de la réclamation');
-      const updateClaimResponse = await fetch(`/api/claims/update-claim-status`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
-          token,
-          status: "documents_pending"
+          email: claimData?.user?.email,
+          password: password,
+          claimToken: token // Envoyer le token de revendication
         }),
-        credentials: "include"
       });
 
-      if (!updateClaimResponse.ok) {
-        const errorData = await updateClaimResponse.json();
-        throw new Error("Erreur lors de la mise à jour du statut de la réclamation");
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Erreur lors de la définition du mot de passe")
       }
 
-      console.log('[Onboarding] Statut de la réclamation mis à jour avec succès');
+      // Si le mot de passe a été défini avec succès
+      if (data.ok) {
+        notifySuccess({
+          title: "Mot de passe défini",
+          description: "Votre mot de passe a été enregistré avec succès.",
+          duration: 5000
+        });
 
-      // 3. Mettre à jour l'état local
-      notifySuccess({
-        title: "Mot de passe défini",
-        description: "Vous pouvez maintenant continuer avec le téléchargement de vos documents.",
-        duration: 5000
-      });
+        // Mettre à jour le statut local pour indiquer que le mot de passe est défini
+        setClaimData((prev: any) => ({
+          ...prev,
+          user: {
+            ...prev.user,
+            has_password: true,
+          },
+        }));
 
-      // 4. Passer à l'étape des documents
-      console.log('[Onboarding] Passage à l\'étape des documents');
-      setStep("documents");
-      
-      // 5. Mettre à jour les données du claim
-      await fetchClaimData();
-
+        // Passer à l'étape des documents
+        setStep("documents");
+      }
     } catch (error: any) {
-      console.error('[Onboarding] Erreur lors de la soumission du mot de passe:', error);
+      console.error("Erreur lors de la définition du mot de passe:", error);
       notifyError({
-        title: "Erreur",
-        description: error.message || "Une erreur est survenue lors de la définition de votre mot de passe.",
+        title: "Erreur de mise à jour",
+        description: error.message || "Impossible de mettre à jour votre mot de passe. Veuillez réessayer.",
         duration: 10000
       });
     } finally {
       setSubmitting(false);
     }
-  };
+  }
 
   const handleComplete = async (completeNow: boolean) => {
     setSubmitting(true);
@@ -455,8 +403,8 @@ export default function ClaimOnboardingPage() {
         setStep("complete");
       } else {
         // Si l'utilisateur a enregistré pour plus tard, on le redirige vers le tableau de bord pro
-        // On utilise window.location.href pour forcer un rechargement complet de la page
-        window.location.href = "/pro/dashboard";
+        // On utilise une redirection côté client avec le router Next.js
+        router.push("/pro/dashboard");
       }
       
     } catch (error: any) {
@@ -512,6 +460,52 @@ export default function ClaimOnboardingPage() {
             </div>
           )}
         </div>
+
+        {/* Password Step */}
+        {step === "password" && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Créer votre mot de passe</CardTitle>
+              <CardDescription>Choisissez un mot de passe sécurisé pour votre compte</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="password">Mot de passe</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Minimum 8 caractères"
+                />
+              </div>
+              <div>
+                <Label htmlFor="confirmPassword">Confirmer le mot de passe</Label>
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Répétez le mot de passe"
+                />
+              </div>
+              <Button 
+                onClick={handlePasswordSubmit} 
+                className="w-full" 
+                disabled={!password || !confirmPassword || submitting}
+              >
+                {submitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Traitement...
+                  </>
+                ) : (
+                  'Continuer'
+                )}
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Password Step */}
         {step === "password" && (

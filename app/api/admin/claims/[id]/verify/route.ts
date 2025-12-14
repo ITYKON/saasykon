@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdminOrPermission } from "@/lib/authorization";
-import { NotificationService } from "@/lib/notification-service";
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const auth = await requireAdminOrPermission("CLAIMS_MANAGE");
@@ -97,31 +96,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
           },
         } as any);
       }
-
-      // Invalider le token de revendication après utilisation
-      await prisma.claims.update({
-        where: { id: claimId },
-        data: {
-          claim_token: null, // Invalider le token
-          token_expires_at: new Date(), // Définir la date d'expiration à maintenant
-        },
-      });
-
-      // Envoyer une notification à l'utilisateur
-      await NotificationService.createUserNotification(
-        claim.user_id,
-        'claim.approved',
-        {
-          claimId: claim.id,
-          businessId: claim.business_id,
-          businessName: claim.businesses?.public_name || claim.businesses?.legal_name || 'votre établissement',
-          approvedAt: new Date().toISOString(),
-        }
-      );
-    } catch (error) {
-      console.error('Error during claim approval:', error);
-      // Ne pas échouer complètement si la notification échoue
-    }
+    } catch {}
 
     // Update business verification status if exists
     const verification = await prisma.business_verifications.findFirst({
