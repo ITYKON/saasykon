@@ -248,7 +248,10 @@ export default function ClaimOnboardingPage() {
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
+    console.log('[Onboarding] handlePasswordSubmit - Début de la soumission du mot de passe')
+    
     if (password.length < 8) {
+      console.log('[Onboarding] Erreur: Mot de passe trop court')
       notifyError({
         title: "Mot de passe trop court",
         description: "Votre mot de passe doit contenir au moins 8 caractères.",
@@ -269,6 +272,8 @@ export default function ClaimOnboardingPage() {
     try {
       setSubmitting(true);
       
+      console.log('[Onboarding] Début de la définition du mot de passe');
+      
       // 1. Définir le mot de passe
       const setPasswordResponse = await fetch("/api/auth/set-password", {
         method: "POST",
@@ -281,12 +286,16 @@ export default function ClaimOnboardingPage() {
       });
 
       const setPasswordData = await setPasswordResponse.json();
+      console.log('[Onboarding] Réponse de set-password:', setPasswordData);
 
       if (!setPasswordResponse.ok) {
+        console.error('[Onboarding] Erreur lors de la définition du mot de passe:', setPasswordData.error);
         throw new Error(setPasswordData.error || "Erreur lors de la définition du mot de passe");
       }
 
-      // 2. Connecter automatiquement l'utilisateur
+      console.log('[Onboarding] Mot de passe défini avec succès');
+      
+      console.log('[Onboarding] Tentative de connexion automatique');
       const loginResponse = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -298,10 +307,14 @@ export default function ClaimOnboardingPage() {
       });
 
       const loginData = await loginResponse.json();
+      console.log('[Onboarding] Réponse de login:', loginData);
 
       if (!loginResponse.ok) {
+        console.error('[Onboarding] Erreur lors de la connexion automatique:', loginData.error);
         throw new Error(loginData.error || "Erreur lors de la connexion automatique");
       }
+      
+      console.log('[Onboarding] Connexion réussie, cookies:', document.cookie);
 
       // 3. Mettre à jour l'état local
       notifySuccess({
@@ -311,6 +324,7 @@ export default function ClaimOnboardingPage() {
       });
 
       // 4. Mettre à jour le statut de la réclamation
+      console.log('[Onboarding] Mise à jour du statut de la réclamation');
       const updateClaimResponse = await fetch(`/api/claims/update-claim-status`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -323,14 +337,20 @@ export default function ClaimOnboardingPage() {
 
       if (!updateClaimResponse.ok) {
         const errorData = await updateClaimResponse.json();
-        console.error("Erreur lors de la mise à jour du statut de la réclamation:", errorData);
+        console.error('[Onboarding] Erreur lors de la mise à jour du statut de la réclamation:', errorData);
+      } else {
+        const successData = await updateClaimResponse.json();
+        console.log('[Onboarding] Statut de la réclamation mis à jour avec succès:', successData);
       }
 
       // 5. Passer à l'étape des documents
+      console.log('[Onboarding] Passage à l\'étape des documents');
       setStep("documents");
+      console.log('[Onboarding] Étape après setStep:', step); // Ceci peut ne pas être à jour immédiatement
       
     } catch (error: any) {
-      console.error("Erreur lors de la définition du mot de passe:", error);
+      console.error('[Onboarding] Erreur lors de la définition du mot de passe:', error);
+      console.error('[Onboarding] Stack trace:', error.stack);
       notifyError({
         title: "Erreur de mise à jour",
         description: error.message || "Impossible de mettre à jour votre mot de passe. Veuillez réessayer.",
