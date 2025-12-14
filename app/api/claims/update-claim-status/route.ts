@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { createHash } from "crypto";
 
 export async function POST(request: Request) {
   try {
@@ -13,7 +14,12 @@ export async function POST(request: Request) {
     }
 
     // Vérifier que le statut est valide
-    const validStatuses = ["documents_pending", "documents_submitted", "approved", "rejected"];
+    const validStatuses = [
+      "documents_pending",
+      "documents_submitted",
+      "approved",
+      "rejected",
+    ];
     if (!validStatuses.includes(status)) {
       return NextResponse.json(
         { error: "Statut de réclamation invalide" },
@@ -21,10 +27,13 @@ export async function POST(request: Request) {
       );
     }
 
+    // Hasher le token comme dans les autres APIs
+    const tokenHash = createHash("sha256").update(token).digest("hex");
+
     // Mettre à jour le statut de la réclamation
     const updatedClaim = await prisma.claims.update({
       where: {
-        claim_token: token,
+        claim_token: tokenHash,
       },
       data: {
         status,
@@ -39,7 +48,10 @@ export async function POST(request: Request) {
       claim: updatedClaim,
     });
   } catch (error) {
-    console.error("Erreur lors de la mise à jour du statut de la réclamation:", error);
+    console.error(
+      "Erreur lors de la mise à jour du statut de la réclamation:",
+      error
+    );
     return NextResponse.json(
       { error: "Erreur lors de la mise à jour du statut de la réclamation" },
       { status: 500 }

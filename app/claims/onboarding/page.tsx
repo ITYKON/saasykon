@@ -264,6 +264,8 @@ export default function ClaimOnboardingPage() {
     e.preventDefault();
     
     console.log('[Onboarding] handlePasswordSubmit - Début de la soumission du mot de passe');
+    console.log('[Onboarding] Email:', claimData?.user?.email);
+    console.log('[Onboarding] Token:', token);
     
     if (password.length < 8) {
       console.log('[Onboarding] Erreur: Mot de passe trop court');
@@ -276,6 +278,7 @@ export default function ClaimOnboardingPage() {
     }
 
     if (password !== confirmPassword) {
+      console.log('[Onboarding] Erreur: Les mots de passe ne correspondent pas');
       notifyError({
         title: "Mots de passe différents",
         description: "Les mots de passe que vous avez saisis ne correspondent pas. Veuillez réessayer.",
@@ -290,22 +293,36 @@ export default function ClaimOnboardingPage() {
       console.log('[Onboarding] Début de la définition du mot de passe');
       
       // 1. Définir le mot de passe
+      console.log('[Onboarding] Envoi de la requête à /api/auth/set-password');
+      const requestBody = {
+        email: claimData?.user?.email,
+        password: password,
+        claimToken: token
+      };
+      console.log('[Onboarding] Corps de la requête:', requestBody);
+      
       const setPasswordResponse = await fetch("/api/auth/set-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: claimData?.user?.email,
-          password: password,
-          claimToken: token
-        }),
+        body: JSON.stringify(requestBody),
         credentials: "include" // Important pour que les cookies soient enregistrés
       });
 
-      const setPasswordData = await setPasswordResponse.json();
-      console.log('[Onboarding] Réponse de set-password:', setPasswordData);
+      const setPasswordData = await setPasswordResponse.json().catch(e => {
+        console.error('[Onboarding] Erreur lors du parsing de la réponse:', e);
+        return { error: 'Réponse invalide du serveur' };
+      });
+      
+      console.log('[Onboarding] Réponse de set-password:', {
+        status: setPasswordResponse.status,
+        statusText: setPasswordResponse.statusText,
+        data: setPasswordData
+      });
 
       if (!setPasswordResponse.ok) {
-        throw new Error(setPasswordData.error || "Erreur lors de la définition du mot de passe");
+        const errorMsg = setPasswordData?.error || "Erreur lors de la définition du mot de passe";
+        console.error('[Onboarding] Erreur du serveur:', errorMsg);
+        throw new Error(errorMsg);
       }
 
       console.log('[Onboarding] Mot de passe défini avec succès');
