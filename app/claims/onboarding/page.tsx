@@ -311,8 +311,8 @@ export default function ClaimOnboardingPage() {
         duration: 5000
       });
 
-      // 4. Rediriger vers le tableau de bord PRO
-      window.location.href = "/pro/dashboard";
+      // 4. Passer à l'étape des documents
+      setStep("documents");
       
     } catch (error: any) {
       console.error("Erreur lors de la définition du mot de passe:", error);
@@ -409,8 +409,8 @@ export default function ClaimOnboardingPage() {
         setStep("complete");
       } else {
         // Si l'utilisateur a enregistré pour plus tard, on le redirige vers le tableau de bord pro
-        // On utilise une redirection côté client avec le router Next.js
-        router.push("/pro/dashboard");
+        // On utilise window.location.href pour forcer un rechargement complet de la page
+        window.location.href = "/pro/dashboard";
       }
       
     } catch (error: any) {
@@ -466,52 +466,6 @@ export default function ClaimOnboardingPage() {
             </div>
           )}
         </div>
-
-        {/* Password Step */}
-        {step === "password" && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Créer votre mot de passe</CardTitle>
-              <CardDescription>Choisissez un mot de passe sécurisé pour votre compte</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="password">Mot de passe</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Minimum 8 caractères"
-                />
-              </div>
-              <div>
-                <Label htmlFor="confirmPassword">Confirmer le mot de passe</Label>
-                <Input
-                  id="confirmPassword"
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Répétez le mot de passe"
-                />
-              </div>
-              <Button 
-                onClick={handlePasswordSubmit} 
-                className="w-full" 
-                disabled={!password || !confirmPassword || submitting}
-              >
-                {submitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Traitement...
-                  </>
-                ) : (
-                  'Continuer'
-                )}
-              </Button>
-            </CardContent>
-          </Card>
-        )}
 
         {/* Password Step */}
         {step === "password" && (
