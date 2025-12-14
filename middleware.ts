@@ -131,12 +131,23 @@ export async function middleware(request: NextRequest) {
     isClaimOnboarding,
     onboardingDone,
     hasProRole: roles.includes("PRO"),
-    isProOnboardingPath: pathname.startsWith("/pro/onboarding")
+    isProOnboardingPath: pathname.startsWith("/pro/onboarding"),
+    referer: request.headers.get('referer')
   })
   
   // Si l'utilisateur est en cours d'onboarding de réclamation, on le laisse continuer
   if (isClaimOnboarding) {
     console.log('[Middleware] Accès autorisé à la page d\'onboarding de réclamation')
+    return NextResponse.next()
+  }
+
+  // Vérifier si la requête vient de l'onboarding de réclamation
+  const referer = request.headers.get('referer') || ''
+  const isComingFromClaimOnboarding = referer.includes('/claims/onboarding')
+  
+  // Ne pas rediriger vers /pro/onboarding si l'utilisateur vient de /claims/onboarding
+  if (isComingFromClaimOnboarding) {
+    console.log('[Middleware] Requête venant de l\'onboarding de réclamation, pas de redirection')
     return NextResponse.next()
   }
   
@@ -146,7 +157,8 @@ export async function middleware(request: NextRequest) {
     console.log('[Middleware] Redirection vers l\'onboarding PRO car:', {
       isPro: roles.includes("PRO"),
       onboardingNotDone: !onboardingDone,
-      notAlreadyOnOnboarding: !pathname.startsWith("/pro/onboarding")
+      notAlreadyOnOnboarding: !pathname.startsWith("/pro/onboarding"),
+      isComingFromClaimOnboarding
     })
     return NextResponse.redirect(new URL("/pro/onboarding", request.url))
   }
