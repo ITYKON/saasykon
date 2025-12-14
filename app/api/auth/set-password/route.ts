@@ -72,6 +72,30 @@ export async function POST(request: Request) {
       user.id
     );
 
+    // Assigner le rôle PRO pour la revendication
+    if (claimToken && user.claims && user.claims.length > 0) {
+      const claim = user.claims[0];
+      const proRole = await prisma.roles.findUnique({ where: { code: "PRO" } });
+      if (proRole) {
+        await prisma.user_roles.upsert({
+          where: {
+            user_id_role_id_business_id: {
+              user_id: user.id,
+              role_id: proRole.id,
+              business_id: claim.business_id,
+            } as any,
+          },
+          update: {},
+          create: {
+            user_id: user.id,
+            role_id: proRole.id,
+            business_id: claim.business_id,
+          },
+        } as any);
+        console.log("Rôle PRO assigné pour la revendication");
+      }
+    }
+
     // Créer une session pour l'utilisateur
     const sessionResponse = await createSession(user.id);
 
