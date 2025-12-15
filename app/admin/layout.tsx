@@ -196,6 +196,7 @@ export default function AdminLayout({
                     <Link
                       key={item.name}
                       href={item.href}
+                      onClick={() => setIsMobileMenuOpen(false)}
                       className={`flex items-center gap-3 px-3 py-2 rounded-lg font-medium transition-colors text-gray-700 hover:bg-gray-100 ${
                         isActive ? "bg-gray-100 text-gray-900" : ""
                       }`}
@@ -216,6 +217,7 @@ export default function AdminLayout({
           <div className="p-4 border-t mt-auto">
             <button
               onClick={async () => {
+                setIsMobileMenuOpen(false);
                 try {
                   await fetch("/api/auth/logout", { method: "POST" });
                 } catch (err) {
@@ -248,7 +250,7 @@ export default function AdminLayout({
       {/* Overlay pour fermer le menu en cliquant à côté (mobile uniquement) */}
       {isMobileMenuOpen && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-20 lg:hidden"
+          className="fixed inset-0 bg-transparent z-20 lg:hidden"
           onClick={() => setIsMobileMenuOpen(false)}
         />
       )}

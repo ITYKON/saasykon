@@ -44,6 +44,11 @@ export default function ClaimOnboardingPage() {
   const [step, setStep] = useState<
     "welcome" | "password" | "documents" | "complete"
   >("welcome");
+
+  // Log when step changes
+  useEffect(() => {
+    console.log("Étape actuelle changée à:", step);
+  }, [step]);
   const [error, setError] = useState<string | null>(null);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -63,6 +68,7 @@ export default function ClaimOnboardingPage() {
   const streamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => {
+    console.log("useEffect déclenché pour fetchClaimData, token:", token);
     if (!token) {
       notifyError({
         title: "Lien invalide",
@@ -94,11 +100,24 @@ export default function ClaimOnboardingPage() {
       }
 
       console.log("Données de la revendication reçues:", data);
+      console.log("Claim data:", data.claim);
+      console.log("User data:", data.claim?.user);
       setClaimData(data.claim);
 
       // Vérifier si l'utilisateur a déjà un mot de passe
-      const hasPassword = data.claim?.user?.password_hash;
-      console.log("L'utilisateur a un mot de passe défini:", !!hasPassword);
+      const hasPassword = data.claim?.user?.has_password;
+      console.log(
+        "Valeur brute de has_password:",
+        data.claim?.user?.has_password
+      );
+      console.log(
+        "Type de has_password:",
+        typeof data.claim?.user?.has_password
+      );
+      console.log(
+        "L'utilisateur a un mot de passe défini (check has_password):",
+        !!hasPassword
+      );
 
       // Mettre à jour les URLs des documents
       console.log("Mise à jour des URLs des documents");
@@ -306,7 +325,12 @@ export default function ClaimOnboardingPage() {
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    console.log("Début de la soumission du mot de passe");
+    console.log("Mot de passe saisi:", password ? "présent" : "vide");
+    console.log("Confirmation:", confirmPassword ? "présente" : "vide");
+
     if (password.length < 8) {
+      console.log("Mot de passe trop court:", password.length, "caractères");
       notifyError({
         title: "Mot de passe trop court",
         description: "Votre mot de passe doit contenir au moins 8 caractères.",
@@ -316,6 +340,7 @@ export default function ClaimOnboardingPage() {
     }
 
     if (password !== confirmPassword) {
+      console.log("Mots de passe ne correspondent pas");
       notifyError({
         title: "Mots de passe différents",
         description:
@@ -327,6 +352,7 @@ export default function ClaimOnboardingPage() {
 
     try {
       setSubmitting(true);
+      console.log("Envoi de la requête pour définir le mot de passe");
 
       // Appel à l'API pour définir le mot de passe
       const response = await fetch("/api/auth/set-password", {
@@ -342,8 +368,10 @@ export default function ClaimOnboardingPage() {
       });
 
       const data = await response.json();
+      console.log("Réponse de l'API set-password:", data);
 
       if (!response.ok) {
+        console.log("Erreur API:", response.status, data.error);
         throw new Error(
           data.error || "Erreur lors de la définition du mot de passe"
         );
@@ -351,6 +379,9 @@ export default function ClaimOnboardingPage() {
 
       // Si le mot de passe a été défini avec succès
       if (data.ok) {
+        console.log(
+          "Mot de passe défini avec succès, passage à l'étape documents"
+        );
         notifySuccess({
           title: "Mot de passe défini",
           description: "Votre mot de passe a été enregistré avec succès.",
@@ -368,6 +399,7 @@ export default function ClaimOnboardingPage() {
 
         // Passer à l'étape des documents
         setStep("documents");
+        console.log("Étape changée à 'documents'");
       }
     } catch (error: any) {
       console.error("Erreur lors de la définition du mot de passe:", error);
