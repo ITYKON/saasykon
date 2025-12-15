@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hashPassword, createSession } from "@/lib/auth";
+import { createHash } from "crypto";
 
 export async function POST(request: Request) {
   try {
@@ -13,6 +14,11 @@ export async function POST(request: Request) {
       );
     }
 
+    // Hacher le token de revendication si fourni
+    const tokenHash = claimToken
+      ? createHash("sha256").update(claimToken).digest("hex")
+      : null;
+
     // Vérifier si l'utilisateur existe et ses revendications en cours
     const user = await prisma.users.findUnique({
       where: { email: email.toLowerCase() },
@@ -20,7 +26,7 @@ export async function POST(request: Request) {
         claims: {
           where: {
             status: "pending",
-            claim_token: claimToken ? { equals: claimToken } : undefined,
+            claim_token: tokenHash ? { equals: tokenHash } : undefined,
             token_expires_at: {
               gte: new Date(),
             },
