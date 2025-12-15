@@ -5,13 +5,16 @@ import { createHash } from "crypto";
 import { createSession, hashPassword } from "@/lib/auth";
 
 function getIp(req: NextRequest) {
-  return req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.ip || "";
+  return (
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.ip || ""
+  );
 }
 
 export async function POST(req: NextRequest) {
   const ip = getIp(req);
   const rl = rateLimit(`claim-complete:${ip}`, 10, 60_000);
-  if (!rl.ok) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  if (!rl.ok)
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
 
   let body: any;
   try {
@@ -20,7 +23,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { token, password, rc_number, rc_document_url, id_document_front_url, id_document_back_url, complete_now } = body || {};
+  const {
+    token,
+    password,
+    rc_number,
+    rc_document_url,
+    id_document_front_url,
+    id_document_back_url,
+    complete_now,
+  } = body || {};
 
   if (!token) {
     return NextResponse.json({ error: "Token required" }, { status: 400 });
@@ -45,13 +56,19 @@ export async function POST(req: NextRequest) {
   }
 
   if (claim.status === "approved" || claim.status === "rejected") {
-    return NextResponse.json({ error: "Claim already processed" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Claim already processed" },
+      { status: 400 }
+    );
   }
 
   // Update password if provided
   if (password) {
     if (password.length < 8) {
-      return NextResponse.json({ error: "Password too short" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Password too short" },
+        { status: 400 }
+      );
     }
     const newHash = await hashPassword(password);
     await prisma.users.update({
@@ -67,11 +84,14 @@ export async function POST(req: NextRequest) {
 
   if (rc_number) updateData.rc_number = rc_number;
   if (rc_document_url) updateData.rc_document_url = rc_document_url;
-  if (id_document_front_url) updateData.id_document_front_url = id_document_front_url;
-  if (id_document_back_url) updateData.id_document_back_url = id_document_back_url;
+  if (id_document_front_url)
+    updateData.id_document_front_url = id_document_front_url;
+  if (id_document_back_url)
+    updateData.id_document_back_url = id_document_back_url;
 
   // Check if all required documents are provided
-  const hasAllDocuments = rc_document_url && id_document_front_url && id_document_back_url;
+  const hasAllDocuments =
+    rc_document_url && id_document_front_url && id_document_back_url;
 
   if (hasAllDocuments) {
     updateData.documents_submitted = true;
@@ -98,9 +118,12 @@ export async function POST(req: NextRequest) {
         where: { id: existingVerification.id },
         data: {
           rc_number: rc_number || existingVerification.rc_number,
-          rc_document_url: rc_document_url || existingVerification.rc_document_url,
-          id_document_front_url: id_document_front_url || existingVerification.id_document_front_url,
-          id_document_back_url: id_document_back_url || existingVerification.id_document_back_url,
+          rc_document_url:
+            rc_document_url || existingVerification.rc_document_url,
+          id_document_front_url:
+            id_document_front_url || existingVerification.id_document_front_url,
+          id_document_back_url:
+            id_document_back_url || existingVerification.id_document_back_url,
           status: "pending",
           updated_at: new Date(),
         },
@@ -161,14 +184,39 @@ export async function POST(req: NextRequest) {
   } catch {}
 
   // Event log
-  await prisma.event_logs.create({
-    data: {
-      user_id: claim.user_id,
-      business_id: claim.business_id,
-      event_name: "claim.completed",
-      payload: { claim_id: claim.id, complete_now, has_all_documents: hasAllDocuments },
-    },
-  }).catch(() => {});
+  await prisma.event_logs
+    .create({
+      data: {
+        user_id: claim.user_id,
+        business_id: claim.business_id,
+        event_name: "claim.completed",
+        payload: {
+          claim_id: claim.id,
+          complete_now,
+          has_all_documents: hasAllDocuments,
+        },
+      },
+    })
+    .catch(() => {});
+
+  // Create notification for document submission
+  if (complete_now && hasAllDocuments) {
+    await prisma.notifications
+      .create({
+        data: {
+          user_id: claim.user_id,
+          business_id: claim.business_id,
+          type: "claim.documents_submitted",
+          payload: {
+            message:
+              "Vos documents ont été soumis avec succès. Ils seront vérifiés sous 24-48h.",
+            claim_id: claim.id,
+            business_name: claim.businesses.public_name,
+          },
+        },
+      })
+      .catch(() => {});
+  }
 
   if (sessionResponse) {
     return sessionResponse; // Returns { ok: true } with cookies and redirect handled by middleware
@@ -176,10 +224,10 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({
     ok: true,
-    message: complete_now && hasAllDocuments
-      ? "Documents submitted and verification requested"
-      : "Documents saved. You can complete later.",
+    message:
+      complete_now && hasAllDocuments
+        ? "Documents submitted and verification requested"
+        : "Documents saved. You can complete later.",
     has_all_documents: hasAllDocuments,
   });
 }
-

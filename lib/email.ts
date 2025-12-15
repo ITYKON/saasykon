@@ -2,16 +2,16 @@ import nodemailer from "nodemailer";
 
 // Configuration SMTP pour MailDev
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'localhost',
+  host: process.env.SMTP_HOST || "localhost",
   port: Number(process.env.SMTP_PORT || 1025),
-  secure: process.env.SMTP_SECURE === 'true',
+  secure: process.env.SMTP_SECURE === "true",
   auth: process.env.SMTP_USER
     ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
     : undefined,
   tls: {
     // Ne pas échouer sur les certificats auto-signés en développement
-    rejectUnauthorized: process.env.NODE_ENV === 'production'
-  }
+    rejectUnauthorized: process.env.NODE_ENV === "production",
+  },
 });
 
 // Email configuration
@@ -19,19 +19,22 @@ const EMAIL_FROM = process.env.EMAIL_FROM || "no-reply@example.com";
 const EMAIL_TEST_TO = process.env.EMAIL_TEST_TO || "test@example.com";
 
 // Log SMTP configuration (without sensitive data)
-console.log('📧 SMTP Configuration:', {
-  host: process.env.SMTP_HOST || 'localhost',
+console.log("📧 SMTP Configuration:", {
+  host: process.env.SMTP_HOST || "localhost",
   port: process.env.SMTP_PORT || 1025,
-  secure: process.env.SMTP_SECURE === 'true',
-  auth: process.env.SMTP_USER ? 'configured' : 'not configured'
+  secure: process.env.SMTP_SECURE === "true",
+  auth: process.env.SMTP_USER ? "configured" : "not configured",
 });
 
 // Function to send a test email
 export async function sendTestEmail() {
   // Ne pas envoyer d'emails pendant le build
-  if (process.env.NEXT_PHASE === 'phase-production-build' || process.env.NODE_ENV === 'test') {
-    console.log('Skipping test email during build or test environment');
-    return { success: true, messageId: 'skipped-during-build' };
+  if (
+    process.env.NEXT_PHASE === "phase-production-build" ||
+    process.env.NODE_ENV === "test"
+  ) {
+    console.log("Skipping test email during build or test environment");
+    return { success: true, messageId: "skipped-during-build" };
   }
 
   try {
@@ -57,13 +60,20 @@ export async function sendTestEmail() {
 }
 
 // Function to send a generic email
-export async function sendEmail(opts: { to: string; subject: string; html: string; text?: string; category?: string; sandbox?: boolean }) {
-  console.log('📧 Attempting to send email:', {
+export async function sendEmail(opts: {
+  to: string;
+  subject: string;
+  html: string;
+  text?: string;
+  category?: string;
+  sandbox?: boolean;
+}) {
+  console.log("📧 Attempting to send email:", {
     to: opts.to,
     subject: opts.subject,
-    from: EMAIL_FROM
+    from: EMAIL_FROM,
   });
-  
+
   try {
     const result = await transporter.sendMail({
       from: EMAIL_FROM,
@@ -74,24 +84,29 @@ export async function sendEmail(opts: { to: string; subject: string; html: strin
       // Mailtrap API supports category and sandbox; SMTP will ignore unknown fields
       headers: opts.category ? { "X-Category": opts.category } : undefined,
     });
-    console.log('✅ Email sent successfully:', result);
+    console.log("✅ Email sent successfully:", result);
   } catch (error) {
-    console.error('❌ Email sending failed:', error);
+    console.error("❌ Email sending failed:", error);
     throw error;
   }
 }
 
-export function inviteEmailTemplate(params: { 
-  firstName?: string | null; 
-  appUrl: string; 
-  token: string; 
-  validityHours?: number 
+export function inviteEmailTemplate(params: {
+  firstName?: string | null;
+  appUrl: string;
+  token: string;
+  validityHours?: number;
 }) {
   const validity = params.validityHours ?? 24;
-  const url = `${params.appUrl.replace(/\/$/, "")}/auth/invite?token=${encodeURIComponent(params.token)}`;
-  const greeting = params.firstName ? `Bonjour ${params.firstName},` : "Bonjour,";
+  const url = `${params.appUrl.replace(
+    /\/$/,
+    ""
+  )}/auth/invite?token=${encodeURIComponent(params.token)}`;
+  const greeting = params.firstName
+    ? `Bonjour ${params.firstName},`
+    : "Bonjour,";
   const text = `${greeting}\n\nVotre compte est prêt. Cliquez pour activer et définir votre mot de passe : ${url}\n\nCe lien est valable ${validity}h.`;
-  
+
   const html = `
   <div style="font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height:1.5;">
     <p>${greeting}</p>
@@ -103,12 +118,12 @@ export function inviteEmailTemplate(params: {
     </p>
     <p>Ce lien est valable ${validity}h. S'il a expiré, répondez à cet email pour en recevoir un nouveau.</p>
   </div>`;
-  
+
   return { text, html };
 }
 
-export function claimApprovedEmailTemplate(params: { 
-  firstName: string; 
+export function claimApprovedEmailTemplate(params: {
+  firstName: string;
   businessName: string;
   dashboardUrl: string;
 }) {
@@ -150,7 +165,7 @@ L'équipe de support`;
       <p>Cordialement,<br>L'équipe de support</p>
     </div>
   </div>`;
-  
+
   return { text, html };
 }
 

@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdminOrPermission } from "@/lib/authorization";
+import { sendEmail, claimApprovedEmailTemplate } from "@/lib/email";
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
   const auth = await requireAdminOrPermission("CLAIMS_MANAGE");
   if (auth instanceof NextResponse) return auth;
 
@@ -10,14 +14,14 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   let claimId: number;
   try {
     claimId = parseInt(params.id, 10);
-    if (isNaN(claimId)) throw new Error('Invalid claim ID');
+    if (isNaN(claimId)) throw new Error("Invalid claim ID");
   } catch (error) {
     return NextResponse.json({ error: "Invalid claim ID" }, { status: 400 });
   }
 
   // Define request body type
   interface RequestBody {
-    action: 'approve' | 'reject';
+    action: "approve" | "reject";
     notes?: string;
   }
 
@@ -31,7 +35,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const { action, notes } = body;
 
   if (!action || (action !== "approve" && action !== "reject")) {
-    return NextResponse.json({ error: "Invalid action. Must be 'approve' or 'reject'" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid action. Must be 'approve' or 'reject'" },
+      { status: 400 }
+    );
   }
 
   const claim = await prisma.claims.findUnique({
@@ -47,12 +54,18 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   }
 
   if (claim.status === "approved" || claim.status === "rejected") {
-    return NextResponse.json({ error: "Claim already processed" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Claim already processed" },
+      { status: 400 }
+    );
   }
 
   // Check if all documents are submitted
   if (action === "approve" && !claim.documents_submitted) {
-    return NextResponse.json({ error: "Cannot approve claim without all documents" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Cannot approve claim without all documents" },
+      { status: 400 }
+    );
   }
 
   // Update claim status
@@ -153,14 +166,53 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     } catch {}
 
     // Event log
-    await prisma.event_logs.create({
-      data: {
-        user_id: auth.userId,
-        business_id: claim.business_id,
-        event_name: "claim.approved",
-        payload: { claim_id: claimId, reviewed_by: auth.userId, notes },
-      },
-    }).catch(() => {});
+    await prisma.event_logs
+      .create({
+        data: {
+          user_id: auth.userId,
+          business_id: claim.business_id,
+          event_name: "claim.approved",
+          payload: { claim_id: claimId, reviewed_by: auth.userId, notes },
+        },
+      })
+      .catch(() => {});
+
+    // Send email to the user
+    try {
+      const emailTemplate = claimApprovedEmailTemplate({
+        firstName: claim.users.first_name || "Utilisateur",
+        businessName: claim.businesses.public_name,
+        dashboardUrl: `${
+          process.env.APP_URL || "http://localhost:3000"
+        }/pro/dashboard`,
+      });
+
+      await sendEmail({
+        to: claim.users.email,
+        subject: "Votre revendication a été approuvée !",
+        html: emailTemplate.html,
+        text: emailTemplate.text,
+        category: "claim_approved",
+      });
+    } catch (emailError) {
+      console.error("Failed to send approval email:", emailError);
+    }
+
+    // Create notification for the user
+    await prisma.notifications
+      .create({
+        data: {
+          user_id: claim.user_id,
+          business_id: claim.business_id,
+          type: "claim.approved",
+          payload: {
+            message: `Félicitations ! Votre revendication pour "${claim.businesses.public_name}" a été approuvée avec succès.`,
+            claim_id: claimId,
+            business_name: claim.businesses.public_name,
+          },
+        },
+      })
+      .catch(() => {});
   } else {
     // Reject claim
     await prisma.businesses.update({
@@ -172,14 +224,16 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     });
 
     // Event log
-    await prisma.event_logs.create({
-      data: {
-        user_id: auth.userId,
-        business_id: claim.business_id,
-        event_name: "claim.rejected",
-        payload: { claim_id: claimId, reviewed_by: auth.userId, notes },
-      },
-    }).catch(() => {});
+    await prisma.event_logs
+      .create({
+        data: {
+          user_id: auth.userId,
+          business_id: claim.business_id,
+          event_name: "claim.rejected",
+          payload: { claim_id: claimId, reviewed_by: auth.userId, notes },
+        },
+      })
+      .catch(() => {});
   }
 
   // Define response type
@@ -193,4 +247,3 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     message: action === "approve" ? "Claim approved" : "Claim rejected",
   });
 }
-
