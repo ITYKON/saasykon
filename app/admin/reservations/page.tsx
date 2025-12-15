@@ -1,37 +1,46 @@
 "use client"; // 👈 must be the first line
-import { Calendar, MapPin, User } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { useEffect, useState } from "react"
-import { ProtectedAdminPage } from "@/components/admin/ProtectedAdminPage"
+import { Calendar, MapPin, User } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { useEffect, useState } from "react";
+import { ProtectedAdminPage } from "@/components/admin/ProtectedAdminPage";
 
 function formatDate(dateStr: string) {
-  const date = new Date(dateStr)
+  const date = new Date(dateStr);
   return date.toLocaleString("fr-FR", {
     day: "2-digit",
     month: "short",
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
-  })
+  });
 }
 
 function getStatusLabel(status: string) {
   switch (status) {
-    case "CONFIRMED": return "Confirmé"
-    case "PENDING": return "En attente"
-    case "CANCELLED": return "Annulé"
-    case "COMPLETED": return "Terminé"
-    default: return status
+    case "CONFIRMED":
+      return "Confirmé";
+    case "PENDING":
+      return "En attente";
+    case "CANCELLED":
+      return "Annulé";
+    case "COMPLETED":
+      return "Terminé";
+    default:
+      return status;
   }
 }
 
 function getStatusColor(status: string) {
   switch (status) {
-    case "CONFIRMED": return "text-green-600"
-    case "PENDING": return "text-orange-600"
-    case "CANCELLED": return "text-red-600"
-    default: return "text-gray-600"
+    case "CONFIRMED":
+      return "text-green-600";
+    case "PENDING":
+      return "text-orange-600";
+    case "CANCELLED":
+      return "text-red-600";
+    default:
+      return "text-gray-600";
   }
 }
 
@@ -44,108 +53,152 @@ export default function AdminReservations() {
 }
 
 function AdminReservationsContent() {
-  const [reservations, setReservations] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [search, setSearch] = useState("")
-  const [filterType, setFilterType] = useState("client")
-  const [groupBy, setGroupBy] = useState<string|null>(null)
+  const [reservations, setReservations] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [filterType, setFilterType] = useState("client");
+  const [groupBy, setGroupBy] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/admin/reservations")
-      .then(res => res.json())
-      .then(data => {
-        setReservations(data.reservations || [])
-        setLoading(false)
+      .then((res) => res.json())
+      .then((data) => {
+        setReservations(data.reservations || []);
+        setLoading(false);
       })
-      .catch(() => setLoading(false))
-  }, [])
+      .catch(() => setLoading(false));
+  }, []);
 
   // Filtrage par client ou salon
-  const filteredReservations = reservations.filter(r => {
+  const filteredReservations = reservations.filter((r) => {
     if (filterType === "client") {
-      return r.client?.toLowerCase().includes(search.toLowerCase())
+      return r.client?.toLowerCase().includes(search.toLowerCase());
     } else {
-      return r.salon?.toLowerCase().includes(search.toLowerCase())
+      return r.salon?.toLowerCase().includes(search.toLowerCase());
     }
-  })
+  });
 
   // Regroupement par client ou salon
-  let groupedReservations: Record<string, any[]> = {}
+  let groupedReservations: Record<string, any[]> = {};
   if (groupBy) {
-    filteredReservations.forEach(r => {
-      const key = groupBy === "client" ? r.client || "-" : r.salon || "-"
-      if (!groupedReservations[key]) groupedReservations[key] = []
-      groupedReservations[key].push(r)
-    })
+    filteredReservations.forEach((r) => {
+      const key = groupBy === "client" ? r.client || "-" : r.salon || "-";
+      if (!groupedReservations[key]) groupedReservations[key] = [];
+      groupedReservations[key].push(r);
+    });
   }
 
   return (
-    <div className="space-y-6">
-      <header className="bg-white border-b border-gray-200 mb-6">
-        <div className="px-6 py-4">
-          <div className="flex justify-between items-center">
+    <div className="space-y-4 sm:space-y-6">
+      <header className="bg-white border-b border-gray-200 mb-4 sm:mb-6">
+        <div className="px-2 sm:px-6 py-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-black">Gestion des réservations</h1>
-              <p className="text-gray-600 mt-1">Surveillez et gérez toutes les réservations de la plateforme.</p>
+              <h1 className="text-xl sm:text-3xl font-bold text-black">
+                Gestion des réservations
+              </h1>
+              <p className="text-sm sm:text-base text-gray-600 mt-1">
+                Surveillez et gérez toutes les réservations de la plateforme.
+              </p>
             </div>
-            <Button className="bg-black text-white hover:bg-gray-800">Exporter données</Button>
+            <Button
+              size="sm"
+              className="bg-black text-white hover:bg-gray-800 text-xs sm:text-sm w-full sm:w-auto"
+            >
+              Exporter données
+            </Button>
           </div>
         </div>
       </header>
 
       {/* Filtres et recherche */}
-      <div className="flex flex-wrap gap-4 items-center mb-4 px-6">
+      <div className="flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-4 items-start sm:items-center mb-4 px-2 sm:px-6">
         <input
           type="text"
-          placeholder={filterType === "client" ? "Rechercher par client..." : "Rechercher par salon..."}
+          placeholder={
+            filterType === "client"
+              ? "Rechercher par client..."
+              : "Rechercher par salon..."
+          }
           value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="border rounded px-3 py-2 w-64"
+          onChange={(e) => setSearch(e.target.value)}
+          className="border rounded px-3 py-2 w-full sm:w-64 text-sm"
         />
-        <select value={filterType} onChange={e => setFilterType(e.target.value)} className="border rounded px-2 py-2">
+        <select
+          value={filterType}
+          onChange={(e) => setFilterType(e.target.value)}
+          className="border rounded px-2 py-2 text-sm w-full sm:w-auto"
+        >
           <option value="client">Client</option>
           <option value="salon">Salon</option>
         </select>
         <Button
           variant={groupBy === filterType ? "default" : "outline"}
-          className="px-4 py-2"
+          size="sm"
+          className="px-3 sm:px-4 py-2 text-xs sm:text-sm w-full sm:w-auto"
           onClick={() => setGroupBy(groupBy === filterType ? null : filterType)}
         >
-          {groupBy === filterType ? `Annuler le regroupement` : `Regrouper par ${filterType}`}
+          {groupBy === filterType
+            ? `Annuler le regroupement`
+            : `Regrouper par ${filterType}`}
         </Button>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-3 sm:space-y-4">
         {loading ? (
           <div className="text-center text-gray-500">Chargement...</div>
         ) : filteredReservations.length === 0 ? (
-          <div className="text-center text-gray-500">Aucune réservation trouvée.</div>
+          <div className="text-center text-gray-500">
+            Aucune réservation trouvée.
+          </div>
         ) : groupBy ? (
           Object.entries(groupedReservations).map(([group, items]) => (
             <div key={group} className="mb-8">
-              <div className="font-bold text-lg text-black mb-2 bg-gray-50 px-4 py-2 rounded border border-gray-200">{groupBy === "client" ? `Client : ${group}` : `Salon : ${group}`}</div>
+              <div className="font-bold text-lg text-black mb-2 bg-gray-50 px-4 py-2 rounded border border-gray-200">
+                {groupBy === "client"
+                  ? `Client : ${group}`
+                  : `Salon : ${group}`}
+              </div>
               <div className="space-y-2">
                 {items.map((reservation) => (
                   <Card key={reservation.id} className="border border-gray-200">
-                    <CardContent className="p-6">
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-2">
+                    <CardContent className="p-3 sm:p-6">
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <div className="space-y-1 sm:space-y-2 flex-1">
                           <div className="flex items-center space-x-2">
-                            <User className="h-4 w-4 text-gray-500" />
-                            <h3 className="text-lg font-semibold text-black">{reservation.client || "-"}</h3>
+                            <User className="h-3 w-3 sm:h-4 sm:w-4 text-gray-500 flex-shrink-0" />
+                            <h3 className="text-base sm:text-lg font-semibold text-black truncate">
+                              {reservation.client || "-"}
+                            </h3>
                           </div>
                           <div className="flex items-center space-x-2 text-gray-600">
-                            <MapPin className="h-4 w-4" />
-                            <span className="font-medium">{reservation.service ? `${reservation.service} chez ${reservation.salon}` : "-"}</span>
+                            <MapPin className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                            <span className="text-sm sm:text-base font-medium truncate">
+                              {reservation.service
+                                ? `${reservation.service} chez ${reservation.salon}`
+                                : "-"}
+                            </span>
                           </div>
                           <div className="flex items-center space-x-2 text-gray-500">
-                            <Calendar className="h-4 w-4" />
-                            <span>{formatDate(reservation.date)}</span>
+                            <Calendar className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                            <span className="text-xs sm:text-sm">
+                              {formatDate(reservation.date)}
+                            </span>
                           </div>
                         </div>
-                        <div className="text-right space-y-2">
-                          <div className="text-2xl font-bold text-black">{reservation.price ? `${reservation.price.toLocaleString()} DA` : "-"}</div>
-                          <div className={`font-semibold ${getStatusColor(reservation.status)}`}>{getStatusLabel(reservation.status)}</div>
+                        <div className="text-left sm:text-right space-y-1 sm:space-y-2 w-full sm:w-auto">
+                          <div className="text-lg sm:text-2xl font-bold text-black">
+                            {reservation.price
+                              ? `${reservation.price.toLocaleString()} DA`
+                              : "-"}
+                          </div>
+                          <div
+                            className={`font-semibold text-sm sm:text-base ${getStatusColor(
+                              reservation.status
+                            )}`}
+                          >
+                            {getStatusLabel(reservation.status)}
+                          </div>
                         </div>
                       </div>
                     </CardContent>
@@ -162,11 +215,17 @@ function AdminReservationsContent() {
                   <div className="space-y-2">
                     <div className="flex items-center space-x-2">
                       <User className="h-4 w-4 text-gray-500" />
-                      <h3 className="text-lg font-semibold text-black">{reservation.client || "-"}</h3>
+                      <h3 className="text-lg font-semibold text-black">
+                        {reservation.client || "-"}
+                      </h3>
                     </div>
                     <div className="flex items-center space-x-2 text-gray-600">
                       <MapPin className="h-4 w-4" />
-                      <span className="font-medium">{reservation.service ? `${reservation.service} chez ${reservation.salon}` : "-"}</span>
+                      <span className="font-medium">
+                        {reservation.service
+                          ? `${reservation.service} chez ${reservation.salon}`
+                          : "-"}
+                      </span>
                     </div>
                     <div className="flex items-center space-x-2 text-gray-500">
                       <Calendar className="h-4 w-4" />
@@ -174,8 +233,18 @@ function AdminReservationsContent() {
                     </div>
                   </div>
                   <div className="text-right space-y-2">
-                    <div className="text-2xl font-bold text-black">{reservation.price ? `${reservation.price.toLocaleString()} DA` : "-"}</div>
-                    <div className={`font-semibold ${getStatusColor(reservation.status)}`}>{getStatusLabel(reservation.status)}</div>
+                    <div className="text-2xl font-bold text-black">
+                      {reservation.price
+                        ? `${reservation.price.toLocaleString()} DA`
+                        : "-"}
+                    </div>
+                    <div
+                      className={`font-semibold ${getStatusColor(
+                        reservation.status
+                      )}`}
+                    >
+                      {getStatusLabel(reservation.status)}
+                    </div>
                   </div>
                 </div>
               </CardContent>
@@ -184,5 +253,5 @@ function AdminReservationsContent() {
         )}
       </div>
     </div>
-  )
+  );
 }
