@@ -57,14 +57,8 @@ export default async function ProDashboard() {
       claimInfo = claimData.claim;
     }
 
-    console.log("Dashboard debug - claimInfo:", claimInfo);
-
     // Check if business needs verification
     if (business) {
-      console.log(
-        "Dashboard debug - business.converted_from_lead:",
-        business.converted_from_lead
-      );
       const verificationResp = await fetch(
         `${origin}/api/business/verification`,
         {
@@ -73,13 +67,8 @@ export default async function ProDashboard() {
         }
       );
 
-      console.log(
-        "Dashboard debug - verificationResp.ok:",
-        verificationResp.ok
-      );
       if (verificationResp.ok) {
         const verificationData = await verificationResp.json();
-        console.log("Dashboard debug - verificationData:", verificationData);
         // If business is converted from lead and has no verification or verification is incomplete
         needsVerification =
           business.converted_from_lead &&
@@ -90,12 +79,6 @@ export default async function ProDashboard() {
             !verificationData.verification.rc_document_url);
       }
     }
-
-    console.log("Dashboard debug - needsVerification:", needsVerification);
-    console.log(
-      "Dashboard debug - show banner:",
-      (claimInfo && !claimInfo.has_all_documents) || needsVerification
-    );
   } catch (e) {
     console.error("Error fetching verification status:", e);
   }
