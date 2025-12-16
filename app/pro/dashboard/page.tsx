@@ -44,6 +44,8 @@ export default async function ProDashboard() {
   // Fetch claim information and business verification
   let claimInfo: any = null;
   let needsVerification = false;
+  let verificationSubmitted = false;
+  let daysRemaining = 7;
 
   try {
     // Get claim info if exists
@@ -69,6 +71,27 @@ export default async function ProDashboard() {
 
       if (verificationResp.ok) {
         const verificationData = await verificationResp.json();
+
+        if (verificationData.verification) {
+          verificationSubmitted = true;
+
+          // Pour les leads convertis, calculer les jours restants
+          if (
+            business.converted_from_lead &&
+            verificationData.verification.status === "pending"
+          ) {
+            // Calculer les jours depuis la création de la vérification
+            const createdAt = new Date(
+              verificationData.verification.created_at
+            );
+            const now = new Date();
+            const daysPassed = Math.floor(
+              (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24)
+            );
+            daysRemaining = Math.max(0, 7 - daysPassed);
+          }
+        }
+
         // If business is converted from lead and has no verification or verification is incomplete
         needsVerification =
           business.converted_from_lead &&
@@ -165,7 +188,8 @@ export default async function ProDashboard() {
 
       <div className="p-6">
         {/* Verification Reminder Banner */}
-        {((claimInfo && !claimInfo.has_all_documents) || needsVerification) && (
+        {((claimInfo && !claimInfo.has_all_documents) ||
+          (needsVerification && !verificationSubmitted)) && (
           <Alert
             className={`mb-6 ${
               claimInfo?.is_blocked
@@ -198,7 +222,17 @@ export default async function ProDashboard() {
                 </p>
               ) : (
                 <p>
-                  {claimInfo?.days_remaining ? (
+                  {business?.converted_from_lead ? (
+                    <>
+                      Il vous reste{" "}
+                      <strong>
+                        {daysRemaining} jour{daysRemaining > 1 ? "s" : ""}
+                      </strong>{" "}
+                      pour soumettre vos documents légaux. Votre compte sera
+                      bloqué après ce délai si les documents ne sont pas
+                      fournis.
+                    </>
+                  ) : claimInfo?.days_remaining ? (
                     <>
                       Il vous reste{" "}
                       <strong>

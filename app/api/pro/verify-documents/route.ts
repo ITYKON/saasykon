@@ -9,10 +9,7 @@ export async function POST(request: Request) {
   try {
     const user = await getAuthUserFromCookies();
     if (!user) {
-      return NextResponse.json(
-        { error: "Non autorisé" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
     }
 
     // Récupérer l'entreprise de l'utilisateur
@@ -28,7 +25,7 @@ export async function POST(request: Request) {
     }
 
     const formData = await request.formData();
-    
+
     // Téléverser les fichiers
     const idCardFront = formData.get("idDocumentFront") as File | null;
     const idCardBack = formData.get("idDocumentBack") as File | null;
@@ -45,59 +42,71 @@ export async function POST(request: Request) {
 
     // Créer un dossier unique pour les documents de cette entreprise
     const folder = `business-verification/${business.id}`;
-    
+
     // Créer le dossier de l'entreprise s'il n'existe pas
-    const businessDir = path.join(process.cwd(), 'public', 'uploads', 'business-verification', business.id);
+    const businessDir = path.join(
+      process.cwd(),
+      "public",
+      "uploads",
+      "business-verification",
+      business.id
+    );
     await mkdir(businessDir, { recursive: true });
 
     // Téléverser les fichiers
     const [idCardFrontUrl, idCardBackUrl, rcDocumentUrl] = await Promise.all([
       uploadFile(
-        await idCardFront.arrayBuffer(), 
-        `${business.id}/id-front-${Date.now()}.${idCardFront.name.split('.').pop()}`
+        await idCardFront.arrayBuffer(),
+        `${business.id}/id-front-${Date.now()}.${idCardFront.name
+          .split(".")
+          .pop()}`
       ),
       uploadFile(
-        await idCardBack.arrayBuffer(), 
-        `${business.id}/id-back-${Date.now()}.${idCardBack.name.split('.').pop()}`
+        await idCardBack.arrayBuffer(),
+        `${business.id}/id-back-${Date.now()}.${idCardBack.name
+          .split(".")
+          .pop()}`
       ),
       uploadFile(
-        await rcDocument.arrayBuffer(), 
-        `${business.id}/rc-doc-${Date.now()}.${rcDocument.name.split('.').pop()}`
+        await rcDocument.arrayBuffer(),
+        `${business.id}/rc-doc-${Date.now()}.${rcDocument.name
+          .split(".")
+          .pop()}`
       ),
     ]);
 
-    // Vérifier si une vérification existe déjà pour cette entreprise
+    // Créer ou mettre à jour la vérification
     const existingVerification = await prisma.business_verifications.findFirst({
       where: { business_id: business.id },
     });
 
-    // Mettre à jour ou créer l'enregistrement de vérification
+    let verification;
     if (existingVerification) {
-      await prisma.business_verifications.update({
+      verification = await prisma.business_verifications.update({
         where: { id: existingVerification.id },
         data: {
           rc_number: rcNumber,
           rc_document_url: rcDocumentUrl,
           id_document_front_url: idCardFrontUrl,
           id_document_back_url: idCardBackUrl,
-          status: "pending",
+          status: "pending", // Toujours en attente de validation par l'admin
           updated_at: new Date(),
         },
       });
     } else {
-      await prisma.business_verifications.create({
+      verification = await prisma.business_verifications.create({
         data: {
           business_id: business.id,
           rc_number: rcNumber,
           rc_document_url: rcDocumentUrl,
           id_document_front_url: idCardFrontUrl,
           id_document_back_url: idCardBackUrl,
-          status: "pending",
+          status: "pending", // Toujours en attente de validation par l'admin
         },
       });
     }
 
-    // Mettre à jour le statut de l'entreprise
+    // Mettre à jour le statut de l'entreprise - toujours en attente de validation
     await prisma.businesses.update({
       where: { id: business.id },
       data: {
