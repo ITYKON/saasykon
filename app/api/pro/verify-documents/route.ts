@@ -51,28 +51,36 @@ export async function POST(request: Request) {
       uploadFile(await rcDocument.arrayBuffer(), `${folder}/rc-doc-${Date.now()}.${rcDocument.name.split('.').pop()}`),
     ]);
 
-    // Mettre à jour ou créer l'enregistrement de vérification
-    await prisma.business_verifications.upsert({
-      where: {
-        business_id: business.id,
-      },
-      update: {
-        rc_number: rcNumber,
-        rc_document_url: rcDocumentUrl,
-        id_document_front_url: idCardFrontUrl,
-        id_document_back_url: idCardBackUrl,
-        status: "pending",
-        updated_at: new Date(),
-      },
-      create: {
-        business_id: business.id,
-        rc_number: rcNumber,
-        rc_document_url: rcDocumentUrl,
-        id_document_front_url: idCardFrontUrl,
-        id_document_back_url: idCardBackUrl,
-        status: "pending",
-      },
+    // Vérifier si une vérification existe déjà pour cette entreprise
+    const existingVerification = await prisma.business_verifications.findFirst({
+      where: { business_id: business.id },
     });
+
+    // Mettre à jour ou créer l'enregistrement de vérification
+    if (existingVerification) {
+      await prisma.business_verifications.update({
+        where: { id: existingVerification.id },
+        data: {
+          rc_number: rcNumber,
+          rc_document_url: rcDocumentUrl,
+          id_document_front_url: idCardFrontUrl,
+          id_document_back_url: idCardBackUrl,
+          status: "pending",
+          updated_at: new Date(),
+        },
+      });
+    } else {
+      await prisma.business_verifications.create({
+        data: {
+          business_id: business.id,
+          rc_number: rcNumber,
+          rc_document_url: rcDocumentUrl,
+          id_document_front_url: idCardFrontUrl,
+          id_document_back_url: idCardBackUrl,
+          status: "pending",
+        },
+      });
+    }
 
     // Mettre à jour le statut de l'entreprise
     await prisma.businesses.update({
