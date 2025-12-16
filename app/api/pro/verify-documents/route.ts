@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUserFromCookies } from "@/lib/auth";
 import { uploadFile } from "@/lib/storage";
+import { mkdir } from "fs/promises";
+import path from "path";
 
 export async function POST(request: Request) {
   try {
@@ -44,11 +46,24 @@ export async function POST(request: Request) {
     // Créer un dossier unique pour les documents de cette entreprise
     const folder = `business-verification/${business.id}`;
     
+    // Créer le dossier de l'entreprise s'il n'existe pas
+    const businessDir = path.join(process.cwd(), 'public', 'uploads', 'business-verification', business.id);
+    await mkdir(businessDir, { recursive: true });
+
     // Téléverser les fichiers
     const [idCardFrontUrl, idCardBackUrl, rcDocumentUrl] = await Promise.all([
-      uploadFile(await idCardFront.arrayBuffer(), `${folder}/id-front-${Date.now()}.${idCardFront.name.split('.').pop()}`),
-      uploadFile(await idCardBack.arrayBuffer(), `${folder}/id-back-${Date.now()}.${idCardBack.name.split('.').pop()}`),
-      uploadFile(await rcDocument.arrayBuffer(), `${folder}/rc-doc-${Date.now()}.${rcDocument.name.split('.').pop()}`),
+      uploadFile(
+        await idCardFront.arrayBuffer(), 
+        `${business.id}/id-front-${Date.now()}.${idCardFront.name.split('.').pop()}`
+      ),
+      uploadFile(
+        await idCardBack.arrayBuffer(), 
+        `${business.id}/id-back-${Date.now()}.${idCardBack.name.split('.').pop()}`
+      ),
+      uploadFile(
+        await rcDocument.arrayBuffer(), 
+        `${business.id}/rc-doc-${Date.now()}.${rcDocument.name.split('.').pop()}`
+      ),
     ]);
 
     // Vérifier si une vérification existe déjà pour cette entreprise

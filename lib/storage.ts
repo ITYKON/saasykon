@@ -1,45 +1,40 @@
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { mkdir, writeFile } from 'fs/promises';
+import path from 'path';
 
-const s3Client = new S3Client({
-  region: process.env.AWS_REGION || "eu-west-3",
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID || "",
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || "",
-  },
-});
+const UPLOADS_DIR = path.join(process.cwd(), 'public', 'uploads', 'business-verification');
 
-const BUCKET_NAME = process.env.AWS_S3_BUCKET_NAME || "yoka-uploads";
-
-export async function uploadFile(buffer: ArrayBuffer, key: string): Promise<string> {
+/**
+ * Téléverse un fichier dans le dossier public/uploads/business-verification/
+ * @param buffer Le contenu du fichier à téléverser
+ * @param filename Le nom du fichier (sans le chemin)
+ * @returns L'URL publique du fichier téléversé
+ */
+export async function uploadFile(buffer: ArrayBuffer, filename: string): Promise<string> {
   try {
-    const command = new PutObjectCommand({
-      Bucket: BUCKET_NAME,
-      Key: key,
-      Body: Buffer.from(buffer),
-      ACL: "public-read",
-    });
+    // Créer le répertoire s'il n'existe pas
+    await mkdir(UPLOADS_DIR, { recursive: true });
 
-    await s3Client.send(command);
-    
-    // Retourne l'URL complète du fichier
-    return `https://${BUCKET_NAME}.s3.${process.env.AWS_REGION || 'eu-west-3'}.amazonaws.com/${key}`;
+    // Générer un nom de fichier unique
+    const ext = filename.split('.').pop()?.toLowerCase() || 'bin';
+    const safeExt = ext.substring(0, 6).replace(/[^a-z0-9]/g, '');
+    const uniqueFilename = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${safeExt || 'bin'}`;
+    const fullPath = path.join(UPLOADS_DIR, uniqueFilename);
+
+    // Écrire le fichier
+    await writeFile(fullPath, Buffer.from(buffer));
+
+    // Retourner l'URL relative au dossier public
+    return `/uploads/business-verification/${uniqueFilename}`;
   } catch (error) {
     console.error("Erreur lors du téléversement du fichier:", error);
     throw new Error("Échec du téléversement du fichier");
   }
 }
 
-export async function getSignedFileUrl(key: string, expiresIn = 3600): Promise<string> {
-  try {
-    const command = new GetObjectCommand({
-      Bucket: BUCKET_NAME,
-      Key: key,
-    });
-
-    return await getSignedUrl(s3Client, command, { expiresIn });
-  } catch (error) {
-    console.error("Erreur lors de la génération de l'URL signée:", error);
-    throw new Error("Impossible de générer l'URL du fichier");
-  }
+/**
+ * Fonction de compatibilité qui retourne simplement l'URL du fichier
+ * (non nécessaire en stockage local, mais conservée pour la compatibilité)
+ */
+export async function getSignedFileUrl(fileUrl: string): Promise<string> {
+  return fileUrl; // En local, on retourne simplement l'URL directe
 }
