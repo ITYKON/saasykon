@@ -2,11 +2,17 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Clock, CheckCircle } from "lucide-react";
 
@@ -44,11 +50,14 @@ export default function DocumentsVerificationPage() {
     checkSubmissionStatus();
   }, []);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, field: keyof typeof files) => {
+  const handleFileChange = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    field: keyof typeof files
+  ) => {
     if (e.target.files && e.target.files[0]) {
-      setFiles(prev => ({
+      setFiles((prev) => ({
         ...prev,
-        [field]: e.target.files![0]
+        [field]: e.target.files![0],
       }));
     }
   };
@@ -59,8 +68,9 @@ export default function DocumentsVerificationPage() {
 
     try {
       const formData = new FormData();
-      
-      if (files.idCardFront) formData.append("idDocumentFront", files.idCardFront);
+
+      if (files.idCardFront)
+        formData.append("idDocumentFront", files.idCardFront);
       if (files.idCardBack) formData.append("idDocumentBack", files.idCardBack);
       if (files.rcDocument) formData.append("rcDocument", files.rcDocument);
       if (rcNumber) formData.append("rcNumber", rcNumber);
@@ -76,7 +86,8 @@ export default function DocumentsVerificationPage() {
 
       toast({
         title: "Documents soumis avec succès !",
-        description: "Vos documents ont été soumis et sont en attente de validation par notre équipe. Vous recevrez une notification dès que la vérification sera terminée.",
+        description:
+          "Vos documents ont été soumis et sont en attente de validation par notre équipe. Vous recevrez une notification dès que la vérification sera terminée.",
       });
 
       setIsAlreadySubmitted(true);
@@ -84,7 +95,8 @@ export default function DocumentsVerificationPage() {
       console.error("Erreur lors de la soumission des documents:", error);
       toast({
         title: "Erreur",
-        description: "Une erreur est survenue lors de la soumission des documents. Veuillez réessayer.",
+        description:
+          "Une erreur est survenue lors de la soumission des documents. Veuillez réessayer.",
         variant: "destructive",
       });
     } finally {
@@ -92,7 +104,8 @@ export default function DocumentsVerificationPage() {
     }
   };
 
-  const allDocumentsUploaded = files.idCardFront && files.idCardBack && files.rcDocument && rcNumber;
+  const allDocumentsUploaded =
+    files.idCardFront && files.idCardBack && files.rcDocument && rcNumber;
 
   if (isLoading) {
     return (
@@ -113,10 +126,13 @@ export default function DocumentsVerificationPage() {
         <Card>
           <CardContent className="p-8 text-center">
             <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Documents déjà soumis</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">
+              Documents déjà soumis
+            </h2>
             <p className="text-gray-600 mb-6">
-              Vos documents ont été soumis avec succès et sont en attente de validation par notre équipe.
-              Vous recevrez une notification dès que la vérification sera terminée.
+              Vos documents ont été soumis avec succès et sont en attente de
+              validation par notre équipe. Vous recevrez une notification dès
+              que la vérification sera terminée.
             </p>
             <Button onClick={() => router.push("/pro/dashboard")}>
               Retour au tableau de bord
@@ -133,38 +149,31 @@ export default function DocumentsVerificationPage() {
         <CardHeader>
           <CardTitle>Vérification de votre identité</CardTitle>
           <CardDescription>
-            Pour accéder à votre tableau de bord, veuillez soumettre les documents suivants pour vérification.
+            Pour accéder à votre tableau de bord, veuillez soumettre les
+            documents suivants pour vérification.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Alert className="mb-6 border-orange-200 bg-orange-50">
             <Clock className="h-4 w-4 text-orange-600" />
             <AlertDescription className="text-orange-800">
-              <strong>Important :</strong> Vous disposez de <strong>7 jours</strong> à compter de la création de votre compte 
-              pour soumettre vos documents. Passé ce délai, votre compte sera bloqué.
+              <strong>Important :</strong> Vous disposez de{" "}
+              <strong>7 jours</strong> à compter de la création de votre compte
+              pour soumettre vos documents. Passé ce délai, votre compte sera
+              bloqué.
             </AlertDescription>
           </Alert>
 
           <form onSubmit={handleSubmit} className="space-y-6">
-
-  return (
-    <div className="container mx-auto px-4 py-8 max-w-3xl">
-      <Card>
-        <CardHeader>
-          <CardTitle>Vérification de votre identité</CardTitle>
-          <CardDescription>
-            Pour accéder à votre tableau de bord, veuillez soumettre les documents suivants pour vérification.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-4">
               <div>
                 <h3 className="text-lg font-medium mb-4">Pièce d'identité</h3>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                   <div>
-                    <Label htmlFor="idCardFront">Recto de la pièce d'identité *</Label>
+                    <Label htmlFor="idCardFront">
+                      Recto de la pièce d'identité *
+                    </Label>
                     <Input
                       id="idCardFront"
                       type="file"
@@ -173,11 +182,15 @@ export default function DocumentsVerificationPage() {
                       className="mt-1"
                       required
                     />
-                    <p className="text-xs text-muted-foreground mt-1">Format: JPG, PNG ou PDF (max 5MB)</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Format: JPG, PNG ou PDF (max 5MB)
+                    </p>
                   </div>
-                  
+
                   <div>
-                    <Label htmlFor="idCardBack">Verso de la pièce d'identité *</Label>
+                    <Label htmlFor="idCardBack">
+                      Verso de la pièce d'identité *
+                    </Label>
                     <Input
                       id="idCardBack"
                       type="file"
@@ -186,13 +199,17 @@ export default function DocumentsVerificationPage() {
                       className="mt-1"
                       required
                     />
-                    <p className="text-xs text-muted-foreground mt-1">Format: JPG, PNG ou PDF (max 5MB)</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Format: JPG, PNG ou PDF (max 5MB)
+                    </p>
                   </div>
                 </div>
 
                 <div className="space-y-4">
                   <div>
-                    <Label htmlFor="rcNumber">Numéro d'immatriculation (RC) *</Label>
+                    <Label htmlFor="rcNumber">
+                      Numéro d'immatriculation (RC) *
+                    </Label>
                     <Input
                       id="rcNumber"
                       type="text"
@@ -205,7 +222,9 @@ export default function DocumentsVerificationPage() {
                   </div>
 
                   <div>
-                    <Label htmlFor="rcDocument">Extrait d'immatriculation (K-bis ou équivalent) *</Label>
+                    <Label htmlFor="rcDocument">
+                      Extrait d'immatriculation (K-bis ou équivalent) *
+                    </Label>
                     <Input
                       id="rcDocument"
                       type="file"
@@ -214,7 +233,9 @@ export default function DocumentsVerificationPage() {
                       className="mt-1"
                       required
                     />
-                    <p className="text-xs text-muted-foreground mt-1">Format: JPG, PNG ou PDF (max 5MB)</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Format: JPG, PNG ou PDF (max 5MB)
+                    </p>
                   </div>
                 </div>
               </div>
@@ -222,7 +243,9 @@ export default function DocumentsVerificationPage() {
 
             <div className="bg-blue-50 p-4 rounded-md">
               <p className="text-sm text-blue-700">
-                Vos documents sont traités de manière sécurisée et ne seront utilisés qu'à des fins de vérification d'identité conformément à notre politique de confidentialité.
+                Vos documents sont traités de manière sécurisée et ne seront
+                utilisés qu'à des fins de vérification d'identité conformément à
+                notre politique de confidentialité.
               </p>
             </div>
 
@@ -232,7 +255,9 @@ export default function DocumentsVerificationPage() {
                 disabled={!allDocumentsUploaded || isSubmitting}
                 className="min-w-[120px]"
               >
-                {isSubmitting ? "Soumission en cours..." : "Soumettre les documents"}
+                {isSubmitting
+                  ? "Soumission en cours..."
+                  : "Soumettre les documents"}
               </Button>
             </div>
           </form>
