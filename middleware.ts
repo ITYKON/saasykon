@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
+import { getAuthUserFromCookies } from "@/lib/auth"
+import { prisma } from "@/lib/prisma"
 
 const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME || "saas_session"
 const PUBLIC_FILE = /\.(.*)$/
@@ -92,6 +94,36 @@ export async function middleware(request: NextRequest) {
   
   // Admin-equivalent: ADMIN role OR sub-admin with special business
   const canAccessAdmin = isAdmin || isSubAdmin
+  
+  // Vérifier si l'utilisateur a déjà soumis ses documents de vérification
+  let hasSubmittedDocuments = false;
+  if (sessionToken && pathname.startsWith('/pro/') && !pathname.startsWith('/pro/documents-verification')) {
+    try {
+      const user = await getAuthUserFromCookies();
+      if (user) {
+        const business = await prisma.businesses.findFirst({
+          where: { owner_user_id: user.id },
+          include: { business_verifications: true }
+        });
+        
+        // Si l'entreprise est marquée comme provenant d'un lead et qu'aucune vérification n'existe
+        if (business?.claim_status === 'not_claimable' && !business.business_verifications.length) {
+          hasSubmittedDocuments = false;
+          
+          // Rediriger vers la page de vérification des documents si ce n'est pas déjà la page actuelle
+          if (!pathname.startsWith('/pro/documents-verification')) {
+            return NextResponse.redirect(new URL('/pro/documents-verification', request.url));
+          }
+        } else {
+          hasSubmittedDocuments = true;
+        }
+      }
+    } catch (error) {
+      console.error('Erreur lors de la vérification des documents:', error);
+      // En cas d'erreur, on laisse passer pour ne pas bloquer l'utilisateur
+      hasSubmittedDocuments = true;
+    }
+  }
 
   if (isProtected && !sessionToken) {
     if (isApiRequest) {

@@ -24,16 +24,42 @@ export default async function ProDashboard() {
   }
   const { kpis, todayAgenda, notifications, business, address } = await resp.json();
   
-  // Fetch claim information
+  // Fetch claim information and business verification
   let claimInfo: any = null;
+  let needsVerification = false;
+  
   try {
-    const claimResp = await fetch(`${origin}/api/pro/claim`, { cache: "no-store", headers: { cookie: h.get("cookie") || "" } });
+    // Get claim info if exists
+    const claimResp = await fetch(`${origin}/api/pro/claim`, { 
+      cache: "no-store", 
+      headers: { cookie: h.get("cookie") || "" } 
+    });
+    
     if (claimResp.ok) {
       const claimData = await claimResp.json();
       claimInfo = claimData.claim;
     }
+
+    // Check if business needs verification
+    if (business) {
+      const verificationResp = await fetch(`${origin}/api/business/verification`, { 
+        cache: "no-store", 
+        headers: { cookie: h.get("cookie") || "" } 
+      });
+      
+      if (verificationResp.ok) {
+        const verificationData = await verificationResp.json();
+        // If business is converted from lead and has no verification or verification is incomplete
+        needsVerification = business.converted_from_lead && 
+          (!verificationData.verification || 
+           verificationData.verification.status === 'pending' ||
+           !verificationData.verification.id_document_front_url ||
+           !verificationData.verification.id_document_back_url ||
+           !verificationData.verification.rc_document_url);
+      }
+    }
   } catch (e) {
-    // Ignore errors
+    console.error("Error fetching verification status:", e);
   }
   const stats = {
     revenueCents: kpis?.revenueCents || 0,
@@ -96,30 +122,36 @@ export default async function ProDashboard() {
         </header>
 
         <div className="p-6">
-          {/* Claim Documents Banner */}
-          {claimInfo && !claimInfo.has_all_documents && (
-            <Alert className={`mb-6 ${claimInfo.is_blocked ? "border-red-500 bg-red-50" : "border-yellow-500 bg-yellow-50"}`}>
-              <AlertCircle className={`h-4 w-4 ${claimInfo.is_blocked ? "text-red-600" : "text-yellow-600"}`} />
-              <AlertTitle className={claimInfo.is_blocked ? "text-red-800" : "text-yellow-800"}>
-                {claimInfo.is_blocked ? "Compte bloqué" : "Documents manquants"}
+          {/* Verification Reminder Banner */}
+          {((claimInfo && !claimInfo.has_all_documents) || needsVerification) && (
+            <Alert className={`mb-6 ${claimInfo?.is_blocked ? "border-red-500 bg-red-50" : "border-yellow-500 bg-yellow-50"}`}>
+              <AlertCircle className={`h-4 w-4 ${claimInfo?.is_blocked ? "text-red-600" : "text-yellow-600"}`} />
+              <AlertTitle className={claimInfo?.is_blocked ? "text-red-800" : "text-yellow-800"}>
+                {claimInfo?.is_blocked ? "Compte bloqué" : "Documents manquants"}
               </AlertTitle>
-              <AlertDescription className={claimInfo.is_blocked ? "text-red-700" : "text-yellow-700"}>
-                {claimInfo.is_blocked ? (
+              <AlertDescription className={claimInfo?.is_blocked ? "text-red-700" : "text-yellow-700"}>
+                {claimInfo?.is_blocked ? (
                   <p>
                     Votre compte a été bloqué car les documents requis n'ont pas été soumis dans les délais.
                     Veuillez soumettre vos documents pour débloquer votre compte.
                   </p>
                 ) : (
                   <p>
-                    Il vous reste <strong>{claimInfo.days_remaining} jour{claimInfo.days_remaining > 1 ? "s" : ""}</strong> pour soumettre vos documents légaux.
-                    Votre compte sera bloqué après ce délai si les documents ne sont pas fournis.
+                    {claimInfo?.days_remaining ? (
+                      <>
+                        Il vous reste <strong>{claimInfo.days_remaining} jour{claimInfo.days_remaining > 1 ? "s" : ""}</strong> pour soumettre vos documents légaux.
+                        Votre compte sera bloqué après ce délai si les documents ne sont pas fournis.
+                      </>
+                    ) : (
+                      "Veuvez soumettre vos documents de vérification pour accéder à toutes les fonctionnalités."
+                    )}
                   </p>
                 )}
                 <div className="mt-4">
-                  <Link href="/pro/settings/documents">
-                    <Button variant={claimInfo.is_blocked ? "destructive" : "default"} size="sm">
+                  <Link href="/pro/documents-verification">
+                    <Button variant={claimInfo?.is_blocked ? "destructive" : "default"} size="sm">
                       <FileText className="h-4 w-4 mr-2" />
-                      {claimInfo.is_blocked ? "Soumettre les documents" : "Compléter les documents"}
+                      {claimInfo?.is_blocked ? "Soumettre les documents" : "Compléter les documents"}
                     </Button>
                   </Link>
                 </div>
