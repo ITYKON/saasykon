@@ -5,10 +5,15 @@ import { randomBytes, createHash } from "crypto";
 import { sendEmail, inviteEmailTemplate } from "@/lib/email";
 
 function getIp(req: NextRequest) {
-  return req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.ip || "";
+  return (
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.ip || ""
+  );
 }
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
   const auth = await requireAdminOrPermission("LEADS_MANAGE");
   if (auth instanceof NextResponse) return auth;
 
@@ -32,11 +37,15 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     send_invite = true,
   } = body || {};
 
-  const lead = await prisma.business_leads.findUnique({ where: { id: leadId } });
-  if (!lead) return NextResponse.json({ error: "Lead not found" }, { status: 404 });
+  const lead = await prisma.business_leads.findUnique({
+    where: { id: leadId },
+  });
+  if (!lead)
+    return NextResponse.json({ error: "Lead not found" }, { status: 404 });
 
   const email = (emailInput || lead.email || "").trim().toLowerCase();
-  if (!email) return NextResponse.json({ error: "Email is required" }, { status: 400 });
+  if (!email)
+    return NextResponse.json({ error: "Email is required" }, { status: 400 });
 
   // Upsert user by email
   const user = await prisma.users.upsert({
@@ -67,6 +76,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       phone: phone ?? lead.phone ?? null,
       status: "pending_verification" as any,
       claim_status: "approved", // Les salons créés depuis les leads ne sont pas revendicables
+      converted_from_lead: true,
     },
   });
 
@@ -75,25 +85,41 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const proRole = await prisma.roles.findUnique({ where: { code: "PRO" } });
     if (proRole) {
       await prisma.user_roles.upsert({
-        where: { user_id_role_id_business_id: { user_id: user.id, role_id: proRole.id, business_id: business.id } as any },
+        where: {
+          user_id_role_id_business_id: {
+            user_id: user.id,
+            role_id: proRole.id,
+            business_id: business.id,
+          } as any,
+        },
         update: {},
-        create: { user_id: user.id, role_id: proRole.id, business_id: business.id },
+        create: {
+          user_id: user.id,
+          role_id: proRole.id,
+          business_id: business.id,
+        },
       } as any);
     }
   } catch {}
 
   // Optional: attach plan via subscriptions placeholder (no Stripe yet)
   if (plan_code) {
-    const plan = await prisma.plans.findUnique({ where: { code: plan_code } }).catch(() => null);
+    const plan = await prisma.plans
+      .findUnique({ where: { code: plan_code } })
+      .catch(() => null);
     if (plan) {
       const now = new Date();
       const end = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000); // default 14d trial if plan.trial_days missing
-      const periodEnd = plan.trial_days ? new Date(now.getTime() + plan.trial_days * 24 * 60 * 60 * 1000) : end;
+      const periodEnd = plan.trial_days
+        ? new Date(now.getTime() + plan.trial_days * 24 * 60 * 60 * 1000)
+        : end;
       await prisma.subscriptions.create({
         data: {
           business_id: business.id,
           plan_id: plan.id,
-          status: (plan.trial_days && plan.trial_days > 0 ? "TRIALING" : "INCOMPLETE") as any,
+          status: (plan.trial_days && plan.trial_days > 0
+            ? "TRIALING"
+            : "INCOMPLETE") as any,
           current_period_start: now,
           current_period_end: periodEnd,
         },
@@ -108,10 +134,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       where: {
         name: {
           contains: lead.location,
-          mode: 'insensitive'
-        }
+          mode: "insensitive",
+        },
       },
-      take: 1
+      take: 1,
     });
 
     await prisma.business_locations.create({
@@ -119,9 +145,9 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         business_id: business.id,
         address_line1: lead.location,
         city_id: city?.id || null,
-        country_code: 'DZ', // Par défaut Algérie
+        country_code: "DZ", // Par défaut Algérie
         is_primary: true,
-        timezone: 'Africa/Algiers'
+        timezone: "Africa/Algiers",
       },
     });
   }
@@ -164,17 +190,32 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       },
     });
 
-    const appUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-    const tpl = inviteEmailTemplate({ firstName: user.first_name, appUrl, token: tokenRaw, validityHours: 24 });
-    
+    const appUrl =
+      process.env.APP_URL ||
+      process.env.NEXT_PUBLIC_APP_URL ||
+      "http://localhost:3000";
+    const tpl = inviteEmailTemplate({
+      firstName: user.first_name,
+      appUrl,
+      token: tokenRaw,
+      validityHours: 24,
+    });
+
     // Try to send email with timeout handling
     try {
-      await sendEmail({ to: email, subject: `Votre compte est prêt — activez votre accès`, html: tpl.html, text: tpl.text });
+      await sendEmail({
+        to: email,
+        subject: `Votre compte est prêt — activez votre accès`,
+        html: tpl.html,
+        text: tpl.text,
+      });
       console.log(`✅ Email sent successfully to: ${email}`);
     } catch (emailError) {
       console.error(`❌ Failed to send email to ${email}:`, emailError);
       // Continue with the process even if email fails
-      console.log(`⚠️  Lead conversion continues without email. User can be invited manually later.`);
+      console.log(
+        `⚠️  Lead conversion continues without email. User can be invited manually later.`
+      );
     }
 
     await prisma.event_logs.create({
@@ -189,5 +230,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     invitation.token = tokenRaw; // not returned by API response
   }
 
-  return NextResponse.json({ ok: true, lead_id: lead.id, business_id: business.id, user_id: user.id });
+  return NextResponse.json({
+    ok: true,
+    lead_id: lead.id,
+    business_id: business.id,
+    user_id: user.id,
+  });
 }
