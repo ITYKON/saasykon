@@ -15,7 +15,13 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { FileText, XCircle, Building, ExternalLink } from "lucide-react";
+import {
+  FileText,
+  XCircle,
+  Building,
+  ExternalLink,
+  CheckCircle,
+} from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Image from "next/image";
 import Link from "next/link";
