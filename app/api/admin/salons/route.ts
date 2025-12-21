@@ -45,7 +45,12 @@ type SalonResponse = BusinessWithRelations & {
   joinDate: string;
   lastActivity?: string;
   subscription: string;
-  status: "en attente" | "inactif" | "actif" | "verified" | "pending_verification";
+  status:
+    | "en attente"
+    | "inactif"
+    | "actif"
+    | "verified"
+    | "pending_verification";
   verification_status?: string;
   isTop: boolean;
   isNew: boolean;
@@ -57,11 +62,14 @@ export async function GET(req: Request) {
     // Vérification de l'authentification
     const authCheck = await requireAdminOrPermission("salons");
     if (authCheck instanceof NextResponse) return authCheck;
-    
+
     // Gestion de la pagination
     const { searchParams } = new URL(req.url);
     const page = parseInt(searchParams.get("page") || "1", 10);
-    const pageSize = Math.min(parseInt(searchParams.get("pageSize") || "10", 10), 100);
+    const pageSize = Math.min(
+      parseInt(searchParams.get("pageSize") || "10", 10),
+      100
+    );
     const skip = (page - 1) * pageSize;
     const take = pageSize;
     const q = (searchParams.get("q") || "").trim();
@@ -71,17 +79,19 @@ export async function GET(req: Request) {
     const where: any = {
       ...(q && {
         OR: [
-          { public_name: { contains: q, mode: 'insensitive' } },
-          { legal_name: { contains: q, mode: 'insensitive' } },
-          { email: { contains: q, mode: 'insensitive' } },
+          { public_name: { contains: q, mode: "insensitive" } },
+          { legal_name: { contains: q, mode: "insensitive" } },
+          { email: { contains: q, mode: "insensitive" } },
         ],
       }),
       // Filtre par statut de revendication si spécifié
-      ...(claimStatusFilter && claimStatusFilter !== "all" ? { claim_status: claimStatusFilter } : {}),
+      ...(claimStatusFilter && claimStatusFilter !== "all"
+        ? { claim_status: claimStatusFilter }
+        : {}),
     };
 
     // Récupération des données avec sélection précise des champs
-    const salons = await prisma.businesses.findMany({
+    const salons = (await prisma.businesses.findMany({
       where,
       select: {
         id: true,
@@ -104,11 +114,11 @@ export async function GET(req: Request) {
           include: {
             cities: {
               select: {
-                name: true
-              }
-            }
+                name: true,
+              },
+            },
           },
-          take: 1
+          take: 1,
         },
         business_verifications: {
           select: {
@@ -116,15 +126,15 @@ export async function GET(req: Request) {
             status: true,
             reviewed_at: true,
           },
-          orderBy: { created_at: 'desc' },
-          take: 1
+          orderBy: { created_at: "desc" },
+          take: 1,
         },
         services: {
           select: {
             id: true,
-            name: true
+            name: true,
           },
-          take: 10
+          take: 10,
         },
         employees: true,
         subscriptions: {
@@ -133,18 +143,18 @@ export async function GET(req: Request) {
             plans: {
               select: {
                 id: true,
-                name: true
-              }
-            }
+                name: true,
+              },
+            },
           },
-          orderBy: { created_at: 'desc' },
-          take: 1
-        }
+          orderBy: { created_at: "desc" },
+          take: 1,
+        },
       },
       orderBy: { created_at: "desc" },
       skip,
       take,
-    }) as unknown as BusinessWithRelations[];
+    })) as unknown as BusinessWithRelations[];
 
     // Comptage total des résultats
     const total = await prisma.businesses.count({ where });
@@ -162,18 +172,27 @@ export async function GET(req: Request) {
           _count: { _all: true },
         })
       : [];
-    const bookingsMap = Object.fromEntries(reservationsCounts.map((r) => [r.business_id, r._count._all]));
+    const bookingsMap = Object.fromEntries(
+      reservationsCounts.map((r) => [r.business_id, r._count._all])
+    );
 
     // groupBy payments in last 30d -> monthlyRevenue in DA
     const paymentsSums = businessIds.length
       ? await prisma.payments.groupBy({
           by: ["business_id"],
-          where: { business_id: { in: businessIds }, status: "CAPTURED", created_at: { gte: last30, lt: now } },
+          where: {
+            business_id: { in: businessIds },
+            status: "CAPTURED",
+            created_at: { gte: last30, lt: now },
+          },
           _sum: { amount_cents: true },
         })
       : [];
     const monthlyRevenueMap = Object.fromEntries(
-      paymentsSums.map((p) => [p.business_id, Math.round(((p._sum.amount_cents || 0) as number) / 100)])
+      paymentsSums.map((p) => [
+        p.business_id,
+        Math.round(((p._sum.amount_cents || 0) as number) / 100),
+      ])
     );
 
     // lastActivity via event_logs (take recent and pick first per business)
@@ -188,89 +207,112 @@ export async function GET(req: Request) {
     const lastActivityMap: Record<string, string> = {};
     for (const log of recentLogs) {
       const bid = log.business_id as string | null;
-      if (bid && !lastActivityMap[bid]) lastActivityMap[bid] = log.occurred_at.toISOString();
+      if (bid && !lastActivityMap[bid])
+        lastActivityMap[bid] = log.occurred_at.toISOString();
     }
 
     // Enrichissement des données pour le frontend
-    const salonsWithBadges: SalonResponse[] = salons.map((salon: BusinessWithRelations) => {
-      // Valeurs par défaut
-      const rating_avg = 0;
-      const rating_count = 0;
-      
-      // Vérification des données de base
-      const businessLocations = Array.isArray(salon.business_locations) ? salon.business_locations : [];
-      const services = Array.isArray(salon.services) ? salon.services : [];
-      const employees = Array.isArray(salon.employees) ? salon.employees : [];
-      const subscriptions = Array.isArray(salon.subscriptions) ? salon.subscriptions : [];
-      
-      // Calculs de statut
-      const hasLocation = businessLocations.length > 0;
-      const hasService = services.length > 0;
-      const hasEmployee = employees.length > 0;
-      const profileComplete = hasLocation && hasService && hasEmployee && Boolean(salon.public_name);
-      const hasActiveSubscription = subscriptions.length > 0;
-      const isNew = (new Date().getTime() - new Date(salon.created_at).getTime()) < 1000 * 60 * 60 * 24 * 30; // Moins de 30 jours
-      
-      // Détermination du statut - utiliser le statut réel du business
-      let status: "en attente" | "inactif" | "actif" | "verified" | "pending_verification" = "en attente";
-      if (salon.archived_at || salon.deleted_at) {
-        status = "inactif";
-      } else if (salon.status === "active" || salon.status === "actif") {
-        status = "actif";
-      } else if (salon.status === "verified") {
-        status = "verified";
-      } else if (salon.status === "pending_verification") {
-        status = "pending_verification";
+    const salonsWithBadges: SalonResponse[] = salons.map(
+      (salon: BusinessWithRelations) => {
+        // Valeurs par défaut
+        const rating_avg = 0;
+        const rating_count = 0;
+
+        // Vérification des données de base
+        const businessLocations = Array.isArray(salon.business_locations)
+          ? salon.business_locations
+          : [];
+        const services = Array.isArray(salon.services) ? salon.services : [];
+        const employees = Array.isArray(salon.employees) ? salon.employees : [];
+        const subscriptions = Array.isArray(salon.subscriptions)
+          ? salon.subscriptions
+          : [];
+
+        // Calculs de statut
+        const hasLocation = businessLocations.length > 0;
+        const hasService = services.length > 0;
+        const hasEmployee = employees.length > 0;
+        const profileComplete =
+          hasLocation &&
+          hasService &&
+          hasEmployee &&
+          Boolean(salon.public_name);
+        const hasActiveSubscription = subscriptions.length > 0;
+        const isNew =
+          new Date().getTime() - new Date(salon.created_at).getTime() <
+          1000 * 60 * 60 * 24 * 30; // Moins de 30 jours
+
+        // Détermination du statut - utiliser le statut réel du business
+        let status:
+          | "en attente"
+          | "inactif"
+          | "actif"
+          | "verified"
+          | "pending_verification" = "en attente";
+        if (salon.archived_at || salon.deleted_at) {
+          status = "inactif";
+        } else if (salon.status === "active" || salon.status === "actif") {
+          status = "actif";
+        } else if (salon.status === "verified") {
+          status = "verified";
+        } else if (salon.status === "pending_verification") {
+          status = "pending_verification";
+        }
+
+        // Statut de vérification (depuis business_verifications)
+        const verification =
+          Array.isArray(salon.business_verifications) &&
+          salon.business_verifications.length > 0
+            ? salon.business_verifications[0]
+            : null;
+        const verification_status = verification?.status || undefined;
+
+        // Données de l'abonnement
+        const subscription = subscriptions[0]?.plans?.name || "";
+
+        return {
+          ...salon,
+          rating_avg,
+          rating_count,
+          // Champs attendus par le front
+          rating: rating_avg,
+          reviewCount: rating_count,
+          totalBookings: bookingsMap[salon.id] || 0,
+          monthlyRevenue: monthlyRevenueMap[salon.id] || 0, // DA
+          joinDate: salon.created_at?.toISOString() || new Date().toISOString(),
+          lastActivity: lastActivityMap[salon.id] || undefined,
+          subscription,
+          status,
+          verification_status,
+          isTop: rating_avg >= 4.5,
+          isNew:
+            new Date().getTime() - new Date(salon.created_at).getTime() <
+            1000 * 60 * 60 * 24 * 30,
+          isPremium: subscription.toLowerCase() === "premium",
+        };
       }
-      
-      // Statut de vérification (depuis business_verifications)
-      const verification = Array.isArray(salon.business_verifications) && salon.business_verifications.length > 0
-        ? salon.business_verifications[0]
-        : null;
-      const verification_status = verification?.status || undefined;
-      
-      // Données de l'abonnement
-      const subscription = subscriptions[0]?.plans?.name || "";
-      
-      return {
-        ...salon,
-        rating_avg,
-        rating_count,
-        // Champs attendus par le front
-        rating: rating_avg,
-        reviewCount: rating_count,
-        totalBookings: bookingsMap[salon.id] || 0,
-        monthlyRevenue: monthlyRevenueMap[salon.id] || 0, // DA
-        joinDate: salon.created_at?.toISOString() || new Date().toISOString(),
-        lastActivity: lastActivityMap[salon.id] || undefined,
-        subscription,
-        status,
-        verification_status,
-        isTop: rating_avg >= 4.5,
-        isNew: (new Date().getTime() - new Date(salon.created_at).getTime()) < 1000 * 60 * 60 * 24 * 30,
-        isPremium: subscription.toLowerCase() === "premium",
-      };
-    });
+    );
 
     // Préparation de la réponse
-    return NextResponse.json({ 
+    return NextResponse.json({
       success: true,
       data: {
-        salons: salonsWithBadges, 
-        total, 
-        page, 
+        salons: salonsWithBadges,
+        total,
+        page,
         pageSize,
-        totalPages: Math.ceil(total / pageSize)
-      }
+        totalPages: Math.ceil(total / pageSize),
+      },
     });
   } catch (error: unknown) {
-    console.error('Error in /api/admin/salons:', error);
-    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+    console.error("Error in /api/admin/salons:", error);
+    const errorMessage =
+      error instanceof Error ? error.message : "An unknown error occurred";
     return NextResponse.json(
-      { 
+      {
         success: false,
-        error: 'Internal Server Error',
-        message: errorMessage
+        error: "Internal Server Error",
+        message: errorMessage,
       },
       { status: 500 }
     );
@@ -281,32 +323,35 @@ export async function GET(req: Request) {
 const salonSchema = z.object({
   legal_name: z.string().min(2),
   public_name: z.string().min(2),
-  description: z.string().optional(),
+  description: z.string().optional().nullable(),
   email: z.string().email(),
   phone: z.string().min(6),
-  website: z.string().url().optional().or(z.literal('')).nullable(),
+  website: z.string().url().optional().or(z.literal("")).nullable(),
   vat_number: z.string().optional(),
   category_code: z.string().optional(),
-  logo_url: z.string().optional().or(z.literal('')).nullable(),
-  cover_url: z.string().optional().or(z.literal('')).nullable(),
+  logo_url: z.string().optional().or(z.literal("")).nullable(),
+  cover_url: z.string().optional().or(z.literal("")).nullable(),
   location: z.string().optional(), // City or location name
   status: z.string().optional(),
 });
 
 export async function POST(req: Request) {
-    const authCheck = await requireAdminOrPermission("salons");
-    if (authCheck instanceof NextResponse) return authCheck;
-    const data = await req.json();
+  const authCheck = await requireAdminOrPermission("salons");
+  if (authCheck instanceof NextResponse) return authCheck;
+  const data = await req.json();
   console.log("[POST /api/admin/salons] data reçu:", data);
   const parse = salonSchema.safeParse(data);
   if (!parse.success) {
     console.error("[POST /api/admin/salons] Validation error:", parse.error);
-    return NextResponse.json({ error: "Validation error", details: parse.error }, { status: 400 });
+    return NextResponse.json(
+      { error: "Validation error", details: parse.error },
+      { status: 400 }
+    );
   }
   // Si create_for_claim est true, créer le salon sans propriétaire pour permettre la revendication
   const createForClaim = data.create_for_claim === true;
   let ownerUserId = data.owner_user_id;
-  
+
   if (createForClaim) {
     // Pour revendication : pas de propriétaire, claim_status = "none"
     ownerUserId = null;
@@ -318,17 +363,23 @@ export async function POST(req: Request) {
           email: data.email || `temp-${Date.now()}@example.com`,
           phone: data.phone,
           first_name: data.public_name?.split(" ")[0] || "",
-          last_name: data.public_name?.split(" ").slice(1).join(" ") || data.legal_name || "",
+          last_name:
+            data.public_name?.split(" ").slice(1).join(" ") ||
+            data.legal_name ||
+            "",
         },
       });
       ownerUserId = ownerUser.id;
       console.log("[POST /api/admin/salons] User owner créé:", ownerUser);
     } catch (err) {
       console.error("[POST /api/admin/salons] Erreur création user:", err);
-      return NextResponse.json({ error: "Erreur création user", details: err }, { status: 500 });
+      return NextResponse.json(
+        { error: "Erreur création user", details: err },
+        { status: 500 }
+      );
     }
   }
-  
+
   // Création salon
   try {
     const salonData: any = {
@@ -352,7 +403,7 @@ export async function POST(req: Request) {
       let systemUser = await prisma.users.findFirst({
         where: { email: "system@yoka.com" },
       });
-      
+
       if (!systemUser) {
         // Créer un user système si nécessaire
         systemUser = await prisma.users.create({
@@ -364,7 +415,7 @@ export async function POST(req: Request) {
           },
         });
       }
-      
+
       salonData.owner_user_id = systemUser.id;
       salonData.claim_status = "none"; // Permet la revendication
       salonData.status = "pending_verification"; // En attente de revendication
@@ -387,7 +438,7 @@ export async function POST(req: Request) {
           where: {
             name: {
               contains: parse.data.location,
-              mode: 'insensitive'
+              mode: "insensitive",
             },
           },
         });
@@ -400,9 +451,15 @@ export async function POST(req: Request) {
             is_primary: true,
           },
         });
-        console.log("[POST /api/admin/salons] Localisation créée:", parse.data.location);
+        console.log(
+          "[POST /api/admin/salons] Localisation créée:",
+          parse.data.location
+        );
       } catch (locationError) {
-        console.error("[POST /api/admin/salons] Erreur création localisation:", locationError);
+        console.error(
+          "[POST /api/admin/salons] Erreur création localisation:",
+          locationError
+        );
         // Continue even if location creation fails
       }
     }
@@ -416,20 +473,23 @@ export async function POST(req: Request) {
     return NextResponse.json({ salon });
   } catch (err) {
     console.error("[POST /api/admin/salons] Erreur création salon:", err);
-    return NextResponse.json({ error: "Erreur création salon", details: err }, { status: 500 });
+    return NextResponse.json(
+      { error: "Erreur création salon", details: err },
+      { status: 500 }
+    );
   }
 }
 
 export async function PUT(req: Request) {
-    const authCheck = await requireAdminOrPermission("salons");
-    if (authCheck instanceof NextResponse) return authCheck;
-    const data = await req.json();
+  const authCheck = await requireAdminOrPermission("salons");
+  if (authCheck instanceof NextResponse) return authCheck;
+  const data = await req.json();
   console.log("[PUT /api/admin/salons] data reçu:", data);
   if (!data.id) {
     console.error("[PUT /api/admin/salons] Missing salon id");
     return NextResponse.json({ error: "Missing salon id" }, { status: 400 });
   }
-  
+
   // Si seulement le statut est fourni, on peut mettre à jour juste le statut
   if (data.status && Object.keys(data).length === 2) {
     try {
@@ -452,16 +512,25 @@ export async function PUT(req: Request) {
     } catch (err: any) {
       console.error("[PUT /api/admin/salons] Erreur modification statut:", err);
       if (err?.code === "P2025") {
-        return NextResponse.json({ error: "Salon non trouvé" }, { status: 404 });
+        return NextResponse.json(
+          { error: "Salon non trouvé" },
+          { status: 404 }
+        );
       }
-      return NextResponse.json({ error: "Erreur modification statut", details: err }, { status: 500 });
+      return NextResponse.json(
+        { error: "Erreur modification statut", details: err },
+        { status: 500 }
+      );
     }
   }
-  
+
   const parse = salonSchema.safeParse(data);
   if (!parse.success) {
     console.error("[PUT /api/admin/salons] Validation error:", parse.error);
-    return NextResponse.json({ error: "Validation error", details: parse.error }, { status: 400 });
+    return NextResponse.json(
+      { error: "Validation error", details: parse.error },
+      { status: 400 }
+    );
   }
   try {
     const updateData: any = {
@@ -477,17 +546,17 @@ export async function PUT(req: Request) {
       cover_url: data.cover_url,
       updated_at: new Date(),
     };
-    
+
     // Si le statut est fourni, l'inclure dans la mise à jour
     if (data.status) {
       updateData.status = data.status as any;
     }
-    
+
     const salon = await prisma.businesses.update({
       where: { id: data.id },
       data: updateData,
     });
-    
+
     // Handle location update if provided
     if (data.location) {
       // Find the city by name
@@ -495,24 +564,24 @@ export async function PUT(req: Request) {
         where: {
           name: {
             contains: data.location,
-            mode: 'insensitive'
-          }
-        }
+            mode: "insensitive",
+          },
+        },
       });
-      
+
       // Update or create business location
       const existingLocation = await prisma.business_locations.findFirst({
-        where: { business_id: data.id, is_primary: true }
+        where: { business_id: data.id, is_primary: true },
       });
-      
+
       if (existingLocation) {
         await prisma.business_locations.update({
           where: { id: existingLocation.id },
           data: {
             address_line1: data.location,
             city_id: city?.id,
-            updated_at: new Date()
-          }
+            updated_at: new Date(),
+          },
         });
       } else {
         await prisma.business_locations.create({
@@ -520,8 +589,8 @@ export async function PUT(req: Request) {
             business_id: data.id,
             address_line1: data.location,
             city_id: city?.id,
-            is_primary: true
-          }
+            is_primary: true,
+          },
         });
       }
     }
@@ -539,41 +608,47 @@ export async function PUT(req: Request) {
     if (err?.code === "P2025") {
       return NextResponse.json({ error: "Salon non trouvé" }, { status: 404 });
     }
-    return NextResponse.json({ error: "Erreur modification salon", details: err }, { status: 500 });
+    return NextResponse.json(
+      { error: "Erreur modification salon", details: err },
+      { status: 500 }
+    );
   }
 }
 
 export async function PATCH(req: Request) {
   const authCheck = await requireAdminOrPermission("salons");
   if (authCheck instanceof NextResponse) return authCheck;
-  
+
   try {
     const url = new URL(req.url);
-    const id = url.pathname.split('/').pop();
-    
+    const id = url.pathname.split("/").pop();
+
     if (!id) {
-      return NextResponse.json({ error: "ID du salon manquant" }, { status: 400 });
+      return NextResponse.json(
+        { error: "ID du salon manquant" },
+        { status: 400 }
+      );
     }
-    
+
     const { status } = await req.json();
-    
+
     if (!status) {
       return NextResponse.json({ error: "Statut manquant" }, { status: 400 });
     }
-    
+
     const updatedSalon = await prisma.businesses.update({
       where: { id },
       data: { status },
       include: {
         business_locations: {
-          include: { cities: true }
+          include: { cities: true },
         },
         subscriptions: {
-          include: { plans: true }
-        }
-      }
+          include: { plans: true },
+        },
+      },
     });
-    
+
     // Journalisation de l'action
     await prisma.event_logs.create({
       data: {
@@ -582,18 +657,20 @@ export async function PATCH(req: Request) {
         payload: { business_id: id, status } as any,
       },
     });
-    
+
     return NextResponse.json({ success: true, data: updatedSalon });
-    
   } catch (err: any) {
     console.error("[PATCH /api/admin/salons/[id]/status] Erreur:", err);
-    
+
     if (err?.code === "P2025") {
       return NextResponse.json({ error: "Salon non trouvé" }, { status: 404 });
     }
-    
+
     return NextResponse.json(
-      { error: "Erreur lors de la mise à jour du statut", details: err.message },
+      {
+        error: "Erreur lors de la mise à jour du statut",
+        details: err.message,
+      },
       { status: 500 }
     );
   }
@@ -603,10 +680,14 @@ export async function DELETE(req: Request) {
   const authCheck = await requireAdminOrPermission("salons");
   if (authCheck instanceof NextResponse) return authCheck;
   const { id } = await req.json();
-  if (!id) return NextResponse.json({ error: "Missing salon id" }, { status: 400 });
+  if (!id)
+    return NextResponse.json({ error: "Missing salon id" }, { status: 400 });
   try {
     // Soft delete: archive le salon pour intégration avec la page Archives
-    const salon = await prisma.businesses.update({ where: { id }, data: { archived_at: new Date() } });
+    const salon = await prisma.businesses.update({
+      where: { id },
+      data: { archived_at: new Date() },
+    });
     await prisma.event_logs.create({
       data: {
         user_id: (authCheck as any).userId,
@@ -614,13 +695,20 @@ export async function DELETE(req: Request) {
         payload: { business_id: id } as any,
       },
     });
-    return NextResponse.json({ success: true, message: "Salon archivé", salon });
+    return NextResponse.json({
+      success: true,
+      message: "Salon archivé",
+      salon,
+    });
   } catch (err: any) {
     if (err?.code === "P2025") {
       return NextResponse.json({ error: "Salon non trouvé" }, { status: 404 });
     }
     if (err?.code === "P2003") {
-      return NextResponse.json({ error: "Suppression impossible: contraintes de données" }, { status: 409 });
+      return NextResponse.json(
+        { error: "Suppression impossible: contraintes de données" },
+        { status: 409 }
+      );
     }
     console.error("[DELETE /api/admin/salons] Erreur:", err);
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
