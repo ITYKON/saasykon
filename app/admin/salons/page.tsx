@@ -60,7 +60,7 @@ function AdminSalonsContent() {
     claim_status?: string;
     business_locations?: Array<{
       address_line1?: string;
-      cities?: { name?: string };
+      cities?: { name?: string; wilaya_number?: number };
     }>;
     [key: string]: any;
   };
@@ -74,6 +74,7 @@ function AdminSalonsContent() {
     setLoading(true);
 
     const params = new URLSearchParams();
+    params.set("pageSize", "1000");
     if (claimStatusFilter !== "all") {
       params.set("claim_status", claimStatusFilter);
     }
@@ -153,12 +154,26 @@ function AdminSalonsContent() {
         ? true
         : salon.subscription?.toLowerCase() ===
           subscriptionFilter.toLowerCase();
-    // Récupération du nom de la ville en minuscules et sans espaces superflus
-    const city = salon.business_locations?.[0]?.cities?.name?.toString().toLowerCase().trim() || "";
-    const matchCity =
-      cityFilter === "all"
-        ? true
-        : city === cityFilter.toLowerCase().trim();
+    // Filtrage par Wilaya (en utilisant le numéro de wilaya)
+    const matchCity = (() => {
+      if (cityFilter === "all") return true;
+      
+      // 1. Trouver la wilaya sélectionnée dans le filtre
+      const selectedCityObj = cities.find(c => c.name === cityFilter);
+      if (!selectedCityObj?.wilaya_number) {
+        // Fallback: comparaison par nom si pas de wilaya trouvée (ne devrait pas arriver souvent)
+        const city = salon.business_locations?.[0]?.cities?.name?.toString().toLowerCase().trim() || "";
+        return city === cityFilter.toLowerCase().trim();
+      }
+
+      // 2. Récupérer la wilaya du salon
+      const salonCity = salon.business_locations?.[0]?.cities;
+      const salonWilayaNumber = salonCity?.wilaya_number;
+
+      // 3. Comparer les numéros de wilaya
+      return salonWilayaNumber === selectedCityObj.wilaya_number;
+    })();
+
     return matchSearch && matchStatus && matchSubscription && matchCity;
   });
 

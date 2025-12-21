@@ -68,7 +68,7 @@ export async function GET(req: Request) {
     const page = parseInt(searchParams.get("page") || "1", 10);
     const pageSize = Math.min(
       parseInt(searchParams.get("pageSize") || "10", 10),
-      100
+      1000
     );
     const skip = (page - 1) * pageSize;
     const take = pageSize;
@@ -115,6 +115,7 @@ export async function GET(req: Request) {
             cities: {
               select: {
                 name: true,
+                wilaya_number: true,
               },
             },
           },
