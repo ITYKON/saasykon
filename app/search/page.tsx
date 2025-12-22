@@ -51,18 +51,23 @@ const [category, setCategory] = useState(searchParams?.get("category") ?? "")
   const [showFilters, setShowFilters] = useState(false)
   
   // Services populaires pour les filtres
-  const popularServices = [
-    "Coupe femme",
-    "Coupe homme",
-    "Brushing",
-    "Coloration de cheveux",
-    "Coloration sans ammoniaque",
-    "Balayage / mèches",
-    "Tie & dye",
-    "Manucure",
-    "Pédicure",
-    "Massage"
-  ]
+  const [popularServices, setPopularServices] = useState<string[]>([])
+
+  useEffect(() => {
+    // Récupérer les services dynamiques depuis l'API
+    const fetchServices = async () => {
+      try {
+        const res = await fetch('/api/top-services')
+        if (res.ok) {
+          const data = await res.json()
+          setPopularServices(data.services || [])
+        }
+      } catch (e) {
+        console.error("Erreur chargement services", e)
+      }
+    }
+    fetchServices()
+  }, [])
 
   useEffect(() => {
     const fetchResults = async () => {
@@ -70,7 +75,8 @@ const [category, setCategory] = useState(searchParams?.get("category") ?? "")
       try {
         const params = new URLSearchParams()
         if (query) params.set("q", query)
-        // On ne garde que le paramètre de recherche par nom d'institut
+        if (location) params.set("location", location)
+        if (category) params.set("category", category)
         params.set("page", page.toString())
         
         const response = await fetch(`/api/search-simple?${params.toString()}`)
@@ -85,20 +91,18 @@ const [category, setCategory] = useState(searchParams?.get("category") ?? "")
         }
       } catch (error) {
         console.error("Erreur lors de la recherche:", error)
-        // Afficher un message d'erreur à l'utilisateur si nécessaire
       } finally {
         setLoading(false)
       }
     }
 
-    if (query) {
+    if (query || location || category) {
       fetchResults()
     } else {
-      // Réinitialiser les résultats si la recherche est vide
       setBusinesses([])
       setTotal(0)
     }
-  }, [query, page])
+  }, [query, location, page, category])
 
   const handleSearch = (e?: React.FormEvent) => {
     e?.preventDefault()
@@ -113,7 +117,10 @@ const [category, setCategory] = useState(searchParams?.get("category") ?? "")
     
     // Mettre à jour l'URL avec le paramètre de recherche
     const params = new URLSearchParams()
-    params.set("q", query.trim())
+    if (query.trim()) params.set("q", query.trim())
+    if (location.trim()) params.set("location", location.trim())
+    if (category) params.set("category", category)
+    
     router.push(`/search?${params.toString()}`)
   }
   
@@ -155,7 +162,6 @@ const [category, setCategory] = useState(searchParams?.get("category") ?? "")
             <Button 
               type="submit" 
               className="h-11 px-6 bg-black hover:bg-gray-800 flex-shrink-0"
-              disabled={!query && !location}
             >
               <span className="sr-only">Rechercher</span>
               <SearchIcon className="h-5 w-5 mr-2" />
@@ -258,9 +264,9 @@ const [category, setCategory] = useState(searchParams?.get("category") ?? "")
                       <div className="flex gap-4 p-4">
                         {/* Image */}
                         <div className="relative w-32 h-32 flex-shrink-0">
-                          {business.cover_url || business.media[0]?.url ? (
+                          {business.cover_url || business.media?.[0]?.url ? (
                             <Image
-                              src={business.cover_url || business.media[0].url}
+                              src={business.cover_url || business.media?.[0]?.url || ""}
                               alt={business.name}
                               fill
                               className="object-cover rounded"
@@ -306,10 +312,10 @@ const [category, setCategory] = useState(searchParams?.get("category") ?? "")
                           </div>
 
                           {/* Services et prix */}
-                          {business.services.length > 0 && (
+                          {business.services?.length > 0 && (
                             <div className="mt-3">
                               <div className="text-sm text-gray-700">
-                                {business.services.slice(0, 1).map((service) => (
+                                {business.services.slice(0, 3).map((service) => (
                                   <div key={service.id} className="mb-2">
                                     <span className="font-medium">{service.name}</span>
                                     {service.duration_minutes && (
@@ -340,9 +346,6 @@ const [category, setCategory] = useState(searchParams?.get("category") ?? "")
 
                         {/* Actions */}
                         <div className="flex flex-col gap-2">
-                          <Button size="sm" className="bg-black hover:bg-gray-800">
-                            Offrir
-                          </Button>
                           <Button size="sm" variant="default" className="bg-black hover:bg-gray-800">
                             Prendre RDV
                           </Button>
