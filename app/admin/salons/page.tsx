@@ -44,6 +44,8 @@ function AdminSalonsContent() {
   const [subscriptionFilter, setSubscriptionFilter] = React.useState("all");
   const [cityFilter, setCityFilter] = React.useState("all");
   const [claimStatusFilter, setClaimStatusFilter] = React.useState("all");
+  const [cities, setCities] = React.useState<Array<{id: number, name: string, wilaya_number: number | null}>>([]);
+  const [citiesLoading, setCitiesLoading] = React.useState(true);
   type Salon = {
     id: string;
     legal_name: string;
@@ -58,7 +60,7 @@ function AdminSalonsContent() {
     claim_status?: string;
     business_locations?: Array<{
       address_line1?: string;
-      cities?: { name?: string };
+      cities?: { name?: string; wilaya_number?: number };
     }>;
     [key: string]: any;
   };
@@ -66,12 +68,13 @@ function AdminSalonsContent() {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
 
-  React.useEffect(() => {
+  const fetchSalons = React.useCallback(() => {
     console.log("Début de la récupération des salons...");
     setError(null);
     setLoading(true);
 
     const params = new URLSearchParams();
+    params.set("pageSize", "1000");
     if (claimStatusFilter !== "all") {
       params.set("claim_status", claimStatusFilter);
     }
@@ -104,6 +107,29 @@ function AdminSalonsContent() {
       });
   }, [claimStatusFilter]);
 
+  React.useEffect(() => {
+    fetchSalons();
+  }, [fetchSalons]);
+
+  // Charger les villes au montage du composant
+  React.useEffect(() => {
+    const fetchCities = async () => {
+      try {
+        const response = await fetch('/api/cities');
+        const data = await response.json();
+        if (data.success) {
+          setCities(data.data);
+        }
+      } catch (error) {
+        console.error("Erreur lors du chargement des villes:", error);
+      } finally {
+        setCitiesLoading(false);
+      }
+    };
+
+    fetchCities();
+  }, []);
+
   // Modals et état salon sélectionné
   const [addModalOpen, setAddModalOpen] = React.useState(false);
   const [editModalOpen, setEditModalOpen] = React.useState(false);
@@ -128,12 +154,26 @@ function AdminSalonsContent() {
         ? true
         : salon.subscription?.toLowerCase() ===
           subscriptionFilter.toLowerCase();
-    // city: utilise business_locations[0]?.cities?.name si présent
-    const city = salon.business_locations?.[0]?.cities?.name || "";
-    const matchCity =
-      cityFilter === "all"
-        ? true
-        : city.toLowerCase() === cityFilter.toLowerCase();
+    // Filtrage par Wilaya (en utilisant le numéro de wilaya)
+    const matchCity = (() => {
+      if (cityFilter === "all") return true;
+      
+      // 1. Trouver la wilaya sélectionnée dans le filtre
+      const selectedCityObj = cities.find(c => c.name === cityFilter);
+      if (!selectedCityObj?.wilaya_number) {
+        // Fallback: comparaison par nom si pas de wilaya trouvée (ne devrait pas arriver souvent)
+        const city = salon.business_locations?.[0]?.cities?.name?.toString().toLowerCase().trim() || "";
+        return city === cityFilter.toLowerCase().trim();
+      }
+
+      // 2. Récupérer la wilaya du salon
+      const salonCity = salon.business_locations?.[0]?.cities;
+      const salonWilayaNumber = salonCity?.wilaya_number;
+
+      // 3. Comparer les numéros de wilaya
+      return salonWilayaNumber === selectedCityObj.wilaya_number;
+    })();
+
     return matchSearch && matchStatus && matchSubscription && matchCity;
   });
 
@@ -367,13 +407,15 @@ function AdminSalonsContent() {
             </Select>
             <Select value={cityFilter} onValueChange={setCityFilter}>
               <SelectTrigger className="w-full sm:w-48">
-                <SelectValue placeholder="Ville" />
+                <SelectValue placeholder={citiesLoading ? "Chargement..." : "Ville"} />
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Toutes</SelectItem>
-                <SelectItem value="Alger">Alger</SelectItem>
-                <SelectItem value="Oran">Oran</SelectItem>
-                <SelectItem value="Constantine">Constantine</SelectItem>
+              <SelectContent position="popper" sideOffset={5}>
+                <SelectItem value="all">Toutes les villes</SelectItem>
+                {cities.map((city) => (
+                  <SelectItem key={city.id} value={city.name}>
+                    {city.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <Select
@@ -610,13 +652,7 @@ function AdminSalonsContent() {
               alert(message);
               setAddModalOpen(false);
               // Recharge la liste
-              fetch("/api/admin/salons")
-                .then((res) => res.json())
-                .then((data) => {
-                  if (data.success && data.data) {
-                    setSalons(data.data.salons || []);
-                  }
-                });
+              fetchSalons();
             }
           } catch (err) {
             alert("Erreur réseau: " + err);
@@ -651,9 +687,7 @@ function AdminSalonsContent() {
                 alert("Erreur: " + (result.error || "Modification impossible"));
               } else {
                 alert("Salon modifié avec succès");
-                fetch("/api/admin/salons")
-                  .then((res) => res.json())
-                  .then((data) => setSalons(data.salons || []));
+                fetchSalons();
               }
             } catch (err) {
               alert("Erreur réseau: " + err);
