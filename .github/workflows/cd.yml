@@ -1,0 +1,47 @@
+name: Deploy to Azure VM
+
+on:
+  workflow_run:
+    workflows: ["Build & Push Docker image"]
+    types:
+      - completed
+    branches: [main]
+  workflow_dispatch:  # Pour lancer manuellement
+
+env:
+  VM_HOST: ${{ secrets.VM_HOST }}
+  VM_USER: ${{ secrets.VM_USER }}
+  PROJECT_PATH: /home/azureyoka/saasykon
+  IMAGE_NAME: ghcr.io/itykon/saasykon-app:latest
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    
+    steps:
+    - name: Deploy to Azure VM via SSH
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ env.VM_HOST }}
+        username: ${{ env.VM_USER }}
+        key: ${{ secrets.VM_SSH_PRIVATE_KEY }}
+        script_stop: true  # Stoppe en cas d'erreur
+        script: |
+          echo "Début du déploiement sur VM"
+          cd ${{ env.PROJECT_PATH }}
+          
+          echo "Connexion à GHCR"
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          
+          echo "Pull de la nouvelle image"
+          docker compose pull
+          
+          echo "Redémarrage du conteneur"
+          docker compose up -d --remove-orphans
+          
+          echo "Nettoyage des anciennes images"
+          docker image prune -af
+          
+          echo "Déploiement terminé !"
+          docker ps --filter "name=saasykon"
