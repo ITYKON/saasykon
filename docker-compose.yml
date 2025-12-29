@@ -20,3 +20,5 @@ services:
 networks:
   saasykon-network:
     driver: bridge
+
+

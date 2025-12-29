@@ -6,13 +6,12 @@ on:
     types:
       - completed
     branches: [main]
-  workflow_dispatch:  # Pour lancer manuellement
+  workflow_dispatch:
 
 env:
   VM_HOST: ${{ secrets.VM_HOST }}
   VM_USER: ${{ secrets.VM_USER }}
   PROJECT_PATH: /home/azureyoka/saasykon
-  IMAGE_NAME: ghcr.io/itykon/saasykon-app:latest
 
 jobs:
   deploy:
@@ -26,13 +25,17 @@ jobs:
         host: ${{ env.VM_HOST }}
         username: ${{ env.VM_USER }}
         key: ${{ secrets.VM_SSH_PRIVATE_KEY }}
-        script_stop: true  # Stoppe en cas d'erreur
+        script_stop: true
         script: |
+          echo "Nettoyage du port 3000"
+          docker stop $(docker ps -q --filter "publish=3000") 2>/dev/null || true
+          docker rm $(docker ps -aq --filter "publish=3000") 2>/dev/null || true
+          
           echo "Début du déploiement sur VM"
           cd ${{ env.PROJECT_PATH }}
           
           echo "Connexion à GHCR"
-          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
           
           echo "Pull de la nouvelle image"
           docker compose pull
@@ -42,6 +45,6 @@ jobs:
           
           echo "Nettoyage des anciennes images"
           docker image prune -af
-          
+        
           echo "Déploiement terminé !"
-          docker ps --filter "name=saasykon"
+          docker compose ps
