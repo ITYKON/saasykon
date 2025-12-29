@@ -8,6 +8,9 @@ services:
       args:
         - NEXT_PUBLIC_API_URL=http://localhost:3000/api
     container_name: saasykon-app
+    services:
+  saasykon:
+    image: ghcr.io/itykon/saasykon-app:latest  
     ports:
       - "3000:3000"
     environment:
