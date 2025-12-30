@@ -89,8 +89,11 @@ export default function LoginPage() {
                         setError(data.error || "Impossible de se connecter")
                         return
                       }
-                      //  CORRECTION : Forcer le rechargement pour que le middleware lise les cookies
-                      window.location.href = "/admin/dashboard";
+                      //  CORRECTION : Délai de 100ms pour laisser le navigateur sauvegarder les cookies
+                      setTimeout(() => {
+                        //  CORRECTION : Forcer le rechargement complet pour que le middleware lise les cookies
+                        window.location.href = "/admin/dashboard";
+                      }, 100);
                     } catch (e) {
                       setError("Erreur réseau")
                     }
