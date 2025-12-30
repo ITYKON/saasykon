@@ -39,7 +39,16 @@ async function logSuccessfulLogin(userId: string, email: string) {
 export async function POST(request: Request) {
   console.log('Début de la tentative de connexion');
   try {
-    const { email, password } = await request.json();
+    // CORRECTION : Protection contre les erreurs de parsing JSON
+    let body;
+    try {
+      body = await request.json();
+    } catch (parseError) {
+      console.error('Erreur de parsing JSON:', parseError);
+      return NextResponse.json({ error: "Corps de requête invalide" }, { status: 400 });
+    }
+    
+    const { email, password } = body;
     console.log('Tentative de connexion pour l\'email:', email);
     
     if (!email || !password) {
