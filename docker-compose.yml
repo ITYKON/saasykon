@@ -11,6 +11,7 @@ services:
       - PORT=3000
       - NEXT_PUBLIC_API_URL=http://localhost:3000/api
       - INTERNAL_API_URL=http://host.docker.internal:3000/api
+      - DATABASE_URL=postgresql://ahlem.aissou@yatek.fr:Ahlemaz2025@yoka-postgres-01.postgres.database.azure.com:5432/postgres?schema=public&sslmode=require
     extra_hosts:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped
