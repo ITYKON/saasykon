@@ -4,7 +4,8 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { randomBytes, randomInt } from "crypto";
 
-const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME || "saas_session";
+//  CORRECTION : Utiliser le même nom que le middleware attend
+const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME || "session_token";
 const SESSION_TTL_SECONDS = Number(process.env.SESSION_TTL_SECONDS || 60 * 60 * 24 * 7); // 7 days
 
 export async function hashPassword(plainPassword: string): Promise<string> {
@@ -72,63 +73,82 @@ function generateSessionToken(): string {
 }
 
 export async function createSession(userId: string) {
+  console.log('[createSession] Début création session pour userId:', userId);
+  
   const token = generateSessionToken();
   const expiresAt = new Date(Date.now() + SESSION_TTL_SECONDS * 1000);
 
-  await prisma.sessions.create({
-    data: {
-      user_id: userId,
-      token,
-      expires_at: expiresAt,
-    },
-  });
+  try {
+    await prisma.sessions.create({
+      data: {
+        user_id: userId,
+        token,
+        expires_at: expiresAt,
+      },
+    });
+    console.log('[createSession] Session créée en base pour userId:', userId);
+  } catch (error) {
+    console.error('[createSession] Erreur création session:', error);
+    throw error;
+  }
 
-  const cookieValue = token;
-  const response = NextResponse.json({ ok: true });
-  response.cookies.set(SESSION_COOKIE_NAME, cookieValue, {
+  //  CORRECTION : Utiliser un NextResponse.json() pour bien définir les cookies
+  const response = NextResponse.json({ success: true, message: 'Session créée' });
+  
+  //  CORRECTION : Utiliser l'expiration correcte et les bons attributs
+  response.cookies.set({
+    name: SESSION_COOKIE_NAME,
+    value: token,
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
-    expires: expiresAt,
     path: "/",
+    expires: expiresAt,
   });
+  console.log('[createSession] Cookie session défini:', SESSION_COOKIE_NAME, '=', token);
 
   // Also set a readable roles cookie for middleware/client redirects
-  const userRoles = await prisma.user_roles.findMany({
-    where: { user_id: userId },
-    include: { roles: true },
-  });
-  
-  const roleCodes = userRoles.map((ur) => ur.roles.code).join(",");
-  
-  response.cookies.set("saas_roles", roleCodes, {
-    httpOnly: false,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    expires: expiresAt,
-    path: "/",
-  });
-  
-  // Set business_id cookie for middleware
-  // If user has ANY role with business_id '00000000-0000-0000-0000-000000000000', use that; otherwise first business_id
-  let businessId = "";
-  const special = userRoles.find((ur) => ur.business_id === "00000000-0000-0000-0000-000000000000");
-  
-  if (special) {
-    businessId = special.business_id;
-  } else if (userRoles.length > 0) {
-    businessId = userRoles[0].business_id;
-  }
-  
-  if (businessId) {
-    response.cookies.set("business_id", businessId, {
+  try {
+    const userRoles = await prisma.user_roles.findMany({
+      where: { user_id: userId },
+      include: { roles: true },
+    });
+    
+    const roleCodes = userRoles.map((ur) => ur.roles.code).join(",");
+    
+    response.cookies.set("saas_roles", roleCodes, {
       httpOnly: false,
       sameSite: "lax",
       secure: process.env.NODE_ENV === "production",
-      expires: expiresAt,
       path: "/",
+      expires: expiresAt,
     });
+    console.log('[createSession] Cookie roles défini:', roleCodes);
+    
+    // Set business_id cookie for middleware
+    let businessId = "";
+    const special = userRoles.find((ur) => ur.business_id === "00000000-0000-0000-0000-000000000000");
+    
+    if (special) {
+      businessId = special.business_id;
+    } else if (userRoles.length > 0) {
+      businessId = userRoles[0].business_id;
+    }
+    
+    if (businessId) {
+      response.cookies.set("business_id", businessId, {
+        httpOnly: false,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+        path: "/",
+        expires: expiresAt,
+      });
+      console.log('[createSession] Cookie business_id défini:', businessId);
+    }
+  } catch (error) {
+    console.error('[createSession] Erreur création cookies roles/business:', error);
   }
+  
   return response;
 }
 
@@ -187,10 +207,33 @@ function getRequestDomain() {
 export async function getAuthUserFromCookies() {
   const cookieStore = cookies();
   const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
-  if (!token) return null;
-  const session = await prisma.sessions.findUnique({ where: { token }, include: { users: true } }).catch(() => null);
-  if (!session || session.expires_at < new Date()) return null;
-  return session.users;
+  
+  if (!token) {
+    console.log('[getAuthUserFromCookies] Aucun token trouvé');
+    return null;
+  }
+  
+  try {
+    const session = await prisma.sessions.findUnique({ 
+      where: { token }, 
+      include: { users: true } 
+    }).catch(() => null);
+    
+    if (!session) {
+      console.log('[getAuthUserFromCookies] Session non trouvée');
+      return null;
+    }
+    
+    if (session.expires_at < new Date()) {
+      console.log('[getAuthUserFromCookies] Session expirée');
+      await prisma.sessions.delete({ where: { token } }).catch(() => {});
+      return null;
+    }
+    
+    console.log('[getAuthUserFromCookies] Utilisateur authentifié:', session.users.id);
+    return session.users;
+  } catch (error) {
+    console.error('[getAuthUserFromCookies] Erreur:', error);
+    return null;
+  }
 }
-
-

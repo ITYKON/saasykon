@@ -39,7 +39,7 @@ async function logSuccessfulLogin(userId: string, email: string) {
 export async function POST(request: Request) {
   console.log('Début de la tentative de connexion');
   try {
-    // CORRECTION : Protection contre les erreurs de parsing JSON
+    //  CORRECTION : Protection contre les erreurs de parsing JSON
     let body;
     try {
       body = await request.json();
@@ -113,9 +113,19 @@ export async function POST(request: Request) {
     await logSuccessfulLogin(user.id, email);
     
     console.log('Création de la session pour l\'utilisateur ID:', user.id);
-    // Create session and role/business cookies
-    const res = await createSession(user.id);
+    //  CORRECTION : Créer la session et obtenir la réponse avec cookies
+    const sessionResponse = await createSession(user.id);
     console.log('Session créée avec succès');
+    
+    //  CORRECTION : Créer une nouvelle réponse qui combine le succès et les cookies
+    const response = NextResponse.json({ success: true, message: 'Connexion réussie' });
+    
+    // Copier les cookies de la session vers la réponse finale
+    const cookies = sessionResponse.headers.get('set-cookie');
+    if (cookies) {
+      response.headers.set('set-cookie', cookies);
+    }
+    
     // Sync onboarding_done cookie for PRO guard based on DB flag
     try {
       console.log('Vérification de l\'onboarding pour l\'utilisateur ID:', user.id);
@@ -131,7 +141,7 @@ export async function POST(request: Request) {
       console.log('Onboarding status:', done ? 'Complété' : 'Non complété');
       
       if (done) {
-        res.cookies.set("onboarding_done", "true", { 
+        response.cookies.set("onboarding_done", "true", { 
           httpOnly: false, 
           sameSite: "lax", 
           secure: process.env.NODE_ENV === 'production', 
@@ -141,7 +151,7 @@ export async function POST(request: Request) {
         console.log('Cookie onboarding_done défini à true');
       } else {
         // ensure it is cleared so middleware redirects to /pro/onboarding
-        res.cookies.set("onboarding_done", "false", { 
+        response.cookies.set("onboarding_done", "false", { 
           httpOnly: false, 
           sameSite: "lax", 
           secure: process.env.NODE_ENV === 'production', 
@@ -153,6 +163,7 @@ export async function POST(request: Request) {
     } catch (error) {
       console.error('Erreur lors de la vérification de l\'onboarding:', error);
     }
+    
     // Fallback: if user owns businesses but has no PRO role, auto-assign PRO
     try {
       const [assignments, owned, proRole] = await Promise.all([
@@ -173,7 +184,7 @@ export async function POST(request: Request) {
         const refreshed = await prisma.user_roles.findMany({ where: { user_id: user.id }, include: { roles: true } });
         const roleCodes = refreshed.map((ur) => ur.roles.code).join(",");
         const expiresAt = new Date(Date.now() + (Number(process.env.SESSION_TTL_SECONDS || 60 * 60 * 24 * 7)) * 1000);
-        res.cookies.set("saas_roles", roleCodes, { httpOnly: false, sameSite: "lax", secure: process.env.NODE_ENV === "production", expires: expiresAt, path: "/" });
+        response.cookies.set("saas_roles", roleCodes, { httpOnly: false, sameSite: "lax", secure: process.env.NODE_ENV === "production", expires: expiresAt, path: "/" });
       }
       
       // Définir le business_id pour les utilisateurs PRO
@@ -181,7 +192,7 @@ export async function POST(request: Request) {
       if (userRoles.includes('PRO') && owned.length > 0) {
         const businessId = owned[0].id; // Prend le premier business de la liste
         const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 7); // 7 jours
-        res.cookies.set("business_id", businessId, {
+        response.cookies.set("business_id", businessId, {
           httpOnly: false,
           sameSite: "lax",
           secure: process.env.NODE_ENV === "production",
@@ -191,10 +202,11 @@ export async function POST(request: Request) {
         console.log('Définition du business_id:', businessId);
       }
     } catch {}
-    return res;
+    
+    console.log('Réponse envoyée avec cookies');
+    return response;
   } catch (error) {
+    console.error('Erreur serveur:', error);
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
   }
 }
-
-
