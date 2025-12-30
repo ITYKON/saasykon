@@ -89,18 +89,8 @@ export default function LoginPage() {
                         setError(data.error || "Impossible de se connecter")
                         return
                       }
-                      // Redirect accordingly (consider special admin business id)
-                      const next = searchParams?.get("next")
-                      if (next) return router.push(next)
-
-                      const me = await fetch("/api/auth/me").then((r) => r.json()).catch(() => null)
-                      const roles = me?.user?.roles || []
-                      // Prefer explicit YOKA ADMIN role to determine admin access. The API /api/auth/me
-                      // now returns permissions and assignments; do not trust the business_id cookie
-                      // Redirection en fonction du rôle de l'utilisateur
-                      if (roles.includes("ADMIN")) return router.push("/admin/dashboard")
-                      if (roles.includes("PRO") || roles.includes("EMPLOYEE")) return router.push("/pro/dashboard")
-                      return router.push("/client/dashboard")
+                      //  CORRECTION : Forcer le rechargement pour que le middleware lise les cookies
+                      window.location.href = "/client/dashboard";
                     } catch (e) {
                       setError("Erreur réseau")
                     }
