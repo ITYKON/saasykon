@@ -90,7 +90,7 @@ export default function LoginPage() {
                         return
                       }
                       //  CORRECTION : Forcer le rechargement pour que le middleware lise les cookies
-                      window.location.href = "/client/dashboard";
+                      window.location.href = "/admin/dashboard";
                     } catch (e) {
                       setError("Erreur réseau")
                     }
