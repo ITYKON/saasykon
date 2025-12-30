@@ -13,12 +13,6 @@ RUN npm ci --legacy-peer-deps
 # Copier le reste du code
 COPY . .
 
-# Generer le client prisma
-RUN npx prisma generate
-
-# ✅ CORRECTION : Utiliser le bon nom de fichier
-COPY app/.env.docker.build ./.env.production
-
 # Build Next.js
 RUN npm run build
 
@@ -32,13 +26,19 @@ ENV HOSTNAME=0.0.0.0
 ENV PORT=3000
 ENV NEXT_TELEMETRY_DISABLED=1
 
+# Installer Prisma CLI (nécessaire pour générer au runtime)
+RUN npm install -g prisma
+
 # Créer un utilisateur non-root
 RUN addgroup -g 1001 -S nodejs && adduser -S nextjs -u 1001
 
-# Copier les fichiers buildés
+# Copier TOUT ce qui est nécessaire
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules  # Garde node_modules complet
+COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma              # Copie le dossier prisma
+COPY --from=builder --chown=nextjs:nodejs /app/package.json ./
 
 # Donner les bonnes permissions
 RUN chown -R nextjs:nodejs /app
@@ -48,5 +48,5 @@ USER nextjs
 # Exposer le port
 EXPOSE 3000
 
-# Commande de démarrage
-CMD ["node", "server.js"]
+#  Générer Prisma avec la DATABASE_URL au RUNTIME puis démarrer
+CMD ["sh", "-c", "npx prisma generate && node server.js"]
