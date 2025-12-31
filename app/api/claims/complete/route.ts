@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/rateLimit";
 import { createHash } from "crypto";
-import { createSession, hashPassword } from "@/lib/auth";
+import { createSessionData, setAuthCookies, hashPassword } from "@/lib/auth";
 
 function getIp(req: NextRequest) {
   return (
@@ -152,14 +152,16 @@ export async function POST(req: NextRequest) {
   }
 
   // Create session on successful completion
-  let sessionResponse = null;
+  let sessionData = null;
   if (complete_now && hasAllDocuments) {
     // Always create session when completing successfully
-    sessionResponse = await createSession(claim.user_id);
+    sessionData = await createSessionData(claim.user_id);
   } else if (!complete_now) {
     // Also create session when saving for later
-    sessionResponse = await createSession(claim.user_id);
+    sessionData = await createSessionData(claim.user_id);
   }
+
+  // ... (roles/event logs logic omitted as it is separate blocks, we need to bridge the gap)
 
   // Ensure user has PRO role
   try {
@@ -218,8 +220,15 @@ export async function POST(req: NextRequest) {
       .catch(() => {});
   }
 
-  if (sessionResponse) {
-    return sessionResponse; // Returns { ok: true } with cookies and redirect handled by middleware
+  if (sessionData) {
+    const response = NextResponse.json({
+        ok: true,
+        message: complete_now && hasAllDocuments 
+            ? "Documents submitted and verification requested" 
+            : "Documents saved. You can complete later.",
+        has_all_documents: hasAllDocuments,
+    });
+    return setAuthCookies(response, sessionData);
   }
 
   return NextResponse.json({

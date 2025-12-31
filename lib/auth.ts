@@ -5,7 +5,7 @@ import { NextResponse } from "next/server";
 import { randomBytes, randomInt } from "crypto";
 
 //  CORRECTION : Utiliser le même nom que le middleware attend
-const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME || "session_token";
+const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME || "saas_session";
 const SESSION_TTL_SECONDS = Number(process.env.SESSION_TTL_SECONDS || 60 * 60 * 24 * 7); // 7 days
 
 export async function hashPassword(plainPassword: string): Promise<string> {
@@ -72,8 +72,8 @@ function generateSessionToken(): string {
   return randomBytes(32).toString("base64url");
 }
 
-export async function createSession(userId: string) {
-  console.log('[createSession] Début création session pour userId:', userId);
+export async function createSessionData(userId: string) {
+  console.log('[createSessionData] Début création session pour userId:', userId);
   
   const token = generateSessionToken();
   const expiresAt = new Date(Date.now() + SESSION_TTL_SECONDS * 1000);
@@ -86,47 +86,25 @@ export async function createSession(userId: string) {
         expires_at: expiresAt,
       },
     });
-    console.log('[createSession] Session créée en base pour userId:', userId);
+    console.log('[createSessionData] Session créée en base pour userId:', userId);
   } catch (error) {
-    console.error('[createSession] Erreur création session:', error);
+    console.error('[createSessionData] Erreur création session:', error);
     throw error;
   }
 
-  //  CORRECTION : Utiliser un NextResponse.json() pour bien définir les cookies
-  const response = NextResponse.json({ success: true, message: 'Session créée' });
-  
-  //  CORRECTION : Utiliser l'expiration correcte et les bons attributs
-  response.cookies.set({
-    name: SESSION_COOKIE_NAME,
-    value: token,
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    expires: expiresAt,
-  });
-  console.log('[createSession] Cookie session défini:', SESSION_COOKIE_NAME, '=', token);
+  // Also get roles and business_id for the cookie
+  let roleCodes = "";
+  let businessId = "";
 
-  // Also set a readable roles cookie for middleware/client redirects
   try {
     const userRoles = await prisma.user_roles.findMany({
       where: { user_id: userId },
       include: { roles: true },
     });
     
-    const roleCodes = userRoles.map((ur) => ur.roles.code).join(",");
-    
-    response.cookies.set("saas_roles", roleCodes, {
-      httpOnly: false,
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-      path: "/",
-      expires: expiresAt,
-    });
-    console.log('[createSession] Cookie roles défini:', roleCodes);
+    roleCodes = userRoles.map((ur) => ur.roles.code).join(",");
     
     // Set business_id cookie for middleware
-    let businessId = "";
     const special = userRoles.find((ur) => ur.business_id === "00000000-0000-0000-0000-000000000000");
     
     if (special) {
@@ -134,22 +112,67 @@ export async function createSession(userId: string) {
     } else if (userRoles.length > 0) {
       businessId = userRoles[0].business_id;
     }
-    
-    if (businessId) {
-      response.cookies.set("business_id", businessId, {
-        httpOnly: false,
-        sameSite: "lax",
-        secure: process.env.NODE_ENV === "production",
-        path: "/",
-        expires: expiresAt,
-      });
-      console.log('[createSession] Cookie business_id défini:', businessId);
-    }
   } catch (error) {
-    console.error('[createSession] Erreur création cookies roles/business:', error);
+    console.error('[createSessionData] Erreur récupération roles/business:', error);
   }
   
+  return {
+    token,
+    expiresAt,
+    roleCodes,
+    businessId
+  };
+}
+
+export function setAuthCookies(response: NextResponse, sessionData: { token: string, expiresAt: Date, roleCodes: string, businessId: string }) {
+  const { token, expiresAt, roleCodes, businessId } = sessionData;
+
+  const isSecure = process.env.NODE_ENV === "production" && process.env.DISABLE_SECURE_COOKIES !== "true";
+
+  console.log(`[setAuthCookies] Config - Secure: ${isSecure}, NodeEnv: ${process.env.NODE_ENV}, DisableSecure: ${process.env.DISABLE_SECURE_COOKIES}`);
+
+  // Session Cookie
+  response.cookies.set({
+    name: SESSION_COOKIE_NAME,
+    value: token,
+    httpOnly: true,
+    sameSite: "lax",
+    secure: isSecure,
+    path: "/",
+    expires: expiresAt,
+  });
+  console.log('[setAuthCookies] Cookie session défini:', SESSION_COOKIE_NAME);
+
+  // Roles Cookie
+  response.cookies.set("saas_roles", roleCodes, {
+    httpOnly: false,
+    sameSite: "lax",
+    secure: isSecure,
+    path: "/",
+    expires: expiresAt,
+  });
+  console.log('[setAuthCookies] Cookie roles défini:', roleCodes);
+  
+  // Business ID Cookie
+  if (businessId) {
+    response.cookies.set("business_id", businessId, {
+      httpOnly: false,
+      sameSite: "lax",
+      secure: isSecure,
+      path: "/",
+      expires: expiresAt,
+    });
+    console.log('[setAuthCookies] Cookie business_id défini:', businessId);
+  }
+
   return response;
+}
+
+// Deprecated: keeping for backward compatibility if needed temporarily, but should be removed
+export async function createSession(userId: string) {
+  const data = await createSessionData(userId);
+  const response = NextResponse.json({ success: true, message: 'Session créée' });
+  return setAuthCookies(response, data);
 }
 
 export async function destroySessionFromRequestCookie() {
@@ -161,37 +184,34 @@ export async function destroySessionFromRequestCookie() {
   }
 
   const isProduction = process.env.NODE_ENV === 'production';
-  const domain = isProduction ? '.railway.app' : 'localhost';
+  const isSecure = isProduction && process.env.DISABLE_SECURE_COOKIES !== "true";
   
   const response = NextResponse.json({ ok: true });
   
   // Suppression du cookie de session
   response.cookies.set(SESSION_COOKIE_NAME, '', {
     httpOnly: true,
-    secure: isProduction,
+    secure: isSecure,
     sameSite: 'lax',
     path: '/',
-    domain: isProduction ? domain : undefined,
     expires: new Date(0)
   });
 
   // Suppression du cookie des rôles
   response.cookies.set('saas_roles', '', {
     httpOnly: false,
-    secure: isProduction,
+    secure: isSecure,
     sameSite: 'lax',
     path: '/',
-    domain: isProduction ? domain : undefined,
     expires: new Date(0)
   });
 
   // Suppression du cookie business_id
   response.cookies.set('business_id', '', {
     httpOnly: false,
-    secure: isProduction,
+    secure: isSecure,
     sameSite: 'lax',
     path: '/',
-    domain: isProduction ? domain : undefined,
     expires: new Date(0)
   });
 

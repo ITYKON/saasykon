@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { hashPassword, createSession } from "@/lib/auth";
+import { hashPassword, createSessionData, setAuthCookies } from "@/lib/auth";
 import { createHash } from "crypto";
 
 export async function POST(request: Request) {
@@ -103,17 +103,15 @@ export async function POST(request: Request) {
     }
 
     // Créer une session pour l'utilisateur
-    const sessionResponse = await createSession(user.id);
-
-    if (sessionResponse) {
-      return sessionResponse;
-    }
-
-    return NextResponse.json({
+    const sessionData = await createSessionData(user.id);
+    const response = NextResponse.json({
       ok: true,
       userId: user.id,
       hasPassword: true,
     });
+    return setAuthCookies(response, sessionData);
+
+
   } catch (error) {
     console.error("Erreur lors de la définition du mot de passe:", error);
     return NextResponse.json(

@@ -12,6 +12,7 @@ services:
       - NEXT_PUBLIC_API_URL=http://localhost:3000/api
       - INTERNAL_API_URL=http://host.docker.internal:3000/api
       - DATABASE_URL=postgresql://azureyoka:Ahlemaz2025@yoka-postgres-01.postgres.database.azure.com:5432/saas__yoka?schema=public&sslmode=require
+      - DISABLE_SECURE_COOKIES=${DISABLE_SECURE_COOKIES:-false}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { hashPassword, createSession } from "@/lib/auth";
+import { hashPassword, createSessionData, setAuthCookies } from "@/lib/auth";
 
 export async function POST(request: Request) {
   try {
@@ -35,7 +35,9 @@ export async function POST(request: Request) {
       },
     });
 
-    return await createSession(user.id);
+    const sessionData = await createSessionData(user.id);
+    const response = NextResponse.json({ success: true, message: 'Compte créé avec succès' });
+    return setAuthCookies(response, sessionData);
   } catch (error) {
     console.error('Erreur lors de l\'inscription:', error);
     if (error instanceof Error) {

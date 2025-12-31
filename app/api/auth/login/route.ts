@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { verifyPassword, createSession } from "@/lib/auth";
+import { verifyPassword, createSessionData, setAuthCookies } from "@/lib/auth";
 
 // Fonction pour enregistrer une tentative de connexion échouée
 async function logFailedLoginAttempt(userId: string | null, email: string) {
@@ -113,18 +113,16 @@ export async function POST(request: Request) {
     await logSuccessfulLogin(user.id, email);
     
     console.log('Création de la session pour l\'utilisateur ID:', user.id);
-    //  CORRECTION : Créer la session et obtenir la réponse avec cookies
-    const sessionResponse = await createSession(user.id);
+    
+    // Create session data
+    const sessionData = await createSessionData(user.id);
     console.log('Session créée avec succès');
     
-    //  CORRECTION : Créer une nouvelle réponse qui combine le succès et les cookies
+    // Create response
     const response = NextResponse.json({ success: true, message: 'Connexion réussie' });
     
-    // Copier les cookies de la session vers la réponse finale
-    const cookies = sessionResponse.headers.get('set-cookie');
-    if (cookies) {
-      response.headers.set('set-cookie', cookies);
-    }
+    // Set auth cookies on response
+    setAuthCookies(response, sessionData);
     
     // Sync onboarding_done cookie for PRO guard based on DB flag
     try {
