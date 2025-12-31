@@ -41,14 +41,14 @@ export async function middleware(request: NextRequest) {
   // Gestion de la déconnexion
   if (pathname === "/auth/logout") {
     const isProduction = process.env.NODE_ENV === 'production'
-    const domain = isProduction ? 'saasykon-production.up.railway.app' : 'localhost'
+    const isSecure = isProduction && process.env.DISABLE_SECURE_COOKIES !== "true"
     
     const response = NextResponse.redirect(new URL('/auth/login', request.url))
     
     // Suppression des cookies
     const cookieOptions = {
       httpOnly: true,
-      secure: isProduction,
+      secure: isSecure,
       sameSite: 'lax' as const,
       path: '/',
       maxAge: 0,
@@ -56,23 +56,18 @@ export async function middleware(request: NextRequest) {
     }
     
     // Suppression du cookie de session
-    response.cookies.set(SESSION_COOKIE_NAME, '', {
-      ...cookieOptions,
-      domain: isProduction ? domain : undefined
-    })
+    response.cookies.set(SESSION_COOKIE_NAME, '', cookieOptions)
     
     // Suppression du cookie des rôles
     response.cookies.set('saas_roles', '', {
       ...cookieOptions,
       httpOnly: false,
-      domain: isProduction ? domain : undefined
     })
     
     // Suppression du cookie business_id
     response.cookies.set('business_id', '', {
       ...cookieOptions,
       httpOnly: false,
-      domain: isProduction ? domain : undefined
     })
     
     return response
