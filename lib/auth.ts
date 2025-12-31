@@ -129,6 +129,8 @@ export function setAuthCookies(response: NextResponse, sessionData: { token: str
 
   const isSecure = process.env.NODE_ENV === "production" && process.env.DISABLE_SECURE_COOKIES !== "true";
 
+  console.log(`[setAuthCookies] Config - Secure: ${isSecure}, NodeEnv: ${process.env.NODE_ENV}, DisableSecure: ${process.env.DISABLE_SECURE_COOKIES}`);
+
   // Session Cookie
   response.cookies.set({
     name: SESSION_COOKIE_NAME,
