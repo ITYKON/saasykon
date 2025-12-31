@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/rateLimit";
 import { createHash } from "crypto";
-import { createSession, hashPassword } from "@/lib/auth";
+import { createSessionData, setAuthCookies, hashPassword } from "@/lib/auth";
 
 function getIp(req: NextRequest) {
   return req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.ip || "";
@@ -67,7 +67,9 @@ export async function POST(req: NextRequest) {
   } catch {}
 
   // Create session cookie response
-  const res = await createSession(invite!.user_id);
+  const sessionData = await createSessionData(invite!.user_id);
+  const res = NextResponse.json({ ok: true });
+  setAuthCookies(res, sessionData);
 
   // If this user is linked to an employee account, set the business_id cookie to that employee's business
   try {
