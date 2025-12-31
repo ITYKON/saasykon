@@ -11,31 +11,7 @@ import { Input } from "@/components/ui/input"
 import Link from "next/link"
 import Image from "next/image"
 import { buildSalonSlug } from "@/lib/salon-slug"
-
-type Business = {
-  id: string
-  name: string
-  description?: string
-  category?: string
-  logo_url?: string
-  cover_url?: string
-  rating: number
-  reviewCount: number
-  location?: {
-    address: string
-    city?: string
-    postalCode?: string
-    latitude?: number
-    longitude?: number
-  }
-  media: Array<{ url: string; type?: string; position?: number }>
-  services: Array<{ id: string; name: string; price_cents?: number; duration_minutes?: number }>
-  employeesCount: number
-  isPremium: boolean
-  isNew: boolean
-  isTop: boolean
-  city?: string
-}
+import type { Business } from "@/types/business"
 
 export default function SearchPage() {
   const searchParams = useSearchParams()
@@ -45,76 +21,121 @@ export default function SearchPage() {
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [query, setQuery] = useState(searchParams?.get("q") ?? "")
-const [location, setLocation] = useState(searchParams?.get("location") ?? "")
-const [category, setCategory] = useState(searchParams?.get("category") ?? "")
+  const [location, setLocation] = useState(searchParams?.get("location") ?? "")
+  const [category, setCategory] = useState(searchParams?.get("category") ?? "")
   const [selectedService, setSelectedService] = useState<string | null>(null)
   const [showFilters, setShowFilters] = useState(false)
   
   // Services populaires pour les filtres
-  const popularServices = [
-    "Coupe femme",
-    "Coupe homme",
-    "Brushing",
-    "Coloration de cheveux",
-    "Coloration sans ammoniaque",
-    "Balayage / mèches",
-    "Tie & dye",
-    "Manucure",
-    "Pédicure",
-    "Massage"
-  ]
+  const [popularServices, setPopularServices] = useState<string[]>([])
 
+  useEffect(() => {
+    // Charger les services populaires depuis l'API
+    const fetchPopularServices = async () => {
+      try {
+        const res = await fetch('/api/services/popular');
+        if (res.ok) {
+          const data = await res.json();
+          setPopularServices(data);
+        }
+      } catch (e) {
+        console.error("Erreur chargement services populaires", e);
+        // Fallback vide en cas d'erreur pour ne pas afficher de services qui n'existent pas
+        setPopularServices([]);
+      }
+    };
+    fetchPopularServices();
+  }, []);
+
+  // Effet pour gérer la recherche avec debounce
   useEffect(() => {
     const fetchResults = async () => {
       setLoading(true)
       try {
         const params = new URLSearchParams()
         if (query) params.set("q", query)
-        // On ne garde que le paramètre de recherche par nom d'institut
+        if (location) params.set("location", location)
+        
+        // Si la requête et la localisation sont vides, on réinitialise les résultats
+        if (!query.trim() && !location.trim()) {
+          setBusinesses([])
+          setTotal(0)
+          setPage(1)
+          router.push('/search')
+          return
+        }
+        
+        // Mise à jour de l'URL avec les paramètres actuels
+        const newUrl = `/search?${params.toString()}`
+        if (window.location.search !== `?${params.toString()}`) {
+          window.history.pushState({}, '', newUrl)
+        }
+        
         params.set("page", page.toString())
         
-        const response = await fetch(`/api/search-simple?${params.toString()}`)
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 10000) // Timeout après 10 secondes
+        
+        const response = await fetch(`/api/search-simple?${params.toString()}`, {
+          signal: controller.signal
+        })
+        
+        clearTimeout(timeoutId)
+        
         if (!response.ok) {
           throw new Error(`Erreur HTTP: ${response.status}`)
         }
+        
         const data = await response.json()
         
         if (data.businesses) {
           setBusinesses(data.businesses)
           setTotal(data.total)
         }
-      } catch (error) {
-        console.error("Erreur lors de la recherche:", error)
-        // Afficher un message d'erreur à l'utilisateur si nécessaire
+      } catch (error: unknown) {
+        if (error instanceof Error && error.name !== 'AbortError') {
+          console.error("Erreur lors de la recherche:", error)
+          // Ici vous pourriez ajouter un état pour afficher un message d'erreur à l'utilisateur
+          setBusinesses([])
+          setTotal(0)
+        }
       } finally {
         setLoading(false)
       }
     }
 
-    if (query) {
-      fetchResults()
-    } else {
-      // Réinitialiser les résultats si la recherche est vide
-      setBusinesses([])
-      setTotal(0)
-    }
-  }, [query, page])
+    // Ajout d'un délai de 300ms pour éviter les appels API excessifs
+    const debounceTimer = setTimeout(() => {
+      if (query || location) {
+        fetchResults()
+      } else {
+        setBusinesses([])
+        setTotal(0)
+      }
+    }, 300)
+
+    // Nettoyage du timer si le composant est démonté ou si les dépendances changent
+    return () => clearTimeout(debounceTimer)
+  }, [query, location, page]) // Ajouter location aux dépendances
 
   const handleSearch = (e?: React.FormEvent) => {
     e?.preventDefault()
     
-    // Si aucun terme de recherche n'est fourni, on ne fait rien
-    if (!query.trim()) {
+    // Si aucun terme ni location, on ne fait rien
+    if (!query.trim() && !location.trim()) {
       return
     }
     
     // Réinitialiser la page à 1 lors d'une nouvelle recherche
     setPage(1)
     
-    // Mettre à jour l'URL avec le paramètre de recherche
+    // Mettre à jour l'URL avec les paramètres
     const params = new URLSearchParams()
-    params.set("q", query.trim())
-    router.push(`/search?${params.toString()}`)
+    if (query.trim()) params.set("q", query.trim())
+    if (location.trim()) params.set("location", location.trim())
+    
+    // Utiliser replace au lieu de push pour éviter l'accumulation dans l'historique
+    router.replace(`/search?${params.toString()}`, { scroll: false })
   }
   
   // Gestion de la soumission du formulaire avec la touche Entrée
@@ -161,7 +182,12 @@ const [category, setCategory] = useState(searchParams?.get("category") ?? "")
               <SearchIcon className="h-5 w-5 mr-2" />
               Rechercher
             </Button>
-            <Button variant="outline" className="h-11">
+            <Button 
+              type="button" // Important: pas 'submit'
+              variant="outline" 
+              className="h-11"
+              onClick={() => alert("La sélection par date arrive bientôt !")}
+            >
               <Calendar className="h-4 w-4 mr-2" />
               À tout moment
             </Button>
@@ -219,7 +245,7 @@ const [category, setCategory] = useState(searchParams?.get("category") ?? "")
           </p>
           {!loading && total > 0 && (
             <p className="text-sm text-gray-500 mt-1">
-              Classement des résultats par {total} avis
+              {total} résultats trouvés
             </p>
           )}
         </div>
@@ -258,9 +284,9 @@ const [category, setCategory] = useState(searchParams?.get("category") ?? "")
                       <div className="flex gap-4 p-4">
                         {/* Image */}
                         <div className="relative w-32 h-32 flex-shrink-0">
-                          {business.cover_url || business.media[0]?.url ? (
+                          {business.cover_url || business.media?.[0]?.url ? (
                             <Image
-                              src={business.cover_url || business.media[0].url}
+                              src={business.cover_url || business.media?.[0]?.url || ""}
                               alt={business.name}
                               fill
                               className="object-cover rounded"
@@ -286,27 +312,25 @@ const [category, setCategory] = useState(searchParams?.get("category") ?? "")
                               </h3>
                               {business.location && (
                                 <div className="flex items-center text-gray-600 text-sm mb-1">
-                                  <MapPin className="h-3 w-3 mr-1" />
-                                  <span>{business.location.address}</span>
+                                  <MapPin className="h-3 w-3 mr-1 flex-shrink-0" />
+                                  <span className="line-clamp-1">{business.location.address}</span>
                                 </div>
                               )}
-                              <div className="flex items-center">
-                                <Star className="h-4 w-4 text-yellow-500 fill-yellow-500 mr-1" />
-                                <span className="font-semibold text-black mr-1">
-                                  {business.rating.toFixed(1)}
-                                </span>
-                                <span className="text-gray-500 text-sm">
-                                  ({business.reviewCount} avis)
-                                </span>
-                                {business.isPremium && (
-                                  <span className="ml-2 text-xs text-gray-500">• €€€</span>
-                                )}
-                              </div>
+                              {business.description && (
+                                <p className="text-sm text-gray-600 line-clamp-2 mt-1">
+                                  {business.description}
+                                </p>
+                              )}
+                              {business.isPremium && (
+                                <div className="flex items-center">
+                                  <span className="text-xs text-gray-500">€€€</span>
+                                </div>
+                              )}
                             </div>
                           </div>
 
                           {/* Services et prix */}
-                          {business.services.length > 0 && (
+                          {business.services?.length > 0 && (
                             <div className="mt-3">
                               <div className="text-sm text-gray-700">
                                 {business.services.slice(0, 1).map((service) => (
@@ -340,12 +364,30 @@ const [category, setCategory] = useState(searchParams?.get("category") ?? "")
 
                         {/* Actions */}
                         <div className="flex flex-col gap-2">
-                          <Button size="sm" className="bg-black hover:bg-gray-800">
-                            Offrir
-                          </Button>
-                          <Button size="sm" variant="default" className="bg-black hover:bg-gray-800">
-                            Prendre RDV
-                          </Button>
+                          {business.claim_status === 'approved' ? (
+                            <>
+                              <Button size="sm" className="bg-black hover:bg-gray-800">
+                                Offrir
+                              </Button>
+                              <Button size="sm" variant="default" className="bg-black hover:bg-gray-800">
+                                Prendre RDV
+                              </Button>
+                            </>
+                          ) : (
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              className="border-blue-600 text-blue-600 hover:bg-blue-50"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                // Rediriger vers la page de revendication
+                                router.push(`/claim/${business.id}`);
+                              }}
+                            >
+                              Revendiquer ce salon
+                            </Button>
+                          )}
                         </div>
                       </div>
                     </Card>
