@@ -381,8 +381,12 @@ export default function SearchPage() {
                               onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
-                                // Rediriger vers la page de revendication
-                                router.push(`/claim/${business.id}`);
+                                // Rediriger vers la page de revendication avec les paramètres requis
+                                const params = new URLSearchParams({
+                                  business_id: business.id,
+                                  business_name: business.name
+                                });
+                                router.push(`/claims?${params.toString()}`);
                               }}
                             >
                               Revendiquer ce salon
