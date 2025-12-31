@@ -307,10 +307,10 @@ export async function POST(request: Request) {
       console.log(
         "[Business Verification API] Erreur de validation: numéro RC manquant"
       );
-      return errorResponse("Le numéro RC est requis", 400, {
-        errorCode: "MISSING_RC_NUMBER",
-        field: "rcNumber",
-      });
+      return errorResponse("Fichier interdit : extension ou type non autorisé", 400, {
+  errorCode: "FILE_FORBIDDEN",
+  field: "file",
+});
     }
 
     // Vérification des fichiers requis

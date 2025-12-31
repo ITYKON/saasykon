@@ -27,7 +27,25 @@ yarn-error.log*
 next-env.d.ts
 /lib/generated/prisma
 
-# Tests
-tests/
-scripts
-api_list.md
+# Scripts et tests
+/scripts/
+!/scripts/check-business.ts
+!/scripts/check-documents.ts
+
+# Fichiers de test
+/test-*.js
+/test-results/
+test-screenshot.png
+leads-insertion.log
+
+# Fichiers de documentation de test
+CAHIER_DE_TESTS_COMPLET.md
+cahier_test_technique.md
+
+# Autres dossiers
+/docs
+/tests
+
+# Fichiers de données de test
+public/exemple.pdf
+local-blob/

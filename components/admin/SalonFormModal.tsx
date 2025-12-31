@@ -1,4 +1,6 @@
-import React, { useState } from "react";
+"use client";
+
+import React, { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
@@ -25,8 +27,10 @@ export const SalonFormModal: React.FC<SalonFormModalProps> = ({
   initialSalon,
   mode = "add",
 }) => {
+  console.log("🚀 SalonFormModal (DEBUG V3) Mounted");
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [form, setForm] = useState(
     initialSalon || {
       legal_name: "",
@@ -38,7 +42,7 @@ export const SalonFormModal: React.FC<SalonFormModalProps> = ({
       website: "",
       vat_number: "",
       category_code: "",
-      location: initialSalon?.business_locations?.[0]?.address_line1 || "", // Add location field from existing data
+      location: initialSalon?.business_locations?.[0]?.address_line1 || "", 
       logo_url: "",
       cover_url: "",
       status: "actif",
@@ -49,7 +53,7 @@ export const SalonFormModal: React.FC<SalonFormModalProps> = ({
       reviewCount: 0,
       totalBookings: 0,
       monthlyRevenue: 0,
-      create_for_claim: false, // Nouveau champ pour créer sans propriétaire
+      create_for_claim: false, 
     }
   );
 
@@ -64,21 +68,54 @@ export const SalonFormModal: React.FC<SalonFormModalProps> = ({
     setForm({ ...form, [e.target.name]: e.target.value });
   }
 
-  function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
     const { name, files } = e.target;
     if (files && files[0]) {
+      const file = files[0];
+      
+      // Preview
       const reader = new FileReader();
       reader.onload = (ev) => {
         if (name === "logo_url") setLogoPreview(ev.target?.result as string);
         if (name === "cover_url") setCoverPreview(ev.target?.result as string);
       };
-      reader.readAsDataURL(files[0]);
-      // Pour l'instant, on stocke le DataURL dans le form, à remplacer par l'URL backend après upload réel
-      setForm({ ...form, [name]: URL.createObjectURL(files[0]) });
+      reader.readAsDataURL(file);
+
+      // Upload
+      const formData = new FormData();
+      formData.append("file", file);
+
+      try {
+        setIsUploading(true);
+        toast({ title: "Upload en cours (Nouveau Système)...", description: "Veuillez patienter avant de sauvegarder." });
+        
+        const res = await fetch("/api/admin/salons/upload", {
+          method: "POST",
+          body: formData,
+        });
+        
+        if (!res.ok) throw new Error("Erreur upload");
+        
+        const data = await res.json();
+        const serverUrl = data.url; 
+        
+        setForm((prev: any) => ({ ...prev, [name]: serverUrl }));
+        
+        toast({ title: "Image uploadée", description: `OK: ${serverUrl}` });
+      } catch (error) {
+        console.error("Upload error:", error);
+        toast({ title: "Erreur", description: "Upload échoué.", variant: "destructive" });
+      } finally {
+        setIsUploading(false);
+      }
     }
   }
 
   async function handleSubmit(e: React.FormEvent) {
+    if (isUploading) {
+      toast({ title: "Attendez !", description: "L'image est en cours d'envoi.", variant: "destructive" });
+      return;
+    }
     e.preventDefault();
     if (isSubmitting) return;
     setIsSubmitting(true);
@@ -358,10 +395,12 @@ export const SalonFormModal: React.FC<SalonFormModalProps> = ({
               type="submit"
               variant="default"
               className="rounded-full px-6"
-              disabled={isSubmitting}
+              disabled={isSubmitting || isUploading}
             >
               {isSubmitting
                 ? "Enregistrement..."
+                : isUploading
+                ? "Upload en cours..."
                 : mode === "add"
                 ? "Ajouter"
                 : "Enregistrer"}

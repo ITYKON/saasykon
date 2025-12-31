@@ -74,8 +74,11 @@ export async function POST(req: Request) {
     const body = await req.json();
     const parse = createRoleSchema.safeParse(body);
     if (!parse.success) {
-      return NextResponse.json({ error: "Validation error", details: parse.error }, { status: 400 });
-    }
+  return NextResponse.json(
+    { error: "Le nom doit faire entre 3 et 50 caractères." },
+    { status: 400 }
+  );
+}
     const { name } = parse.data;
     const code = parse.data.code ?? generateRoleCodeFromName(name);
     const permissionCodes = [...new Set(parse.data.permissions)];
@@ -112,14 +115,17 @@ export async function POST(req: Request) {
       include: { role_permissions: { include: { permissions: true } } },
     });
 
-    return NextResponse.json({
-      role: {
-        id: created.id,
-        code: created.code,
-        name: created.name,
-        permissions: created.role_permissions.map((rp) => rp.permissions.code),
-      },
-    });
+    return NextResponse.json(
+  {
+    role: {
+      id: created.id,
+      code: created.code,
+      name: created.name,
+      permissions: created.role_permissions.map((rp) => rp.permissions.code),
+    },
+  },
+  { status: 201 }
+);
   } catch (e: any) {
     console.error("[POST /api/admin/roles] Error:", e);
     if (e?.code === "P2002") {

@@ -117,14 +117,8 @@ model businesses {
   owner_user_id                         String                         @db.Uuid
   legal_name                            String
   public_name                           String
-  description                           String?
   email                                 String?
   phone                                 String?
-  website                               String?
-  vat_number                            String?
-  category_code                         String?
-  logo_url                              String?
-  cover_url                             String?
   created_at                            DateTime                       @default(now()) @db.Timestamptz(6)
   updated_at                            DateTime                       @default(now()) @db.Timestamptz(6)
   archived_at                           DateTime?                      @db.Timestamptz(6)

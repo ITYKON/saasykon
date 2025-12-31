@@ -8,7 +8,10 @@
     "dev": "next dev",
     "lint": "next lint",
     "start": "next start",
-    "seed:plans": "node -r dotenv/config scripts/seed-plans.js"
+    "seed:plans": "node -r dotenv/config scripts/seed-plans.js",
+    "test": "npx playwright test",
+    "test:email": "npx playwright test tests/auth/email-validation.test.js",
+    "split-test": "node -r dotenv/config scripts/test-split-businesses.js"
   },
   "dependencies": {
     "@auth/core": "^0.34.3",
@@ -50,6 +53,7 @@
     "@vercel/analytics": "latest",
     "@vis.gl/react-google-maps": "^1.5.5",
     "autoprefixer": "^10.4.20",
+    "axios": "^1.13.2",
     "bcryptjs": "^3.0.2",
     "class-variance-authority": "^0.7.1",
     "cloudinary": "^2.7.0",
@@ -82,12 +86,17 @@
     "zod": "3.25.67"
   },
   "devDependencies": {
+    "@faker-js/faker": "^10.1.0",
+    "@playwright/test": "^1.57.0",
     "@tailwindcss/postcss": "^4.1.9",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.1",
     "@types/node": "^22",
     "@types/nodemailer": "^6.4.20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "dotenv": "^17.2.3",
+    "jest": "^30.2.0",
     "postcss": "^8.5",
     "prisma": "^6.16.2",
     "tailwindcss": "^4.1.9",

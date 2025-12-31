@@ -260,7 +260,7 @@ function AdminSalonsContent() {
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
               <h1 className="text-xl sm:text-2xl font-bold text-black">
-                Gestion des salons
+                Gestion des salons (DEBUG V3)
               </h1>
               <p className="text-sm sm:text-base text-gray-600 mt-1">
                 Surveillez et gérez toutes les salons de la plateforme.
