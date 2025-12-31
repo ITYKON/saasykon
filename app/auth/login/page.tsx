@@ -89,8 +89,8 @@ export default function LoginPage() {
                         setError(data.error || "Impossible de se connecter")
                         return
                       }
-                      //  CORRECTION : Attendre 300ms + router.push pour éviter le bug Next.js
-                      await new Promise(resolve => setTimeout(resolve, 300));
+                      //  CORRECTION : Attendre 1000ms + router.push pour éviter le bug Next.js
+                      await new Promise(resolve => setTimeout(resolve, 1000));
                       router.push("/client/dashboard");
                     } catch (e) {
                       setError("Erreur réseau")
