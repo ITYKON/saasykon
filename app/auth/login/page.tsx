@@ -89,11 +89,9 @@ export default function LoginPage() {
                         setError(data.error || "Impossible de se connecter")
                         return
                       }
-                      //  CORRECTION : Délai de 100ms pour laisser le navigateur sauvegarder les cookies
-                      setTimeout(() => {
-                        //  CORRECTION : Forcer le rechargement complet pour que le middleware lise les cookies
-                        window.location.href = "/admin/dashboard";
-                      }, 100);
+                      //  CORRECTION : Attendre 300ms + router.push pour éviter le bug Next.js
+                      await new Promise(resolve => setTimeout(resolve, 300));
+                      router.push("/client/dashboard");
                     } catch (e) {
                       setError("Erreur réseau")
                     }
