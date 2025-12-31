@@ -1,0 +1,38 @@
+name: Blob Storage Start
+
+on:
+  push:
+    branches: [blob-storage]
+
+env:
+  AZURE_STORAGE_ACCOUNT: monstockageprod
+  AZURE_STORAGE_KEY: ${{ secrets.AZURE_STORAGE_KEY }}
+  DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+jobs:
+  blob-init:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Create containers
+        run: node scripts/create-containers.js
+
+      - name: Upload local assets
+        run: node scripts/upload-local-assets.js
+
+      - name: Update DB URLs
+        run: node scripts/update-db-urls.js
+
+      - name: Test public access
+        run: |
+          echo "Testing logo URL"
+          curl -I https://monstockageprod.blob.core.windows.net/institut-photos/279f6089-941c-463d-81c1-799ed7f472bb/logo.jpg
