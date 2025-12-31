@@ -127,13 +127,15 @@ export async function createSessionData(userId: string) {
 export function setAuthCookies(response: NextResponse, sessionData: { token: string, expiresAt: Date, roleCodes: string, businessId: string }) {
   const { token, expiresAt, roleCodes, businessId } = sessionData;
 
+  const isSecure = process.env.NODE_ENV === "production" && process.env.DISABLE_SECURE_COOKIES !== "true";
+
   // Session Cookie
   response.cookies.set({
     name: SESSION_COOKIE_NAME,
     value: token,
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: isSecure,
     path: "/",
     expires: expiresAt,
   });
@@ -143,7 +145,7 @@ export function setAuthCookies(response: NextResponse, sessionData: { token: str
   response.cookies.set("saas_roles", roleCodes, {
     httpOnly: false,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: isSecure,
     path: "/",
     expires: expiresAt,
   });
@@ -154,7 +156,7 @@ export function setAuthCookies(response: NextResponse, sessionData: { token: str
     response.cookies.set("business_id", businessId, {
       httpOnly: false,
       sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
+      secure: isSecure,
       path: "/",
       expires: expiresAt,
     });
@@ -180,37 +182,34 @@ export async function destroySessionFromRequestCookie() {
   }
 
   const isProduction = process.env.NODE_ENV === 'production';
-  const domain = isProduction ? '.railway.app' : 'localhost';
+  const isSecure = isProduction && process.env.DISABLE_SECURE_COOKIES !== "true";
   
   const response = NextResponse.json({ ok: true });
   
   // Suppression du cookie de session
   response.cookies.set(SESSION_COOKIE_NAME, '', {
     httpOnly: true,
-    secure: isProduction,
+    secure: isSecure,
     sameSite: 'lax',
     path: '/',
-    domain: isProduction ? domain : undefined,
     expires: new Date(0)
   });
 
   // Suppression du cookie des rôles
   response.cookies.set('saas_roles', '', {
     httpOnly: false,
-    secure: isProduction,
+    secure: isSecure,
     sameSite: 'lax',
     path: '/',
-    domain: isProduction ? domain : undefined,
     expires: new Date(0)
   });
 
   // Suppression du cookie business_id
   response.cookies.set('business_id', '', {
     httpOnly: false,
-    secure: isProduction,
+    secure: isSecure,
     sameSite: 'lax',
     path: '/',
-    domain: isProduction ? domain : undefined,
     expires: new Date(0)
   });
 
