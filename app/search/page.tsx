@@ -365,14 +365,9 @@ export default function SearchPage() {
                         {/* Actions */}
                         <div className="flex flex-col gap-2">
                           {business.claim_status === 'approved' ? (
-                            <>
-                              <Button size="sm" className="bg-black hover:bg-gray-800">
-                                Offrir
-                              </Button>
-                              <Button size="sm" variant="default" className="bg-black hover:bg-gray-800">
-                                Prendre RDV
-                              </Button>
-                            </>
+                            <Button size="sm" variant="default" className="bg-black hover:bg-gray-800 w-full">
+                              Prendre RDV
+                            </Button>
                           ) : (
                             <Button 
                               size="sm" 
