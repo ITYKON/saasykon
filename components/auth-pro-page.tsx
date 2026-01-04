@@ -2,9 +2,20 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { Search, Check } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { wilayas } from "@/lib/wilayas";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,14 +46,15 @@ export default function AuthProLanding() {
     lastName: "",
     email: "",
     phone: "",
-    phoneCountry: "+33",
+    phoneCountry: "+213",
     city: "",
     businessType: "",
     consent: false,
   });
+  const router = useRouter();
   const [showConsentError, setShowConsentError] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
 
-  // (ligne supprimée, déjà dans le state)
   function update<K extends keyof LeadFormState>(key: K, value: LeadFormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
@@ -76,9 +88,10 @@ export default function AuthProLanding() {
         const msg = data?.error || `Erreur API (${res.status})`;
         throw new Error(msg);
       }
-      setForm({ companyName: "", firstName: "", lastName: "", email: "", phone: "", phoneCountry: "+33", city: "", businessType: "", consent: false });
-      toast.success("Merci !", { description: "Un expert vous contactera sous 24h." });
-      // Option: navigate to a confirmation section instead of page
+      setForm({ companyName: "", firstName: "", lastName: "", email: "", phone: "", phoneCountry: "+213", city: "", businessType: "", consent: false });
+      setIsSuccess(true);
+      // toast.success("Merci !", { description: "Un expert vous contactera sous 24h." });
+      
       if (typeof window !== "undefined") {
         window.location.hash = "contact";
       }
@@ -142,22 +155,57 @@ Créez votre compte gratuitement et commencez dès maintenant.</p>
                   </div>
                 </div>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div>
+                  <div className="relative">
                     <Label>Type d'activité</Label>
-                    <Select value={form.businessType} onValueChange={(v) => update("businessType", v)}>
+                    <Select value={form.businessType} onValueChange={(v) => update("businessType", v)} required>
                       <SelectTrigger>
                         <SelectValue placeholder="Sélectionner" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent position="popper" side="bottom" align="start" avoidCollisions={false} className="rounded-xl shadow-xl border-border/50" sideOffset={5}>
                        
+                        
                         <SelectItem value="beaute">Institut de beauté</SelectItem>
-                      
+                        
                       </SelectContent>
                     </Select>
+                    <input 
+                      type="text" 
+                      className="h-px w-px opacity-0 absolute bottom-0 left-0 -z-10 pointer-events-none" 
+                      tabIndex={-1}
+                      value={form.businessType}
+                      onChange={() => {}}
+                      required
+                    />
                   </div>
-                  <div>
+                  <div className="relative">
                     <Label htmlFor="city">Ville</Label>
-                    <Input id="city" value={form.city} onChange={(e) => update("city", e.target.value)} />
+                    <Select value={form.city} onValueChange={(v) => update("city", v)} required>
+                      <SelectTrigger className="w-full h-12 px-4 text-base border-2 border-gray-200 hover:border-primary transition-colors rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                        <SelectValue placeholder="Sélectionner une ville" />
+                      </SelectTrigger>
+                      <SelectContent 
+                        position="popper"
+                        side="bottom"
+                        align="start"
+                        sideOffset={5}
+                        avoidCollisions={false}
+                        className="w-[var(--radix-select-trigger-width)] max-h-[300px] rounded-xl shadow-xl border border-gray-100 bg-white overflow-auto mt-1"
+                      >
+                        {wilayas.map((wilaya: string) => (
+                          <SelectItem key={wilaya} value={wilaya}>
+                            {wilaya}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <input 
+                      type="text" 
+                      className="h-px w-px opacity-0 absolute bottom-0 left-0 -z-10 pointer-events-none" 
+                      tabIndex={-1}
+                      value={form.city}
+                      onChange={() => {}}
+                      required
+                    />
                   </div>
                 </div>
                 <div className="flex flex-col gap-2">
@@ -184,6 +232,28 @@ Créez votre compte gratuitement et commencez dès maintenant.</p>
           </Card>
         </div>
       </section>
+
+      <Dialog open={isSuccess} onOpenChange={setIsSuccess}>
+        <DialogContent className="sm:max-w-[380px] p-0 overflow-hidden border-0 shadow-lg">
+          <div className="flex flex-col items-center justify-center text-center p-8 space-y-4">
+            <div className="rounded-full bg-green-50 p-3">
+              <Check className="h-6 w-6 text-green-600" strokeWidth={3} />
+            </div>
+            <div className="space-y-1.5">
+              <DialogTitle className="text-lg font-semibold tracking-tight">Merci !</DialogTitle>
+              <DialogDescription className="text-sm text-muted-foreground max-w-[280px] mx-auto leading-normal">
+                Votre demande a bien été enregistrée.<br/>
+                Un expert YOKA vous recontactera dans les plus brefs délais !
+              </DialogDescription>
+            </div>
+          </div>
+          <div className="px-8 pb-8 flex justify-center">
+            <Button type="button" className="w-full h-9 text-sm font-medium shadow-sm transition-all" onClick={() => router.push("/")}>
+              J'ai compris
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <section className="w-full bg-muted/30">
         <div className="mx-auto grid max-w-6xl grid-cols-1 gap-6 px-4 py-10 sm:grid-cols-3">

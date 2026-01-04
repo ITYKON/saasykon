@@ -70,6 +70,7 @@ export function PhoneInput({ value, onChange, country, onCountryChange, required
         onChange={onChange}
         placeholder="Ex : 06 86 26 44 44"
         className="border-0 focus:ring-0"
+        required={required}
         {...props}
       />
     </div>
