@@ -2,11 +2,20 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
-import { Search } from "lucide-react";
+import { Search, Check } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { wilayas } from "@/lib/wilayas";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -42,8 +51,9 @@ export default function AuthProLanding() {
     businessType: "",
     consent: false,
   });
-  
+  const router = useRouter();
   const [showConsentError, setShowConsentError] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
 
   function update<K extends keyof LeadFormState>(key: K, value: LeadFormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -79,8 +89,9 @@ export default function AuthProLanding() {
         throw new Error(msg);
       }
       setForm({ companyName: "", firstName: "", lastName: "", email: "", phone: "", phoneCountry: "+213", city: "", businessType: "", consent: false });
-      toast.success("Merci !", { description: "Un expert vous contactera sous 24h." });
-      // Option: navigate to a confirmation section instead of page
+      setIsSuccess(true);
+      // toast.success("Merci !", { description: "Un expert vous contactera sous 24h." });
+      
       if (typeof window !== "undefined") {
         window.location.hash = "contact";
       }
@@ -144,7 +155,7 @@ Créez votre compte gratuitement et commencez dès maintenant.</p>
                   </div>
                 </div>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div>
+                  <div className="relative">
                     <Label>Type d'activité</Label>
                     <Select value={form.businessType} onValueChange={(v) => update("businessType", v)} required>
                       <SelectTrigger>
@@ -159,7 +170,7 @@ Créez votre compte gratuitement et commencez dès maintenant.</p>
                     </Select>
                     <input 
                       type="text" 
-                      className="h-px w-px opacity-0 absolute pointer-events-none" 
+                      className="h-px w-px opacity-0 absolute bottom-0 left-0 -z-10 pointer-events-none" 
                       tabIndex={-1}
                       value={form.businessType}
                       onChange={() => {}}
@@ -187,6 +198,14 @@ Créez votre compte gratuitement et commencez dès maintenant.</p>
                         ))}
                       </SelectContent>
                     </Select>
+                    <input 
+                      type="text" 
+                      className="h-px w-px opacity-0 absolute bottom-0 left-0 -z-10 pointer-events-none" 
+                      tabIndex={-1}
+                      value={form.city}
+                      onChange={() => {}}
+                      required
+                    />
                   </div>
                 </div>
                 <div className="flex flex-col gap-2">
@@ -213,6 +232,28 @@ Créez votre compte gratuitement et commencez dès maintenant.</p>
           </Card>
         </div>
       </section>
+
+      <Dialog open={isSuccess} onOpenChange={setIsSuccess}>
+        <DialogContent className="sm:max-w-[380px] p-0 overflow-hidden border-0 shadow-lg">
+          <div className="flex flex-col items-center justify-center text-center p-8 space-y-4">
+            <div className="rounded-full bg-green-50 p-3">
+              <Check className="h-6 w-6 text-green-600" strokeWidth={3} />
+            </div>
+            <div className="space-y-1.5">
+              <DialogTitle className="text-lg font-semibold tracking-tight">Merci !</DialogTitle>
+              <DialogDescription className="text-sm text-muted-foreground max-w-[280px] mx-auto leading-normal">
+                Votre demande a bien été enregistrée.<br/>
+                Un expert YOKA vous recontactera dans les plus brefs délais !
+              </DialogDescription>
+            </div>
+          </div>
+          <div className="px-8 pb-8 flex justify-center">
+            <Button type="button" className="w-full h-9 text-sm font-medium shadow-sm transition-all" onClick={() => router.push("/")}>
+              J'ai compris
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <section className="w-full bg-muted/30">
         <div className="mx-auto grid max-w-6xl grid-cols-1 gap-6 px-4 py-10 sm:grid-cols-3">
