@@ -2,9 +2,11 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { Search } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { wilayas } from "@/lib/wilayas";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,14 +37,14 @@ export default function AuthProLanding() {
     lastName: "",
     email: "",
     phone: "",
-    phoneCountry: "+33",
+    phoneCountry: "+213",
     city: "",
     businessType: "",
     consent: false,
   });
+  
   const [showConsentError, setShowConsentError] = useState(false);
 
-  // (ligne supprimée, déjà dans le state)
   function update<K extends keyof LeadFormState>(key: K, value: LeadFormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
@@ -76,7 +78,7 @@ export default function AuthProLanding() {
         const msg = data?.error || `Erreur API (${res.status})`;
         throw new Error(msg);
       }
-      setForm({ companyName: "", firstName: "", lastName: "", email: "", phone: "", phoneCountry: "+33", city: "", businessType: "", consent: false });
+      setForm({ companyName: "", firstName: "", lastName: "", email: "", phone: "", phoneCountry: "+213", city: "", businessType: "", consent: false });
       toast.success("Merci !", { description: "Un expert vous contactera sous 24h." });
       // Option: navigate to a confirmation section instead of page
       if (typeof window !== "undefined") {
@@ -144,20 +146,47 @@ Créez votre compte gratuitement et commencez dès maintenant.</p>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div>
                     <Label>Type d'activité</Label>
-                    <Select value={form.businessType} onValueChange={(v) => update("businessType", v)}>
+                    <Select value={form.businessType} onValueChange={(v) => update("businessType", v)} required>
                       <SelectTrigger>
                         <SelectValue placeholder="Sélectionner" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent position="popper" side="bottom" align="start" avoidCollisions={false} className="rounded-xl shadow-xl border-border/50" sideOffset={5}>
                        
+                        
                         <SelectItem value="beaute">Institut de beauté</SelectItem>
-                      
+                        
                       </SelectContent>
                     </Select>
+                    <input 
+                      type="text" 
+                      className="h-px w-px opacity-0 absolute pointer-events-none" 
+                      tabIndex={-1}
+                      value={form.businessType}
+                      onChange={() => {}}
+                      required
+                    />
                   </div>
-                  <div>
+                  <div className="relative">
                     <Label htmlFor="city">Ville</Label>
-                    <Input id="city" value={form.city} onChange={(e) => update("city", e.target.value)} />
+                    <Select value={form.city} onValueChange={(v) => update("city", v)} required>
+                      <SelectTrigger className="w-full h-12 px-4 text-base border-2 border-gray-200 hover:border-primary transition-colors rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                        <SelectValue placeholder="Sélectionner une ville" />
+                      </SelectTrigger>
+                      <SelectContent 
+                        position="popper"
+                        side="bottom"
+                        align="start"
+                        sideOffset={5}
+                        avoidCollisions={false}
+                        className="w-[var(--radix-select-trigger-width)] max-h-[300px] rounded-xl shadow-xl border border-gray-100 bg-white overflow-auto mt-1"
+                      >
+                        {wilayas.map((wilaya: string) => (
+                          <SelectItem key={wilaya} value={wilaya}>
+                            {wilaya}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
                 <div className="flex flex-col gap-2">
