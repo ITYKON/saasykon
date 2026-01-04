@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -21,6 +22,7 @@ export default function RegisterPage() {
   })
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
+  const [showConsentError, setShowConsentError] = useState(false)
   const router = useRouter()
 
   return (
@@ -77,7 +79,6 @@ export default function RegisterPage() {
                       placeholder="Entrez votre numéro..."
                     />
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">J'accepte les CGU de YOKA</p>
                 </div>
 
                 <div>
@@ -115,26 +116,62 @@ export default function RegisterPage() {
                     </button>
                   </div>
                 </div>
-              </div>
 
-              {error && (
+              </div>
+                                <div className="flex flex-col gap-2">
+                  <div className="flex items-start gap-3">
+                    <Checkbox 
+                      id="consent" 
+                      checked={formData.acceptTerms} 
+                      onCheckedChange={(v) => {
+                        setFormData({ ...formData, acceptTerms: Boolean(v) });
+                        if (v) setShowConsentError(false);
+                      }} 
+                    />
+               <Label
+                 htmlFor="consent"
+                 className="text-sm font-normal text-muted-foreground"
+               >
+                 <span className="inline">
+                   J'accepte les conditions d'utilisation, la{" "}
+                   <Link
+                     href="/a-propos/mentions-legales"
+                     className="text-primary underline hover:text-primary/80"
+                   >
+                     politique de confidentialité
+                   </Link>
+                   .
+                 </span>
+                </Label>
+
+                  </div>
+                  {showConsentError && (
+                    <p className="text-sm text-red-500">Veuillez accepter les conditions générales.</p>
+                  )}
+                </div>
+
+              {/* {showConsentError && (
                 <div className="p-4 mb-4 text-sm text-red-700 bg-red-100 rounded-lg border border-red-200">
                   <div className="flex items-center">
                     <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
                       <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h2a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd"></path>
                     </svg>
-                    <span className="font-medium">Erreur</span>
-                  </div>
-                  <div className="mt-2">
-                    {error}
+                    <span className="font-medium">Veuillez accepter les conditions d'utilisation pour continuer.</span>
                   </div>
                 </div>
-              )}
+              )} */}
               <Button
                 className="w-full bg-black hover:bg-gray-800 text-white"
                 disabled={isPending}
                 onClick={() => {
                   setError(null)
+                  
+                  // Vérifier si l'utilisateur a accepté les conditions
+                  if (!formData.acceptTerms) {
+                    setShowConsentError(true);
+                    return;
+                  }
+                  
                   startTransition(async () => {
                     try {
                       const res = await fetch("/api/auth/register", {
