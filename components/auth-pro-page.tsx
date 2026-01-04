@@ -8,6 +8,8 @@ import { Search, Check } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { wilayas } from "@/lib/wilayas";
+import { isValidPhoneNumber } from "react-phone-number-input";
+import "react-phone-number-input/style.css";
 import {
   Dialog,
   DialogContent,
@@ -23,8 +25,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { PhoneInput } from "@/components/ui/phone-input";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 type LeadFormState = {
   companyName: string;
@@ -32,7 +34,6 @@ type LeadFormState = {
   lastName: string;
   email: string;
   phone: string;
-  phoneCountry: string;
   city: string;
   businessType: string;
   consent: boolean;
@@ -46,7 +47,6 @@ export default function AuthProLanding() {
     lastName: "",
     email: "",
     phone: "",
-    phoneCountry: "+213",
     city: "",
     businessType: "",
     consent: false,
@@ -54,6 +54,45 @@ export default function AuthProLanding() {
   const router = useRouter();
   const [showConsentError, setShowConsentError] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [emailError, setEmailError] = useState('');
+  const [firstNameError, setFirstNameError] = useState('');
+  const [lastNameError, setLastNameError] = useState('');
+
+  const validateEmail = (email: string) => {
+    // Vérifie le format de base et s'assure qu'il y a au moins 2 caractères après le point
+    const re = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/;
+    return re.test(email);
+  };
+
+  const handleNameChange = (field: 'firstName' | 'lastName', value: string) => {
+    update(field, value);
+    if (value && value.length < 4) {
+      field === 'firstName' 
+        ? setFirstNameError('Le prénom doit contenir au moins 4 caractères')
+        : setLastNameError('Le nom doit contenir au moins 4 caractères');
+    } else {
+      field === 'firstName' 
+        ? setFirstNameError('')
+        : setLastNameError('');
+    }
+  };
+
+  const handleEmailChange = (value: string) => {
+    update("email", value);
+    if (value) {
+      if (!value.includes('@')) {
+        setEmailError('Veuillez inclure un @ dans l\'adresse email');
+      } else if (!value.includes('.')) {
+        setEmailError('Veuillez inclure un domaine valide (ex: exemple@gmail.com)');
+      } else if (!validateEmail(value)) {
+        setEmailError('Veuillez entrer une adresse email valide avec une extension (ex: .com, .fr)');
+      } else {
+        setEmailError('');
+      }
+    } else {
+      setEmailError('');
+    }
+  };
 
   function update<K extends keyof LeadFormState>(key: K, value: LeadFormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -61,6 +100,27 @@ export default function AuthProLanding() {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    
+    // Validation des champs
+    let hasError = false;
+    
+    if (form.firstName.length < 4) {
+      setFirstNameError('Le prénom doit contenir au moins 4 caractères');
+      hasError = true;
+    }
+    
+    if (form.lastName.length < 4) {
+      setLastNameError('Le nom doit contenir au moins 4 caractères');
+      hasError = true;
+    }
+    
+    if (!validateEmail(form.email)) {
+      setEmailError('Veuillez entrer une adresse email valide avec une extension (ex: .com, .fr)');
+      hasError = true;
+    }
+    
+    if (hasError) return;
+    
     if (!form.consent) {
       setShowConsentError(true);
       return;
@@ -88,7 +148,7 @@ export default function AuthProLanding() {
         const msg = data?.error || `Erreur API (${res.status})`;
         throw new Error(msg);
       }
-      setForm({ companyName: "", firstName: "", lastName: "", email: "", phone: "", phoneCountry: "+213", city: "", businessType: "", consent: false });
+      setForm({ companyName: "", firstName: "", lastName: "", email: "", phone: "", city: "", businessType: "", consent: false });
       setIsSuccess(true);
       // toast.success("Merci !", { description: "Un expert vous contactera sous 24h." });
       
@@ -127,11 +187,47 @@ Créez votre compte gratuitement et commencez dès maintenant.</p>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div>
                     <Label htmlFor="firstName">Prénom</Label>
-                    <Input id="firstName" value={form.firstName} onChange={(e) => update("firstName", e.target.value)} required />
+                    <div className="space-y-2">
+                      <Input 
+                        id="firstName" 
+                        value={form.firstName} 
+                        onChange={(e) => handleNameChange('firstName', e.target.value)}
+                        onBlur={(e) => {
+                          if (e.target.value && e.target.value.length < 4) {
+                            setFirstNameError('Le prénom doit contenir au moins 4 caractères');
+                          } else {
+                            setFirstNameError('');
+                          }
+                        }}
+                        className={firstNameError ? 'border-red-500' : ''}
+                        required 
+                      />
+                      {firstNameError && (
+                        <p className="text-sm text-red-500 font-medium">{firstNameError}</p>
+                      )}
+                    </div>
                   </div>
                   <div>
                     <Label htmlFor="lastName">Nom</Label>
-                    <Input id="lastName" value={form.lastName} onChange={(e) => update("lastName", e.target.value)} required />
+                    <div className="space-y-2">
+                      <Input 
+                        id="lastName" 
+                        value={form.lastName} 
+                        onChange={(e) => handleNameChange('lastName', e.target.value)}
+                        onBlur={(e) => {
+                          if (e.target.value && e.target.value.length < 4) {
+                            setLastNameError('Le nom doit contenir au moins 4 caractères');
+                          } else {
+                            setLastNameError('');
+                          }
+                        }}
+                        className={lastNameError ? 'border-red-500' : ''}
+                        required 
+                      />
+                      {lastNameError && (
+                        <p className="text-sm text-red-500 font-medium">{lastNameError}</p>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <div>
@@ -141,17 +237,41 @@ Créez votre compte gratuitement et commencez dès maintenant.</p>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div>
                     <Label htmlFor="email">Email</Label>
-                    <Input id="email" type="email" value={form.email} onChange={(e) => update("email", e.target.value)} required />
+                    <div className="space-y-2">
+                      <Input 
+                        id="email" 
+                        type="email" 
+                        value={form.email} 
+                        onChange={(e) => handleEmailChange(e.target.value)}
+                        onBlur={(e) => {
+                          if (e.target.value && !validateEmail(e.target.value)) {
+                            setEmailError('Veuillez entrer une adresse email valide');
+                          } else {
+                            setEmailError('');
+                          }
+                        }}
+                        className={emailError ? 'border-red-500' : ''}
+                        required 
+                      />
+                      {emailError && (
+                        <p className="text-sm text-red-500 font-medium">{emailError}</p>
+                      )}
+                    </div>
                   </div>
                   <div>
-                    <Label htmlFor="phone">Téléphone</Label>
-                    <PhoneInput
-                      value={form.phone}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => update("phone", e.target.value)}
-                      country={form.phoneCountry}
-                      onCountryChange={(v: string) => update("phoneCountry", v)}
-                      required
-                    />
+                    <div className="space-y-2">
+                      <Label htmlFor="phone">Téléphone</Label>
+                      <PhoneInput
+                        value={form.phone}
+                        onChange={(value) => update("phone", value)}
+                        defaultCountry="DZ"
+                        required
+                        className={form.phone && !isValidPhoneNumber(form.phone) ? "border-red-500 rounded-lg" : ""}
+                      />
+                      {form.phone && !isValidPhoneNumber(form.phone) && (
+                        <p className="text-sm text-red-500 font-medium">Format invalide</p>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
