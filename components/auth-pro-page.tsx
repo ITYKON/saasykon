@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
@@ -28,7 +28,6 @@ type LeadFormState = {
 };
 
 export default function AuthProLanding() {
-  const { toast } = useToast();
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState<LeadFormState>({
     companyName: "",
@@ -41,6 +40,7 @@ export default function AuthProLanding() {
     businessType: "",
     consent: false,
   });
+  const [showConsentError, setShowConsentError] = useState(false);
 
   // (ligne supprimée, déjà dans le state)
   function update<K extends keyof LeadFormState>(key: K, value: LeadFormState[K]) {
@@ -50,9 +50,10 @@ export default function AuthProLanding() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.consent) {
-      toast({ title: "Consentement requis", description: "Veuillez accepter la politique de confidentialité." });
+      setShowConsentError(true);
       return;
     }
+    setShowConsentError(false);
     setSubmitting(true);
     try {
       const payload = {
@@ -76,13 +77,13 @@ export default function AuthProLanding() {
         throw new Error(msg);
       }
       setForm({ companyName: "", firstName: "", lastName: "", email: "", phone: "", phoneCountry: "+33", city: "", businessType: "", consent: false });
-      toast({ title: "Merci !", description: "Un expert vous contactera sous 24h." });
+      toast.success("Merci !", { description: "Un expert vous contactera sous 24h." });
       // Option: navigate to a confirmation section instead of page
       if (typeof window !== "undefined") {
         window.location.hash = "contact";
       }
     } catch (err: any) {
-      toast({ title: "Impossible d'envoyer votre demande", description: err?.message || "Merci de réessayer plus tard." });
+      toast.error("Impossible d'envoyer votre demande", { description: err?.message || "Merci de réessayer plus tard." });
     } finally {
       setSubmitting(false);
     }
@@ -148,11 +149,9 @@ Créez votre compte gratuitement et commencez dès maintenant.</p>
                         <SelectValue placeholder="Sélectionner" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="coiffure">Coiffure</SelectItem>
-                        <SelectItem value="barbier">Barbier</SelectItem>
+                       
                         <SelectItem value="beaute">Institut de beauté</SelectItem>
-                        <SelectItem value="manucure">Manucure</SelectItem>
-                        <SelectItem value="spa">Spa / Bien-être</SelectItem>
+                      
                       </SelectContent>
                     </Select>
                   </div>
@@ -161,11 +160,23 @@ Créez votre compte gratuitement et commencez dès maintenant.</p>
                     <Input id="city" value={form.city} onChange={(e) => update("city", e.target.value)} />
                   </div>
                 </div>
-                <div className="flex items-start gap-3">
-                  <Checkbox id="consent" checked={form.consent} onCheckedChange={(v) => update("consent", Boolean(v))} />
-                  <Label htmlFor="consent" className="text-sm font-normal text-muted-foreground">
-                    J’accepte les conditions d’utilisation et la politique de confidentialité.
-                  </Label>
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-start gap-3">
+                    <Checkbox 
+                      id="consent" 
+                      checked={form.consent} 
+                      onCheckedChange={(v) => {
+                        update("consent", Boolean(v));
+                        if (v) setShowConsentError(false);
+                      }} 
+                    />
+                    <Label htmlFor="consent" className="text-sm font-normal text-muted-foreground">
+                      J’accepte les conditions d’utilisation et la <Link href="/a-propos/mentions-legales" className="underline hover:text-primary">politique de confidentialité</Link>.
+                    </Label>
+                  </div>
+                  {showConsentError && (
+                    <p className="text-sm text-red-500">Veuillez accepter les conditions générales.</p>
+                  )}
                 </div>
                 <Button type="submit" disabled={submitting}>{submitting ? "Envoi..." : "S’inscrire"}</Button>
               </form>
