@@ -11,6 +11,7 @@ import {
   Edit,
   Trash2,
 } from "lucide-react";
+import { wilayas } from "@/lib/wilayas";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -65,6 +66,7 @@ function AdminSalonsContent() {
   const [salons, setSalons] = React.useState<Salon[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = React.useState(Date.now());
 
   React.useEffect(() => {
     console.log("Début de la récupération des salons...");
@@ -75,6 +77,7 @@ function AdminSalonsContent() {
     if (claimStatusFilter !== "all") {
       params.set("claim_status", claimStatusFilter);
     }
+    params.set("pageSize", "100");
 
     fetch(`/api/admin/salons?${params.toString()}`)
       .then(async (res) => {
@@ -102,7 +105,7 @@ function AdminSalonsContent() {
       .finally(() => {
         setLoading(false);
       });
-  }, [claimStatusFilter]);
+  }, [claimStatusFilter, lastUpdated]);
 
   // Modals et état salon sélectionné
   const [addModalOpen, setAddModalOpen] = React.useState(false);
@@ -128,8 +131,8 @@ function AdminSalonsContent() {
         ? true
         : salon.subscription?.toLowerCase() ===
           subscriptionFilter.toLowerCase();
-    // city: utilise business_locations[0]?.cities?.name si présent
-    const city = salon.business_locations?.[0]?.cities?.name || "";
+    // city: utilise business_locations[0]?.address_line1 (Wilaya) ou cities?.name si présent
+    const city = salon.business_locations?.[0]?.address_line1 || salon.business_locations?.[0]?.cities?.name || "";
     const matchCity =
       cityFilter === "all"
         ? true
@@ -139,13 +142,13 @@ function AdminSalonsContent() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "actif":
+      case "active":
         return "bg-green-100 text-green-800";
-      case "en attente":
+      case "pending_verification":
         return "bg-orange-100 text-orange-800";
-      case "suspendu":
+      case "suspended":
         return "bg-red-100 text-red-800";
-      case "inactif":
+      case "inactive":
         return "bg-gray-100 text-gray-800";
       default:
         return "bg-gray-100 text-gray-800";
@@ -227,14 +230,7 @@ function AdminSalonsContent() {
               </p>
             </div>
             <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-              <Button
-                variant="outline"
-                size="sm"
-                className="text-xs sm:text-sm w-full sm:w-auto"
-              >
-                <Filter className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                Filtres
-              </Button>
+              
               <Button
                 size="sm"
                 className="bg-black text-white hover:bg-gray-800 text-xs sm:text-sm w-full sm:w-auto"
@@ -271,7 +267,7 @@ function AdminSalonsContent() {
             <div className="flex items-center">
               <div className="h-6 w-6 sm:h-8 sm:w-8 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
                 <span className="text-green-600 font-bold text-sm sm:text-base">
-                  {salons.filter((s) => s.status === "actif").length}
+                  {salons.filter((s) => s.status === "active").length}
                 </span>
               </div>
               <div className="ml-3 sm:ml-4">
@@ -291,7 +287,7 @@ function AdminSalonsContent() {
             <div className="flex items-center">
               <div className="h-6 w-6 sm:h-8 sm:w-8 bg-orange-100 rounded-full flex items-center justify-center flex-shrink-0">
                 <span className="text-orange-600 font-bold text-sm sm:text-base">
-                  {salons.filter((s) => s.status === "en attente").length}
+                  {salons.filter((s) => s.status === "pending_verification").length}
                 </span>
               </div>
               <div className="ml-3 sm:ml-4">
@@ -345,10 +341,10 @@ function AdminSalonsContent() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tous</SelectItem>
-                <SelectItem value="actif">Actif</SelectItem>
-                <SelectItem value="en attente">En attente</SelectItem>
-                <SelectItem value="suspendu">Suspendu</SelectItem>
-                <SelectItem value="inactif">Inactif</SelectItem>
+                <SelectItem value="active">Actif</SelectItem>
+                <SelectItem value="pending_verification">En attente</SelectItem>
+                <SelectItem value="suspended">Suspendu</SelectItem>
+                <SelectItem value="inactive">Inactif</SelectItem>
               </SelectContent>
             </Select>
             <Select
@@ -371,9 +367,11 @@ function AdminSalonsContent() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Toutes</SelectItem>
-                <SelectItem value="Alger">Alger</SelectItem>
-                <SelectItem value="Oran">Oran</SelectItem>
-                <SelectItem value="Constantine">Constantine</SelectItem>
+                {wilayas.map((wilaya) => (
+                  <SelectItem key={wilaya} value={wilaya}>
+                    {wilaya}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <Select
@@ -440,13 +438,8 @@ function AdminSalonsContent() {
                 </div>
               </div>
               <div className="text-right">
-                <div className="flex items-center">
-                  <Star className="h-4 w-4 text-yellow-500 fill-current mr-1" />
-                  <span className="font-semibold">{salon.rating}</span>
-                </div>
-                <p className="text-xs text-gray-500">
-                  ({salon.reviewCount} avis)
-                </p>
+                
+
               </div>
               {/* </div> */}
 
@@ -602,64 +595,51 @@ function AdminSalonsContent() {
             if (!res.ok) {
               const errorMsg =
                 result.error || result.details || "Ajout impossible";
-              alert("Erreur: " + errorMsg);
+              throw new Error(errorMsg);
             } else {
-              const message = salon.create_for_claim
-                ? "Salon créé avec succès ! Il est maintenant disponible pour la revendication sur la page publique."
-                : "Salon ajouté avec succès";
-              alert(message);
-              setAddModalOpen(false);
-              // Recharge la liste
-              fetch("/api/admin/salons")
-                .then((res) => res.json())
-                .then((data) => {
-                  if (data.success && data.data) {
-                    setSalons(data.data.salons || []);
-                  }
-                });
-            }
-          } catch (err) {
-            alert("Erreur réseau: " + err);
-          }
-        }}
-        mode="add"
-      />
-      {selectedSalon && (
-        <SalonFormModal
-          open={editModalOpen}
-          onClose={() => setEditModalOpen(false)}
-          onSave={async (salon) => {
-            // S'assure que les champs requis sont transmis
-            const payload = {
-              ...selectedSalon,
-              ...salon,
-              id: selectedSalon.id,
-              country_code:
-                salon.country_code ?? selectedSalon.country_code ?? "DZ",
-              status: salon.status ?? selectedSalon.status ?? "actif",
-              subscription:
-                salon.subscription ?? selectedSalon.subscription ?? "Basic",
-            };
-            try {
-              const res = await fetch("/api/admin/salons", {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload),
-              });
-              const result = await res.json();
-              if (!res.ok) {
-                alert("Erreur: " + (result.error || "Modification impossible"));
-              } else {
-                alert("Salon modifié avec succès");
-                fetch("/api/admin/salons")
-                  .then((res) => res.json())
-                  .then((data) => setSalons(data.salons || []));
+                setLastUpdated(Date.now());
               }
             } catch (err) {
-              alert("Erreur réseau: " + err);
+              console.error("Erreur réseau: " + err);
+              throw err; // Propagate to modal
             }
-            setSelectedSalon(null);
           }}
+          mode="add"
+        />
+        {selectedSalon && (
+          <SalonFormModal
+            open={editModalOpen}
+            onClose={() => setEditModalOpen(false)}
+            onSave={async (salon) => {
+              // S'assure que les champs requis sont transmis
+              const payload = {
+                ...selectedSalon,
+                ...salon,
+                id: selectedSalon.id,
+                country_code:
+                  salon.country_code ?? selectedSalon.country_code ?? "DZ",
+                status: salon.status ?? selectedSalon.status ?? "active",
+                subscription:
+                  salon.subscription ?? selectedSalon.subscription ?? "Basic",
+              };
+              try {
+                const res = await fetch("/api/admin/salons", {
+                  method: "PUT",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify(payload),
+                });
+                const result = await res.json();
+                if (!res.ok) {
+                   throw new Error(result.error || "Modification impossible");
+                } else {
+                  setLastUpdated(Date.now());
+                }
+              } catch (err) {
+                console.error("Erreur réseau: " + err);
+                throw err;
+              }
+              setSelectedSalon(null);
+            }}
           initialSalon={selectedSalon}
           mode="edit"
         />
