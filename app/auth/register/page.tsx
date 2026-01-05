@@ -44,9 +44,10 @@ export default function RegisterPage() {
               <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="first_name">Prénom</Label>
+                    <Label htmlFor="first_name">Prénom *</Label>
                     <Input
                       id="first_name"
+                      required
                       value={formData.first_name}
                       onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
                       className="mt-1"
@@ -54,9 +55,10 @@ export default function RegisterPage() {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="last_name">Nom</Label>
+                    <Label htmlFor="last_name">Nom *</Label>
                     <Input
                       id="last_name"
+                      required
                       value={formData.last_name}
                       onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
                       className="mt-1"
@@ -73,6 +75,7 @@ export default function RegisterPage() {
                     <Input
                       id="phone"
                       type="tel"
+                      required
                       value={formData.phone}
                       onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                       className="rounded-l-none"
@@ -150,21 +153,43 @@ export default function RegisterPage() {
                   )}
                 </div>
 
-              {/* {showConsentError && (
-                <div className="p-4 mb-4 text-sm text-red-700 bg-red-100 rounded-lg border border-red-200">
-                  <div className="flex items-center">
-                    <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h2a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd"></path>
-                    </svg>
-                    <span className="font-medium">Veuillez accepter les conditions d'utilisation pour continuer.</span>
+                {error && (
+                  <div className="p-2 mb-2 text-sm text-red-700  ">
+                    <div className="flex items-center">
+                      <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h2a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd"></path>
+                      </svg>
+                      <span className="font-medium">{error}</span>
+                    </div>
                   </div>
-                </div>
-              )} */}
+                )}
               <Button
                 className="w-full bg-black hover:bg-gray-800 text-white"
                 disabled={isPending}
                 onClick={() => {
                   setError(null)
+                  
+                  // Validation des champs obligatoires
+                  if (!formData.first_name.trim()) {
+                    setError("Le prénom est obligatoire.");
+                    return;
+                  }
+                  if (!formData.last_name.trim()) {
+                    setError("Le nom est obligatoire.");
+                    return;
+                  }
+                  if (!formData.phone.trim()) {
+                    setError("Le numéro de téléphone est obligatoire.");
+                    return;
+                  }
+                  if (!formData.email.trim()) {
+                    setError("L'email est obligatoire.");
+                    return;
+                  }
+                  if (!formData.password.trim()) {
+                    setError("Le mot de passe est obligatoire.");
+                    return;
+                  }
                   
                   // Vérifier si l'utilisateur a accepté les conditions
                   if (!formData.acceptTerms) {
