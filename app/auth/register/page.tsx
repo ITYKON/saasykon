@@ -23,7 +23,27 @@ export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
   const [showConsentError, setShowConsentError] = useState(false)
+  const [emailError, setEmailError] = useState<string | null>(null)
   const router = useRouter()
+
+  const checkEmail = async (email: string) => {
+    if (!email.trim()) return;
+    try {
+      const res = await fetch("/api/auth/check-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      if (data.exists) {
+        setEmailError("Cet email est déjà utilisé.");
+      } else {
+        setEmailError(null);
+      }
+    } catch (error) {
+      console.error("Erreur lors de la vérification de l'email:", error);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -90,10 +110,17 @@ export default function RegisterPage() {
                     id="email"
                     type="email"
                     value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    onChange={(e) => {
+                      setFormData({ ...formData, email: e.target.value });
+                      setEmailError(null); // Clear error on change
+                    }}
+                    onBlur={(e) => checkEmail(e.target.value)}
                     className="mt-1"
                     placeholder="Email"
                   />
+                  {emailError && (
+                    <p className="text-sm text-red-500 mt-1">{emailError}</p>
+                  )}
                 </div>
 
                 <div>
@@ -188,6 +215,10 @@ export default function RegisterPage() {
                   }
                   if (!formData.password.trim()) {
                     setError("Le mot de passe est obligatoire.");
+                    return;
+                  }
+                  if (emailError) {
+                    setError(emailError);
                     return;
                   }
                   
