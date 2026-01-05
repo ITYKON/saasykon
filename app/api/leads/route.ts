@@ -31,7 +31,10 @@ export async function POST(req: NextRequest) {
   if (!owner_last_name) errors.owner_last_name = "Nom requis";
   if (!business_name) errors.business_name = "Nom du salon/institut requis";
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.email = "Email invalide";
-  if (Object.keys(errors).length) return NextResponse.json({ error: "Validation error", errors }, { status: 400 });
+  if (!phone) errors.phone = "Téléphone requis";
+  if (!activity_type) errors.activity_type = "Type d'activité requis";
+  if (!location) errors.location = "Ville requise";
+  if (Object.keys(errors).length) return NextResponse.json({ error: "Champs manquants", errors }, { status: 400 });
 
   const lead = await prisma.business_leads.create({
     data: {
