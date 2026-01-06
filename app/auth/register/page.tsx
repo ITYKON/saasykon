@@ -35,17 +35,78 @@ export default function RegisterPage() {
   const router = useRouter()
 
   const validateName = (name: string, type: 'first_name' | 'last_name') => {
-    if (name && name.length < 4) {
+    if (!name || name.trim() === '') {
       return type === 'first_name' 
-        ? 'Le prénom doit contenir au moins 4 caractères' 
-        : 'Le nom doit contenir au moins 4 caractères';
+        ? 'Le prénom est obligatoire' 
+        : 'Le nom est obligatoire';
+    }
+    if (name.length < 2) {
+      return type === 'first_name' 
+        ? 'Le prénom doit contenir au moins 2 caractères' 
+        : 'Le nom doit contenir au moins 2 caractères';
     }
     return null;
   };
 
+  const getNextError = () => {
+    // Vérification de l'ordre des champs selon l'ordre du formulaire
+    if (!formData.first_name.trim()) {
+      setFirstNameError('Le prénom est obligatoire');
+      return true;
+    } else if (formData.first_name.trim().length < 2) {
+      setFirstNameError('Le prénom doit contenir au moins 2 caractères');
+      return true;
+    }
+    
+    if (!formData.last_name.trim()) {
+      setLastNameError('Le nom est obligatoire');
+      return true;
+    } else if (formData.last_name.trim().length < 2) {
+      setLastNameError('Le nom doit contenir au moins 2 caractères');
+      return true;
+    }
+    
+    if (!formData.phone) {
+      setPhoneError('Le numéro de téléphone est obligatoire');
+      return true;
+    } else if (!isValidPhoneNumber(formData.phone)) {
+      setPhoneError('Numéro de téléphone invalide');
+      return true;
+    }
+    
+    if (!formData.email.trim()) {
+      setEmailError('L\'email est obligatoire');
+      return true;
+    } else if (!formData.email.includes('@') || !formData.email.includes('.')) {
+      setEmailError('Veuillez entrer une adresse email valide');
+      return true;
+    }
+    
+    if (!formData.password) {
+      setError('Le mot de passe est obligatoire');
+      return true;
+    } else if (formData.password.length < 6) {
+      setError('Le mot de passe doit contenir au moins 6 caractères');
+      return true;
+    }
+    
+    if (!formData.acceptTerms) {
+      setShowConsentError(true);
+      return true;
+    }
+    
+    return false; // Aucune erreur trouvée
+  };
+
   const validatePhone = (phone: string) => {
-    if (!phone) return 'Le numéro de téléphone est requis';
+    if (!phone || phone.trim() === '') return 'Le numéro de téléphone est obligatoire';
     if (!isValidPhoneNumber(phone)) return 'Numéro de téléphone invalide';
+    return null;
+  };
+
+  const validatePassword = (password: string) => {
+    if (!password || password.trim() === '') return 'Le mot de passe est obligatoire';
+    if (password.length < 6) return 'Le mot de passe doit contenir au moins 6 caractères';
     return null;
   };
 
@@ -245,31 +306,19 @@ export default function RegisterPage() {
                   e.preventDefault();
                   setError(null);
                   
-                  // Validation des champs
-                  const firstNameValidation = validateName(formData.first_name, 'first_name');
-                  const lastNameValidation = validateName(formData.last_name, 'last_name');
-                  const phoneValidation = validatePhone(formData.phone);
+                  // Réinitialisation des erreurs
+                  setError(null);
+                  setFirstNameError(null);
+                  setLastNameError(null);
+                  setPhoneError(null);
+                  setEmailError(null);
+                  setShowConsentError(false);
                   
-                  setFirstNameError(firstNameValidation);
-                  setLastNameError(lastNameValidation);
-                  setPhoneError(phoneValidation);
-                  
-                  // Vérification des conditions générales
-                  if (!formData.acceptTerms) {
-                    setShowConsentError(true);
+                  // Vérification des erreurs une par une
+                  if (getNextError()) {
                     return;
                   }
                   
-                  // Vérification des erreurs de validation
-                  if (firstNameValidation || lastNameValidation || phoneValidation || emailError) {
-                    return;
-                  }
-                  
-                  // Validation de l'email
-                  if (!formData.email.includes('@') || !formData.email.includes('.')) {
-                    setEmailError('Veuillez entrer une adresse email valide');
-                    return;
-                  }
                   
                   // Vérification de l'email existant
                   try {
@@ -315,7 +364,7 @@ export default function RegisterPage() {
                     
                     // Redirection après inscription réussie
                     router.push("/auth/login");
-                    toast.success("Inscription réussie ! Connectez-vous pour continuer.");
+                    toast.success("Inscription réussie !");
                     
                   } catch (error) {
                     console.error("Erreur lors de l'inscription:", error);
