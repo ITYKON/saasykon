@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useTransition } from "react"
+import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
@@ -9,6 +10,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Eye, EyeOff } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { PhoneInput } from "@/components/ui/phone-input"
+import { isValidPhoneNumber } from "react-phone-number-input"
+import { toast } from "sonner"
 
 export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false)
@@ -21,10 +25,29 @@ export default function RegisterPage() {
     acceptTerms: false,
   })
   const [error, setError] = useState<string | null>(null)
-  const [isPending, startTransition] = useTransition()
+  const [isPending] = useTransition()
   const [showConsentError, setShowConsentError] = useState(false)
   const [emailError, setEmailError] = useState<string | null>(null)
+  const [phoneError, setPhoneError] = useState<string | null>(null)
+  const [firstNameError, setFirstNameError] = useState<string | null>(null)
+  const [lastNameError, setLastNameError] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const router = useRouter()
+
+  const validateName = (name: string, type: 'first_name' | 'last_name') => {
+    if (name && name.length < 4) {
+      return type === 'first_name' 
+        ? 'Le prénom doit contenir au moins 4 caractères' 
+        : 'Le nom doit contenir au moins 4 caractères';
+    }
+    return null;
+  };
+
+  const validatePhone = (phone: string) => {
+    if (!phone) return 'Le numéro de téléphone est requis';
+    if (!isValidPhoneNumber(phone)) return 'Numéro de téléphone invalide';
+    return null;
+  };
 
   const checkEmail = async (email: string) => {
     if (!email.trim()) return;
@@ -65,42 +88,67 @@ export default function RegisterPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="first_name">Prénom *</Label>
-                    <Input
-                      id="first_name"
-                      required
-                      value={formData.first_name}
-                      onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
-                      className="mt-1"
-                      placeholder="Votre prénom"
-                    />
+                    <div className="space-y-1">
+                      <Input
+                        id="first_name"
+                        required
+                        value={formData.first_name}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setFormData({ ...formData, first_name: value });
+                          setFirstNameError(validateName(value, 'first_name'));
+                        }}
+                        className="mt-1"
+                        placeholder="Votre prénom"
+                      />
+                      {firstNameError && (
+                        <p className="text-sm text-red-500">{firstNameError}</p>
+                      )}
+                    </div>
                   </div>
                   <div>
                     <Label htmlFor="last_name">Nom *</Label>
-                    <Input
-                      id="last_name"
-                      required
-                      value={formData.last_name}
-                      onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
-                      className="mt-1"
-                      placeholder="Votre nom"
-                    />
+                    <div className="space-y-1">
+                      <Input
+                        id="last_name"
+                        required
+                        value={formData.last_name}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setFormData({ ...formData, last_name: value });
+                          setLastNameError(validateName(value, 'last_name'));
+                        }}
+                        className="mt-1"
+                        placeholder="Votre nom"
+                      />
+                      {lastNameError && (
+                        <p className="text-sm text-red-500">{lastNameError}</p>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <div>
-                  <Label htmlFor="phone">Téléphone portable *</Label>
-                  <div className="flex mt-1">
-                    <div className="flex items-center px-3 border border-r-0 border-gray-300 bg-gray-50 rounded-l-md">
-                      <span className="text-sm">🇩🇿</span>
-                    </div>
-                    <Input
+                  <div className="space-y-1">
+                    <Label htmlFor="phone">Téléphone portable *</Label>
+                    <PhoneInput
                       id="phone"
-                      type="tel"
                       required
                       value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      className="rounded-l-none"
+                      onChange={(value) => {
+                        setFormData({ ...formData, phone: value || '' });
+                        if (value) {
+                          setPhoneError(validatePhone(value));
+                        } else {
+                          setPhoneError('Le numéro de téléphone est requis');
+                        }
+                      }}
+                      defaultCountry="DZ"
                       placeholder="Entrez votre numéro..."
+                      className={cn("mt-1", phoneError && "border-red-500 focus-visible:ring-red-500")}
                     />
+                    {phoneError && (
+                      <p className="text-sm text-red-500">{phoneError}</p>
+                    )}
                   </div>
                 </div>
 
@@ -192,92 +240,99 @@ export default function RegisterPage() {
                 )}
               <Button
                 className="w-full bg-black hover:bg-gray-800 text-white"
-                disabled={isPending}
-                onClick={() => {
-                  setError(null)
+                disabled={isPending || isSubmitting}
+                onClick={async (e) => {
+                  e.preventDefault();
+                  setError(null);
                   
-                  // Validation des champs obligatoires
-                  if (!formData.first_name.trim()) {
-                    setError("Le prénom est obligatoire.");
-                    return;
-                  }
-                  if (!formData.last_name.trim()) {
-                    setError("Le nom est obligatoire.");
-                    return;
-                  }
-                  if (!formData.phone.trim()) {
-                    setError("Le numéro de téléphone est obligatoire.");
-                    return;
-                  }
-                  if (!formData.email.trim()) {
-                    setError("L'email est obligatoire.");
-                    return;
-                  }
-                  if (!formData.password.trim()) {
-                    setError("Le mot de passe est obligatoire.");
-                    return;
-                  }
-                  if (emailError) {
-                    setError(emailError);
-                    return;
-                  }
+                  // Validation des champs
+                  const firstNameValidation = validateName(formData.first_name, 'first_name');
+                  const lastNameValidation = validateName(formData.last_name, 'last_name');
+                  const phoneValidation = validatePhone(formData.phone);
                   
-                  // Vérifier si l'utilisateur a accepté les conditions
+                  setFirstNameError(firstNameValidation);
+                  setLastNameError(lastNameValidation);
+                  setPhoneError(phoneValidation);
+                  
+                  // Vérification des conditions générales
                   if (!formData.acceptTerms) {
                     setShowConsentError(true);
                     return;
                   }
                   
-                  startTransition(async () => {
-                    try {
-                      const res = await fetch("/api/auth/register", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                          first_name: formData.first_name || undefined,
-                          last_name: formData.last_name || undefined,
-                          phone: formData.phone || undefined,
-                          email: formData.email,
-                          password: formData.password,
-                        }),
-                      })
-                      if (!res.ok) {
-                        try {
-                          const data = await res.json();
-                          console.log('Réponse d\'erreur du serveur:', data);
-                          
-                          // Afficher le message d'erreur du serveur s'il existe
-                          if (data && data.error) {
-                            setError(data.error);
-                          } else {
-                            // Gestion spécifique des codes d'erreur
-                            switch(res.status) {
-                              case 400:
-                                setError("Données invalides. Vérifiez les informations saisies.");
-                                break;
-                              case 409:
-                                setError("Cette adresse email est déjà utilisée. Si c'est la vôtre, veuillez vous connecter ou utiliser la fonction 'Mot de passe oublié'.");
-                                break;
-                              case 500:
-                                setError("Erreur interne du serveur. Veuillez réessayer plus tard.");
-                                break;
-                              default:
-                                setError("Une erreur est survenue lors de la création du compte.");
-                            }
-                          }
-                          
-                          console.error(`Erreur ${res.status}`);
-                        } catch (e) {
-                          console.error('Erreur inattendue:', e);
-                          setError("Une erreur inattendue s'est produite. Veuillez réessayer.");
-                        }
-                        return
-                      }
-                      router.push("/client/dashboard")
-                    } catch (e) {
-                      setError("Erreur réseau")
+                  // Vérification des erreurs de validation
+                  if (firstNameValidation || lastNameValidation || phoneValidation || emailError) {
+                    return;
+                  }
+                  
+                  // Validation de l'email
+                  if (!formData.email.includes('@') || !formData.email.includes('.')) {
+                    setEmailError('Veuillez entrer une adresse email valide');
+                    return;
+                  }
+                  
+                  // Vérification de l'email existant
+                  try {
+                    const emailCheckRes = await fetch("/api/auth/check-email", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ email: formData.email }),
+                    });
+                    
+                    if (!emailCheckRes.ok) {
+                      throw new Error("Erreur lors de la vérification de l'email");
                     }
-                  })
+                    
+                    const emailData = await emailCheckRes.json();
+                    if (emailData.exists) {
+                      setEmailError("Cet email est déjà utilisé.");
+                      return;
+                    }
+                    
+                    // Si tout est valide, soumettre le formulaire
+                    setIsSubmitting(true);
+                    
+                    // Préparer les données pour l'inscription
+                    const userData = {
+                      email: formData.email.trim(),
+                      password: formData.password,
+                      first_name: formData.first_name.trim(),
+                      last_name: formData.last_name.trim(),
+                      phone: formData.phone,
+                    };
+                    
+                    // Envoyer la requête d'inscription
+                    const registerRes = await fetch("/api/auth/register", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify(userData),
+                    });
+                    
+                    if (!registerRes.ok) {
+                      const errorData = await registerRes.json();
+                      throw new Error(errorData.message || "Erreur lors de l'inscription");
+                    }
+                    
+                    // Redirection après inscription réussie
+                    router.push("/auth/login");
+                    toast.success("Inscription réussie ! Connectez-vous pour continuer.");
+                    
+                  } catch (error) {
+                    console.error("Erreur lors de l'inscription:", error);
+                    
+                    // Gestion des erreurs spécifiques
+                    if (error instanceof Error) {
+                      setError(error.message);
+                    } else if (typeof error === 'object' && error !== null && 'error' in error) {
+                      // Gestion des erreurs de l'API
+                      const apiError = error as { error: string };
+                      setError(apiError.error);
+                    } else {
+                      setError("Une erreur est survenue. Veuillez réessayer.");
+                    }
+                  } finally {
+                    setIsSubmitting(false);
+                  }
                 }}
               >
                 {isPending ? "Création..." : "Créer mon compte"}
