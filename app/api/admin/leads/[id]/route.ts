@@ -47,9 +47,10 @@ export async function DELETE(
       return NextResponse.json({ error: "Lead not found" }, { status: 404 });
     }
 
-    // Supprimer le lead
-    await prisma.business_leads.delete({
+    // Archiver le lead (archivage logique) au lieu de le supprimer définitivement
+    await prisma.business_leads.update({
       where: { id: params.id },
+      data: { archived_at: new Date() },
     });
 
     return NextResponse.json({ success: true });
