@@ -244,8 +244,8 @@ export default function AdminLeadsPage() {
     }
   }
 
-  async function deleteLead(id: string) {
-    if (!confirm("Êtes-vous sûr de vouloir supprimer ce lead ? Cette action est irréversible.")) {
+  async function archiveLead(id: string) {
+    if (!confirm("Êtes-vous sûr de vouloir archiver ce lead ?")) {
       return;
     }
     
@@ -259,12 +259,12 @@ export default function AdminLeadsPage() {
         throw new Error(error?.error || `API ${res.status}`);
       }
       
-      toast({ title: "Succès", description: "Lead supprimé avec succès" });
+      toast({ title: "Succès", description: "Lead archivé avec succès" });
       load(); // Recharger la liste des leads
     } catch (err: any) {
       toast({
         title: "Erreur",
-        description: err?.message || "Erreur lors de la suppression du lead",
+        description: err?.message || "Erreur lors de l'archivage du lead",
         variant: "destructive",
       });
     }
@@ -686,13 +686,13 @@ export default function AdminLeadsPage() {
                             size="icon"
                             variant="ghost"
                             className="h-8 w-8 text-destructive hover:text-destructive/90"
-                            onClick={() => deleteLead(it.id)}
-                            aria-label="Supprimer"
+                            onClick={() => archiveLead(it.id)}
+                            aria-label="Archiver"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </TooltipTrigger>
-                        <TooltipContent>Supprimer le lead</TooltipContent>
+                        <TooltipContent>Archiver le lead</TooltipContent>
                       </Tooltip>
                     </div>
                   </TooltipProvider>

@@ -10,11 +10,12 @@ export async function GET() {
     const authCheck = await requireAdminOrPermission("archives");
     if (authCheck instanceof NextResponse) return authCheck;
 
-    const [utilisateurs, salons, reservations, abonnements] = await Promise.all([
+    const [utilisateurs, salons, reservations, abonnements, leads] = await Promise.all([
       prisma.users.count({ where: { NOT: { deleted_at: null } } }),
       prisma.businesses.count({ where: { OR: [{ NOT: { archived_at: null } }, { NOT: { deleted_at: null } }] } }),
       prisma.reservations.count({ where: { NOT: { cancelled_at: null } } }),
       prisma.subscriptions.count({ where: { status: "CANCELED" } }),
+      prisma.business_leads.count({ where: { NOT: { archived_at: null } } }),
     ]);
 
     return NextResponse.json({
@@ -22,6 +23,7 @@ export async function GET() {
       salons,
       reservations,
       abonnements,
+      leads,
     });
   } catch (e) {
     console.error("[GET /api/admin/archives/stats] Erreur:", e);
