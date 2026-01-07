@@ -574,7 +574,7 @@ export default function AdminLeadsPage() {
                 <td className="p-2">{it.location || "—"}</td>
                 <td className="p-2">
                   <Select value={it.status} onValueChange={(value) => updateLeadStatus(it.id, value)}>
-                    <SelectTrigger className={`w-32 border px-2 py-0.5 text-xs ${getBadgeClass(it.status)}`}>
+                    <SelectTrigger className={`w-32 border px-2 py-0.5 text-xs rounded ${getBadgeClass(it.status)}`}>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
