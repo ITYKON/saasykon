@@ -69,6 +69,20 @@ export async function POST(request: Request) {
         });
         return NextResponse.json({ success: true, message: "Restauré avec succès", item: res });
       }
+      case "leads": {
+        const res = await prisma.business_leads.update({
+          where: { id: String(id) },
+          data: { archived_at: null },
+        });
+        await prisma.event_logs.create({
+          data: {
+            user_id: (authCheck as any).userId,
+            event_name: "archive.restore",
+            payload: { type: t, entity_id: String(id) } as any,
+          },
+        });
+        return NextResponse.json({ success: true, message: "Restauré avec succès", item: res });
+      }
       default:
         return NextResponse.json({ error: "Type invalide" }, { status: 400 });
     }

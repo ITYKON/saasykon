@@ -46,6 +46,8 @@ model business_leads {
   documents_uploaded     Boolean?                @default(false)
   trial_ends_at          DateTime?               @db.Timestamptz(6)
   verification_id        String?                 @db.Uuid
+  archived_at            DateTime?               @db.Timestamptz(6)
+  deleted_at             DateTime?               @db.Timestamptz(6)
   users                  users?                  @relation(fields: [converted_by], references: [id], onUpdate: NoAction, map: "business_leads_converted_by_fk")
   business_verifications business_verifications? @relation(fields: [verification_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   lead_documents         lead_documents[]
