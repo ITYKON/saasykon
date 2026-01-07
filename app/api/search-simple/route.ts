@@ -8,18 +8,18 @@ export async function GET(req: Request): Promise<NextResponse> {
     // Récupération des paramètres de requête
     const { searchParams } = new URL(req.url);
     const query = (searchParams.get("q") || "").trim();
+    const locationQuery = (searchParams.get("location") || "").trim(); // Ajout paramètre location
     const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
     const pageSize = Math.min(100, parseInt(searchParams.get("pageSize") || "20", 10));
-    
-    // Configuration de la pagination
     const skip = (page - 1) * pageSize;
     
-    // Vérification du terme de recherche
-    if (!query) {
-      return NextResponse.json(
+    // Si pas de query ni de location, on peut renvoyer une erreur ou des résultats par défaut
+    // Ici on permet si au moins l'un des deux est présent
+    if (!query && !locationQuery) {
+       return NextResponse.json(
         { 
-          error: "Veuillez spécifier un nom d'institut pour effectuer une recherche",
-          code: "MISSING_SEARCH_QUERY"
+          error: "Veuillez spécifier une recherche ou une localisation",
+          code: "MISSING_PARAMS"
         },
         { status: 400 }
       );
@@ -31,49 +31,60 @@ export async function GET(req: Request): Promise<NextResponse> {
       deleted_at: null,
     };
     
-    // Préparation des termes de recherche
-    const searchTerms = query.split(/\s+/).filter(term => term.length > 2);
-    const useStartsWith = query.length < 4;
-    
-    // Conditions de recherche par nom
-    const nameConditions = [
-      // Recherche exacte
-      { public_name: { equals: query, mode: 'insensitive' as const } },
-      { legal_name: { equals: query, mode: 'insensitive' as const } },
-      // Recherche par préfixe ou contient selon la longueur
-      ...(useStartsWith 
-        ? [
-            { public_name: { startsWith: query, mode: 'insensitive' as const } },
-            { legal_name: { startsWith: query, mode: 'insensitive' as const } },
-          ]
-        : [
-            { public_name: { contains: query, mode: 'insensitive' as const } },
-            { legal_name: { contains: query, mode: 'insensitive' as const } },
-          ]
-      )
-    ];
-    
-    // Si plusieurs termes de recherche, ajouter une recherche par mots-clés
-    if (searchTerms.length > 1) {
-      nameConditions.push(
-        { public_name: { contains: searchTerms.join(' '), mode: 'insensitive' as const } },
-        { legal_name: { contains: searchTerms.join(' '), mode: 'insensitive' as const } }
-      );
+    // --- 1. Filtre par TEXTE (Nom d'entreprise OU Nom de service) ---
+    if (query) {
+      const searchTerms = query.split(/\s+/).filter(term => term.length > 2);
+      const useStartsWith = query.length < 4;
+      
+      const textConditions = [
+        // Recherche sur le nom de l'entreprise
+        { public_name: { equals: query, mode: 'insensitive' as const } },
+        { legal_name: { equals: query, mode: 'insensitive' as const } },
+        ...(useStartsWith 
+          ? [
+              { public_name: { startsWith: query, mode: 'insensitive' as const } },
+              { legal_name: { startsWith: query, mode: 'insensitive' as const } },
+            ]
+          : [
+              { public_name: { contains: query, mode: 'insensitive' as const } },
+              { legal_name: { contains: query, mode: 'insensitive' as const } },
+            ]
+        ),
+        // Recherche sur les services (Intelligent Search)
+        {
+          services: {
+            some: {
+              name: { contains: query, mode: 'insensitive' as const },
+              // deleted_at: null, // FIX: deleted_at n'existe peut-être pas sur services
+              is_active: true
+            }
+          }
+        }
+      ];
+      
+      where.OR = textConditions;
     }
-    
-    where.OR = nameConditions;
-    
+
+    // --- 2. Filtre par LOCALISATION (Ville) ---
+    if (locationQuery) {
+      where.business_locations = {
+        some: {
+          OR: [
+             { cities: { name: { contains: locationQuery, mode: 'insensitive' as const } } },
+             { address_line1: { contains: locationQuery, mode: 'insensitive' as const } },
+             { postal_code: { contains: locationQuery, mode: 'insensitive' as const } },
+          ]
+        }
+      };
+    }
+
     // Configuration du tri
     const orderBy = [
       { ratings_aggregates: { rating_avg: 'desc' as const } },
       { created_at: 'desc' as const }
     ];
     
-    console.log('Requête Prisma:', JSON.stringify({ where, orderBy, skip, take: pageSize }, null, 2));
-    
-    // Exécution de la requête principale
-    console.log('Exécution de la requête Prisma...');
-    
+    // Exécution de la requête Prisma
     const [businesses, total] = await Promise.all([
       prisma.businesses.findMany({
         where,
@@ -88,12 +99,26 @@ export async function GET(req: Request): Promise<NextResponse> {
             orderBy: { position: 'asc' as const },
             take: 1
           },
+          // AJOUT: Inclure les services pour l'affichage
+          services: {
+            where: { is_active: true },
+            take: 5, // On prend les 5 premiers pour l'aperçu
+            select: { 
+              id: true, 
+              name: true, 
+              service_variants: {
+                where: { is_active: true },
+                take: 1,
+                select: {
+                  price_cents: true,
+                  duration_minutes: true
+                }
+              }
+            }
+          },
           employees: {
             where: { is_active: true },
-            select: {
-              id: true,
-              full_name: true
-            }
+            select: { id: true, full_name: true }
           },
           ratings_aggregates: true,
           subscriptions: {
@@ -110,8 +135,8 @@ export async function GET(req: Request): Promise<NextResponse> {
     ]);
     
     // Formatage des résultats pour le frontend
-    const formattedResults = businesses.map(business => {
-      const primaryLocation = business.business_locations.find(loc => loc.is_primary) || business.business_locations[0];
+    const formattedResults = businesses.map((business: any) => { // FIX: cast as any because of complex include inference
+      const primaryLocation = business.business_locations.find((loc: any) => loc.is_primary) || business.business_locations[0];
       const primaryImage = business.business_media[0]?.url || null;
       
       return {
@@ -127,7 +152,17 @@ export async function GET(req: Request): Promise<NextResponse> {
         city: primaryLocation?.cities?.name || '',
         postalCode: primaryLocation?.postal_code || '',
         employeesCount: business.employees.length,
-        isPremium: business.subscriptions.some(sub => sub.plans.code === 'premium'),
+        // Mapping des services
+        services: business.services.map((s: any) => {
+          const variant = s.service_variants?.[0];
+          return {
+            id: s.id,
+            name: s.name,
+            price_cents: variant?.price_cents,
+            duration_minutes: variant?.duration_minutes
+          };
+        }),
+        isPremium: business.subscriptions.some((sub: any) => sub.plans.code === 'premium'),
         isNew: new Date(business.created_at) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // Moins de 30 jours
         isTop: Number(business.ratings_aggregates?.rating_avg || 0) >= 4.5
       };

@@ -212,6 +212,17 @@ export default function AdminLeadsPage() {
     );
   };
 
+  const getBadgeClass = (status: string) => {
+    const s = (status || "").toLowerCase();
+    const map: Record<string, string> = {
+      pending: "bg-amber-100 text-amber-800 border-amber-200",
+      contacted: "bg-sky-100 text-sky-800 border-sky-200",
+      invited: "bg-indigo-100 text-indigo-800 border-indigo-200",
+      validated: "bg-emerald-100 text-emerald-800 border-emerald-200",
+    };
+    return map[s] || "bg-muted text-foreground border-transparent";
+  };
+
   async function markContacted(id: string) {
     try {
       const res = await fetch(`/api/admin/leads/${id}/status`, {
@@ -222,6 +233,24 @@ export default function AdminLeadsPage() {
       if (!res.ok) throw new Error(`API ${res.status}`);
       await load();
     } catch {}
+  }
+
+  async function updateLeadStatus(id: string, status: string) {
+    try {
+      const res = await fetch(`/api/admin/leads/${id}/status`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      if (!res.ok) throw new Error(`API ${res.status}`);
+      setItems(items.map(it => it.id === id ? { ...it, status } : it));
+    } catch (error) {
+      toast({
+        title: "Erreur",
+        description: "Impossible de mettre à jour le statut",
+        variant: "destructive",
+      });
+    }
   }
 
   async function approveLead(id: string) {
@@ -509,7 +538,17 @@ export default function AdminLeadsPage() {
                 <td className="p-2">{it.activity_type || "—"}</td>
                 <td className="p-2">{it.location || "—"}</td>
                 <td className="p-2">
-                  <StatusBadge status={it.status} />
+                  <Select value={it.status} onValueChange={(value) => updateLeadStatus(it.id, value)}>
+                    <SelectTrigger className={`w-32 border px-2 py-0.5 text-xs rounded ${getBadgeClass(it.status)}`}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pending">En attente</SelectItem>
+                      <SelectItem value="contacted">Contacté</SelectItem>
+                      <SelectItem value="invited">Invité</SelectItem>
+                      <SelectItem value="validated">Validé</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </td>
                 <td className="p-2">
                   {new Date(it.created_at).toLocaleDateString()}

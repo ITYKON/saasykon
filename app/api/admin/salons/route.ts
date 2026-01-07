@@ -45,7 +45,7 @@ type SalonResponse = BusinessWithRelations & {
   joinDate: string;
   lastActivity?: string;
   subscription: string;
-  status: "en attente" | "inactif" | "actif" | "verified" | "pending_verification";
+  status: "en attente" | "inactif" | "active" | "verified" | "pending_verification";
   verification_status?: string;
   isTop: boolean;
   isNew: boolean;
@@ -212,11 +212,18 @@ export async function GET(req: Request) {
       const isNew = (new Date().getTime() - new Date(salon.created_at).getTime()) < 1000 * 60 * 60 * 24 * 30; // Moins de 30 jours
       
       // Détermination du statut - utiliser le statut réel du business
-      let status: "en attente" | "inactif" | "actif" | "verified" | "pending_verification" = "en attente";
+      let status: "en attente" | "inactif" | "active" | "verified" | "pending_verification" = "en attente";
       if (salon.archived_at || salon.deleted_at) {
-        status = "inactif";
+        status = "inactif"; // Keep 'inactif' as it seems to be a display state for archived? Or should it be 'inactive'? Database doesn't have 'inactive'.
+        // Wait, database enum has 'active', 'verified', 'pending_verification'.
+        // 'inactif' isn't in DB. It's a derived state.
+        // But 'status' field in response is used for display. 
+        // If I change this to returns 'active', frontend will work for PUT.
+        // But frontend display logic (page.tsx) expects 'active' (I updated it).
+        // Does page.tsx handle 'inactif'? Yes.
+        
       } else if (salon.status === "active" || salon.status === "actif") {
-        status = "actif";
+        status = "active";
       } else if (salon.status === "verified") {
         status = "verified";
       } else if (salon.status === "pending_verification") {
@@ -279,18 +286,18 @@ export async function GET(req: Request) {
 
 // Validation Zod
 const salonSchema = z.object({
-  legal_name: z.string().min(2),
-  public_name: z.string().min(2),
-  description: z.string().optional(),
-  email: z.string().email(),
-  phone: z.string().min(6),
-  website: z.string().url().optional().or(z.literal('')).nullable(),
-  vat_number: z.string().optional(),
-  category_code: z.string().optional(),
-  logo_url: z.string().optional().or(z.literal('')).nullable(),
-  cover_url: z.string().optional().or(z.literal('')).nullable(),
-  location: z.string().optional(), // City or location name
-  status: z.string().optional(),
+  legal_name: z.string().min(2, "Le nom légal est requis (2 caractères min)"),
+  public_name: z.string().min(2, "Le nom public est requis (2 caractères min)"),
+  description: z.string().nullable().optional(),
+  email: z.string().email("Email invalide"),
+  phone: z.string().min(8, "Numéro de téléphone invalide"),
+  website: z.string().nullable().optional(),
+  vat_number: z.string().nullable().optional(),
+  category_code: z.string().nullable().optional(),
+  logo_url: z.string().nullable().optional(),
+  cover_url: z.string().nullable().optional(),
+  location: z.string().min(1, "La wilaya est requise"), 
+  status: z.string().nullable().optional(),
 });
 
 export async function POST(req: Request) {
@@ -311,7 +318,27 @@ export async function POST(req: Request) {
     // Pour revendication : pas de propriétaire, claim_status = "none"
     ownerUserId = null;
   } else if (!ownerUserId) {
-    // Création du user owner si non fourni et pas pour revendication
+    // Vérifier d'abord si l'email existe déjà
+    if (data.email) {
+      const existingUser = await prisma.users.findUnique({
+        where: { email: data.email },
+        select: { id: true, email: true }
+      });
+      
+      if (existingUser) {
+        console.log(`[POST /api/admin/salons] Email déjà utilisé: ${data.email}`);
+        return NextResponse.json(
+          { 
+            error: "email_exists",
+            message: "Un compte avec cet email existe déjà. Veuillez utiliser un email différent ou contacter le support.",
+            field: "email"
+          }, 
+          { status: 400 }
+        );
+      }
+    }
+    
+    // Création du user owner si l'email n'existe pas
     try {
       const ownerUser = await prisma.users.create({
         data: {
@@ -322,10 +349,28 @@ export async function POST(req: Request) {
         },
       });
       ownerUserId = ownerUser.id;
-      console.log("[POST /api/admin/salons] User owner créé:", ownerUser);
-    } catch (err) {
-      console.error("[POST /api/admin/salons] Erreur création user:", err);
-      return NextResponse.json({ error: "Erreur création user", details: err }, { status: 500 });
+      console.log("[POST /api/admin/salons] Nouvel utilisateur créé:", ownerUser);
+    } catch (error) {
+      console.error("[POST /api/admin/salons] Erreur création utilisateur:", error);
+      const err = error as { code?: string; meta?: { target?: string[] } };
+      if (err.code === 'P2002' && err.meta?.target?.includes('email')) {
+        return NextResponse.json(
+          { 
+            error: "email_exists",
+            message: "Un compte avec cet email existe déjà. Veuillez utiliser un email différent.",
+            field: "email"
+          }, 
+          { status: 400 }
+        );
+      }
+      return NextResponse.json(
+        { 
+          error: "user_creation_error",
+          message: "Une erreur est survenue lors de la création du compte utilisateur.",
+          details: process.env.NODE_ENV === 'development' ? err : undefined
+        }, 
+        { status: 500 }
+      );
     }
   }
   
@@ -371,7 +416,10 @@ export async function POST(req: Request) {
     } else {
       // Les salons créés depuis l'admin sans l'option "revendication" ne sont PAS revendicables
       salonData.owner_user_id = ownerUserId;
-      salonData.claim_status = "not_claimable"; // Ne peut pas être revendiqué
+      salonData.claim_status = "approved"; // Considéré comme revendiqué/approuvé
+      // Allow status to be set by frontend (pending_verification), defaulting to active if missing
+      salonData.status = data.status || "active";
+      salonData.verification_status = "verified";
     }
 
     const salon = await prisma.businesses.create({

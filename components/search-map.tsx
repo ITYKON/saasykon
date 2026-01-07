@@ -2,19 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { APIProvider, Map, AdvancedMarker, Pin } from "@vis.gl/react-google-maps"
-
-type Business = {
-  id: string
-  name: string
-  location?: {
-    latitude?: number
-    longitude?: number
-    address: string
-    city?: string
-  }
-  rating: number
-  isPremium: boolean
-}
+import type { Business } from "@/types/business"
 
 interface SearchMapProps {
   businesses: Business[]
