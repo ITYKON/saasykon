@@ -62,11 +62,10 @@ export default function HomePage() {
         <div
           className="absolute inset-0 bg-cover bg-center"
           style={{
-            // backgroundImage: `url('https://hebbkx1anhila5yf.public.blob.vercel-storage.com/image-mI0dWUhJXFiiWuNqKuNdrc4zhCnc7w.png')`,
-            backgroundImage: `url('https://i.pinimg.com/736x/28/93/12/28931203342e717fa057bc511086c404.jpg')`,
+            backgroundImage: `url('/hero.png')`,
           }}
         ></div>
-        <div className="absolute inset-0 bg-black/20"></div>
+        <div className="absolute inset-0 bg-black/40"></div>
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h1 className="text-4xl md:text-6xl font-bold text-white mb-4 text-balance">Réservez en beauté</h1>
           <p className="text-lg text-white/90 mb-8 text-pretty">Simple • Immédiat • 24h/24</p>
