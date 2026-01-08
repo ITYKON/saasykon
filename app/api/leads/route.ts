@@ -36,6 +36,15 @@ export async function POST(req: NextRequest) {
   if (!location) errors.location = "Ville requise";
   if (Object.keys(errors).length) return NextResponse.json({ error: "Champs manquants", errors }, { status: 400 });
 
+  // Vérifier si l'email existe déjà dans les leads
+  const existingLead = await prisma.business_leads.findFirst({
+    where: { email: email },
+    select: { id: true },
+  });
+  if (existingLead) {
+    return NextResponse.json({ error: "Cet email est déjà utilisé. Veuillez utiliser une autre adresse email." }, { status: 409 });
+  }
+
   const lead = await prisma.business_leads.create({
     data: {
       business_name,
