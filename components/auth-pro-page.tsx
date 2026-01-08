@@ -79,6 +79,8 @@ export default function AuthProLanding() {
 
   const handleEmailChange = (value: string) => {
     update("email", value);
+    // Clear error immediately when user starts typing
+    if (emailError) setEmailError('');
     if (value) {
       if (!value.includes('@')) {
         setEmailError('Veuillez inclure un @ dans l\'adresse email');
@@ -145,6 +147,10 @@ export default function AuthProLanding() {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
+        if (res.status === 409 && data?.error?.includes("email")) {
+          setEmailError(data.error);
+          return;
+        }
         const msg = data?.error || `Erreur API (${res.status})`;
         throw new Error(msg);
       }
