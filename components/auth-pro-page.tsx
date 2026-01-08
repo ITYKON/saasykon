@@ -344,9 +344,21 @@ Créez votre compte gratuitement et commencez dès maintenant.</p>
                         if (v) setShowConsentError(false);
                       }} 
                     />
-                    <Label htmlFor="consent" className="text-sm font-normal text-muted-foreground">
-                      J’accepte les conditions d’utilisation et la <Link href="/a-propos/mentions-legales" className="underline hover:text-primary">politique de confidentialité</Link>.
-                    </Label>
+<Label
+                 htmlFor="consent"
+                 className="text-sm font-normal text-muted-foreground"
+               >
+                 <span className="inline">
+                   J'accepte les conditions d'utilisation, la{" "}
+                   <Link
+                     href="/a-propos/mentions-legales"
+                     className="text-primary underline hover:text-primary/80"
+                   >
+                     politique de confidentialité
+                   </Link>
+                   .
+                 </span>
+                </Label>
                   </div>
                   {showConsentError && (
                     <p className="text-sm text-red-500">Veuillez accepter les conditions générales.</p>
