@@ -22,9 +22,9 @@ const MentionsLegales = () => {
             <div className="space-y-4 text-gray-700">
               <p>
                 <strong>YOKA Algérie</strong><br />
-                Siège social : Béjaïa, Algérie<br />
+                {/* Siège social : Béjaïa, Algérie<br />
                 Email : contact@yoka.com<br />
-                Téléphone : +213 ......
+                Téléphone : +213 ...... */}
               </p>
               {/* <p>
                 <strong>Directeur de la publication :</strong> [Nom du directeur]<br />
@@ -41,12 +41,17 @@ const MentionsLegales = () => {
           <section className="mb-12">
             <h2 className="text-2xl font-bold text-gray-900 mb-4">Hébergement</h2>
             <div className="space-y-4 text-gray-700">
-              <p>
+              {/* <p>
                 Le site YOKA est hébergé par :<br />
-                <strong>[Nom de l'hébergeur]</strong><br />
+                <strong>azure</strong><br />
                 {/* Adresse : [Adresse de l'hébergeur]<br />
-                Téléphone : [Téléphone de l'hébergeur] */}
-              </p>
+                Téléphone : [Téléphone de l'hébergeur] 
+              </p> */}
+              <p>
+  Le site YOKA est hébergé par :<br />
+  <strong>Microsoft Azure</strong><br />
+  Microsoft Corporation – Redmond, États-Unis
+</p>
             </div>
           </section>
 
