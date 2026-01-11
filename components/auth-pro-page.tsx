@@ -213,7 +213,7 @@ Créez votre compte gratuitement et commencez dès maintenant.</p>
             <CardContent>
               <form onSubmit={onSubmit} className="grid grid-cols-1 gap-4" id="contact">
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div>
+                  <div className="space-y-2">
                     <Label htmlFor="firstName">Prénom</Label>
                     <div className="space-y-2">
                       <Input 
@@ -235,7 +235,7 @@ Créez votre compte gratuitement et commencez dès maintenant.</p>
                       )}
                     </div>
                   </div>
-                  <div>
+                  <div className="space-y-2">
                     <Label htmlFor="lastName">Nom</Label>
                     <div className="space-y-2">
                       <Input 
@@ -258,14 +258,14 @@ Créez votre compte gratuitement et commencez dès maintenant.</p>
                     </div>
                   </div>
                 </div>
-                <div>
+                <div className="space-y-2">
                   <Label htmlFor="companyName">Nom du salon / institut</Label>
                   <Input id="companyName" value={form.companyName} onChange={(e) => update("companyName", e.target.value)} required />
                 </div>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div>
-                    <Label htmlFor="email">Email</Label>
                     <div className="space-y-2">
+                      <Label htmlFor="email">Email</Label>
                       <Input 
                         id="email" 
                         type="email" 
@@ -303,7 +303,7 @@ Créez votre compte gratuitement et commencez dès maintenant.</p>
                   </div>
                 </div>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div className="relative">
+                  <div className="space-y-2">
                     <Label>Type d'activité</Label>
                     <Select value={form.businessType} onValueChange={(v) => update("businessType", v)} required>
                       <SelectTrigger>
@@ -325,7 +325,7 @@ Créez votre compte gratuitement et commencez dès maintenant.</p>
                       required
                     />
                   </div>
-                  <div className="relative">
+                  <div className=" space-y-2">
                     <Label htmlFor="city">Wilaya</Label>
                     <Select value={form.city} onValueChange={(v) => update("city", v)} required>
                       <SelectTrigger className="w-full h-12 px-4 text-base border-2 border-gray-200 hover:border-primary transition-colors rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary">
