@@ -15,11 +15,12 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import {
-  Phone,
-  MessageSquareText,
-  UserPlus,
   CheckCircle,
   Mail,
+  MessageSquareText,
+  Phone,
+  Trash2,
+  UserPlus,
 } from "lucide-react";
 import {
   Tooltip,
@@ -176,6 +177,7 @@ export default function AdminLeadsPage() {
       setSubmitting(false);
     }
   }
+
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -231,8 +233,41 @@ export default function AdminLeadsPage() {
         body: JSON.stringify({ status: "contacted" }),
       });
       if (!res.ok) throw new Error(`API ${res.status}`);
-      await load();
-    } catch {}
+      toast({ title: "Succès", description: "Lead marqué comme contacté" });
+      load();
+    } catch (err: any) {
+      toast({
+        title: "Erreur",
+        description: err?.message || "Erreur lors de la mise à jour du statut",
+        variant: "destructive",
+      });
+    }
+  }
+
+  async function archiveLead(id: string) {
+    if (!confirm("Êtes-vous sûr de vouloir archiver ce lead ?")) {
+      return;
+    }
+    
+    try {
+      const res = await fetch(`/api/admin/leads/${id}`, {
+        method: "DELETE",
+      });
+      
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({}));
+        throw new Error(error?.error || `API ${res.status}`);
+      }
+      
+      toast({ title: "Succès", description: "Lead archivé avec succès" });
+      load(); // Recharger la liste des leads
+    } catch (err: any) {
+      toast({
+        title: "Erreur",
+        description: err?.message || "Erreur lors de l'archivage du lead",
+        variant: "destructive",
+      });
+    }
   }
 
   async function updateLeadStatus(id: string, status: string) {
@@ -243,7 +278,7 @@ export default function AdminLeadsPage() {
         body: JSON.stringify({ status }),
       });
       if (!res.ok) throw new Error(`API ${res.status}`);
-      setItems(items.map(it => it.id === id ? { ...it, status } : it));
+      setItems(items.map((it) => (it.id === id ? { ...it, status } : it)));
     } catch (error) {
       toast({
         title: "Erreur",
@@ -645,6 +680,20 @@ export default function AdminLeadsPage() {
                           Ouvrir
                         </Button>
                       </Link>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8 text-destructive hover:text-destructive/90"
+                            onClick={() => archiveLead(it.id)}
+                            aria-label="Archiver"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Archiver le lead</TooltipContent>
+                      </Tooltip>
                     </div>
                   </TooltipProvider>
                 </td>

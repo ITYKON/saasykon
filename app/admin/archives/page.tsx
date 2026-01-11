@@ -25,6 +25,7 @@ const TABS_DEF = [
   { id: "salons", name: "Salons", icon: Building2 },
   { id: "reservations", name: "Réservations", icon: Calendar },
   { id: "abonnements", name: "Abonnements", icon: CreditCard },
+  { id: "leads", name: "Leads", icon: Users }, // Reuse Users icon or find another one if needed
 ] as const
 
 export default function AdminArchivesPage() {
@@ -43,6 +44,7 @@ function AdminArchivesPageContent() {
     salons: 0,
     reservations: 0,
     abonnements: 0,
+    leads: 0,
   })
   const [items, setItems] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
@@ -373,6 +375,63 @@ function AdminArchivesPageContent() {
     </Table>
   )
 
+  const renderLeadsTable = () => (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Lead / Salon</TableHead>
+          <TableHead>Contact</TableHead>
+          <TableHead>Email</TableHead>
+          <TableHead>Téléphone</TableHead>
+          <TableHead>Date archivage</TableHead>
+          <TableHead>Actions</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {items.map((lead: any) => (
+          <TableRow key={lead.id}>
+            <TableCell className="font-medium">{lead.business_name}</TableCell>
+            <TableCell>{[lead.owner_first_name, lead.owner_last_name].filter(Boolean).join(" ")}</TableCell>
+            <TableCell>{lead.email}</TableCell>
+            <TableCell>{lead.phone || "-"}</TableCell>
+            <TableCell>{lead.archived_at ? new Date(lead.archived_at).toLocaleString() : ""}</TableCell>
+            <TableCell>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" onClick={() => handleRestore("leads", lead.id)} disabled={actionId === lead.id}>
+                  {actionId === lead.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
+                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button size="sm" variant="destructive" disabled={actionId === lead.id}>
+                      {actionId === lead.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Supprimer définitivement</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Cette action est irréversible. Le lead sera définitivement supprimé.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Annuler</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => handlePermanentDelete("leads", lead.id)}
+                        className="bg-red-600 hover:bg-red-700"
+                      >
+                        Supprimer
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  )
+
   const renderTable = () => {
     switch (activeTab) {
       case "utilisateurs":
@@ -383,6 +442,8 @@ function AdminArchivesPageContent() {
         return renderReservationsTable()
       case "abonnements":
         return renderAbonnementsTable()
+      case "leads":
+        return renderLeadsTable()
       default:
         return null
     }

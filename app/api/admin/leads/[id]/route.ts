@@ -29,3 +29,36 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
   return NextResponse.json({ lead: safe(lead), history: safe(events) });
 }
+
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const auth = await requireAdminOrPermission("LEADS_DELETE");
+  if (auth instanceof NextResponse) return auth;
+
+  try {
+    // Vérifier si le lead existe
+    const lead = await prisma.business_leads.findUnique({
+      where: { id: params.id },
+    });
+
+    if (!lead) {
+      return NextResponse.json({ error: "Lead not found" }, { status: 404 });
+    }
+
+    // Archiver le lead (archivage logique) au lieu de le supprimer définitivement
+    await prisma.business_leads.update({
+      where: { id: params.id },
+      data: { archived_at: new Date() },
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting lead:', error);
+    return NextResponse.json(
+      { error: "Failed to delete lead" },
+      { status: 500 }
+    );
+  }
+}

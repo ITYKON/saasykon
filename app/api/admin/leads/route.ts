@@ -39,9 +39,10 @@ export async function GET(req: NextRequest) {
   const page = Math.max(1, Number(searchParams.get("page") || 1));
   const pageSize = Math.min(100, Math.max(1, Number(searchParams.get("pageSize") || 20)));
 
-  // Ne récupérer que les leads non convertis (où converted_by est null)
+  // Ne récupérer que les leads non convertis et non archivés
   const where: any = {
-    converted_by: null // Filtre pour ne récupérer que les leads non convertis
+    converted_by: null,
+    archived_at: null
   };
   
   // Ajouter les filtres supplémentaires s'ils sont fournis

@@ -3,23 +3,18 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
-import { Search, Check } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Search as SearchIcon, Check } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { wilayas } from "@/lib/wilayas";
 import { isValidPhoneNumber } from "react-phone-number-input";
 import "react-phone-number-input/style.css";
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogFooter,
 } from "@/components/ui/dialog";
-import { Header } from "@/components/header";
-import { Footer } from "@/components/footer";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,6 +22,12 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+
+type City = {
+  id: number;
+  name: string;
+  wilaya_number: number;
+};
 
 type LeadFormState = {
   companyName: string;
@@ -41,6 +42,16 @@ type LeadFormState = {
 
 export default function AuthProLanding() {
   const [submitting, setSubmitting] = useState(false);
+  const [cities, setCities] = useState<City[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const selectRef = useRef<HTMLDivElement>(null);
+  
+  const scrollToSelect = () => {
+    if (selectRef.current) {
+      selectRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  };
+  
   const [form, setForm] = useState<LeadFormState>({
     companyName: "",
     firstName: "",
@@ -51,6 +62,7 @@ export default function AuthProLanding() {
     businessType: "",
     consent: false,
   });
+  
   const router = useRouter();
   const [showConsentError, setShowConsentError] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -58,8 +70,23 @@ export default function AuthProLanding() {
   const [firstNameError, setFirstNameError] = useState('');
   const [lastNameError, setLastNameError] = useState('');
 
+  useEffect(() => {
+    const fetchCities = async () => {
+      try {
+        const response = await fetch('/api/cities');
+        if (response.ok) {
+          const data = await response.json();
+          setCities(data);
+        }
+      } catch (error) {
+        console.error('Error fetching cities:', error);
+      }
+    };
+
+    fetchCities();
+  }, []);
+
   const validateEmail = (email: string) => {
-    // Vérifie le format de base et s'assure qu'il y a au moins 2 caractères après le point
     const re = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/;
     return re.test(email);
   };
@@ -79,6 +106,7 @@ export default function AuthProLanding() {
 
   const handleEmailChange = (value: string) => {
     update("email", value);
+    if (emailError) setEmailError('');
     if (value) {
       if (!value.includes('@')) {
         setEmailError('Veuillez inclure un @ dans l\'adresse email');
@@ -101,7 +129,6 @@ export default function AuthProLanding() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     
-    // Validation des champs
     let hasError = false;
     
     if (form.firstName.length < 4) {
@@ -125,8 +152,10 @@ export default function AuthProLanding() {
       setShowConsentError(true);
       return;
     }
+    
     setShowConsentError(false);
     setSubmitting(true);
+    
     try {
       const payload = {
         business_name: form.companyName,
@@ -138,25 +167,42 @@ export default function AuthProLanding() {
         location: form.city || null,
         notes: null as string | null,
       };
+      
       const res = await fetch("/api/leads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
+      
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
+        if (res.status === 409 && data?.error?.includes("email")) {
+          setEmailError(data.error);
+          return;
+        }
         const msg = data?.error || `Erreur API (${res.status})`;
         throw new Error(msg);
       }
-      setForm({ companyName: "", firstName: "", lastName: "", email: "", phone: "", city: "", businessType: "", consent: false });
+      
+      setForm({ 
+        companyName: "", 
+        firstName: "", 
+        lastName: "", 
+        email: "", 
+        phone: "", 
+        city: "", 
+        businessType: "", 
+        consent: false 
+      });
       setIsSuccess(true);
-      // toast.success("Merci !", { description: "Un expert vous contactera sous 24h." });
       
       if (typeof window !== "undefined") {
         window.location.hash = "contact";
       }
     } catch (err: any) {
-      toast.error("Impossible d'envoyer votre demande", { description: err?.message || "Merci de réessayer plus tard." });
+      toast.error("Impossible d'envoyer votre demande", { 
+        description: err?.message || "Merci de réessayer plus tard." 
+      });
     } finally {
       setSubmitting(false);
     }
@@ -185,7 +231,7 @@ Créez votre compte gratuitement et commencez dès maintenant.</p>
             <CardContent>
               <form onSubmit={onSubmit} className="grid grid-cols-1 gap-4" id="contact">
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div>
+                  <div className="space-y-2">
                     <Label htmlFor="firstName">Prénom</Label>
                     <div className="space-y-2">
                       <Input 
@@ -207,7 +253,7 @@ Créez votre compte gratuitement et commencez dès maintenant.</p>
                       )}
                     </div>
                   </div>
-                  <div>
+                  <div className="space-y-2">
                     <Label htmlFor="lastName">Nom</Label>
                     <div className="space-y-2">
                       <Input 
@@ -230,14 +276,14 @@ Créez votre compte gratuitement et commencez dès maintenant.</p>
                     </div>
                   </div>
                 </div>
-                <div>
+                <div className="space-y-2">
                   <Label htmlFor="companyName">Nom du salon / institut</Label>
                   <Input id="companyName" value={form.companyName} onChange={(e) => update("companyName", e.target.value)} required />
                 </div>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div>
-                    <Label htmlFor="email">Email</Label>
                     <div className="space-y-2">
+                      <Label htmlFor="email">Email</Label>
                       <Input 
                         id="email" 
                         type="email" 
@@ -275,17 +321,14 @@ Créez votre compte gratuitement et commencez dès maintenant.</p>
                   </div>
                 </div>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div className="relative">
+                  <div className="space-y-2">
                     <Label>Type d'activité</Label>
                     <Select value={form.businessType} onValueChange={(v) => update("businessType", v)} required>
                       <SelectTrigger>
                         <SelectValue placeholder="Sélectionner" />
                       </SelectTrigger>
                       <SelectContent position="popper" side="bottom" align="start" avoidCollisions={false} className="rounded-xl shadow-xl border-border/50" sideOffset={5}>
-                       
-                        
                         <SelectItem value="beaute">Institut de beauté</SelectItem>
-                        
                       </SelectContent>
                     </Select>
                     <input 
@@ -297,35 +340,79 @@ Créez votre compte gratuitement et commencez dès maintenant.</p>
                       required
                     />
                   </div>
-                  <div className="relative">
-                    <Label htmlFor="city">Ville</Label>
-                    <Select value={form.city} onValueChange={(v) => update("city", v)} required>
-                      <SelectTrigger className="w-full h-12 px-4 text-base border-2 border-gray-200 hover:border-primary transition-colors rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary">
-                        <SelectValue placeholder="Sélectionner une ville" />
-                      </SelectTrigger>
-                      <SelectContent 
-                        position="popper"
-                        side="bottom"
-                        align="start"
-                        sideOffset={5}
-                        avoidCollisions={false}
-                        className="w-[var(--radix-select-trigger-width)] max-h-[300px] rounded-xl shadow-xl border border-gray-100 bg-white overflow-auto mt-1"
+                  <div className="space-y-2" ref={selectRef}>
+                    <Label htmlFor="city">Wilaya</Label>
+                    <div className="relative">
+                      <Select 
+                        value={form.city} 
+                        onValueChange={(v) => update("city", v)}
+                        onOpenChange={(open) => open && scrollToSelect()}
+                        required
                       >
-                        {wilayas.map((wilaya: string) => (
-                          <SelectItem key={wilaya} value={wilaya}>
-                            {wilaya}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <input 
-                      type="text" 
-                      className="h-px w-px opacity-0 absolute bottom-0 left-0 -z-10 pointer-events-none" 
-                      tabIndex={-1}
-                      value={form.city}
-                      onChange={() => {}}
-                      required
-                    />
+                        <SelectTrigger className="w-full h-12 px-4 text-base border-2 border-gray-200 hover:border-primary transition-colors rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                          <SelectValue placeholder="Sélectionner une wilaya" />
+                        </SelectTrigger>
+                        <SelectContent 
+                          position="popper"
+                          side="bottom"
+                          align="start"
+                          sideOffset={5}
+                          avoidCollisions={false}
+                          className="w-[var(--radix-select-trigger-width)] max-h-[300px] rounded-xl shadow-xl border border-gray-100 bg-white overflow-auto mt-1"
+                        >
+                          <div className="sticky top-0 z-10 bg-white p-2 border-b border-gray-100">
+                            <div className="relative">
+                              <SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                              <Input
+                                type="search"
+                                placeholder="Rechercher une wilaya..."
+                                className="w-full pl-8 py-2 text-sm"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                onKeyDown={(e) => e.stopPropagation()}
+                              />
+                            </div>
+                          </div>
+                          <div className="max-h-[250px] overflow-y-auto">
+                            {cities
+                              .filter(city => {
+                                const searchTermLower = searchTerm.toLowerCase();
+                                const wilayaNumber = city.wilaya_number.toString().padStart(2, '0');
+                                const cityNameLower = city.name.toLowerCase();
+                                
+                                if (wilayaNumber.startsWith(searchTerm)) {
+                                  return true;
+                                }
+                                
+                                if (cityNameLower.includes(searchTermLower)) {
+                                  return true;
+                                }
+                                
+                                const fullText = `${wilayaNumber} - ${cityNameLower}`;
+                                return fullText.includes(searchTermLower);
+                              })
+                              .map((city: City) => (
+                                <SelectItem 
+                                  key={city.id} 
+                                  value={`${city.wilaya_number.toString().padStart(2, '0')} - ${city.name}`}
+                                  className="cursor-pointer hover:bg-gray-50 focus:bg-gray-50"
+                                >
+                                  {city.wilaya_number.toString().padStart(2, '0')} - {city.name}
+                                </SelectItem>
+                              ))}
+                          </div>
+                        </SelectContent>
+                      </Select>
+                      <input 
+                        id="city"
+                        name="city"
+                        type="text" 
+                        className="sr-only" 
+                        value={form.city}
+                        onChange={() => {}}
+                        required
+                      />
+                    </div>
                   </div>
                 </div>
                 <div className="flex flex-col gap-2">
@@ -339,7 +426,16 @@ Créez votre compte gratuitement et commencez dès maintenant.</p>
                       }} 
                     />
                     <Label htmlFor="consent" className="text-sm font-normal text-muted-foreground">
-                      J’accepte les conditions d’utilisation et la <Link href="/a-propos/mentions-legales" className="underline hover:text-primary">politique de confidentialité</Link>.
+                      <span className="inline">
+                        J'accepte les conditions d'utilisation, la{" "}
+                        <Link
+                          href="/a-propos/mentions-legales"
+                          className="text-primary underline hover:text-primary/80"
+                        >
+                          politique de confidentialité
+                        </Link>
+                        .
+                      </span>
                     </Label>
                   </div>
                   {showConsentError && (
@@ -398,9 +494,6 @@ Créez votre compte gratuitement et commencez dès maintenant.</p>
                 <StepItem number="03" title="Page vitrine professionnelle" description="Présentez vos services, horaires, tarifs et photos sur une page professionnelle optimisée pour attirer plus de clients." />
               </li>
             </ul>
-            {/* <div>
-              <Link href="/pro/abonnement"><Button variant="outline">Voir les fonctionnalités</Button></Link>
-            </div> */}
           </div>
           <div className="relative aspect-[4/3] w-full overflow-hidden rounded-lg bg-muted">
             <Image src="/modern-hair-salon-interior-with-styling-chairs.jpg" alt="Aperçu" fill className="object-cover" />
@@ -414,7 +507,7 @@ Créez votre compte gratuitement et commencez dès maintenant.</p>
           <Accordion type="single" collapsible>
             <AccordionItem value="q1">
               <AccordionTrigger>Qui peut s’inscrire sur YOKA ?</AccordionTrigger>
-              <AccordionContent>Tous les salons de coiffure, instituts de beautéet établissements de bien-être peuvent créer un compte pour gérer leurs réservations et leur activité.</AccordionContent>
+              <AccordionContent>Tous les salons de coiffure, instituts de beauté et établissements de bien-être peuvent créer un compte pour gérer leurs réservations et leur activité.</AccordionContent>
             </AccordionItem>
             <AccordionItem value="q2">
               <AccordionTrigger>Comment mes clients peuvent-ils réserver ?</AccordionTrigger>
@@ -424,11 +517,11 @@ Créez votre compte gratuitement et commencez dès maintenant.</p>
               <AccordionTrigger>Puis-je gérer mon agenda depuis mon téléphone ?</AccordionTrigger>
               <AccordionContent>Oui ! L’interface YOKA est responsive et accessible depuis ordinateur, tablette ou smartphone.</AccordionContent>
             </AccordionItem>
-              <AccordionItem value="q4">
+            <AccordionItem value="q4">
               <AccordionTrigger>Mes données sont-elles sécurisées ?</AccordionTrigger>
               <AccordionContent>Oui. Toutes vos informations et celles de vos clients sont sécurisées et conformes aux normes de confidentialité.</AccordionContent>
             </AccordionItem>
-              <AccordionItem value="q5">
+            <AccordionItem value="q5">
               <AccordionTrigger>Puis-je annuler ou modifier une réservation ?</AccordionTrigger>
               <AccordionContent>Oui. Vous pouvez gérer, annuler ou reprogrammer toutes vos réservations directement depuis votre agenda YOKA.</AccordionContent>
             </AccordionItem>
@@ -436,21 +529,22 @@ Créez votre compte gratuitement et commencez dès maintenant.</p>
         </div>
       </section>
 
-            <section className="w-full bg-foreground text-background">
+      <section className="w-full bg-foreground text-background">
         <div className="mx-auto max-w-6xl px-4 py-16">
           <div className="mb-8 text-center">
             <h3 className="text-2xl font-semibold">Rejoignez nous les professionnels du bien-être.</h3>
           </div>
-        <div className="flex justify-center items-center">
-         <Card className="bg-background text-foreground">
-          <CardContent className="flex justify-center items-center">
-                 <Link href="#contact">
-                <Button className="bg-white text-black hover:bg-white hover:text-black"
-                   size="lg">Commencer maintenant!</Button>
-               </Link>
-             </CardContent>
-          </Card>
-        </div>
+          <div className="flex justify-center items-center">
+            <Card className="bg-background text-foreground">
+              <CardContent className="flex justify-center items-center">
+                <Link href="#contact">
+                  <Button className="bg-white text-black hover:bg-white hover:text-black" size="lg">
+                    Commencer maintenant!
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </section>
     </div>
@@ -491,10 +585,7 @@ function Alternating(props: { image: string; title: string; description: string;
           <p className="text-background/80 md:max-w-[46ch]">{description}</p>
           <Link href={href}><Button variant="secondary">{cta}</Button></Link>
         </div>
-              <Footer />
       </div>
     </section>
   );
 }
-
-

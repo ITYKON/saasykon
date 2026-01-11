@@ -22,7 +22,7 @@ export async function GET(request: Request) {
     const q = (searchParams.get("q") || "").trim();
     const { skip, take } = parsePagination(searchParams);
 
-    if (!["utilisateurs", "salons", "reservations", "abonnements"].includes(type)) {
+    if (!["utilisateurs", "salons", "reservations", "abonnements", "leads"].includes(type)) {
       return NextResponse.json({ error: "Type invalide" }, { status: 400 });
     }
 
@@ -125,6 +125,31 @@ export async function GET(request: Request) {
         ]);
         return NextResponse.json({ items, total });
       }
+      case "leads": {
+        const where: any = {
+          NOT: { archived_at: null },
+          ...(q
+            ? {
+                OR: [
+                  { business_name: { contains: q, mode: "insensitive" } },
+                  { owner_first_name: { contains: q, mode: "insensitive" } },
+                  { owner_last_name: { contains: q, mode: "insensitive" } },
+                  { email: { contains: q, mode: "insensitive" } },
+                ],
+              }
+            : {}),
+        };
+        const [items, total] = await Promise.all([
+          prisma.business_leads.findMany({ 
+            where, 
+            orderBy: { archived_at: "desc" }, 
+            skip, 
+            take 
+          }),
+          prisma.business_leads.count({ where }),
+        ]);
+        return NextResponse.json({ items, total });
+      }
     }
   } catch (e) {
     console.error("[GET /api/admin/archives] Erreur:", e);
@@ -182,6 +207,17 @@ export async function DELETE(request: Request) {
         }
         case "abonnements": {
           const res = await prisma.subscriptions.delete({ where: { id: String(id) } });
+          await prisma.event_logs.create({
+            data: {
+              user_id: (authCheck as any).userId,
+              event_name: "archive.delete_permanent",
+              payload: { type: t, entity_id: String(id) } as any,
+            },
+          });
+          return NextResponse.json({ success: true, message: "Supprimé définitivement", item: res });
+        }
+        case "leads": {
+          const res = await prisma.business_leads.delete({ where: { id: String(id) } });
           await prisma.event_logs.create({
             data: {
               user_id: (authCheck as any).userId,
