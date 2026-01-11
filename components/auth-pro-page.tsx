@@ -326,10 +326,10 @@ Créez votre compte gratuitement et commencez dès maintenant.</p>
                     />
                   </div>
                   <div className="relative">
-                    <Label htmlFor="city">Ville</Label>
+                    <Label htmlFor="city">Wilaya</Label>
                     <Select value={form.city} onValueChange={(v) => update("city", v)} required>
                       <SelectTrigger className="w-full h-12 px-4 text-base border-2 border-gray-200 hover:border-primary transition-colors rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary">
-                        <SelectValue placeholder="Sélectionner une ville" />
+                        <SelectValue placeholder="Sélectionner une wilaya" />
                       </SelectTrigger>
                       <SelectContent 
                         position="popper"
