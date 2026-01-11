@@ -3,8 +3,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
-import { Search, Check } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Search as SearchIcon, Check } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { isValidPhoneNumber } from "react-phone-number-input";
@@ -47,6 +47,14 @@ type LeadFormState = {
 export default function AuthProLanding() {
   const [submitting, setSubmitting] = useState(false);
   const [cities, setCities] = useState<City[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const selectRef = useRef<HTMLDivElement>(null);
+  
+  const scrollToSelect = () => {
+    if (selectRef.current) {
+      selectRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  };
   const [form, setForm] = useState<LeadFormState>({
     companyName: "",
     firstName: "",
@@ -325,35 +333,81 @@ Créez votre compte gratuitement et commencez dès maintenant.</p>
                       required
                     />
                   </div>
-                  <div className="relative">
-                    <Label htmlFor="city">Ville</Label>
-                    <Select value={form.city} onValueChange={(v) => update("city", v)} required>
-                      <SelectTrigger className="w-full h-12 px-4 text-base border-2 border-gray-200 hover:border-primary transition-colors rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary">
-                        <SelectValue placeholder="Sélectionner une ville" />
-                      </SelectTrigger>
-                      <SelectContent 
-                        position="popper"
-                        side="bottom"
-                        align="start"
-                        sideOffset={5}
-                        avoidCollisions={false}
-                        className="w-[var(--radix-select-trigger-width)] max-h-[300px] rounded-xl shadow-xl border border-gray-100 bg-white overflow-auto mt-1"
+                  <div className="relative" ref={selectRef}>
+                    <Label htmlFor="city">Wilaya</Label>
+                    <div className="relative">
+                      <Select 
+                        value={form.city} 
+                        onValueChange={(v) => update("city", v)}
+                        onOpenChange={(open) => open && scrollToSelect()}
                       >
-                        {cities.map((city: City) => (
-                          <SelectItem key={city.id} value={`${city.wilaya_number.toString().padStart(2, '0')} - ${city.name}`}>
-                            {city.wilaya_number.toString().padStart(2, '0')} - {city.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <input 
-                      type="text" 
-                      className="h-px w-px opacity-0 absolute bottom-0 left-0 -z-10 pointer-events-none" 
-                      tabIndex={-1}
-                      value={form.city}
-                      onChange={() => {}}
-                      required
-                    />
+                        <SelectTrigger className="w-full h-12 px-4 text-base border border-input rounded-md hover:border-primary/50 focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                          <SelectValue placeholder="Sélectionner une ville" />
+                        </SelectTrigger>
+                        <SelectContent 
+                          position="popper"
+                          side="bottom"
+                          align="start"
+                          sideOffset={4}
+                          avoidCollisions={false}
+                          className="w-[var(--radix-select-trigger-width)] max-h-[300px] rounded-md shadow-lg border border-gray-200 bg-white overflow-hidden mt-1"
+                        >
+                          <div className="sticky top-0 z-10 bg-white p-2 border-b border-gray-100">
+                            <div className="relative">
+                              <SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                              <Input
+                                type="search"
+                                placeholder="Rechercher une wilaya..."
+                                className="w-full pl-8 py-2 text-sm"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                onKeyDown={(e) => e.stopPropagation()}
+                              />
+                            </div>
+                          </div>
+                          <div className="max-h-[250px] overflow-y-auto">
+                            {cities
+                              .filter(city => {
+                                const searchTermLower = searchTerm.toLowerCase();
+                                const wilayaNumber = city.wilaya_number.toString().padStart(2, '0');
+                                const cityNameLower = city.name.toLowerCase();
+                                
+                                // Recherche par numéro de wilaya (ex: "05")
+                                if (wilayaNumber.startsWith(searchTerm)) {
+                                  return true;
+                                }
+                                
+                                // Recherche par nom de ville (insensible à la casse)
+                                if (cityNameLower.includes(searchTermLower)) {
+                                  return true;
+                                }
+                                
+                                // Recherche par numéro et nom (ex: "05 - Batna")
+                                const fullText = `${wilayaNumber} - ${cityNameLower}`;
+                                return fullText.includes(searchTermLower);
+                              })
+                              .map((city: City) => (
+                                <SelectItem 
+                                  key={city.id} 
+                                  value={`${city.wilaya_number.toString().padStart(2, '0')} - ${city.name}`}
+                                  className="cursor-pointer hover:bg-gray-50 focus:bg-gray-50"
+                                >
+                                  {city.wilaya_number.toString().padStart(2, '0')} - {city.name}
+                                </SelectItem>
+                              ))}
+                          </div>
+                        </SelectContent>
+                      </Select>
+                      <input 
+                        id="city"
+                        name="city"
+                        type="text" 
+                        className="sr-only" 
+                        value={form.city}
+                        onChange={() => {}}
+                        required
+                      />
+                    </div>
                   </div>
                 </div>
                 <div className="flex flex-col gap-2">
