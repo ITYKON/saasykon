@@ -7,7 +7,6 @@ import { useState, useEffect } from "react";
 import { Search, Check } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { wilayas } from "@/lib/wilayas";
 import { isValidPhoneNumber } from "react-phone-number-input";
 import "react-phone-number-input/style.css";
 import {
@@ -28,6 +27,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { PhoneInput } from "@/components/ui/phone-input";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
+type City = {
+  id: number;
+  name: string;
+  wilaya_number: number;
+};
+
 type LeadFormState = {
   companyName: string;
   firstName: string;
@@ -41,6 +46,7 @@ type LeadFormState = {
 
 export default function AuthProLanding() {
   const [submitting, setSubmitting] = useState(false);
+  const [cities, setCities] = useState<City[]>([]);
   const [form, setForm] = useState<LeadFormState>({
     companyName: "",
     firstName: "",
@@ -57,6 +63,22 @@ export default function AuthProLanding() {
   const [emailError, setEmailError] = useState('');
   const [firstNameError, setFirstNameError] = useState('');
   const [lastNameError, setLastNameError] = useState('');
+
+  useEffect(() => {
+    const fetchCities = async () => {
+      try {
+        const response = await fetch('/api/cities');
+        if (response.ok) {
+          const data = await response.json();
+          setCities(data);
+        }
+      } catch (error) {
+        console.error('Error fetching cities:', error);
+      }
+    };
+
+    fetchCities();
+  }, []);
 
   const validateEmail = (email: string) => {
     // Vérifie le format de base et s'assure qu'il y a au moins 2 caractères après le point
@@ -317,9 +339,9 @@ Créez votre compte gratuitement et commencez dès maintenant.</p>
                         avoidCollisions={false}
                         className="w-[var(--radix-select-trigger-width)] max-h-[300px] rounded-xl shadow-xl border border-gray-100 bg-white overflow-auto mt-1"
                       >
-                        {wilayas.map((wilaya: string) => (
-                          <SelectItem key={wilaya} value={wilaya}>
-                            {wilaya}
+                        {cities.map((city: City) => (
+                          <SelectItem key={city.id} value={`${city.wilaya_number.toString().padStart(2, '0')} - ${city.name}`}>
+                            {city.wilaya_number.toString().padStart(2, '0')} - {city.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
