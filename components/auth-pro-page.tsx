@@ -333,24 +333,25 @@ Créez votre compte gratuitement et commencez dès maintenant.</p>
                       required
                     />
                   </div>
-                  <div className="relative" ref={selectRef}>
+                  <div className="relative space-y-2" ref={selectRef}>
                     <Label htmlFor="city">Wilaya</Label>
                     <div className="relative">
                       <Select 
                         value={form.city} 
                         onValueChange={(v) => update("city", v)}
                         onOpenChange={(open) => open && scrollToSelect()}
+                        required
                       >
-                        <SelectTrigger className="w-full h-12 px-4 text-base border border-input rounded-md hover:border-primary/50 focus:ring-2 focus:ring-primary/20 focus:border-primary">
-                          <SelectValue placeholder="Sélectionner une ville" />
+                        <SelectTrigger>
+                          <SelectValue placeholder="Sélectionner une wilaya" />
                         </SelectTrigger>
                         <SelectContent 
                           position="popper"
                           side="bottom"
                           align="start"
-                          sideOffset={4}
+                          sideOffset={5}
                           avoidCollisions={false}
-                          className="w-[var(--radix-select-trigger-width)] max-h-[300px] rounded-md shadow-lg border border-gray-200 bg-white overflow-hidden mt-1"
+                          className="w-[var(--radix-select-trigger-width)] max-h-[300px] rounded-xl shadow-xl border border-gray-100 bg-white overflow-hidden mt-1"
                         >
                           <div className="sticky top-0 z-10 bg-white p-2 border-b border-gray-100">
                             <div className="relative">
