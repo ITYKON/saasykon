@@ -51,7 +51,7 @@ const ContactPage = () => {
                   </div>
                 </div>
                 
-                <div className="flex items-start">
+                {/* <div className="flex items-start">
                   <div className="flex-shrink-0 bg-primary-50 p-3 rounded-full">
                     <FaEnvelope className="h-6 w-6 text-primary-600" />
                   </div>
@@ -61,7 +61,7 @@ const ContactPage = () => {
                       support@yoka.dz
                     </a>
                   </div>
-                </div>
+                </div> */}
 
                 <div className="flex items-start">
                   <div className="flex-shrink-0 bg-primary-50 p-3 rounded-full">
@@ -70,7 +70,7 @@ const ContactPage = () => {
                   <div className="ml-4">
                     <h3 className="text-lg font-medium text-gray-900">Téléphone</h3>
                     <a href="tel:+213123456789" className="mt-1 text-primary-600 hover:text-primary-800 flex items-center">
-                      +213 123 45 67 89
+                      044 20 48 30
                     </a>
                   </div>
                 </div>
@@ -90,13 +90,6 @@ const ContactPage = () => {
                   </div>
                 </div>
               </div>
-              
-              <div className="bg-gray-50 p-6 rounded-lg mt-8">
-                <h3 className="text-lg font-medium text-gray-900 mb-3">Besoin d'aide ?</h3>
-                <p className="text-gray-600">
-                  Notre équipe est à votre disposition pour répondre à toutes vos questions et vous accompagner dans l'utilisation de notre plateforme.
-                </p>
-              </div>
             </div>
           </div>
           
@@ -105,13 +98,13 @@ const ContactPage = () => {
             <div className="bg-white p-1 rounded-xl shadow-md h-full">
               <div className="h-full w-full rounded-lg overflow-hidden">
                 <iframe
-                  src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d102600.34975288933!2d4.994167!3d36.752887!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x12f1c8d8a9999999%3A0x7c1e0a5f8a3c4b4f!2sB%C3%A9ja%C3%AFa%2C%20Alg%C3%A9rie!5e0!3m2!1sfr!2sfr!4v1620000000000!5m2!1sfr!2sfr"
+                  src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3205.013925835255!2d5.046272!3d36.7460352!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMzbCsDQ0JzQ1LjciTiA1wrAwMic0Ni42IkU!5e0!3m2!1sfr!2sdz!4v1642000000000!5m2!1sfr!2sdz"
                   width="100%"
                   height="100%"
                   style={{ minHeight: '500px', border: 0 }}
                   allowFullScreen
                   loading="lazy"
-                  title="YOKA - Béjaïa, Algérie"
+                  title="Inspire Agency - Béjaïa, Algérie"
                 ></iframe>
               </div>
             </div>

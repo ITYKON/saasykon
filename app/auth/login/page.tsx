@@ -23,14 +23,10 @@ export default function LoginPage() {
       {/* Left side - Login Form */}
       <div className="flex-1 flex items-center justify-center p-8">
         <div className="w-full max-w-md">
-          <div className="text-center mb-8">
-            <Link href="/" className="text-2xl font-bold text-black tracking-wide">
-              YOKA
-            </Link>
-          </div>
+
 
           <Card className="border-0 shadow-lg">
-            <CardHeader className="text-center pb-6">
+            <CardHeader className="text-center pb-6 pt-10">
               <CardTitle className="text-2xl font-semibold">Vous avez déjà utilisé YOKA ?</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
