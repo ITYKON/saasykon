@@ -12,13 +12,9 @@ import "react-phone-number-input/style.css";
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogFooter,
 } from "@/components/ui/dialog";
-import { Header } from "@/components/header";
-import { Footer } from "@/components/footer";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -551,7 +547,6 @@ Créez votre compte gratuitement et commencez dès maintenant.</p>
           </div>
         </div>
       </section>
-      <Footer />
     </div>
   );
 }
