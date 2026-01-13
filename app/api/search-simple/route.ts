@@ -2,20 +2,37 @@ export const dynamic = 'force-dynamic';
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { z } from "zod";
 
 export async function GET(req: Request): Promise<NextResponse> {
   try {
     // Récupération des paramètres de requête
     const { searchParams } = new URL(req.url);
-    const query = (searchParams.get("q") || "").trim();
-    const locationQuery = (searchParams.get("location") || "").trim(); // Ajout paramètre location
-    const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
-    const pageSize = Math.min(100, parseInt(searchParams.get("pageSize") || "20", 10));
+
+    const schema = z.object({
+      q: z.string().optional().default(""),
+      location: z.string().optional().default(""),
+      page: z.coerce.number().int().positive().default(1),
+      pageSize: z.coerce.number().int().positive().max(100).default(20),
+    });
+
+    const parsed = schema.safeParse({
+      q: searchParams.get("q"),
+      location: searchParams.get("location"),
+      page: searchParams.get("page"),
+      pageSize: searchParams.get("pageSize"),
+    });
+
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Invalid parameters" }, { status: 400 });
+    }
+
+    const { q: query, location: locationQuery, page, pageSize } = parsed.data;
     const skip = (page - 1) * pageSize;
     
     // Si pas de query ni de location, on peut renvoyer une erreur ou des résultats par défaut
     // Ici on permet si au moins l'un des deux est présent
-    if (!query && !locationQuery) {
+    if (!query.trim() && !locationQuery.trim()) {
        return NextResponse.json(
         { 
           error: "Veuillez spécifier une recherche ou une localisation",

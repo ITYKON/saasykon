@@ -32,6 +32,15 @@ export async function GET() {
   return NextResponse.json({ item, business_id: business.id });
 }
 
+import { z } from "zod";
+
+const verificationSchema = z.object({
+  rc_number: z.string().nullable().optional(),
+  rc_document_url: z.string().url().nullable().optional(),
+  id_document_front_url: z.string().url().nullable().optional(),
+  id_document_back_url: z.string().url().nullable().optional(),
+});
+
 export async function POST(req: NextRequest) {
   const user = await getAuthUserFromCookies();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -39,14 +48,23 @@ export async function POST(req: NextRequest) {
   const business = await prisma.businesses.findFirst({ where: { owner_user_id: user.id } });
   if (!business) return NextResponse.json({ error: "No business" }, { status: 404 });
 
-  let body: any;
-  try { body = await req.json(); } catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }); }
+  let body: z.infer<typeof verificationSchema>;
+  try {
+    const json = await req.json();
+    const result = verificationSchema.safeParse(json);
+    if (!result.success) {
+        return NextResponse.json({ error: "Validation error", details: result.error.format() }, { status: 400 });
+    }
+    body = result.data;
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
 
   const data = {
-    rc_number: body?.rc_number ?? null,
-    rc_document_url: body?.rc_document_url ?? null,
-    id_document_front_url: body?.id_document_front_url ?? null,
-    id_document_back_url: body?.id_document_back_url ?? null,
+    rc_number: body.rc_number ?? null,
+    rc_document_url: body.rc_document_url ?? null,
+    id_document_front_url: body.id_document_front_url ?? null,
+    id_document_back_url: body.id_document_back_url ?? null,
     status: "pending" as any,
     reviewed_by: null as any,
     reviewed_at: null as any,

@@ -1,13 +1,39 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUserFromCookies } from "@/lib/auth";
+import { z } from "zod";
+
+const onboardingSchema = z.object({
+  registry: z.object({
+    rc_number: z.string().nullable().optional(),
+    registry_doc: z.string().url().nullable().optional(),
+  }).optional(),
+  identity: z.object({
+    id_card_front: z.string().url().nullable().optional(),
+    id_card_back: z.string().url().nullable().optional(),
+  }).optional(),
+});
 
 export async function POST(req: NextRequest) {
   const user = await getAuthUserFromCookies();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  let body: any = {};
-  try { body = await req.json(); } catch {}
+  let body: z.infer<typeof onboardingSchema>;
+  try {
+    const json = await req.json();
+    const result = onboardingSchema.safeParse(json);
+    if (!result.success) {
+      // In this specific flow, we might want to be lenient or leniently ignore extra fields,
+      // but strict structure is better. If verification fails, we can either error or use defaults.
+      // Given the original code use "body?.registry?.rc_number", it implies optionality.
+      // The schema handles optionality. Use data or minimal object.
+       body = {};
+    } else {
+        body = result.data;
+    }
+  } catch {
+      body = {};
+  }
 
   // Find businesses owned by this user
   const owned = await prisma.businesses.findMany({ where: { owner_user_id: user.id }, select: { id: true } });

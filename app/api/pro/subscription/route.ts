@@ -3,6 +3,16 @@ import { prisma } from "@/lib/prisma";
 import { getAuthContext } from "@/lib/authorization";
 import { cookies } from "next/headers";
 
+import { z } from "zod";
+
+const createSubscriptionSchema = z.object({
+  plan_id: z.number().int().positive(),
+});
+
+const updateSubscriptionSchema = z.object({
+  action: z.enum(["cancel", "resume"]),
+});
+
 // GET /api/pro/subscription
 // Returns the current (or latest) subscription for the active business, including plan details
 export async function GET(req: NextRequest) {
@@ -96,16 +106,18 @@ export async function POST(req: NextRequest) {
       );
     if (!allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-    let body: any;
+    let body: z.infer<typeof createSubscriptionSchema>;
     try {
-      body = await req.json();
+      const json = await req.json();
+      const result = createSubscriptionSchema.safeParse(json);
+      if (!result.success) {
+        return NextResponse.json({ error: "Validation error", details: result.error.format() }, { status: 400 });
+      }
+      body = result.data;
     } catch {
       return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
     }
-    const planId = Number(body?.plan_id);
-    if (!planId || Number.isNaN(planId)) {
-      return NextResponse.json({ error: "plan_id is required" }, { status: 400 });
-    }
+    const planId = body.plan_id;
 
     const plan = await prisma.plans.findUnique({ where: { id: planId } });
     if (!plan || !plan.is_active) {
@@ -220,11 +232,16 @@ export async function PATCH(req: NextRequest) {
       );
     if (!allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-    let body: any;
-    try { body = await req.json(); } catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }); }
-    const action = String(body?.action || "").toLowerCase();
-    if (!action || (action !== "cancel" && action !== "resume"))
-      return NextResponse.json({ error: "Invalid action" }, { status: 400 });
+    let body: z.infer<typeof updateSubscriptionSchema>;
+    try { 
+      const json = await req.json();
+      const result = updateSubscriptionSchema.safeParse(json);
+      if (!result.success) {
+        return NextResponse.json({ error: "Validation error", details: result.error.format() }, { status: 400 });
+      }
+      body = result.data;
+    } catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }); }
+    const action = body.action.toLowerCase();
 
     const existing = await prisma.subscriptions.findFirst({
       where: { business_id: businessId },

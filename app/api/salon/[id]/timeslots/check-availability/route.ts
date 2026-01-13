@@ -1,20 +1,32 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { z } from "zod";
+
+const availabilitySchema = z.object({
+  starts_at: z.string().datetime(),
+  ends_at: z.string().datetime(),
+  employee_id: z.string().uuid().nullable().optional(),
+});
 
 export async function POST(
   req: Request,
   { params }: { params: { id: string } }
 ) {
   try {
-    const { starts_at, ends_at, employee_id } = await req.json();
-    const businessId = params.id;
-
-    if (!starts_at || !ends_at) {
-      return NextResponse.json(
-        { error: "Les dates de début et de fin sont requises" },
-        { status: 400 }
-      );
+    let body;
+    try {
+      body = await req.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
     }
+
+    const result = availabilitySchema.safeParse(body);
+    if (!result.success) {
+      return NextResponse.json({ error: "Données invalides", details: result.error.format() }, { status: 400 });
+    }
+
+    const { starts_at, ends_at, employee_id } = result.data;
+    const businessId = params.id;
 
     const startDate = new Date(starts_at);
     const endDate = new Date(ends_at);
