@@ -190,6 +190,7 @@ export async function GET(req: NextRequest) {
         public_name: true,
         legal_name: true,
         converted_from_lead: true,
+        slug: true,
       },
     }),
     prisma.business_locations.findFirst({

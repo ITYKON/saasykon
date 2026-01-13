@@ -26,6 +26,7 @@ export async function GET(request: Request) {
             cover_url: true,
             logo_url: true,
             phone: true,
+            slug: true,
             created_at: true,
             business_locations: {
               where: { is_primary: true },
@@ -57,6 +58,7 @@ export async function GET(request: Request) {
         cover_image_url,
         address,
         city,
+        slug: b?.slug,
       },
     }
   })

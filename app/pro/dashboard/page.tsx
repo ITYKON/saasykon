@@ -162,7 +162,9 @@ export default async function ProDashboard() {
               )}
               <Link
                 href={
-                  business?.id
+                  business?.slug
+                    ? `/${business.slug}`
+                    : business?.id
                     ? `/salon/${buildSalonSlug(
                         business.public_name || business.legal_name || "",
                         business.id,

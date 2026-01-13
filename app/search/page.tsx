@@ -277,7 +277,7 @@ export default function SearchPage() {
                 {businesses.map((business) => (
                   <Link
                     key={business.id}
-                    href={`/salon/${buildSalonSlug(business.name, business.id, business.city || business.location?.city)}`}
+                    href={business.slug ? `/${business.slug}` : `/salon/${buildSalonSlug(business.name, business.id, business.city || business.location?.city)}`}
                     id={`business-${business.id}`}
                   >
                     <Card className="hover:shadow-md transition-shadow cursor-pointer">

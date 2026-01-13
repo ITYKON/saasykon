@@ -95,6 +95,7 @@ export async function GET(req: Request) {
         cover_url: true,
         status: true,
         claim_status: true,
+        slug: true,
         created_at: true,
         updated_at: true,
         archived_at: true,
@@ -421,6 +422,12 @@ export async function POST(req: Request) {
       salonData.status = data.status || "active";
       salonData.verification_status = "verified";
     }
+
+    // Generate slug
+    const { generateUniqueSlug } = await import("@/lib/salon-slug");
+    const cityForSlug = parse.data.location || "";
+    const nameForSlug = salonData.public_name || salonData.legal_name || "salon";
+    salonData.slug = await generateUniqueSlug(nameForSlug, cityForSlug);
 
     const salon = await prisma.businesses.create({
       data: salonData,

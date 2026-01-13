@@ -64,6 +64,10 @@ export async function POST(
     },
   });
 
+  // Generate slug
+  const { generateUniqueSlug } = await import("@/lib/salon-slug");
+  const slug = await generateUniqueSlug(business_name ?? lead.business_name, lead.location);
+
   // Create business with pending_verification status
   // Les salons créés depuis les leads ne sont PAS revendicables (claim_status = "approved")
   const business = await prisma.businesses.create({
@@ -77,6 +81,7 @@ export async function POST(
       status: "pending_verification" as any,
       claim_status: "approved", // Les salons créés depuis les leads ne sont pas revendicables
       converted_from_lead: true,
+      slug,
     },
   });
 

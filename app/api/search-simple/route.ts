@@ -164,7 +164,8 @@ export async function GET(req: Request): Promise<NextResponse> {
         }),
         isPremium: business.subscriptions.some((sub: any) => sub.plans.code === 'premium'),
         isNew: new Date(business.created_at) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // Moins de 30 jours
-        isTop: Number(business.ratings_aggregates?.rating_avg || 0) >= 4.5
+        isTop: Number(business.ratings_aggregates?.rating_avg || 0) >= 4.5,
+        slug: business.slug,
       };
     });
     
