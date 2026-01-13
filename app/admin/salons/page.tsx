@@ -515,7 +515,7 @@ function AdminSalonsContent() {
                 )}
                 {salon.claim_status === "none" && (
                   <Link
-                    href={`/salon/${buildSalonSlug(
+                    href={salon.slug ? `/${salon.slug}` : `/salon/${buildSalonSlug(
                       salon.public_name || salon.legal_name || "",
                       salon.id,
                       salon.business_locations?.[0]?.cities?.name || null

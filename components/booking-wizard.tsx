@@ -261,7 +261,7 @@ interface BookingWizardProps {
                       onClick={() => {
                         setTicketOpen(false)
                         if (salon?.id) {
-                          router.push(`/salon/${buildSalonSlug(salon?.name || "", salon.id, salon?.city || null)}`)
+                          router.push(salon.slug ? `/${salon.slug}` : `/salon/${buildSalonSlug(salon?.name || "", salon.id, salon?.city || null)}`)
                         }
                       }}
                     >
@@ -352,7 +352,7 @@ interface BookingWizardProps {
                     onClick={() => {
                       setTicketOpen(false)
                       if (salon?.id) {
-                        router.push(`/salon/${buildSalonSlug(salon?.name || "", salon.id, salon?.city || null)}`)
+                        router.push(salon.slug ? `/${salon.slug}` : `/salon/${buildSalonSlug(salon?.name || "", salon.id, salon?.city || null)}`)
                       }
                     }}
                   >
