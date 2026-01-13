@@ -340,7 +340,7 @@ Créez votre compte gratuitement et commencez dès maintenant.</p>
                       required
                     />
                   </div>
-                  <div className="space-y-2" ref={selectRef}>
+                  <div className="relative space-y-2" ref={selectRef}>
                     <Label htmlFor="city">Wilaya</Label>
                     <div className="relative">
                       <Select 
