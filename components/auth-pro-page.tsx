@@ -12,13 +12,9 @@ import "react-phone-number-input/style.css";
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogFooter,
 } from "@/components/ui/dialog";
-import { Header } from "@/components/header";
-import { Footer } from "@/components/footer";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -55,6 +51,7 @@ export default function AuthProLanding() {
       selectRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   };
+  
   const [form, setForm] = useState<LeadFormState>({
     companyName: "",
     firstName: "",
@@ -65,6 +62,7 @@ export default function AuthProLanding() {
     businessType: "",
     consent: false,
   });
+  
   const router = useRouter();
   const [showConsentError, setShowConsentError] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -89,7 +87,6 @@ export default function AuthProLanding() {
   }, []);
 
   const validateEmail = (email: string) => {
-    // Vérifie le format de base et s'assure qu'il y a au moins 2 caractères après le point
     const re = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/;
     return re.test(email);
   };
@@ -109,7 +106,6 @@ export default function AuthProLanding() {
 
   const handleEmailChange = (value: string) => {
     update("email", value);
-    // Clear error immediately when user starts typing
     if (emailError) setEmailError('');
     if (value) {
       if (!value.includes('@')) {
@@ -133,7 +129,6 @@ export default function AuthProLanding() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     
-    // Validation des champs
     let hasError = false;
     
     if (form.firstName.length < 4) {
@@ -157,8 +152,10 @@ export default function AuthProLanding() {
       setShowConsentError(true);
       return;
     }
+    
     setShowConsentError(false);
     setSubmitting(true);
+    
     try {
       const payload = {
         business_name: form.companyName,
@@ -170,11 +167,13 @@ export default function AuthProLanding() {
         location: form.city || null,
         notes: null as string | null,
       };
+      
       const res = await fetch("/api/leads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
+      
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         if (res.status === 409 && data?.error?.includes("email")) {
@@ -184,15 +183,26 @@ export default function AuthProLanding() {
         const msg = data?.error || `Erreur API (${res.status})`;
         throw new Error(msg);
       }
-      setForm({ companyName: "", firstName: "", lastName: "", email: "", phone: "", city: "", businessType: "", consent: false });
+      
+      setForm({ 
+        companyName: "", 
+        firstName: "", 
+        lastName: "", 
+        email: "", 
+        phone: "", 
+        city: "", 
+        businessType: "", 
+        consent: false 
+      });
       setIsSuccess(true);
-      // toast.success("Merci !", { description: "Un expert vous contactera sous 24h." });
       
       if (typeof window !== "undefined") {
         window.location.hash = "contact";
       }
     } catch (err: any) {
-      toast.error("Impossible d'envoyer votre demande", { description: err?.message || "Merci de réessayer plus tard." });
+      toast.error("Impossible d'envoyer votre demande", { 
+        description: err?.message || "Merci de réessayer plus tard." 
+      });
     } finally {
       setSubmitting(false);
     }
@@ -318,10 +328,7 @@ Créez votre compte gratuitement et commencez dès maintenant.</p>
                         <SelectValue placeholder="Sélectionner" />
                       </SelectTrigger>
                       <SelectContent position="popper" side="bottom" align="start" avoidCollisions={false} className="rounded-xl shadow-xl border-border/50" sideOffset={5}>
-                       
-                        
                         <SelectItem value="beaute">Institut de beauté</SelectItem>
-                        
                       </SelectContent>
                     </Select>
                     <input 
@@ -342,7 +349,7 @@ Créez votre compte gratuitement et commencez dès maintenant.</p>
                         onOpenChange={(open) => open && scrollToSelect()}
                         required
                       >
-                        <SelectTrigger>
+                        <SelectTrigger className="w-full h-12 px-4 text-base border-2 border-gray-200 hover:border-primary transition-colors rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary">
                           <SelectValue placeholder="Sélectionner une wilaya" />
                         </SelectTrigger>
                         <SelectContent 
@@ -351,7 +358,7 @@ Créez votre compte gratuitement et commencez dès maintenant.</p>
                           align="start"
                           sideOffset={5}
                           avoidCollisions={false}
-                          className="w-[var(--radix-select-trigger-width)] max-h-[300px] rounded-xl shadow-xl border border-gray-100 bg-white overflow-hidden mt-1"
+                          className="w-[var(--radix-select-trigger-width)] max-h-[300px] rounded-xl shadow-xl border border-gray-100 bg-white overflow-auto mt-1"
                         >
                           <div className="sticky top-0 z-10 bg-white p-2 border-b border-gray-100">
                             <div className="relative">
@@ -373,17 +380,14 @@ Créez votre compte gratuitement et commencez dès maintenant.</p>
                                 const wilayaNumber = city.wilaya_number.toString().padStart(2, '0');
                                 const cityNameLower = city.name.toLowerCase();
                                 
-                                // Recherche par numéro de wilaya (ex: "05")
                                 if (wilayaNumber.startsWith(searchTerm)) {
                                   return true;
                                 }
                                 
-                                // Recherche par nom de ville (insensible à la casse)
                                 if (cityNameLower.includes(searchTermLower)) {
                                   return true;
                                 }
                                 
-                                // Recherche par numéro et nom (ex: "05 - Batna")
                                 const fullText = `${wilayaNumber} - ${cityNameLower}`;
                                 return fullText.includes(searchTermLower);
                               })
@@ -421,21 +425,18 @@ Créez votre compte gratuitement et commencez dès maintenant.</p>
                         if (v) setShowConsentError(false);
                       }} 
                     />
-<Label
-                 htmlFor="consent"
-                 className="text-sm font-normal text-muted-foreground"
-               >
-                 <span className="inline">
-                   J'accepte les conditions d'utilisation, la{" "}
-                   <Link
-                     href="/a-propos/mentions-legales"
-                     className="text-primary underline hover:text-primary/80"
-                   >
-                     politique de confidentialité
-                   </Link>
-                   .
-                 </span>
-                </Label>
+                    <Label htmlFor="consent" className="text-sm font-normal text-muted-foreground">
+                      <span className="inline">
+                        J'accepte les conditions d'utilisation, la{" "}
+                        <Link
+                          href="/a-propos/mentions-legales"
+                          className="text-primary underline hover:text-primary/80"
+                        >
+                          politique de confidentialité
+                        </Link>
+                        .
+                      </span>
+                    </Label>
                   </div>
                   {showConsentError && (
                     <p className="text-sm text-red-500">Veuillez accepter les conditions générales.</p>
@@ -493,9 +494,6 @@ Créez votre compte gratuitement et commencez dès maintenant.</p>
                 <StepItem number="03" title="Page vitrine professionnelle" description="Présentez vos services, horaires, tarifs et photos sur une page professionnelle optimisée pour attirer plus de clients." />
               </li>
             </ul>
-            {/* <div>
-              <Link href="/pro/abonnement"><Button variant="outline">Voir les fonctionnalités</Button></Link>
-            </div> */}
           </div>
           <div className="relative aspect-[4/3] w-full overflow-hidden rounded-lg bg-muted">
             <Image src="/modern-hair-salon-interior-with-styling-chairs.jpg" alt="Aperçu" fill className="object-cover" />
@@ -509,7 +507,7 @@ Créez votre compte gratuitement et commencez dès maintenant.</p>
           <Accordion type="single" collapsible>
             <AccordionItem value="q1">
               <AccordionTrigger>Qui peut s’inscrire sur YOKA ?</AccordionTrigger>
-              <AccordionContent>Tous les salons de coiffure, instituts de beautéet établissements de bien-être peuvent créer un compte pour gérer leurs réservations et leur activité.</AccordionContent>
+              <AccordionContent>Tous les salons de coiffure, instituts de beauté et établissements de bien-être peuvent créer un compte pour gérer leurs réservations et leur activité.</AccordionContent>
             </AccordionItem>
             <AccordionItem value="q2">
               <AccordionTrigger>Comment mes clients peuvent-ils réserver ?</AccordionTrigger>
@@ -519,11 +517,11 @@ Créez votre compte gratuitement et commencez dès maintenant.</p>
               <AccordionTrigger>Puis-je gérer mon agenda depuis mon téléphone ?</AccordionTrigger>
               <AccordionContent>Oui ! L’interface YOKA est responsive et accessible depuis ordinateur, tablette ou smartphone.</AccordionContent>
             </AccordionItem>
-              <AccordionItem value="q4">
+            <AccordionItem value="q4">
               <AccordionTrigger>Mes données sont-elles sécurisées ?</AccordionTrigger>
               <AccordionContent>Oui. Toutes vos informations et celles de vos clients sont sécurisées et conformes aux normes de confidentialité.</AccordionContent>
             </AccordionItem>
-              <AccordionItem value="q5">
+            <AccordionItem value="q5">
               <AccordionTrigger>Puis-je annuler ou modifier une réservation ?</AccordionTrigger>
               <AccordionContent>Oui. Vous pouvez gérer, annuler ou reprogrammer toutes vos réservations directement depuis votre agenda YOKA.</AccordionContent>
             </AccordionItem>
@@ -531,21 +529,22 @@ Créez votre compte gratuitement et commencez dès maintenant.</p>
         </div>
       </section>
 
-            <section className="w-full bg-foreground text-background">
+      <section className="w-full bg-foreground text-background">
         <div className="mx-auto max-w-6xl px-4 py-16">
           <div className="mb-8 text-center">
             <h3 className="text-2xl font-semibold">Rejoignez nous les professionnels du bien-être.</h3>
           </div>
-        <div className="flex justify-center items-center">
-         <Card className="bg-background text-foreground">
-          <CardContent className="flex justify-center items-center">
-                 <Link href="#contact">
-                <Button className="bg-white text-black hover:bg-white hover:text-black"
-                   size="lg">Commencer maintenant!</Button>
-               </Link>
-             </CardContent>
-          </Card>
-        </div>
+          <div className="flex justify-center items-center">
+            <Card className="bg-background text-foreground">
+              <CardContent className="flex justify-center items-center">
+                <Link href="#contact">
+                  <Button className="bg-white text-black hover:bg-white hover:text-black" size="lg">
+                    Commencer maintenant!
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </section>
     </div>
@@ -586,10 +585,7 @@ function Alternating(props: { image: string; title: string; description: string;
           <p className="text-background/80 md:max-w-[46ch]">{description}</p>
           <Link href={href}><Button variant="secondary">{cta}</Button></Link>
         </div>
-              <Footer />
       </div>
     </section>
   );
 }
-
-
