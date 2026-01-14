@@ -164,7 +164,7 @@ export default function HomePage() {
           <div className="grid md:grid-cols-2 gap-12 items-center">
             <div className="relative">
               <Image
-                src="images\YOKA.png"
+                src="images\yoka1.avif"
                 alt="Peigne professionnel"
                 width={600}
                  height={300} // ratio différent OK
