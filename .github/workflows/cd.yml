@@ -26,6 +26,8 @@ jobs:
         username: ${{ env.VM_USER }}
         key: ${{ secrets.VM_SSH_PRIVATE_KEY }}
         script_stop: true
+        timeout: 600s
+        command_timeout: 600s
         script: |
          cd ${{ env.PROJECT_PATH }}
          
