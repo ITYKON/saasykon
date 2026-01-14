@@ -3,13 +3,13 @@ import { prisma } from "@/lib/prisma";
 import { requireAdminOrPermission } from "@/lib/authorization";
 import { z } from "zod";
 
-const assignSchema = z.object({
+export const assignSchema = z.object({
   email: z.string().email(),
   roleCode: z.string().min(2),
   business_id: z.string().uuid().optional(),
 });
 
-const unassignSchema = z.object({
+export const unassignSchema = z.object({
   email: z.string().email(),
   roleCode: z.string().min(2),
   business_id: z.string().uuid(),

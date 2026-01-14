@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 
-const availabilitySchema = z.object({
+export const availabilitySchema = z.object({
   starts_at: z.string().datetime(),
   ends_at: z.string().datetime(),
   employee_id: z.string().uuid().nullable().optional(),

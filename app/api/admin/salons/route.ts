@@ -286,7 +286,7 @@ export async function GET(req: Request) {
 }
 
 // Validation Zod
-const salonSchema = z.object({
+export const salonSchema = z.object({
   legal_name: z.string().min(2, "Le nom légal est requis (2 caractères min)"),
   public_name: z.string().min(2, "Le nom public est requis (2 caractères min)"),
   description: z.string().nullable().optional(),

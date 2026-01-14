@@ -4,23 +4,23 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 
+export const searchSimpleSchema = z.object({
+  q: z.string().optional().default(""),
+  location: z.string().optional().default(""),
+  page: z.coerce.number().int().positive().default(1),
+  pageSize: z.coerce.number().int().positive().max(100).default(20),
+});
+
 export async function GET(req: Request): Promise<NextResponse> {
   try {
     // Récupération des paramètres de requête
     const { searchParams } = new URL(req.url);
 
-    const schema = z.object({
-      q: z.string().optional().default(""),
-      location: z.string().optional().default(""),
-      page: z.coerce.number().int().positive().default(1),
-      pageSize: z.coerce.number().int().positive().max(100).default(20),
-    });
-
-    const parsed = schema.safeParse({
-      q: searchParams.get("q"),
-      location: searchParams.get("location"),
-      page: searchParams.get("page"),
-      pageSize: searchParams.get("pageSize"),
+    const parsed = searchSimpleSchema.safeParse({
+      q: searchParams.get("q") || undefined,
+      location: searchParams.get("location") || undefined,
+      page: searchParams.get("page") || undefined,
+      pageSize: searchParams.get("pageSize") || undefined,
     });
 
     if (!parsed.success) {

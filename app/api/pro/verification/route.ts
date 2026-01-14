@@ -34,7 +34,7 @@ export async function GET() {
 
 import { z } from "zod";
 
-const verificationSchema = z.object({
+export const verificationSchema = z.object({
   rc_number: z.string().nullable().optional(),
   rc_document_url: z.string().url().nullable().optional(),
   id_document_front_url: z.string().url().nullable().optional(),

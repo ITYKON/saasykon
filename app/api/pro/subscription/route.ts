@@ -5,11 +5,11 @@ import { cookies } from "next/headers";
 
 import { z } from "zod";
 
-const createSubscriptionSchema = z.object({
+export const createSubscriptionSchema = z.object({
   plan_id: z.number().int().positive(),
 });
 
-const updateSubscriptionSchema = z.object({
+export const updateSubscriptionSchema = z.object({
   action: z.enum(["cancel", "resume"]),
 });
 
