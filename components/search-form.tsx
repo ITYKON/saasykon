@@ -86,7 +86,7 @@ export function SearchForm({
         )}
         <div className="relative">
           <Input
-            placeholder="Où ? (Adresse, ville...)"
+            placeholder="Où ? (Adresse, wilaya...)"
             value={location}
             onChange={(e) => setLocation(e.target.value)}
             className="h-12 text-lg border-gray-300 focus:border-black focus:ring-black"
