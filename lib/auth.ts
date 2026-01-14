@@ -6,7 +6,7 @@ import { randomBytes, randomInt } from "crypto";
 import { SignJWT, jwtVerify } from "jose";
 
 //  CORRECTION : Utiliser le même nom que le middleware attend
-const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME || "__yk_sb_";
+const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME || "__yk_sb_hg";
 const SESSION_TTL_SECONDS = Number(process.env.SESSION_TTL_SECONDS || 60 * 60 * 24 * 7); // 7 days
 const JWT_SECRET = new TextEncoder().encode(process.env.NEXTAUTH_SECRET || "default_secret_fallback_12345");
 
@@ -186,11 +186,30 @@ export async function destroySessionFromRequestCookie() {
   const response = NextResponse.json({ ok: true });
   
   // Clear all auth-related cookies
-  response.cookies.delete(SESSION_COOKIE_NAME);
-  response.cookies.delete("saas_roles");
-  response.cookies.delete("business_id");
-  response.cookies.delete("onboarding_done");
-  response.cookies.delete("next_auth_session");
+  const isProduction = process.env.NODE_ENV === 'production'
+  const isSecure = isProduction && process.env.DISABLE_SECURE_COOKIES !== "true"
+  
+  const cookieOptions = {
+    httpOnly: true,
+    secure: isSecure,
+    sameSite: 'lax' as const,
+    path: '/',
+    maxAge: 0,
+    expires: new Date(0)
+  }
+  
+  const cookiesToClear = [
+    SESSION_COOKIE_NAME,
+    "next_auth_session",
+    "saas_roles",
+    "business_id",
+    "onboarding_done"
+  ]
+
+  cookiesToClear.forEach(name => {
+    response.cookies.set(name, '', cookieOptions)
+    response.cookies.delete(name)
+  })
 
   return response;
 }
@@ -208,17 +227,37 @@ export async function getAuthUserFromCookies() {
   if (!token) return null;
   
   try {
+    // 1. Essayer de récupérer via JWT
     const authData = await getAuthDataFromToken(token);
-    if (!authData) return null;
+    if (authData) {
+      return await prisma.users.findUnique({ 
+        where: { id: authData.userId }
+      }).catch((e) => {
+        console.error('[getAuthUserFromCookies] Prisma error (JWT):', e);
+        return null;
+      });
+    }
 
-    return await prisma.users.findUnique({ 
-      where: { id: authData.userId }
+    // 2. Fallback: Vérifier si c'est une session legacy en DB
+    const session = await prisma.sessions.findUnique({ 
+      where: { token }, 
+      include: { users: true } 
     }).catch((e) => {
-      console.error('[getAuthUserFromCookies] Prisma error:', e);
+      console.error('[getAuthUserFromCookies] Prisma error (Legacy):', e);
       return null;
     });
+    
+    if (session) {
+      if (session.expires_at < new Date()) {
+        await prisma.sessions.delete({ where: { token } }).catch(() => {});
+        return null;
+      }
+      return session.users;
+    }
+    
+    return null;
   } catch (error) {
-    console.error('[getAuthUserFromCookies] Erreur:', error);
+    console.error('[getAuthUserFromCookies] Error:', error);
     return null;
   }
 }

@@ -1,5 +1,5 @@
-import { prisma } from "@/lib/prisma";
-import { generateUniqueSlug } from "@/lib/salon-slug";
+import { prisma } from "../lib/prisma";
+import { generateUniqueSlug } from "../lib/salon-slug-server";
 
 async function main() {
   console.log("Starting backfill of slugs...");
@@ -18,7 +18,8 @@ async function main() {
   console.log(`Found ${businesses.length} businesses without slug.`);
 
   for (const business of businesses) {
-    const city = business.business_locations?.[0]?.cities?.name || business.business_locations?.[0]?.address_line1 || "";
+    const primaryLocation = business.business_locations?.find(loc => loc.is_primary) || business.business_locations?.[0];
+    const city = primaryLocation?.cities?.name || primaryLocation?.address_line1 || "";
     const name = business.public_name || business.legal_name || "salon";
     
     console.log(`Processing ${business.id}: ${name} (${city})`);
