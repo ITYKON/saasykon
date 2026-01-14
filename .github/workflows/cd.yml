@@ -27,24 +27,19 @@ jobs:
         key: ${{ secrets.VM_SSH_PRIVATE_KEY }}
         script_stop: true
         script: |
-          echo "Nettoyage du port 3000"
-          docker stop $(docker ps -q --filter "publish=3000") 2>/dev/null || true
-          docker rm $(docker ps -aq --filter "publish=3000") 2>/dev/null || true
-          
-          echo "Début du déploiement sur VM"
-          cd ${{ env.PROJECT_PATH }}
-          
           echo "Connexion à GHCR"
           echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
           
-          echo "Pull de la nouvelle image"
-          docker compose pull
+          cd ${{ env.PROJECT_PATH }}
           
-          echo "Redémarrage du conteneur"
-          docker compose up -d --remove-orphans
+          echo "Pull de la nouvelle image de l'app"
+          docker compose pull saasykon-app
           
-          echo "Nettoyage des anciennes images"
+          echo "Redémarrage UNIQUEMENT de l'application (nginx & certbot restent intacts)"
+          docker compose up -d --no-deps saasykon-app
+          
+          echo "Vérification du statut"
+          docker compose ps saasykon-app
+          
+          echo "Nettoyage des anciennes images (optionnel)"
           docker image prune -af
-        
-          echo "Déploiement terminé !"
-          docker compose ps
