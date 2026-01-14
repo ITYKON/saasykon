@@ -129,16 +129,16 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // Block access to admin routes for users without admin privileges
-  // Fine-grained permission checks are done at page/API level via requireAdminOrPermission()
   const isAdminPath = pathname.startsWith("/admin") || pathname.startsWith("/api/admin")
   if (isAdminPath && !canAccessAdmin) {
+   
     if (isApiRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
     const url = new URL("/client/dashboard", request.url)
     return NextResponse.redirect(url)
   }
+
 
   // Redirect sub-admins trying to access client/pro routes to admin dashboard
   const isClientPath = pathname.startsWith("/client")

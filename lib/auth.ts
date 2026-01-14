@@ -217,16 +217,22 @@ export async function getAuthUserFromCookies() {
   const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
   
   if (!token) {
+   
     return null;
   }
   
   try {
+   
     const session = await prisma.sessions.findUnique({ 
       where: { token }, 
       include: { users: true } 
-    }).catch(() => null);
+    }).catch((e) => {
+      console.error('[getAuthUserFromCookies] Prisma error:', e);
+      return null;
+    });
     
     if (!session) {
+     
       return null;
     }
     
@@ -235,9 +241,10 @@ export async function getAuthUserFromCookies() {
       return null;
     }
     
+   
     return session.users;
   } catch (error) {
-    console.error('[getAuthUserFromCookies] Erreur:', error);
+    console.error('[getAuthUserFromCookies] Error:', error);
     return null;
   }
 }
