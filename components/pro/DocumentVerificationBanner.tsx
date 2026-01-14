@@ -17,8 +17,7 @@ interface DocumentVerificationBannerProps {
 export function DocumentVerificationBanner({ status, daysRemaining, businessId }: DocumentVerificationBannerProps) {
   const [timeLeft, setTimeLeft] = useState('');
   
-  // Log pour le débogage
-  console.log('[DocumentVerificationBanner] Statut de la vérification:', { status, daysRemaining, businessId });
+
 
   useEffect(() => {
     // Update countdown every second
@@ -46,7 +45,7 @@ export function DocumentVerificationBanner({ status, daysRemaining, businessId }
   }, [daysRemaining]);
 
   if (status === 'VERIFIED' || status === 'DOCUMENTS_SUBMITTED') {
-    console.log('[DocumentVerificationBanner] Masquage de la bannière car le statut est:', status);
+
     return null;
   }
 

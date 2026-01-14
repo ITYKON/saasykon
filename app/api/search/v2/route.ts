@@ -103,7 +103,7 @@ async function performBroaderSearch(
     return { businesses: [], total: 0 };
   }
 
-  console.log('Tentative de recherche élargie pour:', query);
+
   
   const broaderWhere = {
     ...baseWhere,
@@ -314,7 +314,7 @@ export async function GET(req: Request) {
     ];
 
     // Exécution de la requête principale
-    console.log('Exécution de la requête Prisma...');
+    // Exécution de la requête principale
     
     let businesses: Business[] = [];
     let total = 0;
@@ -370,12 +370,10 @@ export async function GET(req: Request) {
     
     // Si aucun résultat et qu'il y a une requête, on essaie une recherche élargie
     if (businesses.length === 0 && query && query.length > 3) {
-      console.log('Aucun résultat trouvé, tentative de recherche élargie...');
       
       const broaderSearch = await performBroaderSearch(query, baseWhere);
       
       if (broaderSearch.businesses.length > 0) {
-        console.log(`Recherche élargie réussie: ${broaderSearch.businesses.length} résultats trouvés`);
         businesses = broaderSearch.businesses;
         total = broaderSearch.total;
       }
@@ -394,7 +392,7 @@ export async function GET(req: Request) {
       totalPages
     };
     
-    console.log(`Recherche terminée: ${formattedResults.length} résultats sur ${total}`);
+
     
     return NextResponse.json(responseData);
     

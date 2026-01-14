@@ -18,7 +18,7 @@ export async function GET() {
 					}
 				}
 			});
-			console.log("[GET /api/admin/users] users:", users);
+
 			return NextResponse.json({ users });
 		} catch (e) {
 			console.error("[GET /api/admin/users] Erreur:", e);
@@ -34,14 +34,12 @@ export async function DELETE(request: Request) {
 			const body = await request.json().catch(() => ({} as any));
 			const rawId = body.id ?? body.userId ?? body.user_id
 			const id = rawId !== undefined && rawId !== null ? String(rawId) : null
-			console.log("[DELETE /api/admin/users] id reçu:", id, "(raw:", rawId, ")");
 			if (!id) return NextResponse.json({ error: "ID requis" }, { status: 400 });
 			try {
 				const result = await prisma.users.update({
 					where: { id },
 					data: { deleted_at: new Date() },
 				});
-				console.log("[DELETE /api/admin/users] user supprimé:", result);
 				return NextResponse.json({ success: true, user: result });
 			} catch (err: any) {
 				// Prisma 'record not found' error (P2025) -> return 404
@@ -64,13 +62,11 @@ export async function PUT(request: Request) {
 			const authCheck = await requireAdminOrPermission("users");
 			if (authCheck instanceof NextResponse) return authCheck;
 			const { id, ...data } = await request.json();
-			console.log("[PUT /api/admin/users] id reçu:", id, "data:", data);
 			if (!id) return NextResponse.json({ error: "ID requis" }, { status: 400 });
 			const result = await prisma.users.update({
 				where: { id },
 				data,
 			});
-			console.log("[PUT /api/admin/users] user modifié:", result);
 			return NextResponse.json({ success: true });
 		} catch (e) {
 			console.error("[PUT /api/admin/users] Erreur:", e);

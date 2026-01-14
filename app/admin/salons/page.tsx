@@ -69,7 +69,6 @@ function AdminSalonsContent() {
   const [lastUpdated, setLastUpdated] = React.useState(Date.now());
 
   React.useEffect(() => {
-    console.log("Début de la récupération des salons...");
     setError(null);
     setLoading(true);
 
@@ -81,7 +80,6 @@ function AdminSalonsContent() {
 
     fetch(`/api/admin/salons?${params.toString()}`)
       .then(async (res) => {
-        console.log("Réponse reçue, statut:", res.status);
         if (!res.ok) {
           const errorText = await res.text();
           console.error("Erreur de l'API:", errorText);
@@ -90,7 +88,6 @@ function AdminSalonsContent() {
         return res.json();
       })
       .then((data) => {
-        console.log("Données reçues de l'API:", data);
         if (data.success && data.data) {
           setSalons(data.data.salons || []);
         } else {

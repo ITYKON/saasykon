@@ -161,14 +161,10 @@ export async function POST(req: Request) {
     const endsAt = new Date(startsAt.getTime() + duration_minutes * 60000);
 
     // Vérifier la disponibilité du créneau
-    console.log('Vérification du créneau:', { business_id, employee_id, startsAt, endsAt });
     const { available, conflict } = await isSlotAvailable(business_id, employee_id || null, startsAt, endsAt);
-    
-    console.log('Résultat de la vérification:', { available, conflict });
     
     if (!available) {
       if (conflict) {
-        console.log('Conflit détecté:', JSON.stringify(conflict, null, 2));
         return NextResponse.json(
           { 
             error: "Créneau indisponible", 

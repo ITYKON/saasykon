@@ -7,12 +7,11 @@ export default function LogoutPage() {
   const [logs, setLogs] = useState<string[]>([])
 
   const addLog = (message: string) => {
-    console.log(message)
     setLogs(prev => [...prev, message])
   }
 
   useEffect(() => {
-    console.log("🚀 LogoutPage monté - début déconnexion")
+
     
     const logout = async () => {
       try {

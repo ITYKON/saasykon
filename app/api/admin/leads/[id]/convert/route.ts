@@ -209,13 +209,11 @@ export async function POST(
         html: tpl.html,
         text: tpl.text,
       });
-      console.log(`✅ Email sent successfully to: ${email}`);
+    
     } catch (emailError) {
       console.error(`❌ Failed to send email to ${email}:`, emailError);
       // Continue with the process even if email fails
-      console.log(
-        `⚠️  Lead conversion continues without email. User can be invited manually later.`
-      );
+    
     }
 
     await prisma.event_logs.create({

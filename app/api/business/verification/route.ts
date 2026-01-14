@@ -153,59 +153,27 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  console.log(
-    "[Business Verification API] Début de la requête de vérification"
-  );
 
   try {
     // Récupérer l'utilisateur authentifié
-    console.log(
-      "[Business Verification API] Récupération de l'utilisateur authentifié"
-    );
     const user = await getAuthUserFromCookies();
     if (!user) {
-      console.log("[Business Verification API] Utilisateur non authentifié");
       return errorResponse("Non autorisé: utilisateur non connecté", 401);
     }
 
-    console.log(`[Business Verification API] Utilisateur connecté:`, {
-      id: user.id,
-      email: user.email,
-    });
+
 
     // Récupérer l'entreprise de l'utilisateur
-    console.log(
-      `[Business Verification API] Récupération de l'entreprise pour l'utilisateur ${user.id}`
-    );
 
     // Debug: Vérifier les rôles et claims de l'utilisateur
     const userRoles = await prisma.user_roles.findMany({
       where: { user_id: user.id },
       include: { roles: true, businesses: true },
     });
-    console.log(
-      `[Business Verification API] Rôles de l'utilisateur:`,
-      userRoles.map((ur) => ({
-        role: ur.roles.code,
-        business_id: ur.business_id,
-        business_name: ur.businesses?.public_name,
-      }))
-    );
-
     const userClaims = await prisma.claims.findMany({
       where: { user_id: user.id },
       include: { businesses: true },
     });
-    console.log(
-      `[Business Verification API] Claims de l'utilisateur:`,
-      userClaims.map((c) => ({
-        id: c.id,
-        status: c.status,
-        business_id: c.business_id,
-        business_name: c.businesses?.public_name,
-        business_claim_status: c.businesses?.claim_status,
-      }))
-    );
 
     // Vérifier d'abord avec owner_user_id, puis avec owner_id, puis via les rôles PRO
     const business = await prisma.businesses.findFirst({
@@ -240,9 +208,6 @@ export async function POST(request: Request) {
     });
 
     if (!business) {
-      console.log(
-        `[Business Verification API] Aucune entreprise trouvée pour l'utilisateur ${user.id}`
-      );
       return errorResponse(
         "Aucune entreprise trouvée pour votre compte. Veuillez d'abord créer ou réclamer une entreprise.",
         400,
@@ -254,11 +219,7 @@ export async function POST(request: Request) {
       );
     }
 
-    console.log(`[Business Verification API] Entreprise trouvée:`, {
-      id: business.id,
-      name: business.public_name,
-      status: business.status,
-    });
+
 
     // Récupérer les vérifications existantes avec les statuts valides
     const existingVerifications = await prisma.business_verifications.findMany({
@@ -274,16 +235,7 @@ export async function POST(request: Request) {
 
     const existingVerification = existingVerifications[0] || null;
 
-    console.log(`[Business Verification API] Vérifications existantes:`, {
-      count: existingVerification ? 1 : 0,
-      latestStatus: existingVerification?.status || "none",
-      id: existingVerification?.id,
-    });
-
     // Récupération des données du formulaire
-    console.log(
-      "[Business Verification API] Récupération des données du formulaire"
-    );
     const formData = await request.formData();
 
     // Récupération des champs
@@ -292,21 +244,8 @@ export async function POST(request: Request) {
     const idDocumentFront = formData.get("idDocumentFront") as FileWithName;
     const idDocumentBack = formData.get("idDocumentBack") as FileWithName;
 
-    console.log("[Business Verification API] Données reçues:", {
-      hasRcNumber: !!rcNumber,
-      hasRcDocument: !!rcDocument,
-      hasIdDocumentFront: !!idDocumentFront,
-      hasIdDocumentBack: !!idDocumentBack,
-      rcDocumentType: rcDocument?.type,
-      idDocumentFrontType: idDocumentFront?.type,
-      idDocumentBackType: idDocumentBack?.type,
-    });
-
     // Validation des entrées
     if (!rcNumber || typeof rcNumber !== "string" || rcNumber.trim() === "") {
-      console.log(
-        "[Business Verification API] Erreur de validation: numéro RC manquant"
-      );
       return errorResponse("Le numéro RC est requis", 400, {
         errorCode: "MISSING_RC_NUMBER",
         field: "rcNumber",
@@ -320,11 +259,6 @@ export async function POST(request: Request) {
     if (!idDocumentBack) missingFiles.push("idDocumentBack");
 
     if (missingFiles.length > 0) {
-      console.log(
-        `[Business Verification API] Fichiers manquants: ${missingFiles.join(
-          ", "
-        )}`
-      );
       return errorResponse("Tous les documents sont requis", 400, {
         errorCode: "MISSING_REQUIRED_FILES",
         missingFiles,
@@ -333,7 +267,6 @@ export async function POST(request: Request) {
     }
 
     // Vérification des types et tailles des fichiers
-    console.log("[Business Verification API] Vérification des fichiers");
     const allowedTypes = ["application/pdf", "image/jpeg", "image/png"];
     const maxFileSize = 5 * 1024 * 1024; // 5MB
 
@@ -354,9 +287,6 @@ export async function POST(request: Request) {
     for (const { file, name, field } of files) {
       // Vérification du type de fichier
       if (!allowedTypes.includes(file.type)) {
-        console.log(
-          `[Business Verification API] Type de fichier non supporté pour ${field}: ${file.type}`
-        );
         return errorResponse(
           `Le format du fichier ${name} n'est pas pris en charge. Formats acceptés: PDF, JPG, PNG`,
           400,
@@ -371,9 +301,6 @@ export async function POST(request: Request) {
 
       // Vérification de la taille du fichier
       if (file.size > maxFileSize) {
-        console.log(
-          `[Business Verification API] Fichier trop volumineux pour ${field}: ${file.size} octets`
-        );
         return errorResponse(
           `Le fichier ${name} est trop volumineux (${(
             file.size /
@@ -388,24 +315,12 @@ export async function POST(request: Request) {
           }
         );
       }
-
-      console.log(`[Business Verification API] Fichier ${field} validé:`, {
-        name: file.name,
-        type: file.type,
-        size: file.size,
-      });
     }
 
     // Sauvegarder les fichiers
-    console.log(
-      "[Business Verification API] Début de la sauvegarde des fichiers"
-    );
 
     // Créer un dossier pour les documents de cette entreprise
     const uploadDir = `business-verification/${business.id}`;
-    console.log(
-      `[Business Verification API] Dossier de destination: ${uploadDir}`
-    );
 
     let rcDocumentUrl: string;
     let idFrontDocumentUrl: string;
@@ -413,34 +328,11 @@ export async function POST(request: Request) {
 
     try {
       // Sauvegarder chaque fichier
-      console.log("[Business Verification API] Sauvegarde du fichier rc...");
       rcDocumentUrl = await saveFile(rcDocument, uploadDir);
-      console.log(
-        "[Business Verification API] Fichier rc sauvegardé:",
-        rcDocumentUrl
-      );
 
-      console.log(
-        "[Business Verification API] Sauvegarde du fichier id-front..."
-      );
       idFrontDocumentUrl = await saveFile(idDocumentFront, uploadDir);
-      console.log(
-        "[Business Verification API] Fichier id-front sauvegardé:",
-        idFrontDocumentUrl
-      );
 
-      console.log(
-        "[Business Verification API] Sauvegarde du fichier id-back..."
-      );
       idBackDocumentUrl = await saveFile(idDocumentBack, uploadDir);
-      console.log(
-        "[Business Verification API] Fichier id-back sauvegardé:",
-        idBackDocumentUrl
-      );
-
-      console.log(
-        "[Business Verification API] Tous les fichiers ont été sauvegardés avec succès"
-      );
     } catch (error) {
       console.error(
         "[Business Verification API] Erreur lors de la sauvegarde des fichiers:",
@@ -454,15 +346,8 @@ export async function POST(request: Request) {
 
     let verification;
     try {
-      console.log(
-        "[Business Verification API] Mise à jour des informations de vérification"
-      );
-
       // Mettre à jour ou créer une nouvelle vérification
       if (existingVerification) {
-        console.log(
-          `[Business Verification API] Mise à jour de la vérification existante: ${existingVerification.id}`
-        );
 
         verification = await prisma.business_verifications.update({
           where: { id: existingVerification.id },
@@ -479,9 +364,6 @@ export async function POST(request: Request) {
           },
         });
       } else {
-        console.log(
-          "[Business Verification API] Création d'une nouvelle vérification"
-        );
 
         verification = await prisma.business_verifications.create({
           data: {
@@ -497,18 +379,9 @@ export async function POST(request: Request) {
         });
       }
 
-      console.log(
-        "[Business Verification API] Vérification enregistrée avec succès:",
-        {
-          verificationId: verification.id,
-          status: verification.status,
-        }
-      );
+
 
       // Mettre à jour le statut de l'entreprise
-      console.log(
-        "[Business Verification API] Mise à jour du statut de l'entreprise"
-      );
 
       await prisma.businesses.update({
         where: { id: business.id },
@@ -519,14 +392,7 @@ export async function POST(request: Request) {
         },
       });
 
-      console.log(
-        "[Business Verification API] Statut de l'entreprise mis à jour avec succès"
-      );
-
       // Mettre à jour la réclamation pour indiquer que les documents ont été soumis
-      console.log(
-        "[Business Verification API] Mise à jour du statut de la réclamation et des documents"
-      );
 
       await prisma.claims.updateMany({
         where: {
@@ -543,10 +409,6 @@ export async function POST(request: Request) {
           updated_at: new Date(),
         },
       });
-
-      console.log(
-        "[Business Verification API] Statut et documents de la réclamation mis à jour avec succès"
-      );
 
       // Forcer le rafraîchissement du cache côté client
       const response = NextResponse.json({

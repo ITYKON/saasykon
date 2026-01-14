@@ -268,7 +268,7 @@ export default function ComptesEmployesPage() {
       setInitialEditSnapshot(null);
       await loadData();
       // simple toast
-      console.log("Modifications enregistrées");
+
     } catch (e: any) {
       alert(e?.message || "Erreur");
     } finally {
@@ -304,7 +304,7 @@ export default function ComptesEmployesPage() {
   }
 
   async function loadData() {
-    console.log("Début du chargement des données...");
+
     setLoading(true);
     try {
       const q = new URLSearchParams();
@@ -319,7 +319,7 @@ export default function ComptesEmployesPage() {
       if (businessId) q.set("business_id", businessId);
       
       const url = `/api/pro/employee-accounts?${q.toString()}`;
-      console.log("Chargement des données depuis:", url);
+
       
       const res = await fetch(url, {
         headers: {
@@ -331,7 +331,7 @@ export default function ComptesEmployesPage() {
       });
       
       const data = await res.json();
-      console.log("Réponse de l'API:", data);
+
       
       if (!res.ok) {
         console.error("Erreur API:", data);
@@ -339,7 +339,7 @@ export default function ComptesEmployesPage() {
       }
       
       const list: AccountItem[] = Array.isArray(data?.items) ? data.items : [];
-      console.log("Données reçues:", { nombreElements: list.length, data });
+
       
       setItems(list);
       setTotal(Number(data?.total || 0));
@@ -398,11 +398,11 @@ export default function ComptesEmployesPage() {
   }
 
   useEffect(() => {
-    console.log("Items mis à jour:", items.length, "éléments", items);
+
   }, [items]);
 
   useEffect(() => {
-    console.log("Chargement initial des données...");
+
     loadData();
     loadRoles();
   }, [searchTerm, statusFilter, roleFilter]);
@@ -838,7 +838,7 @@ export default function ComptesEmployesPage() {
                           // 2. Mise à jour optimiste immédiate
                           setItems(prev => {
                             const newItems = prev.filter(acc => acc.id !== accountIdToDelete);
-                            console.log("Mise à jour optimiste - Nouveau nombre d'éléments:", newItems.length);
+
                             return newItems;
                           });
                           

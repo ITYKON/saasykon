@@ -138,12 +138,7 @@ export default function CreateReservationModal({
     const endsAt = new Date(startsAt.getTime() + (Number(duration) || 30) * 60000);
     
     try {
-      console.log('Vérification de disponibilité:', { 
-        startsAt: startsAt.toISOString(),
-        endsAt: endsAt.toISOString(),
-        employeeId: employeeId === "none" ? null : employeeId,
-        businessId
-      });
+
       
       const res = await fetch(`/api/salon/${businessId}/timeslots/check-availability`, {
         method: "POST",
@@ -156,7 +151,6 @@ export default function CreateReservationModal({
       });
       
       const data = await res.json();
-      console.log('Réponse de vérification de disponibilité:', data);
       
       if (!res.ok) {
         throw new Error(data.message || data.error || "Erreur de vérification de disponibilité");
@@ -223,10 +217,8 @@ export default function CreateReservationModal({
     try {
       // Vérifier d'abord la disponibilité
       const isAvailable = await checkAvailability();
-      console.log('Disponibilité vérifiée:', isAvailable);
       
       if (!isAvailable) {
-        console.log('Créneau non disponible, arrêt de la soumission');
         setSubmitting(false);
         return;
       }

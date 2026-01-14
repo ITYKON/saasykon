@@ -677,13 +677,13 @@ interface BookingWizardProps {
                     employee_id: selectedEmployeeId || undefined,
                   })),
                 }
-                try { console.log('[BookingWizard] submit payload', { payload, selectedItems }) } catch {}
+
                 const res = await fetch('/api/client/bookings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
                 const j = await res.json().catch(() => ({}))
                 if (!res.ok) throw new Error(j?.error || 'Impossible de créer la réservation')
                 // Open ticket modal with data (provisional employee name)
                 const bookingId = j?.booking?.id
-                try { console.log('[BookingWizard] booking created', { bookingId, business_id: salon?.id }) } catch {}
+
                 // Compute price text (fixed total or min–max range)
                 let minTotal = 0
                 let maxTotal = 0
@@ -831,10 +831,7 @@ interface BookingWizardProps {
                         name: signupEmail.split('@')[0] // Utiliser la partie avant @ de l'email comme nom par défaut
                       };
                       
-                      console.log('[Inscription] Envoi des données d\'inscription :', {
-                        ...userData,
-                        password: '***' // Ne pas logger le mot de passe en clair
-                      });
+
                       
                       const startTime = Date.now();
                       const res = await fetch('/api/auth/register', {
@@ -843,11 +840,7 @@ interface BookingWizardProps {
                         body: JSON.stringify(userData)
                       });
                       
-                      console.log(`[Inscription] Réponse reçue en ${Date.now() - startTime}ms`, {
-                        status: res.status,
-                        statusText: res.statusText,
-                        headers: Object.fromEntries(res.headers.entries())
-                      });
+
                       
                       if (!res.ok) {
                         let errorData;
@@ -940,12 +933,12 @@ const errorMessage = res.status === 409
                   try{
                     setAuthSubmitting(true)
                     setError(null)
-                    console.log('[Login] start', { email: loginEmail })
+
                     const res = await fetch('/api/auth/login', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({email: loginEmail, password: loginPassword})})
-                    console.log('[Login] response status', res.status)
+
                     if(!res.ok){ const body = await res.text(); console.error('[Login] error body', body); throw new Error(`[Login ${res.status}] ${body}`) }
                     setAuthOverride(true); setIdentMode('none'); setSignupOkMsg(null)
-                    console.log('[Login] success')
+
                   }catch(e:any){ setError(e?.message||'Erreur de connexion') }
                   finally { setAuthSubmitting(false) }
                 }}>Se connecter</Button>
@@ -1005,13 +998,13 @@ const errorMessage = res.status === 409
                     employee_id: selectedEmployeeId || undefined,
                   })),
                 }
-                try { console.log('[BookingWizard] submit payload', { payload, selectedItems }) } catch {}
+
                 const res = await fetch('/api/client/bookings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
                 const j = await res.json().catch(() => ({}))
                 if (!res.ok) throw new Error(j?.error || 'Impossible de créer la réservation')
                 // Open ticket modal with data (provisional employee name)
                 const bookingId = j?.booking?.id
-                try { console.log('[BookingWizard] booking created', { bookingId, business_id: salon?.id }) } catch {}
+
                 // Compute price text (fixed total or min–max range)
                 let minTotal = 0
                 let maxTotal = 0
@@ -1159,10 +1152,7 @@ const errorMessage = res.status === 409
                         name: signupEmail.split('@')[0] // Utiliser la partie avant @ de l'email comme nom par défaut
                       };
                       
-                      console.log('[Inscription] Envoi des données d\'inscription :', {
-                        ...userData,
-                        password: '***' // Ne pas logger le mot de passe en clair
-                      });
+
                       
                       const startTime = Date.now();
                       const res = await fetch('/api/auth/register', {
@@ -1171,11 +1161,7 @@ const errorMessage = res.status === 409
                         body: JSON.stringify(userData)
                       });
                       
-                      console.log(`[Inscription] Réponse reçue en ${Date.now() - startTime}ms`, {
-                        status: res.status,
-                        statusText: res.statusText,
-                        headers: Object.fromEntries(res.headers.entries())
-                      });
+
                       
                       if (!res.ok) {
                         let errorData;
@@ -1262,12 +1248,12 @@ const errorMessage = res.status === 409
                   try{
                     setAuthSubmitting(true)
                     setError(null)
-                    console.log('[Login] start', { email: loginEmail })
+
                     const res = await fetch('/api/auth/login', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({email: loginEmail, password: loginPassword})})
-                    console.log('[Login] response status', res.status)
+
                     if(!res.ok){ const body = await res.text(); console.error('[Login] error body', body); throw new Error(`[Login ${res.status}] ${body}`) }
                     setAuthOverride(true); setIdentMode('none'); setSignupOkMsg(null)
-                    console.log('[Login] success')
+
                   }catch(e:any){ setError(e?.message||'Erreur de connexion') }
                   finally { setAuthSubmitting(false) }
                 }}>Se connecter</Button>

@@ -19,12 +19,7 @@ const EMAIL_FROM = process.env.EMAIL_FROM || "no-reply@example.com";
 const EMAIL_TEST_TO = process.env.EMAIL_TEST_TO || "test@example.com";
 
 // Log SMTP configuration (without sensitive data)
-console.log("📧 SMTP Configuration:", {
-  host: process.env.SMTP_HOST || "localhost",
-  port: process.env.SMTP_PORT || 1025,
-  secure: process.env.SMTP_SECURE === "true",
-  auth: process.env.SMTP_USER ? "configured" : "not configured",
-});
+
 
 // Function to send a test email
 export async function sendTestEmail() {
@@ -33,7 +28,7 @@ export async function sendTestEmail() {
     process.env.NEXT_PHASE === "phase-production-build" ||
     process.env.NODE_ENV === "test"
   ) {
-    console.log("Skipping test email during build or test environment");
+
     return { success: true, messageId: "skipped-during-build" };
   }
 
@@ -51,7 +46,7 @@ export async function sendTestEmail() {
       `,
     });
 
-    console.log("Test email sent:", info.messageId);
+
     return { success: true, messageId: info.messageId };
   } catch (error) {
     console.error("Error sending test email:", error);
@@ -68,11 +63,7 @@ export async function sendEmail(opts: {
   category?: string;
   sandbox?: boolean;
 }) {
-  console.log("📧 Attempting to send email:", {
-    to: opts.to,
-    subject: opts.subject,
-    from: EMAIL_FROM,
-  });
+
 
   try {
     const result = await transporter.sendMail({
@@ -84,7 +75,7 @@ export async function sendEmail(opts: {
       // Mailtrap API supports category and sandbox; SMTP will ignore unknown fields
       headers: opts.category ? { "X-Category": opts.category } : undefined,
     });
-    console.log("✅ Email sent successfully:", result);
+
   } catch (error) {
     console.error("❌ Email sending failed:", error);
     throw error;
