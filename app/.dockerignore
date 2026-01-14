@@ -6,3 +6,4 @@ README.md
 .next
 .git
 !.env.build
+docker-compose.override.yml
