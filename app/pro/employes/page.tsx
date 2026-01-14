@@ -323,10 +323,10 @@ export default function EmployeesPage() {
   }
 
   // Vérification que la fonction toast est disponible
-  console.log('Fonction toast de Sonner disponible:', { toast: typeof toast })
+
 
   async function handleDeleteEmployee(id: string) {
-    console.log('Tentative de suppression de l\'employé:', id)
+
     if (!confirm("Êtes-vous sûr de vouloir supprimer cet employé ? Cette action est irréversible.")) return
     
     try {
@@ -351,9 +351,9 @@ export default function EmployeesPage() {
       }
       
       // Notification de succès avec Sonner
-      console.log('Envoi de la notification de succès avec Sonner')
+
       toast.success("L'employé et son compte ont été supprimés avec succès")
-      console.log('Notification de succès envoyée avec Sonner')
+
       
       // Recharger la liste des employés
       await loadEmployees()
@@ -362,7 +362,7 @@ export default function EmployeesPage() {
       // Notification d'erreur avec Sonner
       console.error('Erreur lors de la suppression:', error)
       toast.error(error?.message || "Une erreur est survenue lors de la suppression de l'employé")
-      console.log('Notification d\'erreur envoyée avec Sonner')
+
     }
   }
 

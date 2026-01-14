@@ -261,7 +261,7 @@ export default function ProServices() {
   }, [services])
 
   async function loadCategories() {
-    console.log('Chargement des catégories...');
+
     try {
       const res = await fetch(`/api/pro/service-categories`);
       if (!res.ok) {
@@ -274,7 +274,7 @@ export default function ProServices() {
         return { categories: [] };
       });
       
-      console.log('Catégories chargées:', data.categories);
+
       if (Array.isArray(data?.categories)) {
         setCategoriesApi(data.categories);
       } else {
@@ -414,7 +414,7 @@ export default function ProServices() {
       return
     }
 
-    console.log('Création d\'une nouvelle catégorie:', { name, code });
+
     
     try {
       const response = await fetch(`/api/pro/service-categories`, {
@@ -431,7 +431,7 @@ export default function ProServices() {
       }
 
       const data = await response.json();
-      console.log('Catégorie créée avec succès:', data);
+
       
       // Réinitialiser le formulaire
       setNewCategoryName("");
@@ -444,7 +444,7 @@ export default function ProServices() {
       // Sélectionner automatiquement la nouvelle catégorie
       if (data?.id) {
         const newCategoryId = String(data.id);
-        console.log('Nouvelle catégorie sélectionnée:', newCategoryId);
+
         setSelectedCategoryId(newCategoryId);
       }
     } catch (error) {

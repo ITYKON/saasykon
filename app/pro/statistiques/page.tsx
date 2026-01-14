@@ -113,14 +113,14 @@ export default function StatistiquesPage() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        console.log('Début du chargement des statistiques...')
+
         setIsLoading(true)
         setError(null)
         
         const response = await fetch('/api/pro/dashboard/statistics')
         const data = await response.json()
         
-        console.log('Réponse de l\'API:', { status: response.status, data })
+
         
         if (!response.ok) {
           const errorMessage = data?.error || 'Erreur inconnue'
@@ -133,13 +133,7 @@ export default function StatistiquesPage() {
           throw new Error('Aucune donnée reçue du serveur')
         }
         
-        console.log('Données reçues:', {
-          overview: data.overview,
-          dailyStatsCount: data.dailyStats?.length || 0,
-          serviceStatsCount: data.serviceStats?.length || 0,
-          employeeStatsCount: data.employeeStats?.length || 0,
-          recentAppointmentsCount: data.recentAppointments?.length || 0
-        })
+
         
         setStats(data)
       } catch (err) {

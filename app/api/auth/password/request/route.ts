@@ -45,7 +45,7 @@ export async function POST(request: Request) {
       await sendEmail(emailContent);
     } else {
       // En développement, on log le lien dans la console
-      console.log('Lien de réinitialisation (désactivé en développement) :', resetUrl);
+      // console.log('Lien de réinitialisation (désactivé en développement) :', resetUrl);
       // On envoie quand même l'email si les identifiants Mailtrap sont configurés
       if (process.env.MAILTRAP_USER && process.env.MAILTRAP_PASS) {
         await sendEmail(emailContent);

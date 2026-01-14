@@ -67,7 +67,7 @@ function log(level: LogLevel, ...args: any[]) {
       console.debug(message);
       break;
     default:
-      console.log(message);
+     
   }
 }
 

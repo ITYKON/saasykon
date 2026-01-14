@@ -58,11 +58,10 @@ export async function POST(request: Request) {
       );
     }
 
-    console.log("Définition du mot de passe pour l'utilisateur:", user.id);
+
 
     // Hacher le mot de passe
     const hashedPassword = await hashPassword(password);
-    console.log("Mot de passe haché avec succès");
 
     // Mettre à jour le mot de passe de l'utilisateur
     await prisma.users.update({
@@ -73,10 +72,7 @@ export async function POST(request: Request) {
       },
     });
 
-    console.log(
-      "Mot de passe mis à jour avec succès pour l'utilisateur:",
-      user.id
-    );
+
 
     // Assigner le rôle PRO pour la revendication
     if (claimToken && user.claims && user.claims.length > 0) {
@@ -98,7 +94,6 @@ export async function POST(request: Request) {
             business_id: claim.business_id,
           },
         } as any);
-        console.log("Rôle PRO assigné pour la revendication");
       }
     }
 

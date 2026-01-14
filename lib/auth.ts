@@ -9,12 +9,9 @@ const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME || "saas_session";
 const SESSION_TTL_SECONDS = Number(process.env.SESSION_TTL_SECONDS || 60 * 60 * 24 * 7); // 7 days
 
 export async function hashPassword(plainPassword: string): Promise<string> {
-  console.log('[hashPassword] Hachage du mot de passe...');
   try {
     const salt = await bcrypt.genSalt(10);
-    console.log('[hashPassword] Sel généré');
     const hashed = await bcrypt.hash(plainPassword, salt);
-    console.log('[hashPassword] Mot de passe haché avec succès');
     return hashed;
   } catch (error) {
     console.error('[hashPassword] Erreur lors du hachage du mot de passe:', error);
@@ -23,7 +20,6 @@ export async function hashPassword(plainPassword: string): Promise<string> {
 }
 
 export async function verifyPassword(plainPassword: string, hashedPassword: string): Promise<boolean> {
-  console.log('[verifyPassword] Vérification du mot de passe...');
   try {
     if (!plainPassword || !hashedPassword) {
       console.error('[verifyPassword] Mot de passe ou hash manquant');
@@ -31,7 +27,6 @@ export async function verifyPassword(plainPassword: string, hashedPassword: stri
     }
     
     const isValid = await bcrypt.compare(plainPassword, hashedPassword);
-    console.log(`[verifyPassword] Résultat de la vérification: ${isValid ? 'Valide' : 'Invalide'}`);
     return isValid;
   } catch (error) {
     console.error('[verifyPassword] Erreur lors de la vérification du mot de passe:', error);
@@ -73,7 +68,6 @@ function generateSessionToken(): string {
 }
 
 export async function createSessionData(userId: string) {
-  console.log('[createSessionData] Début création session pour userId:', userId);
   
   const token = generateSessionToken();
   const expiresAt = new Date(Date.now() + SESSION_TTL_SECONDS * 1000);
@@ -86,7 +80,6 @@ export async function createSessionData(userId: string) {
         expires_at: expiresAt,
       },
     });
-    console.log('[createSessionData] Session créée en base pour userId:', userId);
   } catch (error) {
     console.error('[createSessionData] Erreur création session:', error);
     throw error;
@@ -129,8 +122,6 @@ export function setAuthCookies(response: NextResponse, sessionData: { token: str
 
   const isSecure = process.env.NODE_ENV === "production" && process.env.DISABLE_SECURE_COOKIES !== "true";
 
-  console.log(`[setAuthCookies] Config - Secure: ${isSecure}, NodeEnv: ${process.env.NODE_ENV}, DisableSecure: ${process.env.DISABLE_SECURE_COOKIES}`);
-
   // Session Cookie
   response.cookies.set({
     name: SESSION_COOKIE_NAME,
@@ -141,7 +132,6 @@ export function setAuthCookies(response: NextResponse, sessionData: { token: str
     path: "/",
     expires: expiresAt,
   });
-  console.log('[setAuthCookies] Cookie session défini:', SESSION_COOKIE_NAME);
 
   // Roles Cookie
   response.cookies.set("saas_roles", roleCodes, {
@@ -151,7 +141,6 @@ export function setAuthCookies(response: NextResponse, sessionData: { token: str
     path: "/",
     expires: expiresAt,
   });
-  console.log('[setAuthCookies] Cookie roles défini:', roleCodes);
   
   // Business ID Cookie
   if (businessId) {
@@ -162,7 +151,6 @@ export function setAuthCookies(response: NextResponse, sessionData: { token: str
       path: "/",
       expires: expiresAt,
     });
-    console.log('[setAuthCookies] Cookie business_id défini:', businessId);
   }
 
   return response;
@@ -229,7 +217,6 @@ export async function getAuthUserFromCookies() {
   const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
   
   if (!token) {
-    console.log('[getAuthUserFromCookies] Aucun token trouvé');
     return null;
   }
   
@@ -240,17 +227,14 @@ export async function getAuthUserFromCookies() {
     }).catch(() => null);
     
     if (!session) {
-      console.log('[getAuthUserFromCookies] Session non trouvée');
       return null;
     }
     
     if (session.expires_at < new Date()) {
-      console.log('[getAuthUserFromCookies] Session expirée');
       await prisma.sessions.delete({ where: { token } }).catch(() => {});
       return null;
     }
     
-    console.log('[getAuthUserFromCookies] Utilisateur authentifié:', session.users.id);
     return session.users;
   } catch (error) {
     console.error('[getAuthUserFromCookies] Erreur:', error);

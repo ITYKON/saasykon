@@ -7,7 +7,7 @@ export async function GET(req: NextRequest) {
   try {
     const ctx = await getAuthContext();
     if (!ctx) {
-      console.log('Non authentifié');
+
       return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
     }
 
@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
       }
     });
 
-    console.log('Catégories récupérées avec succès:', categories);
+
     return NextResponse.json({ categories });
     
   } catch (error) {
@@ -34,13 +34,12 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  console.log('Début de la création d\'une catégorie');
   
   try {
     // Vérification de l'authentification
     const ctx = await getAuthContext();
     if (!ctx) {
-      console.log('Non authentifié');
+
       return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
     }
 
@@ -50,7 +49,6 @@ export async function POST(req: NextRequest) {
     );
     
     if (!hasPermission) {
-      console.log('Permissions insuffisantes. Rôles:', ctx.roles);
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 
@@ -58,7 +56,6 @@ export async function POST(req: NextRequest) {
     let body;
     try {
       body = await req.json();
-      console.log('Corps de la requête:', body);
     } catch (error) {
       console.error('Erreur de parsing JSON:', error);
       return NextResponse.json({ error: "Format JSON invalide" }, { status: 400 });
@@ -80,8 +77,6 @@ export async function POST(req: NextRequest) {
     const businessId = url.searchParams.get("business_id") || 
                       cookieStore.get("business_id")?.value || 
                       ctx.assignments[0]?.business_id;
-
-    console.log('ID entreprise:', businessId);
     
     if (!businessId) {
       console.error('Aucun ID d\'entreprise trouvé');
@@ -100,8 +95,6 @@ export async function POST(req: NextRequest) {
       const codeCandidate = `${baseCode}-${suffix}`;
       const nameCandidate = i === 0 ? name : `${name} (${i + 1})`;
       
-      console.log(`Tentative ${i + 1}: Création avec code ${codeCandidate} et nom ${nameCandidate}`);
-      
       try {
         // Création de la catégorie avec uniquement les champs requis
         const created = await prisma.service_categories.create({
@@ -111,8 +104,6 @@ export async function POST(req: NextRequest) {
           },
           select: { id: true, code: true, name: true }
         });
-
-        console.log('Catégorie créée avec succès:', created);
         return NextResponse.json(created, { status: 201 });
         
       } catch (e: any) {
@@ -120,7 +111,6 @@ export async function POST(req: NextRequest) {
         
         // Si c'est une erreur de doublon, on réessaye avec un nouveau code
         if (e?.code === "P2002") {
-          console.log('Code déjà utilisé, nouvelle tentative...');
           continue;
         }
         
