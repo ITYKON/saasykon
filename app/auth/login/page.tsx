@@ -87,7 +87,7 @@ export default function LoginPage() {
                       }
                       //  CORRECTION : Attendre 1000ms + router.push pour éviter le bug Next.js
                       await new Promise(resolve => setTimeout(resolve, 1000));
-                      router.push("/client/dashboard");
+                      router.push("/");
                     } catch (e) {
                       setError("Erreur réseau")
                     }

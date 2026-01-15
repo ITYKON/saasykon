@@ -8,14 +8,12 @@ export function ClientSearch({
   value,
   onChange,
   onSelect,
-  businessId,
   className,
   placeholder = "Rechercher un client..."
 }: {
   value: string;
   onChange: (value: string) => void;
   onSelect: (client: { id: string; name: string; phone?: string; email?: string }) => void;
-  businessId: string;
   className?: string;
   placeholder?: string;
 }) {
@@ -30,7 +28,7 @@ export function ClientSearch({
       setLoading(true);
       try {
         const response = await fetch(
-          `/api/pro/clients/search?business_id=${businessId}&q=${encodeURIComponent(query || "")}`
+          `/api/pro/clients/search?q=${encodeURIComponent(query || "")}`
         );
         if (response.ok) {
           const data = await response.json();
@@ -42,7 +40,7 @@ export function ClientSearch({
         setLoading(false);
       }
     },
-    [businessId]
+    []
   );
 
   // Gestion du clic en dehors du composant

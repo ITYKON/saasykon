@@ -9,7 +9,6 @@ import { ClientSearch } from "@/components/ui/client-search";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 export default function CreateReservationModal({
-  businessId,
   trigger,
   onCreated,
   defaultDate,
@@ -17,7 +16,6 @@ export default function CreateReservationModal({
   defaultEmployeeId,
   forceOpenSignal,
 }: {
-  businessId: string;
   trigger: React.ReactNode;
   onCreated?: () => void;
   defaultDate?: string; // yyyy-mm-dd
@@ -53,8 +51,8 @@ export default function CreateReservationModal({
     if (!open) return;
     setLoading(true);
     Promise.all([
-      fetch(`/api/pro/services?business_id=${businessId}`).then((r) => r.json()),
-      fetch(`/api/pro/employees?business_id=${businessId}&include=services&limit=200`).then((r) => r.json()),
+      fetch(`/api/pro/services`).then((r) => r.json()),
+      fetch(`/api/pro/employees?include=services&limit=200`).then((r) => r.json()),
     ])
       .then(([s, e]) => {
         setServices(s.services || []);
@@ -63,7 +61,7 @@ export default function CreateReservationModal({
         setEmployees(e.items || []);
       })
       .finally(() => setLoading(false));
-  }, [open, businessId]);
+  }, [open]);
 
   // Appliquer des valeurs par défaut à l'ouverture
   useEffect(() => {
@@ -140,7 +138,7 @@ export default function CreateReservationModal({
     try {
 
       
-      const res = await fetch(`/api/salon/${businessId}/timeslots/check-availability`, {
+      const res = await fetch(`/api/pro/availability/check`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -228,7 +226,6 @@ export default function CreateReservationModal({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          business_id: businessId,
           client_id: client.id,
           employee_id: employeeId === "none" ? null : employeeId || null,
           starts_at: starts_at.toISOString(),
@@ -308,7 +305,6 @@ export default function CreateReservationModal({
                   value={clientSearch}
                   onChange={setClientSearch}
                   onSelect={handleClientSelect}
-                  businessId={businessId}
                   placeholder="Rechercher un client par nom, email ou téléphone"
                 />
                 {client && (

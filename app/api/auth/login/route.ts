@@ -124,9 +124,64 @@ export async function POST(request: Request) {
     // Log successful login
     await logSuccessfulLogin(user.id, email);
     
-    await logSuccessfulLogin(user.id, email);
-    
-    // Create session data
+    // Lazy Role Assignment Fallback for Legacy Users
+    try {
+      const [assignments, owned, clientRole, proRole] = await Promise.all([
+        prisma.user_roles.findMany({ where: { user_id: user.id }, include: { roles: true } }),
+        prisma.businesses.findMany({ where: { owner_user_id: user.id }, select: { id: true } }),
+        prisma.roles.findUnique({ where: { code: "CLIENT" } }),
+        prisma.roles.findUnique({ where: { code: "PRO" } }),
+      ]);
+
+      const SPECIAL_SYSTEM_BUSINESS_ID = "00000000-0000-0000-0000-000000000000";
+
+      // 1. If NO ROLES AT ALL, assign CLIENT role
+      if (assignments.length === 0 && clientRole) {
+        console.log(`[Login] Lazy assigning CLIENT role to user ${user.id}`);
+        await prisma.user_roles.create({
+          data: {
+            user_id: user.id,
+            role_id: clientRole.id,
+            business_id: SPECIAL_SYSTEM_BUSINESS_ID,
+          },
+        });
+      }
+
+      // 1b. Ensure CLIENT record exists for all users with CLIENT role
+      const hasClientRole = assignments.some(a => a.roles.code === "CLIENT") || (assignments.length === 0 && clientRole);
+      if (hasClientRole) {
+        const clientProfile = await prisma.clients.findFirst({ where: { user_id: user.id } });
+        if (!clientProfile) {
+          console.log(`[Login] Lazy creating client profile for user ${user.id}`);
+          await prisma.clients.create({
+            data: {
+              user_id: user.id,
+              first_name: user.first_name,
+              last_name: user.last_name,
+              phone: user.phone,
+              status: 'NOUVEAU',
+            }
+          });
+        }
+      }
+
+      // 2. If user owns businesses but has no PRO role, auto-assign PRO
+      const hasPRO = assignments.some((a) => a.roles.code === "PRO");
+      if (!hasPRO && proRole && owned.length > 0) {
+        console.log(`[Login] Lazy assigning PRO role(s) to user ${user.id}`);
+        for (const b of owned) {
+          await prisma.user_roles.upsert({
+            where: { user_id_role_id_business_id: { user_id: user.id, role_id: proRole.id, business_id: b.id } as any },
+            update: {},
+            create: { user_id: user.id, role_id: proRole.id, business_id: b.id },
+          } as any);
+        }
+      }
+    } catch (e) {
+      console.error('[Login] Error in lazy role assignment fallback:', e);
+    }
+
+    // Create session data (NOW with the updated roles)
     const sessionData = await createSessionData(user.id);
     
     // Create response
@@ -135,76 +190,6 @@ export async function POST(request: Request) {
     // Set auth cookies on response
     setAuthCookies(response, sessionData);
     
-    // Sync onboarding_done cookie for PRO guard based on DB flag
-    try {
-      const owned = await prisma.businesses.findMany({ 
-        where: { owner_user_id: user.id }, 
-        select: { onboarding_completed: true } 
-      });
-      const done = owned.some((b) => b.onboarding_completed === true);
-      const expires = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
-      
-      if (done) {
-        response.cookies.set("onboarding_done", "true", { 
-          httpOnly: false, 
-          sameSite: "lax", 
-          secure: process.env.NODE_ENV === 'production', 
-          path: "/", 
-          expires 
-        });
-      } else {
-        // ensure it is cleared so middleware redirects to /pro/onboarding
-        response.cookies.set("onboarding_done", "false", { 
-          httpOnly: false, 
-          sameSite: "lax", 
-          secure: process.env.NODE_ENV === 'production', 
-          path: "/", 
-          expires: new Date(Date.now() + 24 * 60 * 60 * 1000) // 1 jour
-        });
-      }
-    } catch (error) {
-      console.error('Erreur lors de la vérification de l\'onboarding:', error);
-    }
-    
-    // Fallback: if user owns businesses but has no PRO role, auto-assign PRO
-    try {
-      const [assignments, owned, proRole] = await Promise.all([
-        prisma.user_roles.findMany({ where: { user_id: user.id }, include: { roles: true } }),
-        prisma.businesses.findMany({ where: { owner_user_id: user.id }, select: { id: true } }),
-        prisma.roles.findUnique({ where: { code: "PRO" } }),
-      ]);
-      const hasPRO = assignments.some((a) => a.roles.code === "PRO");
-      if (!hasPRO && proRole && owned.length) {
-        for (const b of owned) {
-          await prisma.user_roles.upsert({
-            where: { user_id_role_id_business_id: { user_id: user.id, role_id: proRole.id, business_id: b.id } as any },
-            update: {},
-            create: { user_id: user.id, role_id: proRole.id, business_id: b.id },
-          } as any);
-        }
-        // refresh roles cookie
-        const refreshed = await prisma.user_roles.findMany({ where: { user_id: user.id }, include: { roles: true } });
-        const roleCodes = refreshed.map((ur) => ur.roles.code).join(",");
-        const expiresAt = new Date(Date.now() + (Number(process.env.SESSION_TTL_SECONDS || 60 * 60 * 24 * 7)) * 1000);
-        response.cookies.set("saas_roles", roleCodes, { httpOnly: false, sameSite: "lax", secure: process.env.NODE_ENV === "production", expires: expiresAt, path: "/" });
-      }
-      
-      // Définir le business_id pour les utilisateurs PRO
-      const userRoles = assignments.map(ur => ur.roles.code);
-      if (userRoles.includes('PRO') && owned.length > 0) {
-        const businessId = owned[0].id; // Prend le premier business de la liste
-        const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 7); // 7 jours
-        response.cookies.set("business_id", businessId, {
-          httpOnly: false,
-          sameSite: "lax",
-          secure: process.env.NODE_ENV === "production",
-          expires: expiresAt,
-          path: "/",
-        });
-      }
-    } catch {}
-    
-
     return response;
   } catch (error) {
     console.error('Erreur serveur:', error);

@@ -261,7 +261,9 @@ export default function ClaimOnboardingPage() {
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        await videoRef.current.play();
+        videoRef.current.play().catch(e => {
+          if (e.name !== 'AbortError') console.error('[Camera] Play error:', e);
+        });
       }
     } catch (error) {
       console.error("Error starting camera:", error);

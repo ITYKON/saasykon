@@ -137,10 +137,7 @@ export default function EmployeesPage() {
   async function loadEmployees() {
     setLoading(true)
     try {
-      const bidMatch = document.cookie.match(/(?:^|; )business_id=([^;]+)/)
-      const businessId = bidMatch ? decodeURIComponent(bidMatch[1]) : ""
       const q = new URLSearchParams()
-      if (businessId) q.set("business_id", businessId)
       q.set("include", "roles,services,hours")
       q.set("limit", "200")
       const res = await fetch(`/api/pro/employees?${q.toString()}`)
@@ -246,11 +243,8 @@ export default function EmployeesPage() {
     }
 
     try {
-      const bidMatch = document.cookie.match(/(?:^|; )business_id=([^;]+)/)
-      const businessId = bidMatch ? decodeURIComponent(bidMatch[1]) : ""
-      const q = businessId ? `?business_id=${encodeURIComponent(businessId)}` : ""
       // 1) Create employee
-      const createRes = await fetch(`/api/pro/employees${q}` , {
+      const createRes = await fetch(`/api/pro/employees` , {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ full_name, email: email || undefined, phone: phone || undefined }),

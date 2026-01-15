@@ -7,8 +7,7 @@ export async function GET(req: NextRequest) {
   const ctx = await getAuthContext();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const cookieStore = cookies();
-  const businessId = cookieStore.get("business_id")?.value || "";
+  const businessId = ctx.businessId;
   if (!businessId) return NextResponse.json({ error: "business_id required" }, { status: 400 });
 
   // Find employee account for this user in current business
@@ -28,5 +27,5 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ employee: { name, role: roleLabel }, permissions: permissionCodes });
+  return NextResponse.json({ employee: { name, role: roleLabel }, permissions: permissionCodes, roles: ctx.roles });
 }
