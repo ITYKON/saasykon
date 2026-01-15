@@ -14,8 +14,19 @@ export async function GET(request: Request) {
   const pageSize = Math.min(100, Math.max(1, Number(searchParams.get("pageSize") || 10)))
 
   // Récupérer les réservations du client
-  const client = await prisma.clients.findFirst({ where: { user_id: user.id } })
-  if (!client) return NextResponse.json({ bookings: [] }, { status: 404 })
+  let client = await prisma.clients.findFirst({ where: { user_id: user.id } })
+  if (!client) {
+    // Lazy creation
+    client = await prisma.clients.create({
+      data: {
+        user_id: user.id,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        phone: user.phone,
+        status: 'NOUVEAU',
+      }
+    });
+  }
 
   let where: any = { client_id: client.id }
   if (type === "upcoming") {

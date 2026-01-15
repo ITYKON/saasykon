@@ -3,10 +3,12 @@ import bcrypt from "bcryptjs";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { randomBytes, randomInt } from "crypto";
+import { SignJWT, jwtVerify } from "jose";
 
 //  CORRECTION : Utiliser le même nom que le middleware attend
-const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME || "saas_session";
+const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME || "__yk_sb_id";
 const SESSION_TTL_SECONDS = Number(process.env.SESSION_TTL_SECONDS || 60 * 60 * 24 * 7); // 7 days
+const JWT_SECRET = new TextEncoder().encode(process.env.NEXTAUTH_SECRET || "default_secret_fallback_12345");
 
 export async function hashPassword(plainPassword: string): Promise<string> {
   try {
@@ -68,61 +70,57 @@ function generateSessionToken(): string {
 }
 
 export async function createSessionData(userId: string) {
-  
-  const token = generateSessionToken();
-  const expiresAt = new Date(Date.now() + SESSION_TTL_SECONDS * 1000);
-
-  try {
-    await prisma.sessions.create({
-      data: {
-        user_id: userId,
-        token,
-        expires_at: expiresAt,
-      },
-    });
-  } catch (error) {
-    console.error('[createSessionData] Erreur création session:', error);
-    throw error;
-  }
-
-  // Also get roles and business_id for the cookie
-  let roleCodes = "";
-  let businessId = "";
-
   try {
     const userRoles = await prisma.user_roles.findMany({
       where: { user_id: userId },
       include: { roles: true },
     });
     
-    roleCodes = userRoles.map((ur) => ur.roles.code).join(",");
+    const roles = userRoles.map((ur) => ur.roles.code);
     
-    // Set business_id cookie for middleware
+    let businessId = "";
     const special = userRoles.find((ur) => ur.business_id === "00000000-0000-0000-0000-000000000000");
-    
     if (special) {
       businessId = special.business_id;
     } else if (userRoles.length > 0) {
       businessId = userRoles[0].business_id;
     }
+
+    // Create JWT token containing session info
+    const expiresAt = new Date(Date.now() + SESSION_TTL_SECONDS * 1000);
+    const token = await new SignJWT({ userId, roles, businessId })
+      .setProtectedHeader({ alg: "HS256" })
+      .setIssuedAt()
+      .setExpirationTime("7d")
+      .sign(JWT_SECRET);
+
+    // Still save to DB for record/revocation if needed
+    await prisma.sessions.create({
+      data: {
+        user_id: userId,
+        token: token.substring(0, 255), // Store prefix for lookup if needed, or just let JWT handle it
+        expires_at: expiresAt,
+      },
+    });
+
+    return {
+      token,
+      expiresAt,
+      roleCodes: roles.join(","),
+      businessId
+    };
   } catch (error) {
-    console.error('[createSessionData] Erreur récupération roles/business:', error);
+    console.error('[createSessionData] Error:', error);
+    throw error;
   }
-  
-  return {
-    token,
-    expiresAt,
-    roleCodes,
-    businessId
-  };
 }
 
-export function setAuthCookies(response: NextResponse, sessionData: { token: string, expiresAt: Date, roleCodes: string, businessId: string }) {
-  const { token, expiresAt, roleCodes, businessId } = sessionData;
-
+export function setAuthCookies(response: NextResponse, sessionData: { token: string, expiresAt: Date }) {
+  const { token, expiresAt } = sessionData;
   const isSecure = process.env.NODE_ENV === "production" && process.env.DISABLE_SECURE_COOKIES !== "true";
 
-  // Session Cookie
+  // Session Cookie (Always HttpOnly)
+  // This token now contains roles and businessId encrypted/signed
   response.cookies.set({
     name: SESSION_COOKIE_NAME,
     value: token,
@@ -133,25 +131,11 @@ export function setAuthCookies(response: NextResponse, sessionData: { token: str
     expires: expiresAt,
   });
 
-  // Roles Cookie
-  response.cookies.set("saas_roles", roleCodes, {
-    httpOnly: false,
-    sameSite: "lax",
-    secure: isSecure,
-    path: "/",
-    expires: expiresAt,
-  });
-  
-  // Business ID Cookie
-  if (businessId) {
-    response.cookies.set("business_id", businessId, {
-      httpOnly: false,
-      sameSite: "lax",
-      secure: isSecure,
-      path: "/",
-      expires: expiresAt,
-    });
-  }
+  // SECURITY: NO MORE PLAIN TEXT COOKIES for saas_roles or business_id
+  // We explicitly clear them if they exist to clean up the browser
+  response.cookies.delete("saas_roles");
+  response.cookies.delete("business_id");
+  response.cookies.delete("onboarding_done");
 
   return response;
 }
@@ -168,40 +152,19 @@ export async function destroySessionFromRequestCookie() {
   const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
   
   if (token) {
-    await prisma.sessions.delete({ where: { token } }).catch(() => {});
+    // Only delete from DB if it was a stored session (legacy or JWT prefix)
+    const tokenPart = token.substring(0, 255);
+    await prisma.sessions.deleteMany({ where: { token: tokenPart } }).catch(() => {});
   }
 
-  const isProduction = process.env.NODE_ENV === 'production';
-  const isSecure = isProduction && process.env.DISABLE_SECURE_COOKIES !== "true";
-  
   const response = NextResponse.json({ ok: true });
   
-  // Suppression du cookie de session
-  response.cookies.set(SESSION_COOKIE_NAME, '', {
-    httpOnly: true,
-    secure: isSecure,
-    sameSite: 'lax',
-    path: '/',
-    expires: new Date(0)
-  });
-
-  // Suppression du cookie des rôles
-  response.cookies.set('saas_roles', '', {
-    httpOnly: false,
-    secure: isSecure,
-    sameSite: 'lax',
-    path: '/',
-    expires: new Date(0)
-  });
-
-  // Suppression du cookie business_id
-  response.cookies.set('business_id', '', {
-    httpOnly: false,
-    secure: isSecure,
-    sameSite: 'lax',
-    path: '/',
-    expires: new Date(0)
-  });
+  // Clear all auth-related cookies
+  response.cookies.delete(SESSION_COOKIE_NAME);
+  response.cookies.delete("saas_roles");
+  response.cookies.delete("business_id");
+  response.cookies.delete("onboarding_done");
+  response.cookies.delete("next_auth_session");
 
   return response;
 }
@@ -216,6 +179,7 @@ export async function getAuthUserFromCookies() {
   const cookieStore = cookies();
   const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
   
+<<<<<<< HEAD
   if (!token) {
     return null;
   }
@@ -236,8 +200,72 @@ export async function getAuthUserFromCookies() {
     }
     
     return session.users;
+=======
+  if (!token) return null;
+  
+  try {
+    const authData = await getAuthDataFromToken(token);
+    if (!authData) return null;
+
+    return await prisma.users.findUnique({ 
+      where: { id: authData.userId }
+    }).catch((e) => {
+      console.error('[getAuthUserFromCookies] Prisma error:', e);
+      return null;
+    });
+>>>>>>> 4a49268 (security: switch to single HttpOnly JWT cookie +rename session cookie , and fix production build errors)
   } catch (error) {
     console.error('[getAuthUserFromCookies] Erreur:', error);
     return null;
   }
+}
+
+/**
+ * SECURITY: Securely fetch authentication data (roles and business) 
+ * from the database using the session token.
+ * This is the source of truth for the middleware.
+ */
+export async function getAuthDataFromToken(token: string) {
+  if (!token) return null;
+
+  // 1. Try to verify as JWT (new strategy)
+  try {
+    const { payload } = await jwtVerify(token, JWT_SECRET);
+    if (payload) {
+      return {
+        userId: payload.userId as string,
+        roles: payload.roles as string[],
+        businessId: payload.businessId as string
+      };
+    }
+  } catch (jwtError) {
+    // Not a valid JWT or expired, fallback to DB check for legacy sessions (prefix)
+    try {
+      // In Edge runtime, this part will throw the Prisma error, which is caught below
+      // We only use the first 255 chars as prefix lookup for safety
+      const tokenPart = token.substring(0, 255);
+      const sessions = await prisma.sessions.findMany({
+        where: { token: tokenPart },
+        include: {
+          users: { include: { user_roles: { include: { roles: true } } } }
+        },
+        take: 1
+      });
+
+      const session = sessions[0];
+      if (session && session.expires_at > new Date()) {
+        const roles = session.users.user_roles.map(ur => ur.roles.code);
+        let businessId = "";
+        const special = session.users.user_roles.find((ur) => ur.business_id === "00000000-0000-0000-0000-000000000000");
+        if (special) businessId = special.business_id;
+        else if (session.users.user_roles.length > 0) businessId = session.users.user_roles[0].business_id;
+
+        return { userId: session.user_id, roles, businessId };
+      }
+    } catch (e) {
+      // Silent error for edge compatibility
+    }
+  }
+
+  return null;
 }

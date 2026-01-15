@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { cookies } from "next/headers"
 import { prisma } from "@/lib/prisma"
 
-const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME || "saas_session"
+const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME || "__yk_sb_hg"
 
 export async function POST() {
   try {
@@ -42,7 +42,7 @@ export async function POST() {
     cookiesToDelete.forEach(cookieName => {
       try {
         response.cookies.set(cookieName, '', {
-          httpOnly: cookieName === SESSION_COOKIE_NAME,
+          httpOnly: true, // SECURITY: Standardize HttpOnly for all auth cookies
           secure: isSecure,
           sameSite: 'lax',
           path: '/',

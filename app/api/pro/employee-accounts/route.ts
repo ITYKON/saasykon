@@ -239,15 +239,7 @@ export async function POST(req: NextRequest) {
   
   // Créer une réponse avec le cookie de rôle mis à jour
   const response = NextResponse.json({ ok: true });
-  
-  // Définir le cookie saas_roles avec les rôles mis à jour
-  response.cookies.set('saas_roles', roles.join(','), {
-    httpOnly: false,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
-    path: '/',
-    maxAge: 60 * 60 * 24 * 7 // 7 jours
-  });
+  // Unified roles handling is now managed server-side via session tokens
   
   // Envoyer un email d'invitation si c'est un nouvel utilisateur
   if (newUserCreated && user?.email) {

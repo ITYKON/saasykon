@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
-import { getAuthUserFromCookies } from "@/lib/auth"
-import { prisma } from "@/lib/prisma"
+import { getAuthDataFromTokenEdge } from "@/lib/session-edge"
+import { getToken } from "next-auth/jwt"
 
-const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME || "saas_session"
+const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME || "__yk_sb_hg"
 const PUBLIC_FILE = /\.(.*)$/
 
 export async function middleware(request: NextRequest) {
@@ -58,67 +58,63 @@ export async function middleware(request: NextRequest) {
     // Suppression du cookie de session
     response.cookies.set(SESSION_COOKIE_NAME, '', cookieOptions)
     
-    // Suppression du cookie des rôles
-    response.cookies.set('saas_roles', '', {
-      ...cookieOptions,
-      httpOnly: false,
-    })
-    
-    // Suppression du cookie business_id
-    response.cookies.set('business_id', '', {
-      ...cookieOptions,
-      httpOnly: false,
-    })
+    // Suppression des cookies de session
+    response.cookies.delete(SESSION_COOKIE_NAME)
+    response.cookies.delete("next_auth_session")
+    response.cookies.delete("saas_roles")
+    response.cookies.delete("business_id")
+    response.cookies.delete("onboarding_done")
     
     return response
   }
 
   const isProtected = ["/admin", "/pro", "/client", "/api/admin", "/api/client"].some((p) => pathname.startsWith(p))
-  const sessionToken = request.cookies.get(SESSION_COOKIE_NAME)?.value
-  const rolesCookie = request.cookies.get("saas_roles")?.value ?? ""
-  const roles = rolesCookie.split(",").filter(Boolean) // filter out empty entries
-  const businessId = request.cookies.get("business_id")?.value
-  const SPECIAL_ADMIN_BUSINESS_ID = "00000000-0000-0000-0000-000000000000"
+  // SECURITY: Fetch verified roles and businessId
+  let roles: string[] = []
+  let businessId: string | undefined = undefined
   
-  // Users with ADMIN role have full access
-  const isAdmin = roles.includes("ADMIN")
-  
-  // Users with special business_id AND any role are considered sub-admins (commercial, support, etc.)
-  // They can access /admin routes but permissions will be checked at page/API level
-  const isSubAdmin = businessId === SPECIAL_ADMIN_BUSINESS_ID && roles.length > 0
-  
-  // Admin-equivalent: ADMIN role OR sub-admin with special business
-  const canAccessAdmin = isAdmin || isSubAdmin
-  
-  // Vérifier si l'utilisateur a déjà soumis ses documents de vérification
-  let hasSubmittedDocuments = false;
-  if (sessionToken && pathname.startsWith('/pro/') && !pathname.startsWith('/pro/documents-verification')) {
-    try {
-      const user = await getAuthUserFromCookies();
-      if (user) {
-        const business = await prisma.businesses.findFirst({
-          where: { owner_user_id: user.id },
-          include: { business_verifications: true }
-        });
-        
-        // Si l'entreprise est marquée comme provenant d'un lead et qu'aucune vérification n'existe
-        if (business?.claim_status === 'not_claimable' && !business.business_verifications.length) {
-          hasSubmittedDocuments = false;
-          
-          // Rediriger vers la page de vérification des documents si ce n'est pas déjà la page actuelle
-          if (!pathname.startsWith('/pro/documents-verification')) {
-            return NextResponse.redirect(new URL('/pro/documents-verification', request.url));
-          }
-        } else {
-          hasSubmittedDocuments = true;
-        }
-      }
-    } catch (error) {
-      console.error('Erreur lors de la vérification des documents:', error);
-      // En cas d'erreur, on laisse passer pour ne pas bloquer l'utilisateur
-      hasSubmittedDocuments = true;
+  const customToken = request.cookies.get(SESSION_COOKIE_NAME)?.value
+  const nextAuthToken = await getToken({ 
+    req: request as any, 
+    secret: process.env.NEXTAUTH_SECRET,
+    cookieName: "next_auth_session"
+  })
+
+  // 1. Try NextAuth (prioritized)
+  if (nextAuthToken) {
+    roles = (nextAuthToken.roles as string[]) || []
+    businessId = nextAuthToken.businessId as string
+    console.log(`[Middleware] NextAuth User detected. Roles: ${roles.join(',')}`);
+  } 
+  // 2. Try Custom Session JWT
+  else if (customToken) {
+    const authData = await getAuthDataFromTokenEdge(customToken)
+    if (authData) {
+      roles = authData.roles
+      businessId = authData.businessId
+      console.log(`[Middleware] Custom Session detected. Roles: [${roles.join(',')}]`);
+    } else {
+      console.log(`[Middleware] Custom token found but getAuthDataFromTokenEdge returned null (Invalid JWT or Legacy Token)`);
     }
   }
+
+  const sessionToken = customToken || (nextAuthToken ? "exists" : undefined)
+
+  const SPECIAL_ADMIN_BUSINESS_ID = "00000000-0000-0000-0000-000000000000"
+  
+  // Roles check
+  const isAdmin = roles.includes("ADMIN")
+  const isPro = roles.includes("PRO") || roles.includes("PROFESSIONNEL") || roles.includes("EMPLOYEE")
+  const isClient = roles.includes("CLIENT")
+  
+  // Admin-equivalent: ADMIN role OR sub-admin with special business
+  // We limit sub-admin roles to specific ones to avoid CLIENTS being considered sub-admins
+  const isSubAdmin = businessId === SPECIAL_ADMIN_BUSINESS_ID && (roles.includes("SUPPORT") || roles.includes("SALES"))
+  const canAccessAdmin = isAdmin || isSubAdmin
+  
+  console.log(`[Middleware] Path: ${pathname}, Roles: [${roles.join(',')}], isAdmin: ${isAdmin}, canAccessAdmin: ${canAccessAdmin}, isPro: ${isPro}, isClient: ${isClient}`);
+  
+  // Documents verification check moved to pages to support Edge middleware
 
   if (isProtected && !sessionToken) {
     if (isApiRequest) {
@@ -129,6 +125,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
+<<<<<<< HEAD
   // Block access to admin routes for users without admin privileges
   // Fine-grained permission checks are done at page/API level via requireAdminOrPermission()
   const isAdminPath = pathname.startsWith("/admin") || pathname.startsWith("/api/admin")
@@ -143,84 +140,85 @@ export async function middleware(request: NextRequest) {
   // Redirect sub-admins trying to access client/pro routes to admin dashboard
   const isClientPath = pathname.startsWith("/client")
   const isProPath = pathname.startsWith("/pro")
+=======
+  // --- ACCESS CONTROL & REDIRECTION ---
+  
+  // 1. ADMIN SPACE PROTECTION
+  const isAdminPath = pathname.startsWith("/admin") || pathname.startsWith("/api/admin")
+  if (isAdminPath && !canAccessAdmin) {
+    if (isApiRequest) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    return NextResponse.redirect(new URL(isClient ? "/client/dashboard" : (isPro ? "/pro/dashboard" : "/auth/login"), request.url))
+  }
+
+  // 2. PRO SPACE PROTECTION
+  const isProPath = pathname.startsWith("/pro") || pathname.startsWith("/api/pro")
+>>>>>>> 4a49268 (security: switch to single HttpOnly JWT cookie +rename session cookie , and fix production build errors)
   const isProOnboarding = pathname.startsWith("/pro/onboarding")
-  
-  if (canAccessAdmin && (isClientPath || isProPath)) {
-    return NextResponse.redirect(new URL("/admin/dashboard", request.url))
+  if (isProPath && !isPro && !isAdmin) {
+    if (isApiRequest) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    return NextResponse.redirect(new URL(isClient ? "/client/dashboard" : "/auth/login", request.url))
   }
 
-  // Allow PRO users to access dashboard even if onboarding is not completed
-  // They will see a banner with a link to complete onboarding
-  const onboardingDone = request.cookies.get("onboarding_done")?.value === "true"
-  
-  // Only redirect to onboarding if the user explicitly navigates to /pro/onboarding
-  // Otherwise, they can access the dashboard and complete onboarding later
-  if (roles.includes("PRO") && pathname === "/pro/onboarding" && onboardingDone) {
-    return NextResponse.redirect(new URL("/pro/dashboard", request.url))
+  // 3. CLIENT SPACE PROTECTION
+  const isClientPath = pathname.startsWith("/client") || pathname.startsWith("/api/client")
+  if (isClientPath && !isClient && !isAdmin) {
+    if (isApiRequest) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    return NextResponse.redirect(new URL(isPro ? "/pro/dashboard" : "/auth/login", request.url))
   }
 
-  // Do NOT auto-redirect away from the invite or password reset flow, even if a session exists
+  // 4. AUTH PAGE REDIRECTION (If already logged in)
   if (isAuthPage && !isInvitePage && !isResetPasswordPage && sessionToken) {
-    // Redirect based on roles and business_id
+    if (canAccessAdmin) return NextResponse.redirect(new URL("/admin/dashboard", request.url))
+    if (isPro) return NextResponse.redirect(new URL("/pro/dashboard", request.url))
+    if (isClient) return NextResponse.redirect(new URL("/client/dashboard", request.url))
+  }
+
+  // 5. ROOT REDIRECTION
+  if (pathname === "/") {
     if (canAccessAdmin) {
-      return NextResponse.redirect(new URL("/admin/dashboard", request.url))
+      console.log("[Middleware] Redirecting Admin/SubAdmin to /admin/dashboard");
+      return NextResponse.redirect(new URL("/admin/dashboard", request.url));
     }
-    if (roles.includes("PRO")) {
-      return NextResponse.redirect(new URL("/pro/dashboard", request.url))
+    if (isPro) {
+      console.log("[Middleware] Redirecting Pro to /pro/dashboard");
+      return NextResponse.redirect(new URL("/pro/dashboard", request.url));
     }
-    // All other users go to client dashboard
-    return NextResponse.redirect(new URL("/client/dashboard", request.url))
+    if (isClient) {
+      console.log("[Middleware] Redirecting Client to /client/dashboard");
+      return NextResponse.redirect(new URL("/client/dashboard", request.url));
+    }
   }
 
-
-
-  // Fine-grained guard for PRO area: verify permissions against employee assignments
-  if (isProPath && !isProOnboarding) {
-    
-    if (pathname === '/pro' && request.nextUrl.searchParams.get('denied') === '1') {
-      return NextResponse.redirect(new URL('/pro/access-denied', request.url));
-    }
-
-    // Vérification basique des rôles sans faire d'appel fetch
-    const hasProRole = roles.includes('PRO');
-    const hasAdminRole = roles.includes('ADMIN');
-    const hasBusinessId = !!businessId;
-    const hasEmployeeRole = roles.includes('EMPLOYEE');
-
-    // Si l'utilisateur n'a aucun rôle autorisé, on refuse l'accès
-    if (!hasProRole && !hasAdminRole && !hasEmployeeRole) {
-      // Si l'utilisateur a une session mais pas de rôle, le déconnecter
-      if (sessionToken) {
-        return NextResponse.redirect(new URL('/auth/logout', request.url));
-      }
-      return NextResponse.redirect(new URL('/auth/signin?error=unauthorized', request.url));
-    }
-
-    // Si l'utilisateur est PRO/EMPLOYEE mais n'a pas de business_id, on redirige vers l'onboarding
-    if ((hasProRole || hasEmployeeRole) && !hasAdminRole && !hasBusinessId) {
-      return NextResponse.redirect(new URL('/pro/onboarding', request.url));
-    }
-
-    // Si l'utilisateur a le rôle ADMIN mais pas de business_id, on utilise le business_id spécial
-    if (hasAdminRole && !hasBusinessId) {
-      const response = NextResponse.next();
-      response.cookies.set('business_id', '00000000-0000-0000-0000-000000000000', {
-        httpOnly: false,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        path: '/',
-      });
-      return response;
-    }
-
-
+  // 6. BUSINESS_ID FOR ADMINS
+  if (isAdmin && !businessId) {
+    const response = NextResponse.next()
+    response.cookies.set('business_id', SPECIAL_ADMIN_BUSINESS_ID, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+    })
+    return response
   }
 
-  return NextResponse.next()
+  // --- FINAL RESPONSE & COOKIE CLEANUP ---
+  const response = NextResponse.next()
+  
+  // Proactively delete old insecure cookies if they exist
+  if (request.cookies.has("saas_roles")) response.cookies.delete("saas_roles")
+  if (request.cookies.has("business_id") && !isAdmin) {
+    // Only delete business_id if it's not the one we just set for admin
+    // Actually, if it's already there but insecure, we want to replace it anyway.
+    // In our case, the middleware logic above for admin sets it on a fresh response.
+  }
+  if (request.cookies.has("onboarding_done")) response.cookies.delete("onboarding_done")
+
+  return response
 }
 
 export const config = {
   matcher: [
+    "/",
     "/admin/:path*", 
     "/pro/:path*", 
     "/client/:path*", 
