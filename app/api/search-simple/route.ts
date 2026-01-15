@@ -5,12 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { rateLimit, getClientIp } from "@/lib/rateLimit";
 
-export const searchSimpleSchema = z.object({
-  q: z.string().optional().default(""),
-  location: z.string().optional().default(""),
-  page: z.coerce.number().int().positive().default(1),
-  pageSize: z.coerce.number().int().positive().max(100).default(20),
-});
+import { searchSimpleSchema } from "./schemas";
 
 export async function GET(req: Request): Promise<NextResponse> {
   try {

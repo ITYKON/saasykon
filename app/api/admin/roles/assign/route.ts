@@ -3,17 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAdminOrPermission } from "@/lib/authorization";
 import { z } from "zod";
 
-export const assignSchema = z.object({
-  email: z.string().email(),
-  roleCode: z.string().min(2),
-  business_id: z.string().uuid().optional(),
-});
-
-export const unassignSchema = z.object({
-  email: z.string().email(),
-  roleCode: z.string().min(2),
-  business_id: z.string().uuid(),
-});
+import { assignSchema, unassignSchema } from "./schemas";
 
 export async function POST(req: Request) {
     try {

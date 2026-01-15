@@ -2,11 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 
-export const availabilitySchema = z.object({
-  starts_at: z.string().datetime(),
-  ends_at: z.string().datetime(),
-  employee_id: z.string().uuid().nullable().optional(),
-});
+import { availabilitySchema } from "./schemas";
 
 export async function POST(
   req: Request,

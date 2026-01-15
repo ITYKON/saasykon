@@ -34,12 +34,7 @@ export async function GET() {
 
 import { z } from "zod";
 
-export const verificationSchema = z.object({
-  rc_number: z.string().nullable().optional(),
-  rc_document_url: z.string().url().nullable().optional(),
-  id_document_front_url: z.string().url().nullable().optional(),
-  id_document_back_url: z.string().url().nullable().optional(),
-});
+import { verificationSchema } from "./schemas";
 
 export async function POST(req: NextRequest) {
   const user = await getAuthUserFromCookies();

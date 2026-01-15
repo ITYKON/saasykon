@@ -1,10 +1,10 @@
-import { searchSimpleSchema } from "../app/api/search-simple/route";
-import { createSubscriptionSchema, updateSubscriptionSchema } from "../app/api/pro/subscription/route";
-import { salonSchema } from "../app/api/admin/salons/route";
-import { availabilitySchema } from "../app/api/salon/[id]/timeslots/check-availability/route";
-import { verificationSchema } from "../app/api/pro/verification/route";
-import { createRoleSchema, updateRoleSchema } from "../app/api/admin/roles/route";
-import { assignSchema, unassignSchema } from "../app/api/admin/roles/assign/route";
+import { searchSimpleSchema } from "../app/api/search-simple/schemas";
+import { createSubscriptionSchema, updateSubscriptionSchema } from "../app/api/pro/subscription/schemas";
+import { salonSchema } from "../app/api/admin/salons/schemas";
+import { availabilitySchema } from "../app/api/salon/[id]/timeslots/check-availability/schemas";
+import { verificationSchema } from "../app/api/pro/verification/schemas";
+import { createRoleSchema, updateRoleSchema } from "../app/api/admin/roles/schemas";
+import { assignSchema, unassignSchema } from "../app/api/admin/roles/assign/schemas";
 import { v4 as uuidv4 } from "uuid"; // Need uuid for some validations
 
 async function runTests() {
