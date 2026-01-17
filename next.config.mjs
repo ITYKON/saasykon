@@ -1,9 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
-  eslint: { ignoreDuringBuilds: true },
+  eslint: { ignoreDuringBuilds: false },
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
     tsconfigPath: './tsconfig.json'
   },
   images: { unoptimized: true },
