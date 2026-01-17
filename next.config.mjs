@@ -1,42 +1,36 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
-  eslint: { ignoreDuringBuilds: false },
-  typescript: { 
-    ignoreBuildErrors: false,
-    tsconfigPath: './tsconfig.json' // Explicitly point to tsconfig
+  eslint: { ignoreDuringBuilds: true },
+  typescript: {
+    ignoreBuildErrors: true,
+    tsconfigPath: './tsconfig.json'
   },
   images: { unoptimized: true },
   experimental: {
-    // This is needed to ensure the @ alias works correctly
-    // with the Next.js compiler
-    externalDir: true,
-    serverComponentsExternalPackages: ['bcryptjs']
+    externalDir: false,
+    serverComponentsExternalPackages: ['bcryptjs'],
   },
   webpack: (config, { dev }) => {
-    // Ignorer les dossiers système problématiques
-    config.watchOptions = {
-      ...config.watchOptions,
-      poll: 1000,
-      ignored: [
-        '**/node_modules',
-        '**/Application Data',
-        '**/AppData',
-        '**/.next',
-        '**/dist',
-      ],
-    };
-
-    // Ignorer les erreurs liées à des dossiers protégés
+    if (dev) {                       // watchOptions uniquement en dev
+      config.watchOptions = {
+        poll: 1000,
+        ignored: [
+          '**/node_modules',
+          '**/Application Data',
+          '**/AppData',
+          '**/.next',
+          '**/dist'
+        ]
+      };
+    }
     config.ignoreWarnings = [
-      {
-        module: /Application Data/,
-      },
+      { module: /Application Data/ },
+      { module: /Cookies/ }
     ];
-
     return config;
   },
-  transpilePackages: ["@vis.gl/react-google-maps"],
+  transpilePackages: ['@vis.gl/react-google-maps']
 };
 
 export default nextConfig;

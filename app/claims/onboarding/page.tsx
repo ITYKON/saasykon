@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Card,
@@ -64,24 +64,12 @@ export default function ClaimOnboardingPage() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
-  useEffect(() => {
 
-    if (!token) {
-      notifyError({
-        title: "Lien invalide",
-        description:
-          "Le lien de revendication est invalide ou a expiré. Veuillez réessayer.",
-        duration: 10000,
-      });
-      setTimeout(() => router.push("/claims"), 3000);
-      return;
-    }
 
-    fetchClaimData();
-  }, [token, router, notifyError]);
-
-  const fetchClaimData = async () => {
+  const fetchClaimData = useCallback(async () => {
     try {
+
+      if (!token) return;
 
       const response = await fetch(`/api/claims/verify?token=${token}`);
       const data = await response.json();
@@ -148,7 +136,22 @@ export default function ClaimOnboardingPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token, notifyError]);
+
+  useEffect(() => {
+    if (!token) {
+      notifyError({
+        title: "Lien invalide",
+        description:
+          "Le lien de revendication est invalide ou a expiré. Veuillez réessayer.",
+        duration: 10000,
+      });
+      setTimeout(() => router.push("/claims"), 3000);
+      return;
+    }
+
+    fetchClaimData();
+  }, [fetchClaimData, token, router, notifyError]);
 
   const handleFileUpload = async (
     file: File,

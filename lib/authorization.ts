@@ -83,4 +83,5 @@ export async function requireAdminOrPermission(permission?: string) {
   return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 }
 
-export default { getAuthContext, requireAdminOrPermission };
+const authService = { getAuthContext, requireAdminOrPermission };
+export default authService;

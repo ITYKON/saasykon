@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import {
   Search,
   Filter,
@@ -222,7 +222,7 @@ export default function ReservationsPage() {
   const businessId = auth?.assignments?.[0]?.business_id
   
   // Fonction pour rafraîchir la liste des réservations
-  const fetchReservations = async () => {
+  const fetchReservations = useCallback(async () => {
     if (!businessId) return
     
     try {
@@ -238,12 +238,12 @@ export default function ReservationsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [businessId])
   
   // Charger les réservations au montage du composant
   useEffect(() => {
     fetchReservations()
-  }, [businessId])
+  }, [fetchReservations])
 
   // Charger les employés lors de l'ouverture de l'édition
   useEffect(() => {

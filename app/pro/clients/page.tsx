@@ -56,7 +56,7 @@ export default function ProClients() {
         .finally(() => active && setLoading(false))
     }, 300)
     return () => { active = false; clearTimeout(timeout) }
-  }, [q, sort, status])
+  }, [q, sort, status, router])
 
   const clients = useMemo(() => items.map((it) => ({
     id: it.id,

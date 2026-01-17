@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,11 +28,9 @@ export default function OffresPage() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadPlans();
-  }, []);
 
-  async function loadPlans() {
+
+  const loadPlans = useCallback(async () => {
     try {
       const res = await fetch("/api/public/plans");
       if (!res.ok) throw new Error("Erreur de chargement");
@@ -45,88 +43,11 @@ export default function OffresPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
-  function getDefaultPlans(): Plan[] {
-    return [
-      {
-        id: 1,
-        code: "decouverte",
-        name: "Gratuit",
-        price_cents: 0,
-        currency: "DA",
-        billing_interval: "month",
-        trial_days: 0,
-        is_active: true,
-        features: [
-          { feature_code: "directory listing", value: null },
-          { feature_code: "public page", value: null },
-          { feature_code: "manual booking", value: null },
-          { feature_code: "employee accounts", value: null },
-          { feature_code: "calendar sync", value: null },
-          { feature_code: "statistics", value: null },
-        ],
-      },
-      {
-        id: 2,
-        code: "starter",
-        name: "Starter",
-        price_cents: 2500,
-        currency: "DA",
-        billing_interval: "month",
-        trial_days: 14,
-        is_active: true,
-        features: [
-          { feature_code: "directory listing", value: null },
-          { feature_code: "public page", value: null },
-          { feature_code: "full booking management", value: null },
-          { feature_code: "email reminders", value: null },
-          { feature_code: "employee accounts", value: null },
-          { feature_code: "basic statistics", value: null },
-          { feature_code: "priority support", value: null },
-        ],
-      },
-      {
-        id: 3,
-        code: "pro",
-        name: "Pro",
-        price_cents: 4500,
-        currency: "DA",
-        billing_interval: "month",
-        trial_days: 14,
-        is_active: true,
-        features: [
-          { feature_code: "all starter features", value: null },
-          { feature_code: "employee accounts", value: null },
-          { feature_code: "absence management", value: null },
-          { feature_code: "variable hours", value: null },
-          { feature_code: "crm basic", value: null },
-          { feature_code: "social integration", value: null },
-          { feature_code: "promo campaigns", value: null },
-        ],
-      },
-      {
-        id: 4,
-        code: "business",
-        name: "Business",
-        price_cents: 10000,
-        currency: "DA",
-        billing_interval: "month",
-        trial_days: 30,
-        is_active: true,
-        features: [
-          { feature_code: "all pro features", value: null },
-          { feature_code: "multi salon", value: null },
-          { feature_code: "employee accounts", value: null },
-          { feature_code: "advanced dashboards", value: null },
-          { feature_code: "dedicated support", value: null },
-          { feature_code: "custom training", value: null },
-          { feature_code: "api integration", value: null },
-          { feature_code: "accounting tools", value: null },
-        ],
-      },
-    ];
-  }
+  useEffect(() => {
+    loadPlans();
+  }, [loadPlans]);
 
   function getPlanIcon(code: string) {
     switch (code) {
@@ -433,4 +354,85 @@ export default function OffresPage() {
       </section>
     </div>
   );
+}
+
+function getDefaultPlans(): Plan[] {
+  return [
+    {
+      id: 1,
+      code: "decouverte",
+      name: "Gratuit",
+      price_cents: 0,
+      currency: "DA",
+      billing_interval: "month",
+      trial_days: 0,
+      is_active: true,
+      features: [
+        { feature_code: "directory listing", value: null },
+        { feature_code: "public page", value: null },
+        { feature_code: "manual booking", value: null },
+        { feature_code: "employee accounts", value: null },
+        { feature_code: "calendar sync", value: null },
+        { feature_code: "statistics", value: null },
+      ],
+    },
+    {
+      id: 2,
+      code: "starter",
+      name: "Starter",
+      price_cents: 2500,
+      currency: "DA",
+      billing_interval: "month",
+      trial_days: 14,
+      is_active: true,
+      features: [
+        { feature_code: "directory listing", value: null },
+        { feature_code: "public page", value: null },
+        { feature_code: "full booking management", value: null },
+        { feature_code: "email reminders", value: null },
+        { feature_code: "employee accounts", value: null },
+        { feature_code: "basic statistics", value: null },
+        { feature_code: "priority support", value: null },
+      ],
+    },
+    {
+      id: 3,
+      code: "pro",
+      name: "Pro",
+      price_cents: 4500,
+      currency: "DA",
+      billing_interval: "month",
+      trial_days: 14,
+      is_active: true,
+      features: [
+        { feature_code: "all starter features", value: null },
+        { feature_code: "employee accounts", value: null },
+        { feature_code: "absence management", value: null },
+        { feature_code: "variable hours", value: null },
+        { feature_code: "crm basic", value: null },
+        { feature_code: "social integration", value: null },
+        { feature_code: "promo campaigns", value: null },
+      ],
+    },
+    {
+      id: 4,
+      code: "business",
+      name: "Business",
+      price_cents: 10000,
+      currency: "DA",
+      billing_interval: "month",
+      trial_days: 30,
+      is_active: true,
+      features: [
+        { feature_code: "all pro features", value: null },
+        { feature_code: "multi salon", value: null },
+        { feature_code: "employee accounts", value: null },
+        { feature_code: "advanced dashboards", value: null },
+        { feature_code: "dedicated support", value: null },
+        { feature_code: "custom training", value: null },
+        { feature_code: "api integration", value: null },
+        { feature_code: "accounting tools", value: null },
+      ],
+    },
+  ];
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -103,9 +103,7 @@ export default function ComptesEmployesPage() {
 
   // Show all institute-scoped roles returned by the API (business-specific). No whitelist filter.
 
-  useEffect(() => {
-    loadProPermissions();
-  }, []);
+
 
   function handleRoleToggle(code: string, checked: boolean) {
     setSelectedRoleCodes((prev) =>
@@ -130,7 +128,7 @@ export default function ComptesEmployesPage() {
       permsChanged
     );
   }
-  async function loadProPermissions() {
+  const loadProPermissions = useCallback(async () => {
     try {
       const res = await fetch(`/api/pro/pro-permissions`);
       const data = await res.json();
@@ -142,7 +140,7 @@ export default function ComptesEmployesPage() {
           }))
         );
     } catch {}
-  }
+  }, []);
 
   function handlePermToggle(code: string, checked: boolean, isEdit?: boolean) {
     if (isEdit) {
@@ -263,7 +261,7 @@ export default function ComptesEmployesPage() {
     }
   }
 
-  async function loadData() {
+  const loadData = useCallback(async () => {
 
     setLoading(true);
     try {
@@ -307,9 +305,13 @@ export default function ComptesEmployesPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [searchTerm, statusFilter, roleFilter]);
 
-  async function loadRoles() {
+  useEffect(() => {
+    loadProPermissions();
+  }, [loadProPermissions]);
+
+  const loadRoles = useCallback(async () => {
     try {
       const res = await fetch(`/api/pro/roles?scope=institute`);
       const data = await res.json();
@@ -322,9 +324,9 @@ export default function ComptesEmployesPage() {
           }))
         );
     } catch {}
-  }
+  }, []);
 
-  async function loadEmployeesForCreate() {
+  const loadEmployeesForCreate = useCallback(async () => {
     try {
       const res = await fetch(`/api/pro/employees?limit=200`);
       const data = await res.json();
@@ -333,27 +335,26 @@ export default function ComptesEmployesPage() {
         setEmployees(list.map((e: any) => ({ id: e.id, name: e.full_name })));
       }
     } catch {}
-  }
+  }, []);
 
   useEffect(() => {
 
   }, [items]);
 
   useEffect(() => {
-
     loadData();
     loadRoles();
-  }, [searchTerm, statusFilter, roleFilter]);
+  }, [loadData, loadRoles]);
 
   useEffect(() => {
     loadData();
     loadRoles();
     loadProPermissions();
-  }, []);
+  }, [loadData, loadRoles, loadProPermissions]);
 
   useEffect(() => {
     if (isCreateModalOpen) loadEmployeesForCreate();
-  }, [isCreateModalOpen]);
+  }, [isCreateModalOpen, loadEmployeesForCreate]);
 
   async function handleCreateAccount() {
     if (!createEmployeeId || !createEmail) {

@@ -18,10 +18,6 @@ export default function LeadDetailPage() {
   const params = useParams<{ id: string }>();
   const id = params?.id;
   
-  if (!id) {
-    return <div>ID non trouvé</div>; // Ou une autre gestion d'erreur appropriée
-  }
-  
   const { toast } = useToast();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -41,6 +37,7 @@ export default function LeadDetailPage() {
   const [openModal, setOpenModal] = useState(false);
 
   async function load() {
+    if (!id) return;
     setLoading(true);
     try {
       const res = await fetch(`/api/admin/leads/${id}`);
@@ -62,7 +59,16 @@ export default function LeadDetailPage() {
     }
   }
 
-  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [id]);
+  useEffect(() => { 
+    if (id) {
+        load(); 
+    }
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */ 
+  }, [id]);
+
+  if (!id) {
+    return <div>ID non trouvé</div>; // Ou une autre gestion d'erreur appropriée
+  }
 
   async function onConvert(e: React.FormEvent) {
     e.preventDefault();

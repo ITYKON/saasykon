@@ -69,7 +69,7 @@ export default function CreateReservationModal({
     if (defaultDate) setDate(defaultDate);
     if (defaultTime) setTime(defaultTime);
     if (typeof defaultEmployeeId !== 'undefined') setEmployeeId(defaultEmployeeId || "none");
-  }, [open]);
+  }, [open, defaultDate, defaultTime, defaultEmployeeId]);
 
   // Ouvrir sur demande externe avec pré-remplissage
   useEffect(() => {
@@ -104,7 +104,7 @@ export default function CreateReservationModal({
   }, [serviceId, services, allEmployees]);
 
   const selectedService = useMemo(() => services.find((s) => s.id === serviceId), [services, serviceId]);
-  const variants = selectedService?.service_variants || [];
+  const variants = useMemo(() => selectedService?.service_variants || [], [selectedService]);
   
   // Gérer la sélection d'un client
   const handleClientSelect = useCallback((client: { id: string; name: string; phone?: string; email?: string }) => {

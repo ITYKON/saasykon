@@ -29,3 +29,7 @@ next-env.d.ts
 
 # Tests
 tests/
+
+# Scripts
+scripts/
+verify-prod.ps1

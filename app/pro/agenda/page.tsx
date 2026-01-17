@@ -75,6 +75,9 @@ function useDebounce<T>(value: T, delay: number): T {
   return debouncedValue;
 }
 
+// Color palette and mapping per employee (stable by order)
+const palette = ['#2563eb','#16a34a','#ea580c','#9333ea','#e11d48','#0ea5e9','#f59e0b','#22c55e','#8b5cf6','#ef4444'];
+
 export default function ProAgenda() {
   // Single-day agenda view with employee columns
   const [view, setView] = useState<"day" | "week" | "month">("day")
@@ -176,7 +179,6 @@ export default function ProAgenda() {
   const norm = (s: string | undefined) => (s || '').toLowerCase().trim()
 
   // Color palette and mapping per employee (stable by order)
-  const palette = ['#2563eb','#16a34a','#ea580c','#9333ea','#e11d48','#0ea5e9','#f59e0b','#22c55e','#8b5cf6','#ef4444']
   const colorMap = useMemo(() => {
     const map: Record<string,string> = {}
     const base = (allEmployees.length > 0 ? allEmployees : [])
@@ -269,7 +271,7 @@ export default function ProAgenda() {
       };
 
       const qs = new URLSearchParams({
-        date: toDateStr(debouncedDate || currentDate),
+        date: toDateStr(debouncedDate),
       });
 
       // Obtenir les IDs des employés
@@ -344,7 +346,7 @@ export default function ProAgenda() {
         clearTimeout(throttleTimeout);
       }
     };
-  }, [debouncedDate, selectedEmployees, selectedCategories, selectedServices, debouncedSearch]); 
+  }, [debouncedDate, selectedEmployees, selectedCategories, selectedServices, debouncedSearch, empMap]); 
   // Fetch Week agenda
   useEffect(() => {
     const toDateStr = (d: Date) =>

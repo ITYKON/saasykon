@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
 import { Card, CardContent } from "@/components/ui/card"
@@ -134,7 +134,7 @@ export default function EmployeesPage() {
     return ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"][n]
   }
 
-  async function loadEmployees() {
+  const loadEmployees = useCallback(async () => {
     setLoading(true)
     try {
       const q = new URLSearchParams()
@@ -183,11 +183,11 @@ export default function EmployeesPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
     loadEmployees()
-  }, [])
+  }, [loadEmployees])
 
   useEffect(() => {
     if (isEditDialogOpen && selectedEmployee) {

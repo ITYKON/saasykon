@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -32,11 +32,9 @@ export default function AdminClaimsPage() {
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
 
-  useEffect(() => {
-    fetchClaims()
-  }, [statusFilter, page])
 
-  const fetchClaims = async () => {
+
+  const fetchClaims = useCallback(async () => {
     setLoading(true)
     try {
       const status = statusFilter === "all" ? undefined : statusFilter
@@ -58,7 +56,11 @@ export default function AdminClaimsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [statusFilter, page, toast])
+
+  useEffect(() => {
+    fetchClaims()
+  }, [fetchClaims])
 
   const handleVerify = async () => {
     if (!selectedClaim || !verifyAction) return

@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { generateUniqueSlug } from "@/lib/salon-slug";
+import { generateUniqueSlug } from "@/lib/salon-slug-server";
 
 async function main() {
   console.log("Starting backfill of slugs...");

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,7 +20,7 @@ export default function SalonSettingsPage() {
   const [idFront, setIdFront] = useState<string | undefined>(undefined);
   const [idBack, setIdBack] = useState<string | undefined>(undefined);
 
-  async function loadVerification() {
+  const loadVerification = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch("/api/pro/verification");
@@ -37,9 +37,9 @@ export default function SalonSettingsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [toast]);
 
-  useEffect(() => { loadVerification(); /* eslint-disable-next-line */ }, []);
+  useEffect(() => { loadVerification(); }, [loadVerification]);
 
   async function upload(file: File): Promise<string> {
     const fd = new FormData();

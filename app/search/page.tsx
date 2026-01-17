@@ -116,7 +116,7 @@ export default function SearchPage() {
 
     // Nettoyage du timer si le composant est démonté ou si les dépendances changent
     return () => clearTimeout(debounceTimer)
-  }, [query, location, page]) // Ajouter location aux dépendances
+  }, [query, location, page, router]) // Ajouter location aux dépendances
 
   const handleSearch = (e?: React.FormEvent) => {
     e?.preventDefault()
