@@ -67,15 +67,46 @@ export async function GET(req: Request): Promise<NextResponse> {
 
     // --- 2. Filtre par LOCALISATION (Ville) ---
     if (locationQuery) {
-      where.business_locations = {
-        some: {
-          OR: [
-             { cities: { name: { contains: locationQuery, mode: 'insensitive' as const } } },
-             { address_line1: { contains: locationQuery, mode: 'insensitive' as const } },
-             { postal_code: { contains: locationQuery, mode: 'insensitive' as const } },
-          ]
-        }
-      };
+      const parts = locationQuery.split(',').map(p => p.trim());
+      
+      if (parts.length >= 2) {
+        // Format "Commune, Wilaya"
+        const [commune, wilaya] = parts;
+        
+        // On cherche soit l'entrée exacte (wilaya dans city, commune dans address)
+        // soit n'importe quelle partie qui contient le tout
+        where.business_locations = {
+          some: {
+            OR: [
+              {
+                AND: [
+                  { cities: { name: { contains: wilaya, mode: 'insensitive' as const } } },
+                  { 
+                    OR: [
+                      { address_line1: { contains: commune, mode: 'insensitive' as const } },
+                      { address_line2: { contains: commune, mode: 'insensitive' as const } }
+                    ]
+                  }
+                ]
+              },
+              { cities: { name: { contains: locationQuery, mode: 'insensitive' as const } } },
+              { address_line1: { contains: locationQuery, mode: 'insensitive' as const } }
+            ]
+          }
+        };
+      } else {
+        // Recherche par terme unique
+        where.business_locations = {
+          some: {
+            OR: [
+               { cities: { name: { contains: locationQuery, mode: 'insensitive' as const } } },
+               { address_line1: { contains: locationQuery, mode: 'insensitive' as const } },
+               { address_line2: { contains: locationQuery, mode: 'insensitive' as const } },
+               { postal_code: { contains: locationQuery, mode: 'insensitive' as const } },
+            ]
+          }
+        };
+      }
     }
 
     // Configuration du tri
@@ -167,6 +198,35 @@ export async function GET(req: Request): Promise<NextResponse> {
         isTop: Number(business.ratings_aggregates?.rating_avg || 0) >= 4.5
       };
     });
+
+    // --- 4. Tri par pertinence de localisation ---
+    if (locationQuery) {
+      const normalizedQuery = locationQuery.toLowerCase();
+      const queryParts = normalizedQuery.split(',').map(p => p.trim());
+      const communeQuery = queryParts[0];
+      const wilayaQuery = queryParts[1] || queryParts[0];
+
+      formattedResults.sort((a, b) => {
+        const aCity = a.city.toLowerCase();
+        const aAddr = a.address.toLowerCase();
+        const bCity = b.city.toLowerCase();
+        const bAddr = b.address.toLowerCase();
+
+        // 1. Priorité aux communes exactes (ex: "Bejaia" -> "Bejaia")
+        const aExactCommune = aAddr.includes(communeQuery) || aCity === communeQuery;
+        const bExactCommune = bAddr.includes(communeQuery) || bCity === communeQuery;
+        if (aExactCommune && !bExactCommune) return -1;
+        if (bExactCommune && !aExactCommune) return 1;
+
+        // 2. Priorité au "centre" de la wilaya cherchée (ex: "Alger" -> "Alger centre")
+        const aIsCentre = (aAddr.includes("centre") || aCity.includes("centre")) && (aCity.includes(wilayaQuery) || aAddr.includes(wilayaQuery));
+        const bIsCentre = (bAddr.includes("centre") || bCity.includes("centre")) && (bCity.includes(wilayaQuery) || bAddr.includes(wilayaQuery));
+        if (aIsCentre && !bIsCentre) return -1;
+        if (bIsCentre && !aIsCentre) return 1;
+
+        return 0;
+      });
+    }
     
     // Réponse finale
     return NextResponse.json({

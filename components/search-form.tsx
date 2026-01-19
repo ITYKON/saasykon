@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { LocationAutocomplete } from "@/components/ui/location-autocomplete"
+import { cn } from "@/lib/utils"
 
 interface SearchFormProps {
   initialQuery?: string
@@ -57,20 +59,20 @@ export function SearchForm({
   }
 
   return (
-    <form onSubmit={handleSearch} className={className}>
-      <div className="grid md:grid-cols-3 gap-4">
-        <div className={showCategory ? "md:col-span-1" : "md:col-span-2"}>
+    <form onSubmit={handleSearch} className={cn("w-full", className)}>
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-4 w-full">
+        <div className={cn("col-span-1", showCategory ? "md:col-span-4" : "md:col-span-6")}>
           <Input
             placeholder="Que cherchez-vous ? (Nom du salon, prestations...)"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="h-12 text-lg border-gray-300 focus:border-black focus:ring-black"
+            className="h-12 text-lg border-gray-300 focus:border-black focus:ring-black w-full"
           />
         </div>
         {showCategory && (
-          <div className="relative">
+          <div className="col-span-1 md:col-span-4">
             <Select value={category || "all"} onValueChange={(val) => setCategory(val === "all" ? "" : val)}>
-              <SelectTrigger className="h-12 text-lg border-gray-300 focus:border-black focus:ring-black">
+              <SelectTrigger className="h-12 text-lg border-gray-300 focus:border-black focus:ring-black w-full">
                 <SelectValue placeholder="Catégorie ?" />
               </SelectTrigger>
               <SelectContent>
@@ -84,12 +86,11 @@ export function SearchForm({
             </Select>
           </div>
         )}
-        <div className="relative">
-          <Input
-            placeholder="Où ? (Adresse, wilaya...)"
+        <div className={cn("col-span-1", showCategory ? "md:col-span-4" : "md:col-span-6")}>
+          <LocationAutocomplete
             value={location}
-            onChange={(e) => setLocation(e.target.value)}
-            className="h-12 text-lg border-gray-300 focus:border-black focus:ring-black"
+            onChange={setLocation}
+            className="w-full"
           />
         </div>
       </div>
