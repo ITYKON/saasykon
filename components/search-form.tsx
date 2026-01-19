@@ -60,9 +60,8 @@ export function SearchForm({
     <form onSubmit={handleSearch} className={className}>
       <div className="grid md:grid-cols-3 gap-4">
         <div className={showCategory ? "md:col-span-1" : "md:col-span-2"}>
-          <label className="block text-sm text-gray-600 mb-1 text-left">Que cherchez-vous ?</label>
           <Input
-            placeholder="Nom du salon, prestations (coupe...)"
+            placeholder="Que cherchez-vous ? (Nom du salon, prestations...)"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="h-12 text-lg border-gray-300 focus:border-black focus:ring-black"
@@ -70,10 +69,9 @@ export function SearchForm({
         </div>
         {showCategory && (
           <div className="relative">
-            <label className="block text-sm text-gray-600 mb-1 text-left">Catégorie</label>
             <Select value={category || "all"} onValueChange={(val) => setCategory(val === "all" ? "" : val)}>
               <SelectTrigger className="h-12 text-lg border-gray-300 focus:border-black focus:ring-black">
-                <SelectValue placeholder="Toutes" />
+                <SelectValue placeholder="Catégorie ?" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Toutes les catégories</SelectItem>
@@ -87,9 +85,8 @@ export function SearchForm({
           </div>
         )}
         <div className="relative">
-          <label className="block text-sm text-gray-600 mb-1 text-left">Où</label>
           <Input
-            placeholder="Adresse, ville..."
+            placeholder="Où ? (Adresse, wilaya...)"
             value={location}
             onChange={(e) => setLocation(e.target.value)}
             className="h-12 text-lg border-gray-300 focus:border-black focus:ring-black"

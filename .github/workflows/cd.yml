@@ -26,25 +26,18 @@ jobs:
         username: ${{ env.VM_USER }}
         key: ${{ secrets.VM_SSH_PRIVATE_KEY }}
         script_stop: true
+        timeout: 600s
+        command_timeout: 600s
         script: |
-          echo "Nettoyage du port 3000"
-          docker stop $(docker ps -q --filter "publish=3000") 2>/dev/null || true
-          docker rm $(docker ps -aq --filter "publish=3000") 2>/dev/null || true
-          
-          echo "Début du déploiement sur VM"
-          cd ${{ env.PROJECT_PATH }}
-          
-          echo "Connexion à GHCR"
-          echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-          
-          echo "Pull de la nouvelle image"
-          docker compose pull
-          
-          echo "Redémarrage du conteneur"
-          docker compose up -d --remove-orphans
-          
-          echo "Nettoyage des anciennes images"
-          docker image prune -af
-        
-          echo "Déploiement terminé !"
-          docker compose ps
+         cd ${{ env.PROJECT_PATH }}
+         
+         echo "Pull de l'image"
+         # Pull l'image directement (contourne le problème de validation du réseau)
+         docker pull ghcr.io/itykon/saasykon-app:latest
+         
+         echo "Redémarrage de l'app avec override"
+         # Up avec les deux fichiers (le réseau existe sur la VM)
+         docker compose -f docker-compose.yml -f docker-compose.override.yml up -d --no-deps saasykon-app
+         
+         echo "Vérification"
+         docker compose -f docker-compose.yml -f docker-compose.override.yml ps saasykon-app
