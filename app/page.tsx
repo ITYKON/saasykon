@@ -58,7 +58,7 @@ export default function HomePage() {
     <div className="min-h-screen bg-white">
 
       {/* Hero Section */}
-      <section className="relative min-h-[600px] flex items-center">
+      <section className="relative h-screen min-h-[600px] flex items-center">
         <div
           className="absolute inset-0 bg-cover bg-center"
           style={{
