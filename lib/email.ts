@@ -8,11 +8,11 @@ const useSES = process.env.EMAIL_PROVIDER === "ses";
 let transporter: nodemailer.Transporter;
 
 if (useSES && isProduction) {
-  // Production: Amazon SES via SMTP (compatible TypeScript)
+  // Production: Amazon SES via SMTP
   transporter = nodemailer.createTransport({
     host: "email-smtp.eu-central-1.amazonaws.com",
     port: 587,
-    secure: false, // true pour port 465, false pour les autres ports
+    secure: false,
     auth: {
       user: process.env.AWS_ACCESS_KEY_ID!,
       pass: process.env.AWS_SECRET_ACCESS_KEY!,
@@ -71,13 +71,14 @@ export async function sendTestEmail() {
   }
 }
 
-// Fonction principale
+// Fonction principale (CORRIGÉE - ajout de sandbox)
 export async function sendEmail(opts: {
   to: string;
   subject: string;
   html: string;
   text?: string;
   category?: string;
+  sandbox?: boolean; // <-- AJOUTÉ pour compatibilité
 }) {
   console.log("Attempting to send email:", {
     to: opts.to,
