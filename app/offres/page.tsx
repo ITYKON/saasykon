@@ -338,74 +338,38 @@ export default function OffresPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <Card className="border-none shadow-lg">
+            <Card className="border-none shadow-lg transition-all hover:scale-[1.01] duration-300">
               <CardHeader>
-                <div className="w-12 h-12 bg-white rounded-lg border border-gray-100 flex items-center justify-center mb-4">
+                <div className="w-12 h-12 bg-white rounded-lg border border-gray-100 flex items-center justify-center mb-4 shadow-sm">
                   <Calendar className="h-6 w-6 text-black" />
                 </div>
-                <CardTitle>Gestion des rendez-vous</CardTitle>
-                <CardDescription>
+                <CardTitle className="text-xl mb-2">Gestion des rendez-vous</CardTitle>
+                <CardDescription className="text-base text-gray-600">
                   Agenda intelligent, réservations en ligne 24/7, rappels automatiques pour réduire les absences
                 </CardDescription>
               </CardHeader>
             </Card>
 
-            <Card className="border-none shadow-lg">
+            <Card className="border-none shadow-lg transition-all hover:scale-[1.01] duration-300">
               <CardHeader>
-                <div className="w-12 h-12 bg-white rounded-lg border border-gray-100 flex items-center justify-center mb-4">
+                <div className="w-12 h-12 bg-white rounded-lg border border-gray-100 flex items-center justify-center mb-4 shadow-sm">
                   <Users className="h-6 w-6 text-black" />
                 </div>
-                <CardTitle>Gestion d'équipe</CardTitle>
-                <CardDescription>
+                <CardTitle className="text-xl mb-2">Gestion d'équipe</CardTitle>
+                <CardDescription className="text-base text-gray-600">
                   Gérez vos employés, leurs horaires, absences et performances depuis une seule interface
                 </CardDescription>
               </CardHeader>
             </Card>
 
-            <Card className="border-none shadow-lg">
+            <Card className="border-none shadow-lg transition-all hover:scale-[1.01] duration-300">
               <CardHeader>
-                <div className="w-12 h-12 bg-white rounded-lg border border-gray-100 flex items-center justify-center mb-4">
+                <div className="w-12 h-12 bg-white rounded-lg border border-gray-100 flex items-center justify-center mb-4 shadow-sm">
                   <BarChart3 className="h-6 w-6 text-black" />
                 </div>
-                <CardTitle>Statistiques & Rapports</CardTitle>
-                <CardDescription>
+                <CardTitle className="text-xl mb-2">Statistiques & Rapports</CardTitle>
+                <CardDescription className="text-base text-gray-600">
                   Suivez votre chiffre d'affaires, vos clients fidèles et l'évolution de votre activité
-                </CardDescription>
-              </CardHeader>
-            </Card>
-
-            <Card className="border-none shadow-lg">
-              <CardHeader>
-                <div className="w-12 h-12 bg-white rounded-lg border border-gray-100 flex items-center justify-center mb-4">
-                  <MessageSquare className="h-6 w-6 text-black" />
-                </div>
-                <CardTitle>Communication client</CardTitle>
-                <CardDescription>
-                  Rappels SMS/Email automatiques, campagnes promotionnelles et fidélisation client
-                </CardDescription>
-              </CardHeader>
-            </Card>
-
-            <Card className="border-none shadow-lg">
-              <CardHeader>
-                <div className="w-12 h-12 bg-white rounded-lg border border-gray-100 flex items-center justify-center mb-4">
-                  <Instagram className="h-6 w-6 text-black" />
-                </div>
-                <CardTitle>Intégration réseaux sociaux</CardTitle>
-                <CardDescription>
-                  Connectez Instagram et Facebook pour recevoir des réservations directement depuis vos réseaux
-                </CardDescription>
-              </CardHeader>
-            </Card>
-
-            <Card className="border-none shadow-lg">
-              <CardHeader>
-                <div className="w-12 h-12 bg-white rounded-lg border border-gray-100 flex items-center justify-center mb-4">
-                  <Mail className="h-6 w-6 text-black" />
-                </div>
-                <CardTitle>Marketing automation</CardTitle>
-                <CardDescription>
-                  Campagnes email automatisées, promotions ciblées et outils pour booster votre visibilité
                 </CardDescription>
               </CardHeader>
             </Card>
