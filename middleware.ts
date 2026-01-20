@@ -125,22 +125,6 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-<<<<<<< HEAD
-  // Block access to admin routes for users without admin privileges
-  // Fine-grained permission checks are done at page/API level via requireAdminOrPermission()
-  const isAdminPath = pathname.startsWith("/admin") || pathname.startsWith("/api/admin")
-  if (isAdminPath && !canAccessAdmin) {
-    if (isApiRequest) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
-    }
-    const url = new URL("/client/dashboard", request.url)
-    return NextResponse.redirect(url)
-  }
-
-  // Redirect sub-admins trying to access client/pro routes to admin dashboard
-  const isClientPath = pathname.startsWith("/client")
-  const isProPath = pathname.startsWith("/pro")
-=======
   // --- ACCESS CONTROL & REDIRECTION ---
   
   // 1. ADMIN SPACE PROTECTION
@@ -152,7 +136,6 @@ export async function middleware(request: NextRequest) {
 
   // 2. PRO SPACE PROTECTION
   const isProPath = pathname.startsWith("/pro") || pathname.startsWith("/api/pro")
->>>>>>> 4a49268 (security: switch to single HttpOnly JWT cookie +rename session cookie , and fix production build errors)
   const isProOnboarding = pathname.startsWith("/pro/onboarding")
   if (isProPath && !isPro && !isAdmin) {
     if (isApiRequest) return NextResponse.json({ error: "Forbidden" }, { status: 403 })

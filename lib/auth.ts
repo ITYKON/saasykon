@@ -179,28 +179,6 @@ export async function getAuthUserFromCookies() {
   const cookieStore = cookies();
   const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
   
-<<<<<<< HEAD
-  if (!token) {
-    return null;
-  }
-  
-  try {
-    const session = await prisma.sessions.findUnique({ 
-      where: { token }, 
-      include: { users: true } 
-    }).catch(() => null);
-    
-    if (!session) {
-      return null;
-    }
-    
-    if (session.expires_at < new Date()) {
-      await prisma.sessions.delete({ where: { token } }).catch(() => {});
-      return null;
-    }
-    
-    return session.users;
-=======
   if (!token) return null;
   
   try {
@@ -213,7 +191,6 @@ export async function getAuthUserFromCookies() {
       console.error('[getAuthUserFromCookies] Prisma error:', e);
       return null;
     });
->>>>>>> 4a49268 (security: switch to single HttpOnly JWT cookie +rename session cookie , and fix production build errors)
   } catch (error) {
     console.error('[getAuthUserFromCookies] Erreur:', error);
     return null;
