@@ -579,6 +579,7 @@ function AdminSalonsContent() {
 
       {/* Modals CRUD salons */}
       <SalonFormModal
+        key="add-salon-modal"
         open={addModalOpen}
         onClose={() => setAddModalOpen(false)}
         onSave={async (salon) => {
@@ -604,7 +605,8 @@ function AdminSalonsContent() {
           mode="add"
         />
         {selectedSalon && (
-          <SalonFormModal
+        <SalonFormModal
+            key={`edit-salon-${selectedSalon.id}`}
             open={editModalOpen}
             onClose={() => setEditModalOpen(false)}
             onSave={async (salon) => {
