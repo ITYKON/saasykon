@@ -47,7 +47,13 @@ export default async function CityInstitutePage({ params }: PageProps) {
 
   // Fetch business locations in this city with their businesses
   let locations = await prisma.business_locations.findMany({
-    where: { city_id: city.id },
+    where: { 
+      city_id: city.id,
+      businesses: {
+        archived_at: null,
+        deleted_at: null
+      }
+    },
     include: { 
       businesses: {
         select: {
@@ -73,7 +79,13 @@ export default async function CityInstitutePage({ params }: PageProps) {
     const cityIds = sameWilayaCities.map(c => c.id)
     if (cityIds.length > 0) {
       locations = await prisma.business_locations.findMany({
-        where: { city_id: { in: cityIds } },
+        where: { 
+          city_id: { in: cityIds },
+          businesses: {
+            archived_at: null,
+            deleted_at: null
+          }
+        },
         include: { 
           businesses: {
             select: {
