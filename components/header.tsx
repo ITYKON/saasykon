@@ -32,16 +32,16 @@ export function Header() {
 
   const headerClasses = isHomePage
     ? `fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        isScrolled 
+        isScrolled || isMenuOpen
           ? "bg-white border-b border-gray-200 py-2 shadow-sm" 
           : "bg-transparent border-transparent py-4"
       }`
     : "border-b border-gray-200 bg-white sticky top-0 z-50"
 
-  const textClasses = isHomePage && !isScrolled ? "text-white" : "text-black"
-  const navTextClasses = isHomePage && !isScrolled ? "text-white/90 hover:text-white" : "text-gray-700 hover:text-black"
+  const textClasses = isHomePage && !isScrolled && !isMenuOpen ? "text-white" : "text-black"
+  const navTextClasses = isHomePage && !isScrolled && !isMenuOpen ? "text-white/90 hover:text-white" : "text-gray-700 hover:text-black"
 
-  const proButtonClasses = isHomePage && !isScrolled
+  const proButtonClasses = isHomePage && !isScrolled && !isMenuOpen
     ? "hidden md:inline-flex bg-white text-black border-transparent hover:bg-gray-100"
     : "hidden md:inline-flex bg-transparent border-gray-300 hover:bg-gray-50 text-gray-700"
 
@@ -91,7 +91,7 @@ export function Header() {
             <Button 
               variant="ghost" 
               size="sm" 
-              className={`md:hidden ${isHomePage && !isScrolled ? "text-white hover:bg-white/10" : "text-black"}`} 
+              className={`md:hidden ${isHomePage && !isScrolled && !isMenuOpen ? "text-white hover:bg-white/10" : "text-black"}`} 
               onClick={() => setIsMenuOpen(!isMenuOpen)}
             >
               {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
