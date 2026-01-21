@@ -28,9 +28,10 @@ interface SearchMapProps {
   onBoundsChange?: (bounds: { north: number, south: number, east: number, west: number }) => void
   searchLocation?: string
   wasMapMoved?: boolean
+  onMapClick?: () => void
 }
 
-export function SearchMap({ businesses, center, onMarkerClick, onBoundsChange, searchLocation, wasMapMoved }: SearchMapProps) {
+export function SearchMap({ businesses, center, onMarkerClick, onBoundsChange, searchLocation, wasMapMoved, onMapClick }: SearchMapProps) {
   const [viewState, setViewState] = useState({
     latitude: center?.lat || 36.7538, // Alger par défaut
     longitude: center?.lng || 3.0588,
@@ -190,6 +191,7 @@ export function SearchMap({ businesses, center, onMarkerClick, onBoundsChange, s
     <div className="w-full h-full rounded-lg overflow-hidden border border-gray-200 shadow-sm relative">
       <Map
         {...viewState}
+        onClick={() => onMapClick?.()}
         onMove={evt => setViewState(evt.viewState)}
         onMoveEnd={evt => {
            const bounds = evt.target.getBounds();
