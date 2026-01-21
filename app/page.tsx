@@ -250,6 +250,47 @@ Des soins haut de gamme, réalisés par des professionnelles qualifiées, pour s
               Trouvez votre établissement beauté partout en ALGÉRIE
             </h2>
           </div>
+          <div className="text-center text-white">
+  <h3 className="text-center mb-6">Nos instituts de beauté populaires en Algérie</h3>
+  <div className="grid grid-cols-2 md:grid-cols-3 gap-x-2 gap-y-4 justify-items-center w-full">
+    {[
+      "Alger",
+      "Oran",
+      "Bejaia",
+      "Constantine",
+      "Annaba",
+      "Sétif",
+      "Voir plus"
+    ].map((city, index, array) => {
+      const isLast = index === array.length - 1;
+
+      if (isLast) {
+        // Dernier élément → utiliser le Button
+        return (
+          <Button
+            key={city}
+            variant="outline"
+            asChild
+            className="col-span-2 md:col-span-3 border-white text-white bg-transparent mt-8 max-w-[200px]"
+          >
+            <Link href="/institut-de-beaute">{city}</Link>
+          </Button>
+        );
+      }
+
+      // Les autres éléments restent des Link classiques
+      return (
+        <Link
+          key={city}
+          href={`/institut-de-beaute/${slugifySalonName(city)}`}
+          className="w-full max-w-[200px] bg-white text-black font-medium py-3 px-4 rounded-md shadow-sm hover:shadow-md transition-all duration-200 text-center text-sm sm:text-base border border-gray-200 hover:border-gray-300"
+        >
+          {city}
+        </Link>
+      );
+    })}
+  </div>
+</div>
 
           <div>
             {/* <div>
