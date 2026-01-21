@@ -68,13 +68,13 @@ export default function ProfilInstitutPage() {
     },
     photos: [],
     horaires: {
-      lundi: { ouvert: false, debut: '09:00', fin: '18:00' },
-      mardi: { ouvert: false, debut: '09:00', fin: '18:00' },
-      mercredi: { ouvert: false, debut: '09:00', fin: '18:00' },
-      jeudi: { ouvert: false, debut: '09:00', fin: '18:00' },
-      vendredi: { ouvert: false, debut: '09:00', fin: '18:00' },
-      samedi: { ouvert: false, debut: '09:00', fin: '18:00' },
-      dimanche: { ouvert: false, debut: '09:00', fin: '18:00' },
+      lundi: { ouvert: false, debut: '09:00', fin: '17:00' },
+      mardi: { ouvert: false, debut: '09:00', fin: '17:00' },
+      mercredi: { ouvert: false, debut: '09:00', fin: '17:00' },
+      jeudi: { ouvert: false, debut: '09:00', fin: '17:00' },
+      vendredi: { ouvert: false, debut: '09:00', fin: '17:00' },
+      samedi: { ouvert: false, debut: '09:00', fin: '17:00' },
+      dimanche: { ouvert: false, debut: '09:00', fin: '17:00' },
     },
   })
 
@@ -90,13 +90,13 @@ export default function ProfilInstitutPage() {
         const primaryLocation = business.business_locations?.[0] || {}
 
         const horaires: BusinessProfile['horaires'] = {
-          lundi: { ouvert: false, debut: '09:00', fin: '18:00' },
-          mardi: { ouvert: false, debut: '09:00', fin: '18:00' },
-          mercredi: { ouvert: false, debut: '09:00', fin: '18:00' },
-          jeudi: { ouvert: false, debut: '09:00', fin: '18:00' },
-          vendredi: { ouvert: false, debut: '09:00', fin: '18:00' },
-          samedi: { ouvert: false, debut: '09:00', fin: '18:00' },
-          dimanche: { ouvert: false, debut: '09:00', fin: '18:00' },
+          lundi: { ouvert: false, debut: '09:00', fin: '17:00' },
+          mardi: { ouvert: false, debut: '09:00', fin: '17:00' },
+          mercredi: { ouvert: false, debut: '09:00', fin: '17:00' },
+          jeudi: { ouvert: false, debut: '09:00', fin: '17:00' },
+          vendredi: { ouvert: false, debut: '09:00', fin: '17:00' },
+          samedi: { ouvert: false, debut: '09:00', fin: '17:00' },
+          dimanche: { ouvert: false, debut: '09:00', fin: '17:00' },
         }
 
         if (business.working_hours) {
@@ -116,7 +116,7 @@ export default function ProfilInstitutPage() {
               horaires[dayName as keyof typeof horaires] = {
                 ouvert: wh.is_open,
                 debut: wh.start_time || '09:00',
-                fin: wh.end_time || '18:00',
+                fin: wh.end_time || '17:00',
               }
             }
           })
@@ -419,7 +419,7 @@ const responseData = await response.json();
                       name="address.city"
                       value={formData.address.city}
                       onChange={handleInputChange}
-                      placeholder="Paris"
+                      placeholder="Béjaia"
                     />
                   </div>
                 </div>

@@ -157,14 +157,26 @@ export function SearchMap({ businesses, center, onMarkerClick, onBoundsChange, s
           }))
         }}
       >
-        <div className={`relative group cursor-pointer transition-transform ${isActive ? 'scale-125 z-10' : 'hover:scale-110'}`}>
+        <div className={`flex flex-col items-center group cursor-pointer transition-transform ${isActive ? 'scale-110 z-10' : 'hover:scale-105'}`}>
+          {/* Label du nom */}
+          <div 
+            className={`mb-1 px-2 py-1 rounded shadow-md text-xs font-semibold whitespace-nowrap transition-colors border ${
+              isActive 
+                ? 'bg-blue-600 text-white border-blue-700' 
+                : 'bg-white text-gray-800 border-gray-200 group-hover:bg-gray-50'
+            }`}
+          >
+            {business.name}
+          </div>
+          
+          {/* Icône du Pin */}
           <div 
             className={`rounded-full p-2 shadow-lg flex items-center justify-center border border-gray-100 transition-colors ${
               isActive ? 'bg-blue-600' : 'bg-white'
             }`}
           >
             <MapPin 
-                className={`w-5 h-5 fill-transparent stroke-[2.5px] ${
+                className={`w-4 h-4 fill-transparent stroke-[2.5px] ${
                   isActive ? 'text-white' : 'text-black'
                 }`} 
             />
