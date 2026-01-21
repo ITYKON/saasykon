@@ -25,6 +25,8 @@ export default function SearchPage() {
   const [category, setCategory] = useState(searchParams?.get("category") ?? "")
   const [selectedService, setSelectedService] = useState<string | null>(null)
   const [showFilters, setShowFilters] = useState(false)
+  const [mapBounds, setMapBounds] = useState<{ n: number, s: number, e: number, w: number } | null>(null)
+  const [wasMapMoved, setWasMapMoved] = useState(false)
   
   // Services populaires pour les filtres
   const [popularServices, setPopularServices] = useState<string[]>([])
@@ -56,8 +58,15 @@ export default function SearchPage() {
         if (query) params.set("q", query)
         if (location) params.set("location", location)
         
+        if (mapBounds) {
+            params.set("n", mapBounds.n.toString())
+            params.set("s", mapBounds.s.toString())
+            params.set("e", mapBounds.e.toString())
+            params.set("w", mapBounds.w.toString())
+        }
+        
         // Si la requête et la localisation sont vides, on réinitialise les résultats
-        if (!query.trim() && !location.trim()) {
+        if (!query.trim() && !location.trim() && !mapBounds) {
           setBusinesses([])
           setTotal(0)
           setPage(1)
@@ -106,7 +115,7 @@ export default function SearchPage() {
 
     // Ajout d'un délai de 300ms pour éviter les appels API excessifs
     const debounceTimer = setTimeout(() => {
-      if (query || location) {
+      if (query || location || mapBounds) {
         fetchResults()
       } else {
         setBusinesses([])
@@ -116,7 +125,7 @@ export default function SearchPage() {
 
     // Nettoyage du timer si le composant est démonté ou si les dépendances changent
     return () => clearTimeout(debounceTimer)
-  }, [query, location, page]) // Ajouter location aux dépendances
+  }, [query, location, page, mapBounds]) // Retirer searchAsIMove des dépendances
 
   const handleSearch = (e?: React.FormEvent) => {
     e?.preventDefault()
@@ -126,8 +135,10 @@ export default function SearchPage() {
       return
     }
     
-    // Réinitialiser la page à 1 lors d'une nouvelle recherche
+    // Réinitialiser la page à 1 et les bounds lors d'une nouvelle recherche manuelle
     setPage(1)
+    setMapBounds(null)
+    setWasMapMoved(false)
     
     // Mettre à jour l'URL avec les paramètres
     const params = new URLSearchParams()
@@ -157,7 +168,10 @@ export default function SearchPage() {
               <Input
                 placeholder="Nom de l'institut ou service recherché"
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                onChange={(e) => {
+                  setQuery(e.target.value)
+                  setWasMapMoved(false)
+                }}
                 onKeyDown={handleKeyDown}
                 className="h-11 w-full"
                 aria-label="Rechercher un institut ou un service"
@@ -167,7 +181,10 @@ export default function SearchPage() {
               <Input
                 placeholder="Ville, adresse ou code postal"
                 value={location}
-                onChange={(e) => setLocation(e.target.value)}
+                onChange={(e) => {
+                  setLocation(e.target.value)
+                  setWasMapMoved(false)
+                }}
                 onKeyDown={handleKeyDown}
                 className="h-11 w-full"
                 aria-label="Localisation (ville, adresse, code postal)"
@@ -211,7 +228,10 @@ export default function SearchPage() {
             <Button
               variant={!category ? "default" : "outline"}
               size="sm"
-              onClick={() => setCategory("")}
+              onClick={() => {
+                setCategory("")
+                setWasMapMoved(false)
+              }}
               className="whitespace-nowrap"
             >
               Tous
@@ -224,6 +244,7 @@ export default function SearchPage() {
                 onClick={() => {
                   setSelectedService(selectedService === service ? null : service)
                   setQuery(selectedService === service ? "" : service)
+                  setWasMapMoved(false)
                 }}
                 className="whitespace-nowrap"
               >
@@ -423,10 +444,21 @@ export default function SearchPage() {
           <div className="hidden lg:block w-[500px] sticky top-4 h-[calc(100vh-120px)]">
             <SearchMap 
               businesses={businesses}
+              searchLocation={location}
+              wasMapMoved={wasMapMoved}
               onMarkerClick={(businessId) => {
                 // Scroll vers le salon sélectionné
                 const element = document.getElementById(`business-${businessId}`)
                 element?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+              }}
+              onBoundsChange={(bounds) => {
+                  setWasMapMoved(true)
+                  setMapBounds({
+                    n: bounds.north,
+                    s: bounds.south,
+                    e: bounds.east,
+                    w: bounds.west
+                  })
               }}
             />
           </div>

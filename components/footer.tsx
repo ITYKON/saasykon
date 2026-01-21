@@ -1,4 +1,4 @@
-import Link from "next/link";
+ import Link from "next/link";
 import { ServicesSection } from "./footer/services/ServicesSection";
 import { ProfessionnelsSection } from "./footer/professionnels/ProfessionnelsSection";
 import { AProposSection } from "./footer/a-propos/AProposSection";

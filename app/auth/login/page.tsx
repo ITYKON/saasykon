@@ -29,13 +29,26 @@ export default function LoginPage() {
           body: JSON.stringify({ email, password }),
         })
         if (!res.ok) {
-          const data = await res.json().catch(() => ({}))
-          setError(data.error || "Impossible de se connecter")
-          return
+          const data = await res.json().catch(() => ({}));
+          setError(data.error || "Impossible de se connecter");
+          return;
         }
-        //  CORRECTION : Attendre 1000ms + router.push pour éviter le bug Next.js
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        router.push("/");
+        const data = await res.json().catch(() => ({}));
+        
+        //  CORRECTION : Attendre 500ms pour laisser les cookies se propager
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Redirection intelligente basée sur les rôles renvoyés par l'API
+        const roles = data.user?.roles || [];
+        if (roles.includes("ADMIN")) {
+          router.push("/admin/dashboard");
+        } else if (roles.includes("PRO") || roles.includes("PROFESSIONNEL") || roles.includes("EMPLOYEE")) {
+          router.push("/pro/dashboard");
+        } else if (roles.includes("CLIENT")) {
+          router.push("/client/dashboard");
+        } else {
+          router.push("/");
+        }
       } catch (e) {
         setError("Erreur réseau")
       }

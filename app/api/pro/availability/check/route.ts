@@ -4,7 +4,7 @@ import { z } from "zod";
 import { getAuthContext } from "@/lib/authorization";
 import { cookies } from "next/headers";
 
-export const availabilitySchema = z.object({
+const availabilitySchema = z.object({
   starts_at: z.string().datetime(),
   ends_at: z.string().datetime(),
   employee_id: z.string().uuid().nullable().optional(),

@@ -34,6 +34,9 @@ export const SalonFormModal: React.FC<SalonFormModalProps> = ({ open, onClose, o
     country_code: "+213",
     category_code: "institut_beaute",
     location: "", 
+    google_maps_link: "",
+    latitude: "",
+    longitude: "",
     logo_url: "",
     cover_url: "",
     status: "pending_verification",
@@ -47,6 +50,9 @@ export const SalonFormModal: React.FC<SalonFormModalProps> = ({ open, onClose, o
         ...initialFormState,
         ...initialSalon,
         location: initialSalon.location || initialSalon.business_locations?.[0]?.address_line1 || "",
+        google_maps_link: initialSalon.google_maps_link || initialSalon.business_locations?.[0]?.google_maps_link || "",
+        latitude: initialSalon.business_locations?.[0]?.latitude?.toString() || "",
+        longitude: initialSalon.business_locations?.[0]?.longitude?.toString() || "",
         // Prevent null values
         description: initialSalon.description || "",
         website: initialSalon.website || "",
@@ -57,11 +63,82 @@ export const SalonFormModal: React.FC<SalonFormModalProps> = ({ open, onClose, o
     return initialFormState;
   });
   const [formErrors, setFormErrors] = useState<FormErrors>({});
-  const [logoPreview, setLogoPreview] = useState<string>(form.logo_url || "");
-  const [coverPreview, setCoverPreview] = useState<string>(form.cover_url || "");
+  const [logoPreview, setLogoPreview] = useState<string>("");
+  const [coverPreview, setCoverPreview] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [isUploadingCover, setIsUploadingCover] = useState(false);
+  const [isDetecting, setIsDetecting] = useState(false);
+
+  // Synchronize state with initialSalon when it changes or modal opens
+  React.useEffect(() => {
+    if (open) {
+      if (initialSalon) {
+        const freshState = {
+          ...initialFormState,
+          ...initialSalon,
+          location: initialSalon.location || initialSalon.business_locations?.[0]?.address_line1 || "",
+          google_maps_link: initialSalon.google_maps_link || initialSalon.business_locations?.[0]?.google_maps_link || "",
+          latitude: initialSalon.business_locations?.[0]?.latitude?.toString() || "",
+          longitude: initialSalon.business_locations?.[0]?.longitude?.toString() || "",
+          description: initialSalon.description || "",
+          website: initialSalon.website || "",
+          vat_number: initialSalon.vat_number || "",
+          category_code: initialSalon.category_code || "institut_beaute",
+          logo_url: initialSalon.logo_url || "",
+          cover_url: initialSalon.cover_url || "",
+        };
+        setForm(freshState);
+        setLogoPreview(freshState.logo_url);
+        setCoverPreview(freshState.cover_url);
+      } else {
+        setForm(initialFormState);
+        setLogoPreview("");
+        setCoverPreview("");
+      }
+      setFormErrors({});
+    }
+  }, [open, initialSalon]);
+
+  async function handleDetectCoordinates() {
+    if (!form.google_maps_link) {
+      toast({ title: "Erreur", description: "Veuillez d'abord coller un lien Google Maps", variant: "destructive" });
+      return;
+    }
+
+    setIsDetecting(true);
+    try {
+      console.log("Detecting coordinates for URL:", form.google_maps_link);
+      const response = await fetch("/api/admin/salons/detect-coords", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: form.google_maps_link }),
+      });
+
+      const data = await response.json();
+      console.log("Detection API result:", data);
+
+      if (data.success && data.latitude && data.longitude) {
+        setForm((prev: any) => ({ 
+          ...prev, 
+          latitude: data.latitude.toString(), 
+          longitude: data.longitude.toString() 
+        }));
+        toast({ title: "Succès", description: "Coordonnées détectées avec succès !", variant: "default" });
+      } else {
+        toast({ 
+          title: "Erreur de détection", 
+          description: data.error || "Impossible d'extraire les coordonnées de ce lien. Vérifiez que c'est un lien de partage ou un lien avec '@'.", 
+          variant: "destructive" 
+        });
+      }
+    } catch (error) {
+      console.error("Detection error:", error);
+      toast({ title: "Erreur réseau", description: "Impossible de contacter le service de détection.", variant: "destructive" });
+    } finally {
+      setIsDetecting(false);
+    }
+  }
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -255,6 +332,56 @@ export const SalonFormModal: React.FC<SalonFormModalProps> = ({ open, onClose, o
                 )}
               </div>
             </div>
+               
+            <div className="col-span-2 space-y-2 bg-blue-50/50 p-3 rounded-lg border border-blue-100/50">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="google_maps_link" className="text-xs font-semibold text-blue-900">Lien Google Maps (Auto-détection)</Label>
+                    <Button 
+                      type="button" 
+                      size="sm" 
+                      onClick={handleDetectCoordinates}
+                      disabled={isDetecting || !form.google_maps_link}
+                      variant="outline" 
+                      className="h-7 text-[10px] border-blue-200 text-blue-700 hover:bg-blue-100 px-2"
+                    >
+                      {isDetecting ? "En cours..." : "📌 Détecter les coordonnées"}
+                    </Button>
+                  </div>
+                  <Input 
+                     id="google_maps_link" 
+                     name="google_maps_link" 
+                     value={form.google_maps_link} 
+                     onChange={handleChange} 
+                     placeholder="https://maps.app.goo.gl/..." 
+                     className="h-9 text-sm bg-white" 
+                  />
+                  
+                  <div className="grid grid-cols-2 gap-3 mt-1">
+                    <div className="space-y-1">
+                      <Label className="text-[10px] font-medium text-gray-500">Latitude</Label>
+                      <Input 
+                        name="latitude" 
+                        value={form.latitude} 
+                        onChange={handleChange} 
+                        placeholder="ex: 36.75..." 
+                        className="h-8 text-xs bg-white"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] font-medium text-gray-500">Longitude</Label>
+                      <Input 
+                        name="longitude" 
+                        value={form.longitude} 
+                        onChange={handleChange} 
+                        placeholder="ex: 3.05..." 
+                        className="h-8 text-xs bg-white"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-blue-600/70 italic">
+                    Astuce : Utilisez le bouton "Partager" de Google Maps ou attendez que la page soit chargée pour copier le lien (il doit contenir le symbole "@").
+                  </p>
+               </div>
           </div>
 
           <div className="h-px bg-gray-100" />

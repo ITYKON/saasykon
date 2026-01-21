@@ -11,8 +11,6 @@ const nextConfig = {
     // This is needed to ensure the @ alias works correctly
     // with the Next.js compiler
     externalDir: true,
-    // Disable Edge Runtime for better compatibility with Node.js modules
-    runtime: 'nodejs',
     serverComponentsExternalPackages: ['bcryptjs']
   },
   webpack: (config, { dev }) => {
