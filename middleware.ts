@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server"
 import { getAuthDataFromTokenEdge } from "@/lib/session-edge"
 import { getToken } from "next-auth/jwt"
 
-const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME || "__yk_sb_hg"
+const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME || "__yk_sb_"
 const PUBLIC_FILE = /\.(.*)$/
 
 export async function middleware(request: NextRequest) {
@@ -84,7 +84,6 @@ export async function middleware(request: NextRequest) {
   if (nextAuthToken) {
     roles = (nextAuthToken.roles as string[]) || []
     businessId = nextAuthToken.businessId as string
-    console.log(`[Middleware] NextAuth User detected. Roles: ${roles.join(',')}`);
   } 
   // 2. Try Custom Session JWT
   else if (customToken) {
@@ -92,10 +91,7 @@ export async function middleware(request: NextRequest) {
     if (authData) {
       roles = authData.roles
       businessId = authData.businessId
-      console.log(`[Middleware] Custom Session detected. Roles: [${roles.join(',')}]`);
-    } else {
-      console.log(`[Middleware] Custom token found but getAuthDataFromTokenEdge returned null (Invalid JWT or Legacy Token)`);
-    }
+    } 
   }
 
   const sessionToken = customToken || (nextAuthToken ? "exists" : undefined)
@@ -111,8 +107,6 @@ export async function middleware(request: NextRequest) {
   // We limit sub-admin roles to specific ones to avoid CLIENTS being considered sub-admins
   const isSubAdmin = businessId === SPECIAL_ADMIN_BUSINESS_ID && (roles.includes("SUPPORT") || roles.includes("SALES"))
   const canAccessAdmin = isAdmin || isSubAdmin
-  
-  console.log(`[Middleware] Path: ${pathname}, Roles: [${roles.join(',')}], isAdmin: ${isAdmin}, canAccessAdmin: ${canAccessAdmin}, isPro: ${isPro}, isClient: ${isClient}`);
   
   // Documents verification check moved to pages to support Edge middleware
 
@@ -159,15 +153,12 @@ export async function middleware(request: NextRequest) {
   // 5. ROOT REDIRECTION
   if (pathname === "/") {
     if (canAccessAdmin) {
-      console.log("[Middleware] Redirecting Admin/SubAdmin to /admin/dashboard");
       return NextResponse.redirect(new URL("/admin/dashboard", request.url));
     }
     if (isPro) {
-      console.log("[Middleware] Redirecting Pro to /pro/dashboard");
       return NextResponse.redirect(new URL("/pro/dashboard", request.url));
     }
     if (isClient) {
-      console.log("[Middleware] Redirecting Client to /client/dashboard");
       return NextResponse.redirect(new URL("/client/dashboard", request.url));
     }
   }

@@ -166,7 +166,13 @@ export async function POST(request: Request) {
     const sessionData = await createSessionData(user.id);
     
     // Create response
-    const response = NextResponse.json({ success: true, message: 'Connexion réussie' });
+    const response = NextResponse.json({ 
+      success: true, 
+      message: 'Connexion réussie',
+      user: {
+        roles: sessionData.roleCodes.split(',')
+      }
+    });
     
     // Set auth cookies on response
     setAuthCookies(response, sessionData);
