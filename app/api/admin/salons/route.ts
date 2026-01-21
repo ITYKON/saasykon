@@ -297,8 +297,60 @@ const salonSchema = z.object({
   logo_url: z.string().nullable().optional(),
   cover_url: z.string().nullable().optional(),
   location: z.string().min(1, "La wilaya est requise"), 
-  status: z.string().nullable().optional(),
+  google_maps_link: z.string().nullable().optional(),
+  latitude: z.string().nullable().optional().or(z.number()),
+  longitude: z.string().nullable().optional().or(z.number()),
 });
+
+
+async function expandShortUrl(url: string): Promise<string> {
+  if (!url) return url;
+  if (!url.includes("goo.gl") && !url.includes("g.page") && !url.includes("google.com/maps")) return url;
+  
+  try {
+    const response = await fetch(url, { method: 'HEAD', redirect: 'follow' });
+    return response.url;
+  } catch (error) {
+    console.warn("Failed to expand short URL:", url, error);
+    return url;
+  }
+}
+
+function extractCoordinatesFromUrl(url: string): { latitude: number, longitude: number } | null {
+  if (!url) return null;
+  
+  // Format 1: @lat,lng (e.g., https://www.google.com/maps/place/.../@36.75,3.05,15z)
+  const atMatch = url.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+  if (atMatch) {
+    return { latitude: parseFloat(atMatch[1]), longitude: parseFloat(atMatch[2]) };
+  }
+
+  // Format 1b: !3dlat!4dlng (Very common in Google Maps place URLs)
+  const dMatch = url.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
+  if (dMatch) {
+    return { latitude: parseFloat(dMatch[1]), longitude: parseFloat(dMatch[2]) };
+  }
+  
+  // Format 2: q=lat,lng (e.g., https://maps.google.com/?q=36.75,3.05)
+  const qMatch = url.match(/[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)/);
+  if (qMatch) {
+    return { latitude: parseFloat(qMatch[1]), longitude: parseFloat(qMatch[2]) };
+  }
+  
+  // Format 3: ll=lat,lng
+  const llMatch = url.match(/[?&]ll=(-?\d+\.\d+),(-?\d+\.\d+)/);
+  if (llMatch) {
+    return { latitude: parseFloat(llMatch[1]), longitude: parseFloat(llMatch[2]) };
+  }
+
+  // Format 4: 36.75, 3.05 (just coordinates)
+  const coordsMatch = url.match(/^\[?\s*(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)\s*\]?$/);
+  if (coordsMatch) {
+     return { latitude: parseFloat(coordsMatch[1]), longitude: parseFloat(coordsMatch[2]) };
+  }
+  
+  return null;
+}
 
 export async function POST(req: Request) {
     const authCheck = await requireAdminOrPermission("salons");
@@ -436,12 +488,31 @@ export async function POST(req: Request) {
           },
         });
 
+        // Use coordinates from body if available, otherwise try to extract from link
+        let lat = data.latitude ? parseFloat(data.latitude.toString()) : null;
+        let lng = data.longitude ? parseFloat(data.longitude.toString()) : null;
+
+        if (!lat || !lng) {
+          const expandedUrl = parse.data.google_maps_link 
+             ? await expandShortUrl(parse.data.google_maps_link) 
+             : null;
+             
+          const coords = expandedUrl 
+              ? extractCoordinatesFromUrl(expandedUrl) 
+              : null;
+          
+          lat = coords?.latitude || null;
+          lng = coords?.longitude || null;
+        }
+
         await prisma.business_locations.create({
           data: {
             business_id: salon.id,
             address_line1: parse.data.location,
             city_id: city?.id,
             is_primary: true,
+            latitude: lat,
+            longitude: lng,
           },
         });
       } catch (locationError) {
@@ -530,16 +601,36 @@ export async function PUT(req: Request) {
     });
     
     // Handle location update if provided
-    if (data.location) {
+    if (data.location || data.google_maps_link) {
+      let city = null;
       // Find the city by name
-      const city = await prisma.cities.findFirst({
-        where: {
-          name: {
-            contains: data.location,
-            mode: 'insensitive'
-          }
-        }
-      });
+      if (data.location) {
+        city = await prisma.cities.findFirst({
+            where: {
+            name: {
+                contains: data.location,
+                mode: 'insensitive'
+            }
+            }
+        });
+      }
+
+      // Use coordinates from body if available, otherwise try to extract from link
+      let lat = data.latitude ? parseFloat(data.latitude.toString()) : null;
+      let lng = data.longitude ? parseFloat(data.longitude.toString()) : null;
+
+      if (!lat || !lng) {
+        const expandedUrl = data.google_maps_link 
+          ? await expandShortUrl(data.google_maps_link) 
+          : null;
+
+        const coords = expandedUrl 
+          ? extractCoordinatesFromUrl(expandedUrl) 
+          : null;
+        
+        lat = coords?.latitude || null;
+        lng = coords?.longitude || null;
+      }
       
       // Update or create business location
       const existingLocation = await prisma.business_locations.findFirst({
@@ -550,20 +641,26 @@ export async function PUT(req: Request) {
         await prisma.business_locations.update({
           where: { id: existingLocation.id },
           data: {
-            address_line1: data.location,
-            city_id: city?.id,
+            ...(data.location ? { address_line1: data.location } : {}),
+            ...(city ? { city_id: city.id } : {}),
+            latitude: lat,
+            longitude: lng,
             updated_at: new Date()
           }
         });
       } else {
-        await prisma.business_locations.create({
-          data: {
-            business_id: data.id,
-            address_line1: data.location,
-            city_id: city?.id,
-            is_primary: true
-          }
-        });
+        if (data.location) {
+            await prisma.business_locations.create({
+            data: {
+                business_id: data.id,
+                address_line1: data.location,
+                city_id: city?.id,
+                is_primary: true,
+                latitude: lat,
+                longitude: lng,
+            }
+            });
+        }
       }
     }
     await prisma.event_logs.create({

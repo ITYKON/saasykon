@@ -29,8 +29,3 @@ next-env.d.ts
 
 # Tests
 tests/
-test-docker-build.ps1
-
-# Logs
-build_log*.txt
-docker_build.log
