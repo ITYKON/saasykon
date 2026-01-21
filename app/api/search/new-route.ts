@@ -67,7 +67,10 @@ async function GET(req: Request) {
     }
     
     // Construction de la clause where de manière sécurisée
-    const whereClause: any = {};
+    const whereClause: any = {
+      archived_at: null,
+      deleted_at: null,
+    };
     
     if (query) {
       whereClause.OR = [
