@@ -67,7 +67,7 @@ export default function HomePage() {
         ></div>
         <div className="absolute inset-0 bg-black/40"></div>
         <div className="relative w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-4xl md:text-6xl font-bold text-white mb-4 text-balance">Réservez en beauté</h1>
+          <h1 className="text-4xl md:text-6xl font-bold text-white mb-4 text-balance">Réservez avec élégance</h1>
           <p className="text-lg text-white/90 mb-8 text-pretty">Simple • Immédiat • 24h/24</p>
 
           {/* Search Form */}
