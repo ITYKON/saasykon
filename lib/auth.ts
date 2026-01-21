@@ -6,7 +6,7 @@ import { randomBytes, randomInt } from "crypto";
 import { SignJWT, jwtVerify } from "jose";
 
 //  CORRECTION : Utiliser le même nom que le middleware attend
-const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME || "__yk_sb_id";
+const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME || "__yk_sb_";
 const SESSION_TTL_SECONDS = Number(process.env.SESSION_TTL_SECONDS || 60 * 60 * 24 * 7); // 7 days
 const JWT_SECRET = new TextEncoder().encode(process.env.NEXTAUTH_SECRET || "default_secret_fallback_12345");
 
