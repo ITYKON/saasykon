@@ -70,49 +70,75 @@ function generateSessionToken(): string {
 }
 
 export async function createSessionData(userId: string) {
-  try {
-    const userRoles = await prisma.user_roles.findMany({
-      where: { user_id: userId },
-      include: { roles: true },
-    });
-    
-    const roles = userRoles.map((ur) => ur.roles.code);
-    
-    let businessId = "";
-    const special = userRoles.find((ur) => ur.business_id === "00000000-0000-0000-0000-000000000000");
-    if (special) {
-      businessId = special.business_id;
-    } else if (userRoles.length > 0) {
-      businessId = userRoles[0].business_id;
+  const maxRetries = 3;
+  let lastError: any = null;
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const userRoles = await prisma.user_roles.findMany({
+        where: { user_id: userId },
+        include: { roles: true },
+      });
+      
+      const roles = userRoles.map((ur) => ur.roles.code);
+      
+      let businessId = "";
+      const special = userRoles.find((ur) => ur.business_id === "00000000-0000-0000-0000-000000000000");
+      if (special) {
+        businessId = special.business_id;
+      } else if (userRoles.length > 0) {
+        businessId = userRoles[0].business_id;
+      }
+
+      // Create JWT token containing session info with unique jti (JWT ID)
+      const expiresAt = new Date(Date.now() + SESSION_TTL_SECONDS * 1000);
+      const jti = randomBytes(16).toString("base64url"); // Unique JWT ID
+      
+      const token = await new SignJWT({ userId, roles, businessId })
+        .setProtectedHeader({ alg: "HS256" })
+        .setJti(jti) // Add unique JWT ID to prevent collisions
+        .setIssuedAt()
+        .setExpirationTime("7d")
+        .sign(JWT_SECRET);
+
+      // Still save to DB for record/revocation if needed
+      await prisma.sessions.create({
+        data: {
+          user_id: userId,
+          token: token.substring(0, 255), // Store prefix for lookup if needed, or just let JWT handle it
+          expires_at: expiresAt,
+        },
+      });
+
+      return {
+        token,
+        expiresAt,
+        roleCodes: roles.join(","),
+        businessId
+      };
+    } catch (error: any) {
+      lastError = error;
+      
+      // Check if it's a unique constraint violation on token
+      if (error?.code === 'P2002' && error?.meta?.target?.includes('token')) {
+        console.warn(`[createSessionData] Token collision on attempt ${attempt + 1}, retrying...`);
+        
+        // Exponential backoff: wait before retrying
+        if (attempt < maxRetries - 1) {
+          await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 100));
+          continue;
+        }
+      }
+      
+      // For other errors or final retry, throw immediately
+      console.error('[createSessionData] Error:', error);
+      throw error;
     }
-
-    // Create JWT token containing session info
-    const expiresAt = new Date(Date.now() + SESSION_TTL_SECONDS * 1000);
-    const token = await new SignJWT({ userId, roles, businessId })
-      .setProtectedHeader({ alg: "HS256" })
-      .setIssuedAt()
-      .setExpirationTime("7d")
-      .sign(JWT_SECRET);
-
-    // Still save to DB for record/revocation if needed
-    await prisma.sessions.create({
-      data: {
-        user_id: userId,
-        token: token.substring(0, 255), // Store prefix for lookup if needed, or just let JWT handle it
-        expires_at: expiresAt,
-      },
-    });
-
-    return {
-      token,
-      expiresAt,
-      roleCodes: roles.join(","),
-      businessId
-    };
-  } catch (error) {
-    console.error('[createSessionData] Error:', error);
-    throw error;
   }
+
+  // If we exhausted all retries
+  console.error('[createSessionData] Failed after all retries:', lastError);
+  throw lastError;
 }
 
 export function setAuthCookies(response: NextResponse, sessionData: { token: string, expiresAt: Date }) {
