@@ -740,7 +740,7 @@ interface BookingWizardProps {
               {error && <div className="text-sm text-red-600">{error}</div>}
               <div className="space-y-4 sm:space-y-6 px-2 sm:px-0">
                 <div>
-                  <Label className="block text-sm font-medium text-gray-700 mb-1">Téléphone portable *</Label>
+                  <Label className="block text-sm font-medium text-gray-700 mb-1">Téléphone portable</Label>
                   <div className="mt-1 relative rounded-md shadow-sm">
                     <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                       <span className="text-gray-500 sm:text-sm">+213</span>
@@ -756,7 +756,7 @@ interface BookingWizardProps {
                 </div>
                 
                 <div>
-                  <Label className="block text-sm font-medium text-gray-700 mb-1">Email *</Label>
+                  <Label className="block text-sm font-medium text-gray-700 mb-1">Email </Label>
                   <Input 
                     type="email" 
                     placeholder="Email" 
@@ -767,7 +767,7 @@ interface BookingWizardProps {
                 </div>
                 
                 <div>
-                  <Label className="block text-sm font-medium text-gray-700 mb-1">Mot de passe *</Label>
+                  <Label className="block text-sm font-medium text-gray-700 mb-1">Mot de passe </Label>
                   <div className="relative">
                     <Input 
                       type={signupCGU ? 'text' : 'password'} 
@@ -917,11 +917,11 @@ const errorMessage = res.status === 409
               {error && <div className="text-sm text-red-600">{error}</div>}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label>Email *</Label>
+                  <Label>Email </Label>
                   <Input type="email" placeholder="Email" className="mt-1" value={loginEmail} onChange={e=>setLoginEmail(e.target.value)} />
                 </div>
                 <div>
-                  <Label>Mot de passe *</Label>
+                  <Label>Mot de passe </Label>
                   <Input type="password" placeholder="Mot de passe" className="mt-1" value={loginPassword} onChange={e=>setLoginPassword(e.target.value)} />
                 </div>
               </div>
@@ -1061,7 +1061,7 @@ const errorMessage = res.status === 409
               {error && <div className="text-sm text-red-600">{error}</div>}
               <div className="space-y-4 sm:space-y-6 px-2 sm:px-0">
                 <div>
-                  <Label className="block text-sm font-medium text-gray-700 mb-1">Téléphone portable *</Label>
+                  <Label className="block text-sm font-medium text-gray-700 mb-1">Téléphone portable</Label>
                   <div className="mt-1 relative rounded-md shadow-sm">
                     <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                       <span className="text-gray-500 sm:text-sm">+213</span>
@@ -1077,7 +1077,7 @@ const errorMessage = res.status === 409
                 </div>
                 
                 <div>
-                  <Label className="block text-sm font-medium text-gray-700 mb-1">Email *</Label>
+                  <Label className="block text-sm font-medium text-gray-700 mb-1">Email </Label>
                   <Input 
                     type="email" 
                     placeholder="Email" 
@@ -1088,7 +1088,7 @@ const errorMessage = res.status === 409
                 </div>
                 
                 <div>
-                  <Label className="block text-sm font-medium text-gray-700 mb-1">Mot de passe *</Label>
+                  <Label className="block text-sm font-medium text-gray-700 mb-1">Mot de passe </Label>
                   <div className="relative">
                     <Input 
                       type={signupCGU ? 'text' : 'password'} 
@@ -1232,11 +1232,11 @@ const errorMessage = res.status === 409
               {error && <div className="text-sm text-red-600">{error}</div>}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label>Email *</Label>
+                  <Label>Email </Label>
                   <Input type="email" placeholder="Email" className="mt-1" value={loginEmail} onChange={e=>setLoginEmail(e.target.value)} />
                 </div>
                 <div>
-                  <Label>Mot de passe *</Label>
+                  <Label>Mot de passe </Label>
                   <Input type="password" placeholder="Mot de passe" className="mt-1" value={loginPassword} onChange={e=>setLoginPassword(e.target.value)} />
                 </div>
               </div>

@@ -567,7 +567,7 @@ export default function ClaimOnboardingPage() {
             <CardContent>
               <form onSubmit={handlePasswordSubmit} className="space-y-4">
                 <div>
-                  <Label htmlFor="password">Nouveau mot de passe *</Label>
+                  <Label htmlFor="password">Nouveau Mot de passe </Label>
                   <Input
                     id="password"
                     type="password"
@@ -583,7 +583,7 @@ export default function ClaimOnboardingPage() {
                 </div>
                 <div>
                   <Label htmlFor="confirmPassword">
-                    Confirmer le mot de passe *
+                    Confirmer le Mot de passe 
                   </Label>
                   <Input
                     id="confirmPassword"
