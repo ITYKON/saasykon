@@ -451,7 +451,6 @@ export default function ReservationsPage() {
 
             {businessId && (
               <CreateReservationModal 
-                businessId={businessId}
                 onCreated={fetchReservations}
                 trigger={
                   <Button className="w-full sm:w-auto h-9 px-3 text-sm">
