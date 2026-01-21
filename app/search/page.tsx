@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation"
 import { SearchMap } from "@/components/search-map"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { MapPin, Star, Filter, Calendar as CalendarIcon, Search as SearchIcon } from "lucide-react"
+import { MapPin, Star, Filter, Calendar as CalendarIcon, Search as SearchIcon, List, Map as MapIcon, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import Link from "next/link"
@@ -30,8 +30,13 @@ export default function SearchPage() {
   const [category, setCategory] = useState(searchParams?.get("category") ?? "")
   const [selectedService, setSelectedService] = useState<string | null>(null)
   const [showFilters, setShowFilters] = useState(false)
+  const [showMapMobile, setShowMapMobile] = useState(false)
   const [mapBounds, setMapBounds] = useState<{ n: number, s: number, e: number, w: number } | null>(null)
   const [wasMapMoved, setWasMapMoved] = useState(false)
+  const [selectedMobileBusinessId, setSelectedMobileBusinessId] = useState<string | null>(null)
+  
+  const selectedMobileBusiness = businesses.find(b => b.id === selectedMobileBusinessId)
+
   const [date, setDate] = useState<Date | undefined>(
     searchParams?.get("date") ? new Date(searchParams.get("date")!) : undefined
   )
@@ -241,51 +246,100 @@ export default function SearchPage() {
       </div>
 
       {/* Filters Bar */}
-      <div className="bg-white border-b border-gray-200 py-3 overflow-hidden">
+      <div className="bg-white border-b border-gray-200 py-3 sticky top-0 z-20 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide pb-2">
-            <Button
+          <div className="flex items-center gap-2">
+            {/* Mobile Toggles - NOW HIDDEN in normal flow as they are inside the Map Overlay when active, or in the filter bar when inactive */ }
+             <Button
               variant="outline"
               size="sm"
+              onClick={() => setShowMapMobile(true)}
+              className={cn("md:hidden flex-1", showMapMobile ? "hidden" : "flex")}
+            >
+              {showMapMobile ? <List className="h-4 w-4 mr-2" /> : <MapIcon className="h-4 w-4 mr-2" />}
+              {showMapMobile ? "Liste" : "Carte"}
+            </Button>
+
+            <Button
+              variant={showFilters ? "default" : "outline"}
+              size="sm"
               onClick={() => setShowFilters(!showFilters)}
-              className="whitespace-nowrap"
+              className="whitespace-nowrap flex-1 md:flex-none"
             >
               <Filter className="h-4 w-4 mr-2" />
               Filtres
             </Button>
-            <Button
-              variant={!category ? "default" : "outline"}
-              size="sm"
-              onClick={() => {
-                setCategory("")
-                setWasMapMoved(false)
-              }}
-              className="whitespace-nowrap"
-            >
-              Tous
-            </Button>
-            {popularServices.map((service) => (
+
+            {/* Desktop Horizontal Filters (Always visible) */}
+            <div className="hidden md:flex items-center gap-2 overflow-x-auto scrollbar-hide">
               <Button
-                key={service}
-                variant={selectedService === service ? "default" : "outline"}
+                variant={!category ? "default" : "outline"}
                 size="sm"
                 onClick={() => {
-                  setSelectedService(selectedService === service ? null : service)
-                  setQuery(selectedService === service ? "" : service)
+                  setCategory("")
                   setWasMapMoved(false)
                 }}
                 className="whitespace-nowrap"
               >
-                {service}
+                Tous
               </Button>
-            ))}
+              {popularServices.map((service) => (
+                <Button
+                  key={service}
+                  variant={selectedService === service ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    setSelectedService(selectedService === service ? null : service)
+                    setQuery(selectedService === service ? "" : service)
+                    setWasMapMoved(false)
+                  }}
+                  className="whitespace-nowrap"
+                >
+                  {service}
+                </Button>
+              ))}
+            </div>
           </div>
+
+          {/* Mobile Collapsible Filters */}
+          {showFilters && (
+            <div className="md:hidden mt-3 grid grid-cols-2 gap-2 pb-2">
+              <Button
+                variant={!category ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                   setCategory("")
+                   setWasMapMoved(false)
+                   setShowFilters(false)
+                }}
+                className="w-full"
+              >
+                Tous
+              </Button>
+              {popularServices.map((service) => (
+                <Button
+                  key={service}
+                  variant={selectedService === service ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    setSelectedService(selectedService === service ? null : service)
+                    setQuery(selectedService === service ? "" : service)
+                    setWasMapMoved(false)
+                    setShowFilters(false)
+                  }}
+                  className="w-full"
+                >
+                   {service}
+                </Button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
       {/* Results Layout */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="mb-4">
+        <div className={cn("mb-4", showMapMobile ? "hidden" : "block")}>
           <h2 className="text-xl font-semibold text-black">
             Sélectionnez un salon
           </h2>
@@ -299,9 +353,9 @@ export default function SearchPage() {
           )}
         </div>
 
-        <div className="flex gap-6">
+        <div className="flex gap-6 relative">
           {/* Liste des résultats */}
-          <div className="flex-1 space-y-4">
+          <div className={cn("flex-1 space-y-4", showMapMobile ? "hidden" : "block")}>
             {loading ? (
               <div className="space-y-4">
                 {[1, 2, 3].map((i) => (
@@ -469,7 +523,7 @@ export default function SearchPage() {
             )}
           </div>
 
-          {/* Carte */}
+          {/* Carte Desktop */}
           <div className="hidden lg:block w-[500px] sticky top-4 h-[calc(100vh-120px)]">
             <SearchMap 
               businesses={businesses}
@@ -491,6 +545,208 @@ export default function SearchPage() {
               }}
             />
           </div>
+
+          {/* Carte Mobile (Overlay Fullscreen) */}
+          {showMapMobile && (
+            <div className="fixed inset-0 z-50 bg-gray-100 flex flex-col">
+              {/* Conteneur de la carte (Background) */}
+              <div className="absolute inset-0 z-0">
+                <SearchMap 
+                  businesses={businesses}
+                  center={businesses.length > 0 && businesses[0].location ? { lat: businesses[0].location.latitude!, lng: businesses[0].location.longitude! } : undefined}
+                  searchLocation={location}
+                  wasMapMoved={wasMapMoved}
+                  onBoundsChange={(bounds) => {
+                      setWasMapMoved(true)
+                      setMapBounds({
+                        n: bounds.north,
+                        s: bounds.south,
+                        e: bounds.east,
+                        w: bounds.west
+                      })
+                  }}
+                  onMarkerClick={(id) => setSelectedMobileBusinessId(id)}
+                  onMapClick={() => setSelectedMobileBusinessId(null)}
+                />
+              </div>
+
+              {/* Interface Overlay */}
+              {/* Interface Overlay */}
+              <div className="relative z-10 p-2 flex flex-col gap-2 pointer-events-none h-full">
+                 {/* Top Row: Close + Search Query */}
+                 <div className="flex gap-2 pointer-events-auto">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setShowMapMobile(false)}
+                      className="h-9 w-9 rounded-full bg-white shadow-md border-0 shrink-0"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                    <div className="flex-1">
+                      <Input
+                        placeholder="Rechercher..."
+                        value={query}
+                        onChange={(e) => setQuery(e.target.value)}
+                        onKeyDown={handleKeyDown}
+                        className="h-9 w-full bg-white shadow-md border-0 rounded-md text-sm"
+                      />
+                    </div>
+                 </div>
+
+                 {/* Row 2: Location + Date (Side by Side) */}
+                 <div className="flex gap-2 pointer-events-auto">
+                   {/* Location Input */}
+                   <div className="flex-1">
+                     <Input
+                        placeholder="Localisation"
+                        value={location}
+                        onChange={(e) => setLocation(e.target.value)}
+                        onKeyDown={handleKeyDown}
+                        className="h-9 w-full bg-white shadow-md border-0 rounded-md text-sm"
+                     />
+                   </div>
+
+                   {/* Date Picker */}
+                   <div className="flex-1">
+                     <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "h-9 w-full bg-white shadow-md border-0 rounded-md justify-start font-normal px-2 text-sm truncate",
+                              !date && "text-muted-foreground"
+                            )}
+                          >
+                            <CalendarIcon className="h-3 w-3 mr-1.5 shrink-0" />
+                            <span className="truncate">{date ? format(date, "d MMM", { locale: fr }) : "Date"}</span>
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="end">
+                          <Calendar
+                            mode="single"
+                            selected={date}
+                            onSelect={setDate}
+                            initialFocus
+                            locale={fr}
+                            disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                          />
+                        </PopoverContent>
+                     </Popover>
+                   </div>
+                 </div>
+
+                 {/* Row 3: List + Filters Buttons */}
+                 <div className="flex gap-2 pointer-events-auto">
+                    <Button 
+                      className="flex-1 bg-white text-black hover:bg-gray-50 shadow-md border-0 h-9 text-sm"
+                      onClick={() => setShowMapMobile(false)}
+                    >
+                      <List className="h-3.5 w-3.5 mr-1.5" />
+                      Liste
+                    </Button>
+                    <Button 
+                      className="flex-1 bg-white text-black hover:bg-gray-50 shadow-md border-0 h-9 text-sm"
+                      onClick={() => {
+                        setShowFilters(!showFilters) 
+                      }}
+                    >
+                      <Filter className="h-3.5 w-3.5 mr-1.5" />
+                      Filtres
+                    </Button>
+                 </div>
+
+                 {/* Spacer to push content to bottom */}
+                 <div className="flex-1"></div>
+
+                 {/* Bottom content: Selected Card or Filter Buttons */}
+                 <div className="pointer-events-auto">
+                    {selectedMobileBusiness ? (
+                      <Link href={`/salon/${buildSalonSlug(selectedMobileBusiness.name, selectedMobileBusiness.id, selectedMobileBusiness.city || selectedMobileBusiness.location?.city)}`}>
+                        <Card className="shadow-xl border-0 overflow-hidden animate-in slide-in-from-bottom-5">
+                          <div className="flex h-24">
+                            {/* Image */}
+                            <div className="relative w-24 h-full shrink-0 bg-gray-100">
+                                {selectedMobileBusiness.cover_url || selectedMobileBusiness.media?.[0]?.url ? (
+                                  <Image
+                                    src={selectedMobileBusiness.cover_url || selectedMobileBusiness.media?.[0]?.url || ""}
+                                    alt={selectedMobileBusiness.name}
+                                    fill
+                                    className="object-cover"
+                                  />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center">
+                                    <span className="text-gray-400 font-bold text-xl">{selectedMobileBusiness.name.charAt(0)}</span>
+                                  </div>
+                                )}
+                            </div>
+                            
+                            {/* Content */}
+                            <div className="flex-1 p-3 flex flex-col justify-center min-w-0">
+                               <h3 className="font-bold text-base truncate">{selectedMobileBusiness.name}</h3>
+                               <div className="flex items-center text-sm text-gray-500 mb-1">
+                                  <MapPin className="h-3 w-3 mr-1 shrink-0" />
+                                  <span className="truncate">{selectedMobileBusiness.location?.address || selectedMobileBusiness.city || selectedMobileBusiness.location?.city}</span>
+                               </div>
+                            </div>
+                          </div>
+                        </Card>
+                      </Link>
+                    ) : null}
+                 </div>
+
+                 {/* Filters Overlay (Bottom Sheet) */}
+                 {showFilters && (
+                    <div className="absolute inset-0 z-50 flex flex-col justify-end">
+                       {/* Backdrop */}
+                       <div 
+                          className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+                          onClick={() => setShowFilters(false)}
+                       />
+                       
+                       {/* Sheet content */}
+                       <div className="relative bg-white rounded-t-xl p-4 shadow-xl animate-in slide-in-from-bottom-10 pointer-events-auto">
+                          <div className="flex justify-between items-center mb-4">
+                             <h3 className="font-semibold text-lg">Filtres</h3>
+                             <Button variant="ghost" size="sm" onClick={() => setShowFilters(false)}>Fermer</Button>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-2 max-h-[50vh] overflow-y-auto">
+                             <Button
+                                variant={!category ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => {
+                                   setCategory("")
+                                   setWasMapMoved(false)
+                                   setShowFilters(false)
+                                }}
+                                className="w-full justify-start"
+                             >
+                                Tous
+                             </Button>
+                             {popularServices.map((service) => (
+                                <Button
+                                   key={service}
+                                   variant={selectedService === service ? "default" : "outline"}
+                                   size="sm"
+                                   onClick={() => {
+                                      setSelectedService(selectedService === service ? null : service)
+                                      setQuery(selectedService === service ? "" : service)
+                                      setWasMapMoved(false)
+                                      setShowFilters(false)
+                                   }}
+                                   className="w-full justify-start"
+                                >
+                                   {service}
+                                </Button>
+                             ))}
+                          </div>
+                       </div>
+                    </div>
+                 )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
