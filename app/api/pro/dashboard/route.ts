@@ -58,10 +58,7 @@ export async function GET(req: NextRequest) {
 
   const cookieStore = cookies();
   const url = new URL(req.url);
-  const businessId =
-    url.searchParams.get("business_id") ||
-    cookieStore.get("business_id")?.value ||
-    ctx.assignments[0]?.business_id;
+  const businessId = url.searchParams.get("business_id") || ctx.businessId || ctx.assignments[0]?.business_id;
   if (!businessId)
     return NextResponse.json(
       { error: "business_id required" },

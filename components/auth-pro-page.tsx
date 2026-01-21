@@ -340,7 +340,7 @@ Créez votre compte gratuitement et commencez dès maintenant.</p>
                       required
                     />
                   </div>
-                  <div className="relative space-y-2" ref={selectRef}>
+                  <div className="space-y-2" ref={selectRef}>
                     <Label htmlFor="city">Wilaya</Label>
                     <div className="relative">
                       <Select 
@@ -358,7 +358,7 @@ Créez votre compte gratuitement et commencez dès maintenant.</p>
                           align="start"
                           sideOffset={5}
                           avoidCollisions={false}
-                          className="w-[var(--radix-select-trigger-width)] max-h-[300px] rounded-xl shadow-xl border border-gray-100 bg-white overflow-auto mt-1"
+                          className="w-[var(--radix-select-trigger-width)] max-h-[300px] rounded-xl shadow-xl border border-gray-100 bg-white overflow-hidden mt-1"
                         >
                           <div className="sticky top-0 z-10 bg-white p-2 border-b border-gray-100">
                             <div className="relative">
@@ -404,13 +404,14 @@ Créez votre compte gratuitement et commencez dès maintenant.</p>
                         </SelectContent>
                       </Select>
                       <input 
-                        id="city"
+                        id="city-hidden"
                         name="city"
                         type="text" 
                         className="sr-only" 
                         value={form.city}
                         onChange={() => {}}
                         required
+                        tabIndex={-1}
                       />
                     </div>
                   </div>

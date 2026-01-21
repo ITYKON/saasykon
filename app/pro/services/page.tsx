@@ -47,10 +47,6 @@ export default function ProServices() {
   const [editActive, setEditActive] = useState<boolean>(true)
   const [editSelectedEmployeeIds, setEditSelectedEmployeeIds] = useState<Set<string>>(new Set())
 
-  function getBusinessId(): string {
-    const m = typeof document !== "undefined" ? document.cookie.match(/(?:^|; )business_id=([^;]+)/) : null
-    return m ? decodeURIComponent(m[1]) : ""
-  }
 
   async function openEditModal(serviceId: string) {
     try {
@@ -195,9 +191,7 @@ export default function ProServices() {
   async function loadServices() {
     setLoading(true)
     try {
-      const bid = getBusinessId()
-      const q = bid ? `?business_id=${encodeURIComponent(bid)}` : ""
-      const res = await fetch(`/api/pro/services${q}`)
+      const res = await fetch(`/api/pro/services`)
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data?.error || "Erreur de chargement")
       const list: any[] = Array.isArray(data?.services) ? data.services : []
@@ -261,7 +255,7 @@ export default function ProServices() {
   }, [services])
 
   async function loadCategories() {
-    console.log('Chargement des catégories...');
+
     try {
       const res = await fetch(`/api/pro/service-categories`);
       if (!res.ok) {
@@ -274,7 +268,7 @@ export default function ProServices() {
         return { categories: [] };
       });
       
-      console.log('Catégories chargées:', data.categories);
+
       if (Array.isArray(data?.categories)) {
         setCategoriesApi(data.categories);
       } else {
@@ -305,13 +299,11 @@ export default function ProServices() {
     }
     const category_id = selectedCategoryId ? parseInt(selectedCategoryId, 10) : undefined
     try {
-      const bid = getBusinessId()
-      const q = bid ? `?business_id=${encodeURIComponent(bid)}` : ""
       // Front guard: check duplicates before creating
       const normalize = (s: string) => s.trim().replace(/\s+/g, ' ')
       const nameNorm = normalize(name)
       try {
-        const listRes = await fetch(`/api/pro/services${q}`)
+        const listRes = await fetch(`/api/pro/services`)
         const lj = await listRes.json().catch(() => ({ services: [] }))
         const exists = Array.isArray(lj?.services) && lj.services.some((s: any) => {
           const sameCat = (typeof category_id === 'number' ? (s.category_id === category_id) : (s.category_id == null))
@@ -321,7 +313,7 @@ export default function ProServices() {
         if (exists) { alert('Cette prestation existe déjà dans cette catégorie.'); return }
       } catch {}
       const key = `svc-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,8)}`
-      const createRes = await fetch(`/api/pro/services${q}`, {
+      const createRes = await fetch(`/api/pro/services`, {
         method: "POST",
         headers: { "Content-Type": "application/json", 'Idempotency-Key': key },
         body: JSON.stringify({ name, description: newDescription || null, ...(category_id ? { category_id } : {}) }),
@@ -414,7 +406,7 @@ export default function ProServices() {
       return
     }
 
-    console.log('Création d\'une nouvelle catégorie:', { name, code });
+
     
     try {
       const response = await fetch(`/api/pro/service-categories`, {
@@ -431,7 +423,7 @@ export default function ProServices() {
       }
 
       const data = await response.json();
-      console.log('Catégorie créée avec succès:', data);
+
       
       // Réinitialiser le formulaire
       setNewCategoryName("");
@@ -444,7 +436,7 @@ export default function ProServices() {
       // Sélectionner automatiquement la nouvelle catégorie
       if (data?.id) {
         const newCategoryId = String(data.id);
-        console.log('Nouvelle catégorie sélectionnée:', newCategoryId);
+
         setSelectedCategoryId(newCategoryId);
       }
     } catch (error) {

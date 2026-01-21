@@ -118,7 +118,6 @@ export async function GET(req: Request): Promise<NextResponse> {
 
     // Gestion de la recherche par localisation
     if (location) {
-      console.log('Recherche par localisation:', { location });
       where.business_locations = {
         some: { 
           OR: [
@@ -181,10 +180,7 @@ export async function GET(req: Request): Promise<NextResponse> {
       );
     }
     
-    console.log('Requête Prisma:', JSON.stringify({ where, orderBy, skip, take: pageSize }, null, 2));
-    
     // Exécution de la requête principale
-    console.log('Exécution de la requête Prisma...');
     
     const [businesses, total] = await Promise.all([
       prisma.businesses.findMany({
@@ -255,7 +251,7 @@ export async function GET(req: Request): Promise<NextResponse> {
         totalPages: Math.ceil(total / pageSize)
       };
       
-      console.log(`Recherche terminée: ${formattedResults.length} résultats sur ${total}`);
+
       
       return NextResponse.json(responseData);
   } catch (error) {

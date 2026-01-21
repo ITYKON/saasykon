@@ -1,40 +1,74 @@
 import { prisma } from "@/lib/prisma";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { getToken } from "next-auth/jwt";
+import { getAuthDataFromToken } from "@/lib/auth";
 
-const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME || "saas_session";
+const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME || "__yk_sb_hg";
 
 export type AuthContext = {
   userId: string;
   roles: string[];
   permissions: string[];
   assignments: Array<{ role: string; business_id: string }>;
+  businessId?: string;
 };
 
 export async function getAuthContext(): Promise<AuthContext | null> {
   const cookieStore = cookies();
-  const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
-  if (!token) return null;
-  const session = await prisma.sessions.findUnique({ where: { token } }).catch(() => null);
-  if (!session || session.expires_at < new Date()) return null;
+  const customToken = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+  
+  // 1. Try Custom Session (JWT)
+  if (customToken) {
+    const authData = await getAuthDataFromToken(customToken);
+    if (authData) {
+      const { userId, roles, businessId } = authData;
+      const userRoles = await prisma.user_roles.findMany({
+        where: { user_id: userId },
+        include: { roles: { include: { role_permissions: { include: { permissions: true } } } } },
+      });
 
-  const userId = session.user_id;
-  const userRoles = await prisma.user_roles.findMany({
-    where: { user_id: userId },
-    include: { roles: { include: { role_permissions: { include: { permissions: true } } } } },
+      const permissionSet = new Set<string>();
+      userRoles.forEach((ur: any) => {
+        ur.roles.role_permissions.forEach((rp: any) => {
+          if (rp.permissions?.code) permissionSet.add(rp.permissions.code);
+        });
+      });
+
+      const assignments = userRoles.map((ur: any) => ({ role: ur.roles.code, business_id: ur.business_id }));
+      return { userId, roles, permissions: Array.from(permissionSet), assignments, businessId };
+    }
+  }
+
+  // 2. Try NextAuth JWT
+  const nextAuthToken = await getToken({ 
+    req: { cookies: Object.fromEntries(cookieStore.getAll().map(c => [c.name, c.value])) } as any,
+    secret: process.env.NEXTAUTH_SECRET,
+    cookieName: "next_auth_session"
   });
 
-  const roles = userRoles.map((r) => r.roles.code);
-  const permissionSet = new Set<string>();
-  userRoles.forEach((ur) => {
-    ur.roles.role_permissions.forEach((rp) => {
-      if (rp.permissions?.code) permissionSet.add(rp.permissions.code);
+  if (nextAuthToken) {
+    const userId = nextAuthToken.id as string;
+    const roles = (nextAuthToken.roles as string[]) || [];
+    const businessId = nextAuthToken.businessId as string;
+
+    const userRoles = await prisma.user_roles.findMany({
+      where: { user_id: userId },
+      include: { roles: { include: { role_permissions: { include: { permissions: true } } } } },
     });
-  });
 
-  const assignments = userRoles.map((ur) => ({ role: ur.roles.code, business_id: ur.business_id }));
+    const permissionSet = new Set<string>();
+    userRoles.forEach((ur: any) => {
+      ur.roles.role_permissions.forEach((rp: any) => {
+        if (rp.permissions?.code) permissionSet.add(rp.permissions.code);
+      });
+    });
 
-  return { userId, roles, permissions: Array.from(permissionSet), assignments };
+    const assignments = userRoles.map((ur: any) => ({ role: ur.roles.code, business_id: ur.business_id }));
+    return { userId, roles, permissions: Array.from(permissionSet), assignments, businessId };
+  }
+
+  return null;
 }
 
 /**

@@ -90,7 +90,6 @@ export async function GET(req: NextRequest) {
           const svcVar = (item as any)?.services?.service_variants?.[0]
           const hasFallbackRange = typeof svcVar?.price_min_cents === 'number' && typeof svcVar?.price_max_cents === 'number'
           // Debug log to verify data coming from DB
-          try { console.log('[ProReservations] item pricing', { price_cents: item.price_cents, min: item.service_variants?.price_min_cents ?? svcVar?.price_min_cents, max: item.service_variants?.price_max_cents ?? svcVar?.price_max_cents }); } catch {}
           if (typeof item.price_cents === 'number' && item.price_cents > 0) { minTotal += item.price_cents; maxTotal += item.price_cents; counted = true; }
           else if (hasRange && item.service_variants) { 
             minTotal += (item.service_variants.price_min_cents as number); 
@@ -101,7 +100,6 @@ export async function GET(req: NextRequest) {
             minTotal += (svcVar.price_min_cents as number)
             maxTotal += (svcVar.price_max_cents as number)
             counted = true
-            try { console.log('[ProReservations] used service fallback range'); } catch {}
           }
           
           const serviceName = item.services?.name || 'Service inconnu';
@@ -127,7 +125,6 @@ export async function GET(req: NextRequest) {
         : (minTotal === maxTotal)
           ? (Math.round(minTotal / 100) + ' DA')
           : (`${Math.round(minTotal / 100)}–${Math.round(maxTotal / 100)} DA`)
-      try { console.log('[ProReservations] reservation total', { id: reservation.id, minTotal, maxTotal, counted, prixText }) } catch {}
       return {
         id: reservation.id,
         client: clientName,

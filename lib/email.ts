@@ -42,10 +42,17 @@ if (useSES && isProduction) {
 const EMAIL_FROM = process.env.EMAIL_FROM || "no-reply@example.com";
 const EMAIL_TEST_TO = process.env.EMAIL_TEST_TO || "test@example.com";
 
-// Fonction test
+// Log SMTP configuration (without sensitive data)
+
+
+// Function to send a test email
 export async function sendTestEmail() {
-  if (process.env.NEXT_PHASE === "phase-production-build" || process.env.NODE_ENV === "test") {
-    console.log("Skipping test email during build or test environment");
+  // Ne pas envoyer d'emails pendant le build
+  if (
+    process.env.NEXT_PHASE === "phase-production-build" ||
+    process.env.NODE_ENV === "test"
+  ) {
+
     return { success: true, messageId: "skipped-during-build" };
   }
 
@@ -63,7 +70,7 @@ export async function sendTestEmail() {
       `,
     });
 
-    console.log("Test email sent:", info.messageId);
+
     return { success: true, messageId: info.messageId };
   } catch (error) {
     console.error("Error sending test email:", error);
@@ -80,12 +87,7 @@ export async function sendEmail(opts: {
   category?: string;
   sandbox?: boolean; // <-- AJOUTÉ pour compatibilité
 }) {
-  console.log("Attempting to send email:", {
-    to: opts.to,
-    subject: opts.subject,
-    from: EMAIL_FROM,
-    provider: useSES && isProduction ? "SES" : "SMTP",
-  });
+
 
   try {
     const result = await transporter.sendMail({
@@ -96,8 +98,7 @@ export async function sendEmail(opts: {
       text: opts.text,
       headers: opts.category ? { "X-Category": opts.category } : undefined,
     });
-    console.log("Email sent successfully:", result.messageId);
-    return result;
+
   } catch (error) {
     console.error("Email sending failed:", error);
     throw error;

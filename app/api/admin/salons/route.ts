@@ -304,7 +304,6 @@ export async function POST(req: Request) {
     const authCheck = await requireAdminOrPermission("salons");
     if (authCheck instanceof NextResponse) return authCheck;
     const data = await req.json();
-  console.log("[POST /api/admin/salons] data reçu:", data);
   const parse = salonSchema.safeParse(data);
   if (!parse.success) {
     console.error("[POST /api/admin/salons] Validation error:", parse.error);
@@ -326,7 +325,6 @@ export async function POST(req: Request) {
       });
       
       if (existingUser) {
-        console.log(`[POST /api/admin/salons] Email déjà utilisé: ${data.email}`);
         return NextResponse.json(
           { 
             error: "email_exists",
@@ -349,7 +347,6 @@ export async function POST(req: Request) {
         },
       });
       ownerUserId = ownerUser.id;
-      console.log("[POST /api/admin/salons] Nouvel utilisateur créé:", ownerUser);
     } catch (error) {
       console.error("[POST /api/admin/salons] Erreur création utilisateur:", error);
       const err = error as { code?: string; meta?: { target?: string[] } };
@@ -425,7 +422,6 @@ export async function POST(req: Request) {
     const salon = await prisma.businesses.create({
       data: salonData,
     });
-    console.log("[POST /api/admin/salons] Salon créé:", salon);
 
     // Create business location if location is provided
     if (parse.data.location) {
@@ -448,7 +444,6 @@ export async function POST(req: Request) {
             is_primary: true,
           },
         });
-        console.log("[POST /api/admin/salons] Localisation créée:", parse.data.location);
       } catch (locationError) {
         console.error("[POST /api/admin/salons] Erreur création localisation:", locationError);
         // Continue even if location creation fails
@@ -472,7 +467,6 @@ export async function PUT(req: Request) {
     const authCheck = await requireAdminOrPermission("salons");
     if (authCheck instanceof NextResponse) return authCheck;
     const data = await req.json();
-  console.log("[PUT /api/admin/salons] data reçu:", data);
   if (!data.id) {
     console.error("[PUT /api/admin/salons] Missing salon id");
     return NextResponse.json({ error: "Missing salon id" }, { status: 400 });
@@ -488,7 +482,6 @@ export async function PUT(req: Request) {
           updated_at: new Date(),
         },
       });
-      console.log("[PUT /api/admin/salons] Statut du salon modifié:", salon);
       await prisma.event_logs.create({
         data: {
           user_id: (authCheck as any).userId,
@@ -573,7 +566,6 @@ export async function PUT(req: Request) {
         });
       }
     }
-    console.log("[PUT /api/admin/salons] Salon modifié:", salon);
     await prisma.event_logs.create({
       data: {
         user_id: (authCheck as any).userId,

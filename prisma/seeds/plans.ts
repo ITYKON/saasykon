@@ -3,7 +3,7 @@ import { PrismaClient } from "@/lib/generated/prisma";
 const prisma = new PrismaClient();
 
 export async function seedPlans() {
-  console.log("🌱 Seeding plans...");
+ 
 
   const plans = [
     {
@@ -89,7 +89,6 @@ export async function seedPlans() {
     });
 
     if (existingPlan) {
-      console.log(`  ⏭️  Plan "${planInfo.name}" existe déjà, mise à jour...`);
       
       // Mettre à jour le plan
       await prisma.plans.update({
@@ -111,7 +110,7 @@ export async function seedPlans() {
         })),
       });
     } else {
-      console.log(`  ✅ Création du plan "${planInfo.name}"...`);
+     
       
       // Créer le plan avec ses features
       await prisma.plans.create({

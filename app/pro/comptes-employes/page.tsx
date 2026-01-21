@@ -132,15 +132,7 @@ export default function ComptesEmployesPage() {
   }
   async function loadProPermissions() {
     try {
-      const bidMatch =
-        typeof document !== "undefined"
-          ? document.cookie.match(/(?:^|; )business_id=([^;]+)/)
-          : null;
-      const businessId = bidMatch ? decodeURIComponent(bidMatch[1]) : "";
-      const sep = businessId
-        ? `?business_id=${encodeURIComponent(businessId)}`
-        : "";
-      const res = await fetch(`/api/pro/pro-permissions${sep}`);
+      const res = await fetch(`/api/pro/pro-permissions`);
       const data = await res.json();
       if (res.ok)
         setProPermissions(
@@ -173,15 +165,7 @@ export default function ComptesEmployesPage() {
     setIsEditOpen(true);
     setEditLoading(true);
     try {
-      const bidMatch =
-        typeof document !== "undefined"
-          ? document.cookie.match(/(?:^|; )business_id=([^;]+)/)
-          : null;
-      const businessId = bidMatch ? decodeURIComponent(bidMatch[1]) : "";
-      const sep = businessId
-        ? `?business_id=${encodeURIComponent(businessId)}`
-        : "";
-      const res = await fetch(`/api/pro/employee-accounts/${account.id}${sep}`);
+      const res = await fetch(`/api/pro/employee-accounts/${account.id}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Erreur de chargement");
       // Prefill from fresh server data
@@ -220,15 +204,7 @@ export default function ComptesEmployesPage() {
 
   async function openView(account: AccountItem) {
     try {
-      const bidMatch =
-        typeof document !== "undefined"
-          ? document.cookie.match(/(?:^|; )business_id=([^;]+)/)
-          : null;
-      const businessId = bidMatch ? decodeURIComponent(bidMatch[1]) : "";
-      const sep = businessId
-        ? `?business_id=${encodeURIComponent(businessId)}`
-        : "";
-      const res = await fetch(`/api/pro/employee-accounts/${account.id}${sep}`);
+      const res = await fetch(`/api/pro/employee-accounts/${account.id}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Erreur de chargement");
       setViewData(data);
@@ -242,16 +218,8 @@ export default function ComptesEmployesPage() {
     if (!editTargetId) return;
     try {
       setEditSaving(true);
-      const bidMatch =
-        typeof document !== "undefined"
-          ? document.cookie.match(/(?:^|; )business_id=([^;]+)/)
-          : null;
-      const businessId = bidMatch ? decodeURIComponent(bidMatch[1]) : "";
-      const sep = businessId
-        ? `?business_id=${encodeURIComponent(businessId)}`
-        : "";
       const res = await fetch(
-        `/api/pro/employee-accounts/${editTargetId}${sep}`,
+        `/api/pro/employee-accounts/${editTargetId}`,
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
@@ -268,7 +236,7 @@ export default function ComptesEmployesPage() {
       setInitialEditSnapshot(null);
       await loadData();
       // simple toast
-      console.log("Modifications enregistrées");
+
     } catch (e: any) {
       alert(e?.message || "Erreur");
     } finally {
@@ -280,16 +248,8 @@ export default function ComptesEmployesPage() {
     if (!editTargetId) return;
     if (!confirm("Délier le compte utilisateur de cet employé ?")) return;
     try {
-      const bidMatch =
-        typeof document !== "undefined"
-          ? document.cookie.match(/(?:^|; )business_id=([^;]+)/)
-          : null;
-      const businessId = bidMatch ? decodeURIComponent(bidMatch[1]) : "";
-      const sep = businessId
-        ? `?business_id=${encodeURIComponent(businessId)}`
-        : "";
       const res = await fetch(
-        `/api/pro/employee-accounts/${editTargetId}${sep}`,
+        `/api/pro/employee-accounts/${editTargetId}`,
         { method: "DELETE" }
       );
       const data = await res.json().catch(() => ({}));
@@ -304,22 +264,16 @@ export default function ComptesEmployesPage() {
   }
 
   async function loadData() {
-    console.log("Début du chargement des données...");
+
     setLoading(true);
     try {
       const q = new URLSearchParams();
       if (searchTerm) q.set("q", searchTerm);
       if (statusFilter && statusFilter !== "all") q.set("status", statusFilter);
       if (roleFilter) q.set("role", roleFilter);
-      const bidMatch =
-        typeof document !== "undefined"
-          ? document.cookie.match(/(?:^|; )business_id=([^;]+)/)
-          : null;
-      const businessId = bidMatch ? decodeURIComponent(bidMatch[1]) : "";
-      if (businessId) q.set("business_id", businessId);
       
       const url = `/api/pro/employee-accounts?${q.toString()}`;
-      console.log("Chargement des données depuis:", url);
+
       
       const res = await fetch(url, {
         headers: {
@@ -331,7 +285,7 @@ export default function ComptesEmployesPage() {
       });
       
       const data = await res.json();
-      console.log("Réponse de l'API:", data);
+
       
       if (!res.ok) {
         console.error("Erreur API:", data);
@@ -339,7 +293,7 @@ export default function ComptesEmployesPage() {
       }
       
       const list: AccountItem[] = Array.isArray(data?.items) ? data.items : [];
-      console.log("Données reçues:", { nombreElements: list.length, data });
+
       
       setItems(list);
       setTotal(Number(data?.total || 0));
@@ -357,15 +311,7 @@ export default function ComptesEmployesPage() {
 
   async function loadRoles() {
     try {
-      const bidMatch =
-        typeof document !== "undefined"
-          ? document.cookie.match(/(?:^|; )business_id=([^;]+)/)
-          : null;
-      const businessId = bidMatch ? decodeURIComponent(bidMatch[1]) : "";
-      const sep = businessId
-        ? `&business_id=${encodeURIComponent(businessId)}`
-        : "";
-      const res = await fetch(`/api/pro/roles?scope=institute${sep}`);
+      const res = await fetch(`/api/pro/roles?scope=institute`);
       const data = await res.json();
       if (res.ok)
         setRoles(
@@ -380,15 +326,7 @@ export default function ComptesEmployesPage() {
 
   async function loadEmployeesForCreate() {
     try {
-      const bidMatch =
-        typeof document !== "undefined"
-          ? document.cookie.match(/(?:^|; )business_id=([^;]+)/)
-          : null;
-      const businessId = bidMatch ? decodeURIComponent(bidMatch[1]) : "";
-      const sep = businessId
-        ? `&business_id=${encodeURIComponent(businessId)}`
-        : "";
-      const res = await fetch(`/api/pro/employees?limit=200${sep}`);
+      const res = await fetch(`/api/pro/employees?limit=200`);
       const data = await res.json();
       if (res.ok) {
         const list = Array.isArray(data?.items) ? data.items : [];
@@ -398,11 +336,11 @@ export default function ComptesEmployesPage() {
   }
 
   useEffect(() => {
-    console.log("Items mis à jour:", items.length, "éléments", items);
+
   }, [items]);
 
   useEffect(() => {
-    console.log("Chargement initial des données...");
+
     loadData();
     loadRoles();
   }, [searchTerm, statusFilter, roleFilter]);
@@ -427,15 +365,7 @@ export default function ComptesEmployesPage() {
       return;
     }
     try {
-      const bidMatch =
-        typeof document !== "undefined"
-          ? document.cookie.match(/(?:^|; )business_id=([^;]+)/)
-          : null;
-      const businessId = bidMatch ? decodeURIComponent(bidMatch[1]) : "";
-      const sep = businessId
-        ? `?business_id=${encodeURIComponent(businessId)}`
-        : "";
-      const res = await fetch(`/api/pro/employee-accounts${sep}`, {
+      const res = await fetch(`/api/pro/employee-accounts`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -791,22 +721,8 @@ export default function ComptesEmployesPage() {
                       size="sm"
                       onClick={async () => {
                         try {
-                          const bidMatch =
-                            typeof document !== "undefined"
-                              ? document.cookie.match(
-                                  /(?:^|; )business_id=([^;]+)/
-                                )
-                              : null;
-                          const businessId = bidMatch
-                            ? decodeURIComponent(bidMatch[1])
-                            : "";
-                          const sep = businessId
-                            ? `?business_id=${encodeURIComponent(
-                                businessId
-                              )}`
-                            : "";
                           const res = await fetch(
-                            `/api/pro/employee-accounts/${account.id}/resend-invite${sep}`,
+                            `/api/pro/employee-accounts/${account.id}/resend-invite`,
                             { method: "POST" }
                           );
                           if (!res.ok) {
@@ -838,18 +754,12 @@ export default function ComptesEmployesPage() {
                           // 2. Mise à jour optimiste immédiate
                           setItems(prev => {
                             const newItems = prev.filter(acc => acc.id !== accountIdToDelete);
-                            console.log("Mise à jour optimiste - Nouveau nombre d'éléments:", newItems.length);
+
                             return newItems;
                           });
                           
                           // 3. Appel API pour la suppression
-                          const bidMatch = typeof document !== "undefined"
-                            ? document.cookie.match(/(?:^|; )business_id=([^;]+)/)
-                            : null;
-                          const businessId = bidMatch ? decodeURIComponent(bidMatch[1]) : "";
-                          const sep = businessId ? `?business_id=${encodeURIComponent(businessId)}` : "";
-                          
-                          const res = await fetch(`/api/pro/employees/${accountIdToDelete}/account${sep}`, {
+                          const res = await fetch(`/api/pro/employees/${accountIdToDelete}/account`, {
                             method: "DELETE",
                             headers: {
                               'Content-Type': 'application/json',

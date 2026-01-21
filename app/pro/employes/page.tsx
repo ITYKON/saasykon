@@ -137,10 +137,7 @@ export default function EmployeesPage() {
   async function loadEmployees() {
     setLoading(true)
     try {
-      const bidMatch = document.cookie.match(/(?:^|; )business_id=([^;]+)/)
-      const businessId = bidMatch ? decodeURIComponent(bidMatch[1]) : ""
       const q = new URLSearchParams()
-      if (businessId) q.set("business_id", businessId)
       q.set("include", "roles,services,hours")
       q.set("limit", "200")
       const res = await fetch(`/api/pro/employees?${q.toString()}`)
@@ -246,11 +243,8 @@ export default function EmployeesPage() {
     }
 
     try {
-      const bidMatch = document.cookie.match(/(?:^|; )business_id=([^;]+)/)
-      const businessId = bidMatch ? decodeURIComponent(bidMatch[1]) : ""
-      const q = businessId ? `?business_id=${encodeURIComponent(businessId)}` : ""
       // 1) Create employee
-      const createRes = await fetch(`/api/pro/employees${q}` , {
+      const createRes = await fetch(`/api/pro/employees` , {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ full_name, email: email || undefined, phone: phone || undefined }),
@@ -323,10 +317,10 @@ export default function EmployeesPage() {
   }
 
   // Vérification que la fonction toast est disponible
-  console.log('Fonction toast de Sonner disponible:', { toast: typeof toast })
+
 
   async function handleDeleteEmployee(id: string) {
-    console.log('Tentative de suppression de l\'employé:', id)
+
     if (!confirm("Êtes-vous sûr de vouloir supprimer cet employé ? Cette action est irréversible.")) return
     
     try {
@@ -351,9 +345,9 @@ export default function EmployeesPage() {
       }
       
       // Notification de succès avec Sonner
-      console.log('Envoi de la notification de succès avec Sonner')
+
       toast.success("L'employé et son compte ont été supprimés avec succès")
-      console.log('Notification de succès envoyée avec Sonner')
+
       
       // Recharger la liste des employés
       await loadEmployees()
@@ -362,7 +356,7 @@ export default function EmployeesPage() {
       // Notification d'erreur avec Sonner
       console.error('Erreur lors de la suppression:', error)
       toast.error(error?.message || "Une erreur est survenue lors de la suppression de l'employé")
-      console.log('Notification d\'erreur envoyée avec Sonner')
+
     }
   }
 

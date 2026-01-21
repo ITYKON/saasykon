@@ -96,8 +96,6 @@ export default function ProAgenda() {
   const [openSvc, setOpenSvc] = useState<boolean>(true);
   const [openCat, setOpenCat] = useState<boolean>(true);
 
-  // Read business_id from cookies on the client so we can pass it to CreateReservationModal
-  const [businessId, setBusinessId] = useState<string>("");
   // Prefill reservation modal controls
   const [prefillDate, setPrefillDate] = useState<string>(""); // yyyy-mm-dd
   const [prefillTime, setPrefillTime] = useState<string>(""); // HH:mm
@@ -132,25 +130,19 @@ export default function ProAgenda() {
 
   // Load real services for dropdown
   useEffect(() => {
-    if (!businessId) return;
-    const qs = new URLSearchParams();
-    qs.set("business_id", businessId);
-    fetch(`/api/pro/filters/services?${qs.toString()}`)
+    fetch(`/api/pro/filters/services`)
       .then((r) => r.json())
       .then((data) => setServicesOptions(data.services || []))
       .catch(() => setServicesOptions([]));
-  }, [businessId]);
+  }, []);
 
   // Load real categories for dropdown
   useEffect(() => {
-    if (!businessId) return;
-    const qs = new URLSearchParams();
-    qs.set("business_id", businessId);
-    fetch(`/api/pro/filters/categories?${qs.toString()}`)
+    fetch(`/api/pro/filters/categories`)
       .then((r) => r.json())
       .then((data) => setCategoriesOptions(data.categories || []))
       .catch(() => setCategoriesOptions([]));
-  }, [businessId]);
+  }, []);
   // Live data for Week and Month
   const [liveWeekDays, setLiveWeekDays] = useState<Record<
     string,
@@ -192,15 +184,9 @@ export default function ProAgenda() {
     return map
   }, [allEmployees])
 
-  useEffect(() => {
-    if (typeof document === "undefined") return;
-    const m = document.cookie.match(/(?:^|; )business_id=([^;]+)/);
-    if (m) setBusinessId(decodeURIComponent(m[1]));
-  }, []);
 
   useEffect(() => {
-    if (!businessId) return;
-    fetch(`/api/pro/employees?business_id=${businessId}&limit=200`)
+    fetch(`/api/pro/employees?limit=200`)
       .then((r) => r.json())
       .then((j) => {
         const map: Record<string, string> = {};
@@ -221,7 +207,7 @@ export default function ProAgenda() {
         setAllEmployees(list);
       })
       .catch(() => {});
-  }, [businessId]);
+  }, []);
 
   // Fonction utilitaire de debounce
   const useDebounce = (value: any, delay: number) => {
@@ -249,7 +235,6 @@ export default function ProAgenda() {
     let throttleTimeout: NodeJS.Timeout | null = null;
 
     const fetchData = () => {
-      if (!businessId) return;
 
       const toDateStr = (d: Date) =>
         `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, "0")}-${d
@@ -284,7 +269,6 @@ export default function ProAgenda() {
       };
 
       const qs = new URLSearchParams({
-        business_id: businessId,
         date: toDateStr(debouncedDate || currentDate),
       });
 
@@ -360,10 +344,9 @@ export default function ProAgenda() {
         clearTimeout(throttleTimeout);
       }
     };
-  }, [businessId, debouncedDate, selectedEmployees, selectedCategories, selectedServices, debouncedSearch]); 
+  }, [debouncedDate, selectedEmployees, selectedCategories, selectedServices, debouncedSearch]); 
   // Fetch Week agenda
   useEffect(() => {
-    if (!businessId) return;
     const toDateStr = (d: Date) =>
       `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, "0")}-${d
         .getDate()
@@ -395,7 +378,6 @@ export default function ProAgenda() {
       return hhmm(iso);
     };
     const qs = new URLSearchParams({
-      business_id: businessId,
       date: toDateStr(currentDate),
     });
     selectedEmployees
@@ -430,7 +412,6 @@ export default function ProAgenda() {
       })
       .catch(() => setLiveWeekDays(null));
   }, [
-    businessId,
     currentDate,
     selectedEmployees,
     selectedCategories,
@@ -442,14 +423,12 @@ export default function ProAgenda() {
 
   // Fetch Month agenda
   useEffect(() => {
-    if (!businessId) return;
     const toDateStr = (d: Date) =>
       `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, "0")}-${d
         .getDate()
         .toString()
         .padStart(2, "0")}`;
     const qs = new URLSearchParams({
-      business_id: businessId,
       date: toDateStr(currentDate),
     });
     selectedEmployees
@@ -465,7 +444,6 @@ export default function ProAgenda() {
       })
       .catch(() => setLiveMonthDays(null));
   }, [
-    businessId,
     currentDate,
     selectedEmployees,
     selectedCategories,
@@ -1988,7 +1966,6 @@ export default function ProAgenda() {
               )}
 
               <CreateReservationModal
-                businessId={businessId}
                 defaultDate={prefillDate}
                 defaultTime={prefillTime}
                 defaultEmployeeId={prefillEmployeeId}

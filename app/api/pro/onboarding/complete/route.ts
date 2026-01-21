@@ -51,7 +51,6 @@ export async function POST(req: NextRequest) {
   if (tx.length) await Promise.all(tx);
 
   const res = NextResponse.json({ ok: true, businesses: owned.map(o => o.id) });
-  const expires = new Date(Date.now() + 365*24*60*60*1000);
-  res.cookies.set("onboarding_done", "true", { httpOnly: false, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", expires });
+  // The server now manages onboarding status via DB checks in middleware/API
   return res;
 }

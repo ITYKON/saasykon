@@ -18,6 +18,30 @@ export default function LoginPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
 
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setError(null)
+    startTransition(async () => {
+      try {
+        const res = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
+        })
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}))
+          setError(data.error || "Impossible de se connecter")
+          return
+        }
+        //  CORRECTION : Attendre 1000ms + router.push pour éviter le bug Next.js
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        router.push("/");
+      } catch (e) {
+        setError("Erreur réseau")
+      }
+    })
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 flex">
       {/* Left side - Login Form */}
@@ -29,90 +53,73 @@ export default function LoginPage() {
             <CardHeader className="text-center pb-6 pt-10">
               <CardTitle className="text-2xl font-semibold">Vous avez déjà utilisé YOKA ?</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="email">Email *</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="mt-1"
-                    placeholder="Votre email"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="password">Mot de passe *</Label>
-                  <div className="relative mt-1">
+            <CardContent>
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="email">Email *</Label>
                     <Input
-                      id="password"
-                      type={showPassword ? "text" : "password"}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Mot de passe"
+                      id="email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="mt-1"
+                      placeholder="Votre email"
+                      required
                     />
-                    <button
-                      type="button"
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2"
-                      onClick={() => setShowPassword(!showPassword)}
-                    >
-                      {showPassword ? (
-                        <EyeOff className="h-4 w-4 text-gray-400" />
-                      ) : (
-                        <Eye className="h-4 w-4 text-gray-400" />
-                      )}
-                    </button>
+                  </div>
+                  <div>
+                    <Label htmlFor="password">Mot de passe *</Label>
+                    <div className="relative mt-1">
+                      <Input
+                        id="password"
+                        type={showPassword ? "text" : "password"}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="Mot de passe"
+                        required
+                      />
+                      <button
+                        type="button"
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? (
+                          <EyeOff className="h-4 w-4 text-gray-400" />
+                        ) : (
+                          <Eye className="h-4 w-4 text-gray-400" />
+                        )}
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {error ? <p className="text-sm text-red-600">{error}</p> : null}
-              <Button
-                className="w-full bg-black hover:bg-gray-800 text-white"
-                disabled={isPending}
-                onClick={() => {
-                  setError(null)
-                  startTransition(async () => {
-                    try {
-                      const res = await fetch("/api/auth/login", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ email, password }),
-                      })
-                      if (!res.ok) {
-                        const data = await res.json().catch(() => ({}))
-                        setError(data.error || "Impossible de se connecter")
-                        return
-                      }
-                      //  CORRECTION : Attendre 1000ms + router.push pour éviter le bug Next.js
-                      await new Promise(resolve => setTimeout(resolve, 1000));
-                      router.push("/client/dashboard");
-                    } catch (e) {
-                      setError("Erreur réseau")
-                    }
-                  })
-                }}
-              >
-                {isPending ? "Connexion..." : "Se connecter"}
-              </Button>
-
-              <div className="text-center">
-                <span className="text-gray-500">OU</span>
-              </div>
-
-              <div className="text-center">
-                <p className="text-gray-600 mb-4">Nouveau sur YOKA ?</p>
-                <Button variant="outline" className="w-full bg-transparent" asChild>
-                  <Link href="/auth/register">Créer mon compte</Link>
+                {error ? <p className="text-sm text-red-600">{error}</p> : null}
+                <Button
+                  type="submit"
+                  className="w-full bg-black hover:bg-gray-800 text-white"
+                  disabled={isPending}
+                >
+                  {isPending ? "Connexion..." : "Se connecter"}
                 </Button>
-              </div>
 
-              <div className="text-center">
-                <Link href="/auth/forgot-password" className="text-sm text-gray-600 hover:text-black">
-                  Mot de passe oublié ?
-                </Link>
-              </div>
+                <div className="text-center">
+                  <span className="text-gray-500">OU</span>
+                </div>
+
+                <div className="text-center">
+                  <p className="text-gray-600 mb-4">Nouveau sur YOKA ?</p>
+                  <Button variant="outline" className="w-full bg-transparent" asChild>
+                    <Link href="/auth/register">Créer mon compte</Link>
+                  </Button>
+                </div>
+
+                <div className="text-center">
+                  <Link href="/auth/forgot-password" className="text-sm text-gray-600 hover:text-black">
+                    Mot de passe oublié ?
+                  </Link>
+                </div>
+              </form>
             </CardContent>
           </Card>
         </div>

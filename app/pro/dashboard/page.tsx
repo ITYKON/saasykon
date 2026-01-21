@@ -113,7 +113,7 @@ export default async function ProDashboard() {
   };
   const todayItems: Array<{
     id: string;
-    starts_at: Date;
+    starts_at: Date | string;
     status: string;
     client: string;
     service: string;
@@ -146,20 +146,17 @@ export default async function ProDashboard() {
               )}
             </div>
             <div className="w-full sm:w-auto flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
-              {business?.id && (
-                <CreateReservationModal
-                  businessId={business.id}
-                  trigger={
-                    <Button
-                      size="sm"
-                      className="w-full sm:w-auto bg-black text-white hover:bg-gray-800 text-sm"
-                    >
-                      <Plus className="h-4 w-4 mr-1 sm:mr-2 flex-shrink-0" />
-                      <span>Nouveau RDV</span>
-                    </Button>
-                  }
-                />
-              )}
+              <CreateReservationModal
+                trigger={
+                  <Button
+                    size="sm"
+                    className="w-full sm:w-auto bg-black text-white hover:bg-gray-800 text-sm"
+                  >
+                    <Plus className="h-4 w-4 mr-1 sm:mr-2 flex-shrink-0" />
+                    <span>Nouveau RDV</span>
+                  </Button>
+                }
+              />
               <Link
                 href={
                   business?.id
@@ -244,7 +241,7 @@ export default async function ProDashboard() {
                       fournis.
                     </>
                   ) : (
-                    "Veuvez soumettre vos documents de vérification pour accéder à toutes les fonctionnalités."
+                    "Veuillez soumettre vos documents de vérification pour accéder à toutes les fonctionnalités."
                   )}
                 </p>
               )}
@@ -402,17 +399,14 @@ export default async function ProDashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {business?.id && (
-                <CreateReservationModal
-                  businessId={business.id}
-                  trigger={
-                    <Button className="w-full bg-black text-white hover:bg-gray-800 h-12">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Ajouter un RDV
-                    </Button>
-                  }
-                />
-              )}
+              <CreateReservationModal
+                trigger={
+                  <Button className="w-full bg-black text-white hover:bg-gray-800 h-12">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Ajouter un RDV
+                  </Button>
+                }
+              />
 
               <Link href="/pro/services" className="block">
                 <Button
