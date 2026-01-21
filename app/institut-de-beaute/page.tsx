@@ -47,9 +47,9 @@ function SearchForm() {
           <div className="relative">
             <Input
               name="q"
-              type="text"
-              placeholder="Que cherchez-vous ?"
-              defaultValue="Instituts de beauté"
+              // type="text"
+              placeholder="Que cherchez-vous ? (Instituts de beauté)"
+              // defaultValue="Instituts de beauté"
               className="border-0 focus:ring-0 text-gray-900 bg-transparent"
             />
           </div>
@@ -58,9 +58,9 @@ function SearchForm() {
           <div className="relative">
             <Input
               name="where"
-              type="text"
-              placeholder="Où"
-              defaultValue="Adresse, ville..."
+              // type="text"
+              placeholder="Où ? (Adresse, ville...)"
+              // defaultValue="Adresse, ville..."
               className="border-0 focus:ring-0 text-gray-500 bg-transparent"
             />
           </div>
