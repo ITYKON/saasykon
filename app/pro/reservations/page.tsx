@@ -710,7 +710,6 @@ export default function ReservationsPage() {
               <ClientSearch 
                 value={editData?.client?.name || ''}
                 onChange={() => {}}
-                businessId={businessId as string}
                 onSelect={(c: any) => setEditData(d => d ? { ...d, client: c ? { id: c.id, name: c.name } : null } : d)} 
               />
             </div>
