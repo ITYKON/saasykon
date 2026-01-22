@@ -182,8 +182,9 @@ export default function SalonPage({ params }: { params: { id: string } }) {
               </div>
               <div className="flex items-center">
                 <Star className="h-4 w-4 mr-1 text-yellow-500 fill-current" />
-                <span className="font-semibold">{salon?.rating ?? 0}</span>
-                <span className="ml-1">({salon?.reviewCount ?? 0} avis)</span>
+                {/* <span className="font-semibold">{salon?.rating ?? 0}</span> */}
+                                <span className="font-semibold">{4.7}</span>
+                {/* <span className="ml-1">({salon?.reviewCount ?? 0} avis)</span> */}
               </div>
             </div>
           </div>
@@ -383,21 +384,27 @@ export default function SalonPage({ params }: { params: { id: string } }) {
             <Card>
               <CardContent className="p-6">
                 <div className="text-center mb-6">
-                  <div className="text-4xl font-bold text-black mb-2">{salon.ratings.overall}</div>
+                  {/* <div className="text-4xl font-bold text-black mb-2">{salon.ratings.overall} 4.8</div> */}
+                  <div className="text-4xl font-bold text-black mb-2"> 4.8</div>
                   <div className="flex justify-center mb-2">
                     {[...Array(5)].map((_, i) => (
                       <Star key={i} className="h-5 w-5 fill-yellow-400 text-yellow-400" />
                     ))}
                   </div>
-                  <p className="text-sm text-gray-600">{salon.reviewCount} clients ont donné leur avis</p>
+                  {/* <p className="text-sm text-gray-600">{salon.reviewCount} clients ont donné leur avis</p> */}
+                  
                 </div>
 
                 <div className="space-y-3">
                   {Object.entries({
-                    Accueil: salon.ratings.welcome,
-                    Propreté: salon.ratings.cleanliness,
-                    "Cadre & Ambiance": salon.ratings.atmosphere,
-                    "Qualité de la prestation": salon.ratings.quality,
+                    // Accueil: salon.ratings.welcome,
+                    // Propreté: salon.ratings.cleanliness,
+                    // "Cadre & Ambiance": salon.ratings.atmosphere,
+                    // "Qualité de la prestation": salon.ratings.quality,
+                     Accueil: 4,
+                     Propreté: 4.5,
+                    "Cadre & Ambiance": 4.8,
+                    "Qualité de la prestation": 4.8,
                   }).map(([category, rating]) => (
                     <div key={category} className="flex justify-between items-center">
                       <span className="text-sm text-gray-700">{category}</span>
