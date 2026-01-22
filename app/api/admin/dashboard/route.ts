@@ -19,7 +19,7 @@ export async function GET() {
     const { start, end } = getMonthBounds(now);
 
     const [totalSalons, totalUsers, revenueAgg, activeBookings] = await Promise.all([
-      prisma.businesses.count(),
+      prisma.businesses.count({ where: { archived_at: null, deleted_at: null } }),
       prisma.users.count({ where: { deleted_at: null } }),
       prisma.payments.aggregate({
         _sum: { amount_cents: true },
@@ -30,6 +30,7 @@ export async function GET() {
 
     // Recent salons with owner, location, subscription
     const recentRaw = await prisma.businesses.findMany({
+      where: { archived_at: null, deleted_at: null },
       orderBy: { created_at: "desc" },
       take: 5,
       include: {

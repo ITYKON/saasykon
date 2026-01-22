@@ -536,7 +536,7 @@ function AdminSalonsContent() {
                   size="sm"
                   className="text-red-600 border-red-600 hover:bg-red-50 bg-transparent"
                   onClick={async () => {
-                    if (window.confirm("Confirmer la suppression ?")) {
+                    if (window.confirm("Êtes-vous sûr ? Le salon sera archivé et ne s'affichera plus dans la liste, mais pourra être restauré depuis la page Archives.")) {
                       try {
                         const res = await fetch("/api/admin/salons", {
                           method: "DELETE",
@@ -547,10 +547,10 @@ function AdminSalonsContent() {
                         if (!res.ok) {
                           alert(
                             "Erreur: " +
-                              (result.error || "Suppression impossible")
+                              (result.error || "Archivage impossible")
                           );
                         } else {
-                          alert("Salon supprimé");
+                          alert("Salon archivé avec succès. Vous pouvez le restaurer depuis la page Archives.");
                           const params = new URLSearchParams();
                           if (claimStatusFilter !== "all") {
                             params.set("claim_status", claimStatusFilter);
