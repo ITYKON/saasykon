@@ -69,7 +69,20 @@ export default async function CityInstitutePage({ params }: PageProps) {
     },
     orderBy: { created_at: "desc" },
   })
+  
+  // Trier : afficher d'abord les salons où l'on peut prendre RDV (claim_status !== 'none'),
+  // puis les salons revendicables (claim_status === 'none').
+  function sortLocationsByBookableFirst(locs: any[]) {
+    return locs.sort((a: any, b: any) => {
+      const aBookable = (a?.businesses?.claim_status ?? 'none') !== 'none';
+      const bBookable = (b?.businesses?.claim_status ?? 'none') !== 'none';
+      if (aBookable && !bBookable) return -1;
+      if (!aBookable && bBookable) return 1;
+      return 0;
+    });
+  }
 
+  locations = sortLocationsByBookableFirst(locations);
   // Fallback: if no locations for the exact city, include all cities in same wilaya_number
   if (locations.length === 0 && city.wilaya_number != null) {
     const sameWilayaCities = await prisma.cities.findMany({
@@ -101,6 +114,7 @@ export default async function CityInstitutePage({ params }: PageProps) {
         },
         orderBy: { created_at: "desc" },
       })
+      locations = sortLocationsByBookableFirst(locations);
     }
   }
 
