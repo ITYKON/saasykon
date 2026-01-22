@@ -198,7 +198,7 @@ function ClaimPageContent(): JSX.Element {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
+              <div className="space-y-2">
                 <Label htmlFor="full_name">Nom complet</Label>
                 <Input
                   id="full_name"
@@ -209,7 +209,7 @@ function ClaimPageContent(): JSX.Element {
                   placeholder="Jean Dupont"
                 />
               </div>
-              <div>
+              <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <Input
                   id="email"
@@ -220,7 +220,7 @@ function ClaimPageContent(): JSX.Element {
                   placeholder="jean.dupont@example.com"
                 />
               </div>
-              <div>
+              <div className="space-y-2">
                 <Label htmlFor="phone">Téléphone</Label>
                 <Input
                   id="phone"
