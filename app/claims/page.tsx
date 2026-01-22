@@ -232,9 +232,9 @@ function ClaimPageContent(): JSX.Element {
                 />
               </div>
               {businessId && (
-                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <Label className="text-blue-900 font-semibold">Établissement à revendiquer</Label>
-                  <p className="text-sm text-blue-700 mt-1">{businessName || businessId}</p>
+                <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                  <Label className="text-purple-900 font-semibold">Établissement à revendiquer</Label>
+                  <p className="text-sm text-purple-700 mt-1">{businessName || businessId}</p>
                 </div>
               )}
               <Button type="submit" className="w-full" disabled={loading}>
