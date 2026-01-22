@@ -309,7 +309,7 @@ export default function ProLayout({
       </aside>
 
       <main className="lg:pl-64 min-h-screen">
-        <div className="p-6 md:p-8">
+        <div>
           {children}
         </div>
       </main>

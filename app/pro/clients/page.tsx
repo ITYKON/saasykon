@@ -113,7 +113,7 @@ export default function ProClients() {
   return (
     <div className="space-y-4 md:space-y-6">
         <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
-          <div className="px-4 py-3 sm:px-6">
+          <div className="px-4 sm:px-6 py-3 sm:py-4">
             <div className="flex flex-col space-y-2 sm:space-y-0 sm:flex-row sm:justify-between sm:items-center">
               <div className="flex-1 min-w-0">
                 <h1 className="text-xl font-bold text-gray-900 truncate">Mes clients</h1>
@@ -147,7 +147,8 @@ export default function ProClients() {
           </div>
         </header>
       {/* Stats */}
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">
+      <div className="px-6">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4 my-2">
         {/* Carte Clients totaux */}
         <Card className="hover:shadow-md transition-shadow">
           <CardContent className="p-4 sm:p-5">
@@ -240,8 +241,8 @@ export default function ProClients() {
       </div>
 
       {/* Search and Filters */}
-      <Card>
-        <CardContent className="p-4">
+      <Card className="my-2">
+        <CardContent className="p-4 ">
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1">
               <Input
@@ -371,7 +372,7 @@ export default function ProClients() {
           </CardContent>
         </Card>
       </div>
-
+</div>
       {/* Clients Cards - Mobile */}
       <div className="md:hidden space-y-3">
         {clients.map((client) => (
