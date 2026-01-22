@@ -69,6 +69,9 @@ export async function GET(req: Request) {
     // Construction de la requête de recherche
     const claimStatusFilter = searchParams.get("claim_status");
     const where: any = {
+      // Exclure les salons archivés et supprimés
+      archived_at: null,
+      deleted_at: null,
       ...(q && {
         OR: [
           { public_name: { contains: q, mode: 'insensitive' } },
