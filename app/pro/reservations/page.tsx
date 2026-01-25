@@ -408,8 +408,8 @@ export default function ReservationsPage() {
   })
 
   return (
-    <div className="p-3 sm:p-4">
-       <header className="bg-white border-b border-gray-200 mb-6">
+    <div>
+       <header className="bg-white border-b border-gray-200 px-6 py-4">
       <div className="mb-4">      
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
           <div className="mb-2 sm:mb-0">
@@ -466,6 +466,7 @@ export default function ReservationsPage() {
         </div>
       </div>
            </header>
+           <div className="p-3 sm:p-4">
       {/* Affichage mobile */}
       <div className="sm:hidden space-y-3">
         {filteredReservations.map((reservation) => (
@@ -796,6 +797,7 @@ export default function ReservationsPage() {
           </div>
         </DialogContent>
       </Dialog>
+    </div>
     </div>
   )
 }
