@@ -65,7 +65,7 @@ export async function POST(
   });
 
   // Generate slug
-  const { generateUniqueSlug } = await import("@/lib/salon-slug");
+  const { generateUniqueSlug } = await import("@/lib/salon-slug-server");
   const slug = await generateUniqueSlug(business_name ?? lead.business_name, lead.location);
 
   // Create business with pending_verification status

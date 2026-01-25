@@ -2,9 +2,28 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { randomBytes } from "crypto";
 import { sendEmail } from "@/lib/email";
+import { rateLimit, getClientIp } from "@/lib/rateLimit";
 
 export async function POST(request: Request) {
   try {
+    // Rate limiting: 3 requests per 15 minutes per IP
+    const clientIp = getClientIp(request);
+    const rateLimitKey = `password-reset:${clientIp}`;
+    const rateLimitResult = rateLimit(rateLimitKey, 3, 15 * 60 * 1000); // 15 minutes
+    
+    if (!rateLimitResult.ok) {
+      const retryAfterSeconds = Math.ceil(rateLimitResult.retryAfterMs! / 1000);
+      return NextResponse.json(
+        { error: "Trop de demandes de réinitialisation. Veuillez réessayer plus tard." },
+        { 
+          status: 429,
+          headers: {
+            'Retry-After': retryAfterSeconds.toString()
+          }
+        }
+      );
+    }
+    
     const { email } = await request.json();
     if (!email) return NextResponse.json({ ok: true }); // do not leak
 

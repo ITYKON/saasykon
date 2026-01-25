@@ -27,5 +27,24 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ employee: { name, role: roleLabel }, permissions: permissionCodes, roles: ctx.roles });
+  // Check for document verification if user is PRO
+  let needsVerification = false;
+  if (ctx.roles.includes('PRO') || ctx.roles.includes('PROFESSIONNEL')) {
+    const business = await prisma.businesses.findUnique({
+      where: { id: businessId },
+      include: { business_verifications: true }
+    });
+    
+    // If it's a lead converted and no verification exists
+    if (business && business.converted_from_lead && (!business.business_verifications || business.business_verifications.length === 0)) {
+      needsVerification = true;
+    }
+  }
+
+  return NextResponse.json({ 
+    employee: { name, role: roleLabel }, 
+    permissions: permissionCodes, 
+    roles: ctx.roles,
+    needsVerification
+  });
 }
