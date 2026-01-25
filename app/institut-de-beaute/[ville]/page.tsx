@@ -62,7 +62,8 @@ export default async function CityInstitutePage({ params }: PageProps) {
           legal_name: true,
           cover_url: true,
           claim_status: true,
-          working_hours: true
+          working_hours: true,
+          slug: true
         }
       }, 
       cities: true 
@@ -107,7 +108,8 @@ export default async function CityInstitutePage({ params }: PageProps) {
               legal_name: true,
               cover_url: true,
               claim_status: true,
-              working_hours: true
+              working_hours: true,
+              slug: true
             }
           }, 
           cities: true 
@@ -141,7 +143,16 @@ export default async function CityInstitutePage({ params }: PageProps) {
 
         {/* Salons List */}
         <div className="space-y-6">
-          {locations.map((loc) => (
+          {locations.map((loc) => {
+            const salonUrl = loc.businesses.slug 
+                ? `/${loc.businesses.slug}` 
+                : `/salon/${buildSalonSlug(
+                    loc.businesses.public_name || loc.businesses.legal_name || "",
+                    loc.businesses.id,
+                    loc.cities?.name || city.name
+                  )}`;
+                  
+            return (
             <div key={loc.id} className="bg-white rounded-lg shadow-sm border overflow-hidden">
               <div className="flex flex-col lg:flex-row">
                 {/* Image */}
@@ -213,11 +224,7 @@ export default async function CityInstitutePage({ params }: PageProps) {
                       </div>
 
                       <Link
-                        href={`/salon/${buildSalonSlug(
-                          loc.businesses.public_name || loc.businesses.legal_name || "",
-                          loc.businesses.id,
-                          loc.cities?.name || city.name
-                        )}`}
+                        href={salonUrl}
                         className="text-sm text-gray-600 hover:text-gray-800 mt-4 underline"
                       >
                         Plus d'informations
@@ -237,11 +244,7 @@ export default async function CityInstitutePage({ params }: PageProps) {
                       ) : (
                         <Button className="bg-black hover:bg-gray-800 text-white px-6 py-2 w-full lg:w-auto" asChild>
                           <a
-                            href={`/salon/${buildSalonSlug(
-                              loc.businesses.public_name || loc.businesses.legal_name || "",
-                              loc.businesses.id,
-                              loc.cities?.name || city.name
-                            )}`}
+                            href={salonUrl}
                           >
                             Prendre RDV
                           </a>
@@ -252,7 +255,8 @@ export default async function CityInstitutePage({ params }: PageProps) {
                 </div>
               </div>
             </div>
-          ))}
+            );
+          })}
           {locations.length === 0 && (
             <div className="text-sm text-gray-600">Aucun salon trouvé pour cette ville.</div>
           )}

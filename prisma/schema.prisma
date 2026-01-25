@@ -140,6 +140,7 @@ model businesses {
   last_reminder_sent_at                 DateTime?                      @db.Timestamptz(6)
   is_claimable                          Boolean                        @default(false)
   converted_from_lead                   Boolean                        @default(false)
+  slug                                  String?                        @unique
   business_locations                    business_locations[]
   business_media                        business_media[]
   business_ownership_transfers          business_ownership_transfers[]

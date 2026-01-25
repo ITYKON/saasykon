@@ -29,4 +29,5 @@ export type Business = {
   public_name?: string | null;
   legal_name?: string;
   claim_status?: 'none' | 'pending' | 'approved' | 'not_claimable';
+  slug?: string | null;
 };
