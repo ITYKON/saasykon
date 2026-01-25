@@ -417,7 +417,7 @@ Créez votre compte gratuitement et commencez dès maintenant.</p>
                   </div>
                 </div>
                 <div className="flex flex-col gap-2">
-                  <div className="flex items-start gap-3">
+                  <div className="flex items-start gap-1">
                     <Checkbox 
                       id="consent" 
                       checked={form.consent} 

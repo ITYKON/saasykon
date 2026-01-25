@@ -182,16 +182,28 @@ export async function GET(req: Request): Promise<NextResponse> {
     
     // Exécution de la requête principale
     
-    const [businesses, total] = await Promise.all([
+    const [allBusinesses, total] = await Promise.all([
       prisma.businesses.findMany({
         where,
         include,
         orderBy,
-        skip,
-        take: pageSize,
+        skip: 0,
+        take: pageSize * 3, // Fetch more to sort properly
       }) as unknown as Business[],
       prisma.businesses.count({ where })
     ]);
+
+    // Sort by claim_status first (functional salons first, then claimable)
+    const sortedByClaimStatus = allBusinesses.sort((a: any, b: any) => {
+      const aIsFunctional = (a.claim_status ?? 'none') !== 'none';
+      const bIsFunctional = (b.claim_status ?? 'none') !== 'none';
+      if (aIsFunctional && !bIsFunctional) return -1;
+      if (!aIsFunctional && bIsFunctional) return 1;
+      return 0;
+    });
+    
+    // Apply pagination after sorting
+    const businesses = sortedByClaimStatus.slice(skip, skip + pageSize);
     
     // Formatage des résultats pour le frontend
     const formattedResults = businesses.map((business) => {

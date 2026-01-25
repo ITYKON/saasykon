@@ -198,7 +198,7 @@ function ClaimPageContent(): JSX.Element {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
+              <div className="space-y-2">
                 <Label htmlFor="full_name">Nom complet</Label>
                 <Input
                   id="full_name"
@@ -209,7 +209,7 @@ function ClaimPageContent(): JSX.Element {
                   placeholder="Jean Dupont"
                 />
               </div>
-              <div>
+              <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <Input
                   id="email"
@@ -220,7 +220,7 @@ function ClaimPageContent(): JSX.Element {
                   placeholder="jean.dupont@example.com"
                 />
               </div>
-              <div>
+              <div className="space-y-2">
                 <Label htmlFor="phone">Téléphone</Label>
                 <Input
                   id="phone"
@@ -232,9 +232,9 @@ function ClaimPageContent(): JSX.Element {
                 />
               </div>
               {businessId && (
-                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <Label className="text-blue-900 font-semibold">Établissement à revendiquer</Label>
-                  <p className="text-sm text-blue-700 mt-1">{businessName || businessId}</p>
+                <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                  <Label className="text-purple-900 font-semibold">Établissement à revendiquer</Label>
+                  <p className="text-sm text-purple-700 mt-1">{businessName || businessId}</p>
                 </div>
               )}
               <Button type="submit" className="w-full" disabled={loading}>

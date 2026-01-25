@@ -123,7 +123,7 @@ export async function GET(req: NextRequest) {
         where: { starts_at: { gte: start, lt: end }, booker_user_id: { not: null } },
         select: { booker_user_id: true, starts_at: true },
       }),
-      prisma.businesses.count(),
+      prisma.businesses.count({ where: { archived_at: null, deleted_at: null } }),
       prisma.reviews.aggregate({ _avg: { rating: true } }),
       prisma.payments.groupBy({
         by: ["business_id"],
@@ -170,7 +170,7 @@ export async function GET(req: NextRequest) {
         where: { starts_at: { gte: previousStart, lt: previousEnd } },
         select: { id: true },
       }),
-      prisma.businesses.count({ where: { created_at: { lt: end } } }).catch(() => 0),
+      prisma.businesses.count({ where: { created_at: { lt: end }, archived_at: null, deleted_at: null } }).catch(() => 0),
     ]);
 
     // Summary KPIs

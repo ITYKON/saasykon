@@ -241,7 +241,7 @@ export default function StatistiquesPage() {
           </div>
         </div>
       </header>
-
+<div className="px-6 py-4">
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
@@ -507,6 +507,7 @@ export default function StatistiquesPage() {
           </Card>
         </TabsContent>
       </Tabs>
+      </div>
     </div>
   )
 }

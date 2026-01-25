@@ -14,9 +14,23 @@ export async function GET(request: Request) {
   if (!client) return NextResponse.json({ favorites: [] }, { status: 404 })
 
   const [total, rows] = await Promise.all([
-    prisma.client_favorites.count({ where: { client_id: client.id } }),
+    prisma.client_favorites.count({ 
+      where: { 
+        client_id: client.id,
+        businesses: {
+          archived_at: null,
+          deleted_at: null
+        }
+      } 
+    }),
     prisma.client_favorites.findMany({
-      where: { client_id: client.id },
+      where: { 
+        client_id: client.id,
+        businesses: {
+          archived_at: null,
+          deleted_at: null
+        }
+      },
       include: {
         businesses: {
           select: {

@@ -47,7 +47,13 @@ export default async function CityInstitutePage({ params }: PageProps) {
 
   // Fetch business locations in this city with their businesses
   let locations = await prisma.business_locations.findMany({
-    where: { city_id: city.id },
+    where: { 
+      city_id: city.id,
+      businesses: {
+        archived_at: null,
+        deleted_at: null
+      }
+    },
     include: { 
       businesses: {
         select: {
@@ -63,7 +69,20 @@ export default async function CityInstitutePage({ params }: PageProps) {
     },
     orderBy: { created_at: "desc" },
   })
+  
+  // Trier : afficher d'abord les salons où l'on peut prendre RDV (claim_status !== 'none'),
+  // puis les salons revendicables (claim_status === 'none').
+  function sortLocationsByBookableFirst(locs: any[]) {
+    return locs.sort((a: any, b: any) => {
+      const aBookable = (a?.businesses?.claim_status ?? 'none') !== 'none';
+      const bBookable = (b?.businesses?.claim_status ?? 'none') !== 'none';
+      if (aBookable && !bBookable) return -1;
+      if (!aBookable && bBookable) return 1;
+      return 0;
+    });
+  }
 
+  locations = sortLocationsByBookableFirst(locations);
   // Fallback: if no locations for the exact city, include all cities in same wilaya_number
   if (locations.length === 0 && city.wilaya_number != null) {
     const sameWilayaCities = await prisma.cities.findMany({
@@ -73,7 +92,13 @@ export default async function CityInstitutePage({ params }: PageProps) {
     const cityIds = sameWilayaCities.map(c => c.id)
     if (cityIds.length > 0) {
       locations = await prisma.business_locations.findMany({
-        where: { city_id: { in: cityIds } },
+        where: { 
+          city_id: { in: cityIds },
+          businesses: {
+            archived_at: null,
+            deleted_at: null
+          }
+        },
         include: { 
           businesses: {
             select: {
@@ -89,6 +114,7 @@ export default async function CityInstitutePage({ params }: PageProps) {
         },
         orderBy: { created_at: "desc" },
       })
+      locations = sortLocationsByBookableFirst(locations);
     }
   }
 
@@ -107,7 +133,7 @@ export default async function CityInstitutePage({ params }: PageProps) {
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Sélectionnez un salon</h1>
           <p className="text-gray-600 mb-4">Les meilleurs salons et instituts aux alentours de {city.name} : Réservation en ligne</p>
-          <button className="text-blue-600 hover:text-blue-800 text-sm flex items-center gap-1">
+          <button className="text-purple-600 hover:text-purple-800 text-sm flex items-center gap-1">
             Classement des résultats à la une
             <span className="text-gray-400">ⓘ</span>
           </button>
@@ -201,7 +227,7 @@ export default async function CityInstitutePage({ params }: PageProps) {
                     {/* CTA Button */}
                     <div className="lg:ml-6">
                       {loc.businesses.claim_status === 'none' ? (
-                        <Button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 w-full lg:w-auto" asChild>
+                        <Button className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 w-full lg:w-auto" asChild>
                           <Link
                             href={`/claims?business_id=${loc.businesses.id}&business_name=${encodeURIComponent(loc.businesses.public_name || loc.businesses.legal_name || '')}`}
                           >

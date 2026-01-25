@@ -33,7 +33,7 @@ export const QuiSommesNous = () => {
             <div className="mt-10 lg:mt-0">
               <div className="bg-white p-6 rounded-lg shadow-lg">
                 <img 
-                  src="/images/yoka about.jpg" 
+                  src="/images/qui somme nous1.jpg" 
                   alt="Salon de beauté YOKA moderne et élégant" 
                   className="rounded-lg w-full h-auto object-cover"
                 />
