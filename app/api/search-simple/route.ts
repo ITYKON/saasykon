@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { rateLimit, getClientIp } from "@/lib/rateLimit";
 
-export const searchSimpleSchema = z.object({
+const searchSimpleSchema = z.object({
   q: z.string().optional().default(""),
   location: z.string().optional().default(""),
   page: z.coerce.number().int().positive().default(1),
