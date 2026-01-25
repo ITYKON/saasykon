@@ -742,7 +742,7 @@ export default function ReservationsPage() {
                 setVariants(svc?.service_variants || [])
                 setEditData(d => d ? { ...d, item: d.item ? { ...d.item, service_id: v, variant_id: null } : d.item } : d)
               }}>
-                <SelectTrigger><SelectValue placeholder="Sélectionner" /></SelectTrigger>
+                <SelectTrigger  className="h-auto max-h-12 overflow-hidden whitespace-normal line-clamp-2"><SelectValue placeholder="Sélectionner" /></SelectTrigger>
                 <SelectContent>
                   {services.map((s: any) => (
                     <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
@@ -750,7 +750,7 @@ export default function ReservationsPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div>
+            {/* <div>
               <label className="block text-sm mb-1">Variante</label>
               <Select value={editData?.item?.variant_id || ""} onValueChange={(v) => setEditData(d => d ? { ...d, item: d.item ? { ...d.item, variant_id: v } : d.item } : d)}>
                 <SelectTrigger><SelectValue placeholder="Sélectionner" /></SelectTrigger>
@@ -760,7 +760,7 @@ export default function ReservationsPage() {
                   ))}
                 </SelectContent>
               </Select>
-            </div>
+            </div> */}
             <div>
               <label className="block text-sm mb-1">Employé (item)</label>
               <Select value={editData?.item?.employee_id ?? "none"} onValueChange={(v) => setEditData(d => d ? { ...d, item: d.item ? { ...d.item, employee_id: v === 'none' ? null : v } : d.item } : d)}>
