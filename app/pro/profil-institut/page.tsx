@@ -282,8 +282,8 @@ const responseData = await response.json();
 
   return (
 
-    <div className="min-h-screen bg-gray-50 p-6">
-      <header className="bg-white border-b border-gray-200 pt-2 mb-6">
+    <div className="min-h-screen bg-gray-50">
+      <header className="bg-white border-b border-gray-200 px-6 pt-4 pb-1">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Profil de l'institut</h1>
         <Button onClick={handleSubmit} disabled={isSaving}>
@@ -298,6 +298,7 @@ const responseData = await response.json();
         </Button>
       </div>
 </header>
+    <div className="p-6">
       <Tabs defaultValue="informations" className="space-y-6">
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="informations">Informations</TabsTrigger>
@@ -647,5 +648,6 @@ const responseData = await response.json();
         </AlertDialogContent>
       </AlertDialog>
     </div>
+</div>
   )
 }
