@@ -18,7 +18,7 @@ type Draft = {
   step: number;
   identity?: { first_name?: string; last_name?: string; id_card_front?: string; id_card_back?: string };
   registry?: { rc_number?: string; nif?: string; registry_doc?: string };
-  business?: { name?: string; address?: string; city?: string; description?: string };
+  business?: { name?: string; address?: string; city?: string; description?: string; phone?: string };
   hours?: { [weekday: string]: { open?: string; close?: string; disabled?: boolean } };
   employees?: Array<{ first_name?: string; last_name?: string; role?: string; phone?: string; email?: string }>;
 };
@@ -116,10 +116,10 @@ export default function ProOnboardingPage() {
   async function finish() {
     // For now, mark as done via cookie endpoint placeholder and go to dashboard.
     try {
-      await fetch("/api/pro/onboarding/complete", {
+      const res = await fetch("/api/pro/onboarding/complete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ identity: draft.identity, registry: draft.registry }),
+        body: JSON.stringify(draft),
       });
     } catch {}
     toast({ title: "Configuration terminée", description: "Vos documents ont été enregistrés. Bienvenue !" });
@@ -217,26 +217,6 @@ export default function ProOnboardingPage() {
               className="space-y-6"
             >
               <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="firstName">Prénom</Label>
-                    <Input
-                      id="firstName"
-                      value={draft.identity?.first_name || ""} // Map to existing draft state
-                      onChange={(e) => setDraft(d => ({ ...d, identity: { ...d.identity, first_name: e.target.value } }))}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="lastName">Nom</Label>
-                    <Input
-                      id="lastName"
-                      value={draft.identity?.last_name || ""} // Map to existing draft state
-                      onChange={(e) => setDraft(d => ({ ...d, identity: { ...d.identity, last_name: e.target.value } }))}
-                      required
-                    />
-                  </div>
-                </div>
                 <div className="space-y-2">
                   <Label htmlFor="salonName">Nom du salon</Label>
                   <Input
@@ -287,7 +267,7 @@ export default function ProOnboardingPage() {
                 <div key={day} className="grid grid-cols-3 items-center gap-2">
                   <Label>{day}</Label>
                   <Input placeholder="Ouverture (ex: 09:00)" value={draft.hours?.[idx]?.open || ""} onChange={(e)=>setDraft(d=>({ ...d, hours:{ ...(d.hours||{}), [idx]:{ ...(d.hours?.[idx]||{}), open:e.target.value } } }))} />
-                  <Input placeholder="Fermeture (ex: 18:00)" value={draft.hours?.[idx]?.close || ""} onChange={(e)=>setDraft(d=>({ ...d, hours:{ ...(d.hours?.[idx]||{}), [idx]:{ ...(d.hours?.[idx]||{}), close:e.target.value } } }))} />
+                  <Input placeholder="Fermeture (ex: 18:00)" value={draft.hours?.[idx]?.close || ""} onChange={(e)=>setDraft(d=>({ ...d, hours:{ ...(d.hours||{}), [idx]:{ ...(d.hours?.[idx]||{}), close:e.target.value } } }))} />
                 </div>
               ))}
               <div className="pt-2">
