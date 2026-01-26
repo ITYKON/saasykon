@@ -248,14 +248,18 @@ export default function SalonPublicPage({ salonId }: SalonPublicPageProps) {
         <div className="relative mb-8">
           <div className="aspect-video lg:aspect-[21/6] rounded-lg overflow-hidden">
             <Image
-              src={(salon?.images?.[currentImageIndex]) || "/placeholder.svg"}
+              src={
+                businessId === '71831c69-7b17-4344-b873-583e4a976f07' 
+                  ? "/institutbykm.jpg" 
+                  : (salon?.images?.[currentImageIndex]) || "/placeholder.svg"
+              }
               alt={`${salon?.name || "Salon"} ${currentImageIndex + 1}`}
               fill
               className="object-cover"
               priority
             />
           </div>
-          {salon?.images?.length > 1 && (
+          {businessId !== '71831c69-7b17-4344-b873-583e4a976f07' && salon?.images?.length > 1 && (
             <>
               <Button
                 variant="outline"
