@@ -12,8 +12,10 @@ export async function middleware(request: NextRequest) {
   // Gestion CORS pour les requêtes API
   if (isApiRequest) {
     const response = NextResponse.next()
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://saasykon-production.up.railway.app'
+    
     response.headers.set('Access-Control-Allow-Credentials', 'true')
-    response.headers.set('Access-Control-Allow-Origin', process.env.NEXT_PUBLIC_APP_URL || 'https://saasykon-production.up.railway.app')
+    response.headers.set('Access-Control-Allow-Origin', appUrl)
     response.headers.set('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT')
     response.headers.set('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization')
     
@@ -74,6 +76,13 @@ export async function middleware(request: NextRequest) {
   const sessionToken = request.cookies.get(SESSION_COOKIE_NAME)?.value
   const authData = sessionToken ? await getAuthDataFromTokenEdge(sessionToken) : null
   
+  if (pathname !== "/" && !pathname.startsWith("/_next") && !pathname.startsWith("/static") && !PUBLIC_FILE.test(pathname)) {
+    console.log(`[Middleware] Path: ${pathname}, Session: ${!!sessionToken}, AuthData: ${!!authData}`)
+    if (sessionToken && !authData) {
+      console.warn(`[Middleware] Token found but verification failed for path: ${pathname}`)
+    }
+  }
+
   const roles = authData?.roles || []
   const businessId = authData?.businessId || request.cookies.get("business_id")?.value
   const SPECIAL_ADMIN_BUSINESS_ID = "00000000-0000-0000-0000-000000000000"
@@ -86,6 +95,10 @@ export async function middleware(request: NextRequest) {
   // Admin-equivalent: ADMIN role OR sub-admin with special business
   const isSubAdmin = businessId === SPECIAL_ADMIN_BUSINESS_ID && (roles.includes("SUPPORT") || roles.includes("SALES"))
   const canAccessAdmin = isAdmin || isSubAdmin
+  
+  if (sessionToken && authData) {
+     console.log(`[Middleware] Roles: ${roles.join(',')}, canAccessAdmin: ${canAccessAdmin}, isPro: ${isPro}, isClient: ${isClient}`)
+  }
   
   const isProtected = ["/admin", "/pro", "/client", "/api/admin", "/api/client"].some((p) => pathname.startsWith(p))
 
@@ -130,9 +143,18 @@ export async function middleware(request: NextRequest) {
 
   // 5. ROOT REDIRECTION
   if (pathname === "/") {
-    if (canAccessAdmin) return NextResponse.redirect(new URL("/admin/dashboard", request.url))
-    if (isPro) return NextResponse.redirect(new URL("/pro/dashboard", request.url))
-    if (isClient) return NextResponse.redirect(new URL("/client/dashboard", request.url))
+    if (canAccessAdmin) {
+      console.log(`[Middleware] Root redirecting ADMIN to /admin/dashboard`)
+      return NextResponse.redirect(new URL("/admin/dashboard", request.url))
+    }
+    if (isPro) {
+      console.log(`[Middleware] Root redirecting PRO to /pro/dashboard`)
+      return NextResponse.redirect(new URL("/pro/dashboard", request.url))
+    }
+    if (isClient) {
+      console.log(`[Middleware] Root redirecting CLIENT to /client/dashboard`)
+      return NextResponse.redirect(new URL("/client/dashboard", request.url))
+    }
   }
 
   // 6. BUSINESS_ID FOR ADMINS

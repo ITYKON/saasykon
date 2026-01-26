@@ -101,6 +101,8 @@ export async function createSessionData(userId: string) {
         .setExpirationTime("7d")
         .sign(JWT_SECRET);
 
+      console.log(`[Auth] Created session JWT for user: ${userId}, roles: ${roles.join(',')}`)
+      
       // Still save to DB for record/revocation if needed
       await prisma.sessions.create({
         data: {
@@ -272,15 +274,18 @@ export async function getAuthDataFromToken(token: string) {
 
   // 1. Try to verify as JWT (new strategy)
   try {
+    if (!token) return null;
     const { payload } = await jwtVerify(token, JWT_SECRET);
     if (payload) {
+      console.log(`[Auth] JWT verified for userId: ${payload.userId}`)
       return {
         userId: payload.userId as string,
         roles: payload.roles as string[],
         businessId: payload.businessId as string
       };
     }
-  } catch (jwtError) {
+  } catch (jwtError: any) {
+    console.warn(`[Auth] JWT verification failed: ${jwtError.message}. Secret length: ${JWT_SECRET.length}`)
     // Not a valid JWT or expired, fallback to DB check for legacy sessions (prefix)
     try {
       // In Edge runtime, this part will throw the Prisma error, which is caught below

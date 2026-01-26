@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { cookies } from "next/headers"
 import { prisma } from "@/lib/prisma"
 
-const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME || "__yk_sb_"
+const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME || "__yk_sb_hg"
 
 export async function POST() {
   try {
