@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import useAuth from "@/hooks/useAuth";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,6 +24,9 @@ export default function CreateReservationModal({
   defaultEmployeeId?: string | "none";
   forceOpenSignal?: number;
 }) {
+  const { auth } = useAuth();
+  const businessId = auth?.assignments?.[0]?.business_id;
+
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [services, setServices] = useState<any[]>([]);
@@ -405,6 +409,7 @@ export default function CreateReservationModal({
                         onChange={setClientSearch}
                         onSelect={handleClientSelect}
                         placeholder="Rechercher un client par nom, email ou téléphone"
+                        businessId={businessId}
                         />
                         {client && (
                         <div className="mt-2 p-3 bg-gray-50 rounded-md">

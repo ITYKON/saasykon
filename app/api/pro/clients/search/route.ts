@@ -41,15 +41,27 @@ export async function GET(req: NextRequest) {
   const limit = Math.min(Math.max(parseInt(url.searchParams.get("limit") || "50", 10) || 50, 1), 200);
   const offset = Math.max(parseInt(url.searchParams.get("offset") || "0", 10) || 0, 0);
 
-  // Recherche directe dans la table clients (tout le contenu), avec jointure users pour email
-  const where: any = {};
+  // Recherche avec filtre par businessId (reservations ou favoris)
+  const where: any = {
+    AND: [
+      businessId ? {
+        OR: [
+          { reservations: { some: { business_id: businessId } } },
+          { client_favorites: { some: { business_id: businessId } } }
+        ]
+      } : {},
+    ]
+  };
+
   if (q) {
-    where.OR = [
-      { first_name: { contains: q, mode: "insensitive" as any } },
-      { last_name: { contains: q, mode: "insensitive" as any } },
-      { phone: { contains: q, mode: "insensitive" as any } },
-      { users: { email: { contains: q, mode: "insensitive" as any } } as any },
-    ];
+    where.AND.push({
+      OR: [
+        { first_name: { contains: q, mode: "insensitive" as any } },
+        { last_name: { contains: q, mode: "insensitive" as any } },
+        { phone: { contains: q, mode: "insensitive" as any } },
+        { users: { email: { contains: q, mode: "insensitive" as any } } as any },
+      ]
+    });
   }
 
   const [total, rows] = await Promise.all([
