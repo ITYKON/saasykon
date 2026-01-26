@@ -9,13 +9,15 @@ export function ClientSearch({
   onChange,
   onSelect,
   className,
-  placeholder = "Rechercher un client..."
+  placeholder = "Rechercher un client...",
+  onKeyDown
 }: {
   value: string;
   onChange: (value: string) => void;
   onSelect: (client: { id: string; name: string; phone?: string; email?: string }) => void;
   className?: string;
   placeholder?: string;
+  onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
 }) {
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [isOpen, setIsOpen] = useState(false);
@@ -85,6 +87,7 @@ export function ClientSearch({
         onFocus={() => { setIsOpen(true); searchClients(value); }}
         placeholder={placeholder}
         className={className}
+        onKeyDown={onKeyDown}
       />
       {isOpen && (value.length > 0 || suggestions.length > 0) && (
         <div className="absolute z-10 mt-1 w-full rounded-md bg-white shadow-lg">

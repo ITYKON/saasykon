@@ -282,11 +282,11 @@ const responseData = await response.json();
 
   return (
 
-    <div className="min-h-screen bg-gray-50">
+    <form onSubmit={handleSubmit} className="min-h-screen bg-gray-50">
       <header className="bg-white border-b border-gray-200 px-6 pt-4 pb-1">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Profil de l'institut</h1>
-        <Button onClick={handleSubmit} disabled={isSaving}>
+        <Button type="submit" disabled={isSaving}>
           {isSaving ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -336,6 +336,12 @@ const responseData = await response.json();
                     onChange={handleInputChange}
                     placeholder="Décrivez votre établissement"
                     rows={4}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSubmit(e);
+                      }
+                    }}
                   />
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -613,10 +619,10 @@ const responseData = await response.json();
           </div>
 
           <div className="flex justify-end">
-            <Button variant="outline" className="mr-2">
+            <Button type="button" variant="outline" className="mr-2" onClick={() => router.back()}>
               Annuler
             </Button>
-            <Button onClick={handleSubmit} disabled={isSaving}>
+            <Button type="submit" disabled={isSaving}>
               {isSaving ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -648,6 +654,6 @@ const responseData = await response.json();
         </AlertDialogContent>
       </AlertDialog>
     </div>
-</div>
+    </form>
   )
 }

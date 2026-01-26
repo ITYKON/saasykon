@@ -93,37 +93,65 @@ export default function SalonSettingsPage() {
             <CardTitle>Vérification du dossier</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="text-sm text-muted-foreground">Statut: {status}</div>
-            <div>
-              <Label>Numéro RC</Label>
-              <Input value={rcNumber} onChange={(e)=>setRcNumber(e.target.value)} placeholder="RC..." />
-            </div>
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-              <div className="space-y-1">
-                <Label>Document RC</Label>
-                <Input type="file" accept="image/*,application/pdf" onChange={async (e)=>{
-                  const f=e.target.files?.[0]; if(!f) return; const url=await upload(f); setRcDoc(url); e.currentTarget.value="";
-                }} />
-                {rcDoc && <a className="text-sm underline" href={rcDoc} target="_blank" rel="noreferrer">Voir le document</a>}
+            <form 
+              onSubmit={async (e) => {
+                e.preventDefault();
+                await saveVerification();
+              }}
+              className="space-y-4"
+            >
+              <div className="text-sm text-muted-foreground">Statut: {status}</div>
+              <div>
+                <Label htmlFor="rcNumber">Numéro RC</Label>
+                <Input 
+                  id="rcNumber"
+                  value={rcNumber} 
+                  onChange={(e)=>setRcNumber(e.target.value)} 
+                  placeholder="RC..." 
+                />
               </div>
-              <div className="space-y-1">
-                <Label>CNI recto</Label>
-                <Input type="file" accept="image/*,application/pdf" onChange={async (e)=>{
-                  const f=e.target.files?.[0]; if(!f) return; const url=await upload(f); setIdFront(url); e.currentTarget.value="";
-                }} />
-                {idFront && <a className="text-sm underline" href={idFront} target="_blank" rel="noreferrer">Voir</a>}
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <div className="space-y-1">
+                  <Label htmlFor="rcDoc">Document RC</Label>
+                  <Input 
+                    id="rcDoc"
+                    type="file" 
+                    accept="image/*,application/pdf" 
+                    onChange={async (e)=>{
+                      const f=e.target.files?.[0]; if(!f) return; try { const url=await upload(f); setRcDoc(url); } catch(err) { toast({ title: "Erreur", description: "Upload échoué" }); } e.currentTarget.value="";
+                    }} 
+                  />
+                  {rcDoc && <a className="text-sm underline" href={rcDoc} target="_blank" rel="noreferrer">Voir le document</a>}
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="idFront">CNI recto</Label>
+                  <Input 
+                    id="idFront"
+                    type="file" 
+                    accept="image/*,application/pdf" 
+                    onChange={async (e)=>{
+                      const f=e.target.files?.[0]; if(!f) return; try { const url=await upload(f); setIdFront(url); } catch(err) { toast({ title: "Erreur", description: "Upload échoué" }); } e.currentTarget.value="";
+                    }} 
+                  />
+                  {idFront && <a className="text-sm underline" href={idFront} target="_blank" rel="noreferrer">Voir</a>}
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="idBack">CNI verso</Label>
+                  <Input 
+                    id="idBack"
+                    type="file" 
+                    accept="image/*,application/pdf" 
+                    onChange={async (e)=>{
+                      const f=e.target.files?.[0]; if(!f) return; try { const url=await upload(f); setIdBack(url); } catch(err) { toast({ title: "Erreur", description: "Upload échoué" }); } e.currentTarget.value="";
+                    }} 
+                  />
+                  {idBack && <a className="text-sm underline" href={idBack} target="_blank" rel="noreferrer">Voir</a>}
+                </div>
               </div>
-              <div className="space-y-1">
-                <Label>CNI verso</Label>
-                <Input type="file" accept="image/*,application/pdf" onChange={async (e)=>{
-                  const f=e.target.files?.[0]; if(!f) return; const url=await upload(f); setIdBack(url); e.currentTarget.value="";
-                }} />
-                {idBack && <a className="text-sm underline" href={idBack} target="_blank" rel="noreferrer">Voir</a>}
+              <div className="pt-2">
+                <Button type="submit" disabled={loading}>{loading?"Enregistrement…":"Enregistrer"}</Button>
               </div>
-            </div>
-            <div className="pt-2">
-              <Button onClick={saveVerification} disabled={loading}>{loading?"Enregistrement…":"Enregistrer"}</Button>
-            </div>
+            </form>
           </CardContent>
         </Card>
       )}

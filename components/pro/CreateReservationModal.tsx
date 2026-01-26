@@ -296,7 +296,13 @@ export default function CreateReservationModal({
         {loading ? (
           <div className="py-6 text-sm text-gray-600">Chargement…</div>
         ) : (
-          <div className="space-y-4">
+          <form 
+            onSubmit={(e) => {
+              e.preventDefault();
+              submit();
+            }}
+            className="space-y-4"
+          >
             <div className="space-y-4">
               {/* Section Client */}
               <div className="space-y-2">
@@ -491,6 +497,12 @@ export default function CreateReservationModal({
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Notes supplémentaires pour la réservation..."
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      submit();
+                    }
+                  }}
                 />
               </div>
 
@@ -506,8 +518,7 @@ export default function CreateReservationModal({
                   </Button>
                   <div className="relative group">
                     <Button 
-                      type="button"
-                      onClick={submit}
+                      type="submit"
                       disabled={submitting || !client || !serviceId || !date || !time}
                       className="w-full"
                     >
@@ -539,7 +550,7 @@ export default function CreateReservationModal({
                 * Champs obligatoires
               </p>
             </div>
-          </div>
+          </form>
         )}
       </DialogContent>
     </Dialog>

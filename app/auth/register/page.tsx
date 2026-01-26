@@ -144,165 +144,9 @@ export default function RegisterPage() {
             <CardHeader className="text-center pb-6">
               <CardTitle className="text-xl font-semibold">Nouveau sur YOKA ?</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="first_name">Prénom</Label>
-                    <div className="space-y-1">
-                      <Input
-                        id="first_name"
-                        required
-                        value={formData.first_name}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          setFormData({ ...formData, first_name: value });
-                          setFirstNameError(validateName(value, 'first_name'));
-                        }}
-                        className="mt-1"
-                        placeholder="Votre prénom"
-                      />
-                      {firstNameError && (
-                        <p className="text-sm text-red-500">{firstNameError}</p>
-                      )}
-                    </div>
-                  </div>
-                  <div>
-                    <Label htmlFor="last_name">Nom</Label>
-                    <div className="space-y-1">
-                      <Input
-                        id="last_name"
-                        required
-                        value={formData.last_name}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          setFormData({ ...formData, last_name: value });
-                          setLastNameError(validateName(value, 'last_name'));
-                        }}
-                        className="mt-1"
-                        placeholder="Votre nom"
-                      />
-                      {lastNameError && (
-                        <p className="text-sm text-red-500">{lastNameError}</p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                <div>
-                  <div className="space-y-1">
-                    <Label htmlFor="phone">Téléphone portable</Label>
-                    <PhoneInput
-                      id="phone"
-                      required
-                      value={formData.phone}
-                      onChange={(value) => {
-                        setFormData({ ...formData, phone: value || '' });
-                        if (value) {
-                          setPhoneError(validatePhone(value));
-                        } else {
-                          setPhoneError('Le numéro de téléphone est requis');
-                        }
-                      }}
-                      defaultCountry="DZ"
-                      placeholder="Entrez votre numéro..."
-                      className={cn("mt-1", phoneError && "border-red-500 focus-visible:ring-red-500")}
-                    />
-                    {phoneError && (
-                      <p className="text-sm text-red-500">{phoneError}</p>
-                    )}
-                  </div>
-                </div>
-
-                <div>
-                  <Label htmlFor="email">Email </Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => {
-                      setFormData({ ...formData, email: e.target.value });
-                      setEmailError(null); // Clear error on change
-                    }}
-                    onBlur={(e) => checkEmail(e.target.value)}
-                    className="mt-1"
-                    placeholder="Email"
-                  />
-                  {emailError && (
-                    <p className="text-sm text-red-500 mt-1">{emailError}</p>
-                  )}
-                </div>
-
-                <div>
-                  <Label htmlFor="password">Mot de passe </Label>
-                  <div className="relative mt-1">
-                    <Input
-                      id="password"
-                      type={showPassword ? "text" : "password"}
-                      value={formData.password}
-                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                      placeholder="Mot de passe"
-                    />
-                    <button
-                      type="button"
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2"
-                      onClick={() => setShowPassword(!showPassword)}
-                    >
-                      {showPassword ? (
-                        <EyeOff className="h-4 w-4 text-gray-400" />
-                      ) : (
-                        <Eye className="h-4 w-4 text-gray-400" />
-                      )}
-                    </button>
-                  </div>
-                </div>
-
-              </div>
-                                <div className="flex flex-col gap-3">
-                  <div className="flex items-start gap-1">
-                    <Checkbox 
-                      id="consent" 
-                      checked={formData.acceptTerms} 
-                      onCheckedChange={(v) => {
-                        setFormData({ ...formData, acceptTerms: Boolean(v) });
-                        if (v) setShowConsentError(false);
-                      }} 
-                    />
-               <Label
-                 htmlFor="consent"
-                 className="text-sm font-normal text-muted-foreground"
-               >
-                 <span className="inline">
-                   J'accepte les conditions d'utilisation, la{" "}
-                   <Link
-                     href="/a-propos/mentions-legales"
-                     className="text-primary underline hover:text-primary/80"
-                   >
-                     politique de confidentialité
-                   </Link>
-                   .
-                 </span>
-                </Label>
-
-                  </div>
-                  {showConsentError && (
-                    <p className="text-sm text-red-500">Veuillez accepter les conditions générales.</p>
-                  )}
-                </div>
-
-                {error && (
-                  <div className="p-2 mb-2 text-sm text-red-700  ">
-                    <div className="flex items-center">
-                      <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h2a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd"></path>
-                      </svg>
-                      <span className="font-medium">{error}</span>
-                    </div>
-                  </div>
-                )}
-              <Button
-                className="w-full bg-black hover:bg-gray-800 text-white"
-                disabled={isPending || isSubmitting}
-                onClick={async (e) => {
+            <CardContent>
+              <form 
+                onSubmit={async (e) => {
                   e.preventDefault();
                   setError(null);
                   
@@ -383,6 +227,166 @@ export default function RegisterPage() {
                     setIsSubmitting(false);
                   }
                 }}
+                className="space-y-6"
+              >
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="first_name">Prénom</Label>
+                      <div className="space-y-1">
+                        <Input
+                          id="first_name"
+                          required
+                          value={formData.first_name}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            setFormData({ ...formData, first_name: value });
+                            setFirstNameError(validateName(value, 'first_name'));
+                          }}
+                          className="mt-1"
+                          placeholder="Votre prénom"
+                        />
+                        {firstNameError && (
+                          <p className="text-sm text-red-500">{firstNameError}</p>
+                        )}
+                      </div>
+                    </div>
+                    <div>
+                      <Label htmlFor="last_name">Nom</Label>
+                      <div className="space-y-1">
+                        <Input
+                          id="last_name"
+                          required
+                          value={formData.last_name}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            setFormData({ ...formData, last_name: value });
+                            setLastNameError(validateName(value, 'last_name'));
+                          }}
+                          className="mt-1"
+                          placeholder="Votre nom"
+                        />
+                        {lastNameError && (
+                          <p className="text-sm text-red-500">{lastNameError}</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="space-y-1">
+                      <Label htmlFor="phone">Téléphone portable</Label>
+                      <PhoneInput
+                        id="phone"
+                        required
+                        value={formData.phone}
+                        onChange={(value) => {
+                          setFormData({ ...formData, phone: value || '' });
+                          if (value) {
+                            setPhoneError(validatePhone(value));
+                          } else {
+                            setPhoneError('Le numéro de téléphone est requis');
+                          }
+                        }}
+                        defaultCountry="DZ"
+                        placeholder="Entrez votre numéro..."
+                        className={cn("mt-1", phoneError && "border-red-500 focus-visible:ring-red-500")}
+                      />
+                      {phoneError && (
+                        <p className="text-sm text-red-500">{phoneError}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="email">Email </Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => {
+                        setFormData({ ...formData, email: e.target.value });
+                        setEmailError(null); // Clear error on change
+                      }}
+                      onBlur={(e) => checkEmail(e.target.value)}
+                      className="mt-1"
+                      placeholder="Email"
+                    />
+                    {emailError && (
+                      <p className="text-sm text-red-500 mt-1">{emailError}</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <Label htmlFor="password">Mot de passe </Label>
+                    <div className="relative mt-1">
+                      <Input
+                        id="password"
+                        type={showPassword ? "text" : "password"}
+                        value={formData.password}
+                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                        placeholder="Mot de passe"
+                      />
+                      <button
+                        type="button"
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? (
+                          <EyeOff className="h-4 w-4 text-gray-400" />
+                        ) : (
+                          <Eye className="h-4 w-4 text-gray-400" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                </div>
+                                <div className="flex flex-col gap-3">
+                  <div className="flex items-start gap-1">
+                    <Checkbox 
+                      id="consent" 
+                      checked={formData.acceptTerms} 
+                      onCheckedChange={(v) => {
+                        setFormData({ ...formData, acceptTerms: Boolean(v) });
+                        if (v) setShowConsentError(false);
+                      }} 
+                    />
+               <Label
+                 htmlFor="consent"
+                 className="text-sm font-normal text-muted-foreground"
+               >
+                 <span className="inline">
+                   J'accepte les conditions d'utilisation, la{" "}
+                   <Link
+                     href="/a-propos/mentions-legales"
+                     className="text-primary underline hover:text-primary/80"
+                   >
+                     politique de confidentialité
+                   </Link>
+                   .
+                 </span>
+                </Label>
+
+                  </div>
+                  {showConsentError && (
+                    <p className="text-sm text-red-500">Veuillez accepter les conditions générales.</p>
+                  )}
+                </div>
+
+                {error && (
+                  <div className="p-2 mb-2 text-sm text-red-700  ">
+                    <div className="flex items-center">
+                      <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h2a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd"></path>
+                      </svg>
+                      <span className="font-medium">{error}</span>
+                    </div>
+                  </div>
+                )}
+              <Button
+                type="submit"
+                className="w-full bg-black hover:bg-gray-800 text-white"
+                disabled={isPending || isSubmitting}
               >
                 {isPending ? "Création..." : "Créer mon compte"}
               </Button>
@@ -403,9 +407,10 @@ export default function RegisterPage() {
                 <span className="text-gray-500">OU</span>
               </div>
 
-              <Button variant="outline" className="w-full bg-transparent" asChild>
+              <Button type="button" variant="outline" className="w-full bg-transparent" asChild>
                 <Link href="/auth/login">Se connecter</Link>
               </Button>
+              </form>
             </CardContent>
           </Card>
         </div>
