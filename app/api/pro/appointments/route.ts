@@ -33,10 +33,60 @@ export async function POST(req: NextRequest) {
 
   // Create reservation + items in a transaction
   const created = await prisma.$transaction(async (tx) => {
+    let finalClientId = client_id;
+
+    // Handle new client creation if provided
+    if (!finalClientId && body.new_client) {
+      const { first_name, last_name, phone, email } = body.new_client;
+      if (first_name || last_name) {
+        let userIdForClient = null;
+
+        // If email provided, find or create user to link
+        if (email) {
+            const existingUser = await tx.users.findUnique({ where: { email } });
+            if (existingUser) {
+                userIdForClient = existingUser.id;
+            } else {
+                // Create shadow user for this email
+                // We don't set a password, they can claim it later?
+                const newUser = await tx.users.create({
+                    data: {
+                        email,
+                        first_name: first_name || "",
+                        last_name: last_name || "",
+                        phone: phone || null,
+                        is_email_verified: false, // Pending verification
+                    }
+                });
+                userIdForClient = newUser.id;
+            }
+        }
+
+        const newClient = await tx.clients.create({
+          data: {
+            user_id: userIdForClient,
+            first_name: first_name || "",
+            last_name: last_name || "",
+            phone: phone || null,
+            status: "NOUVEAU",
+          }
+        });
+        finalClientId = newClient.id;
+
+        // Optionally link to business favorites
+        await tx.client_favorites.create({
+          data: {
+            business_id: bizId,
+            client_id: newClient.id
+          }
+        });
+      }
+    }
+
     const reservation = await tx.reservations.create({
       data: {
         business_id: bizId,
-        client_id: client_id || null,
+        client_id: finalClientId || null,
         employee_id: employee_id || null,
         location_id: location_id || null,
         booker_user_id: ctx.userId,

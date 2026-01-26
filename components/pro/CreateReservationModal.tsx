@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import useAuth from "@/hooks/useAuth";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,6 +24,9 @@ export default function CreateReservationModal({
   defaultEmployeeId?: string | "none";
   forceOpenSignal?: number;
 }) {
+  const { auth } = useAuth();
+  const businessId = auth?.assignments?.[0]?.business_id;
+
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [services, setServices] = useState<any[]>([]);
@@ -45,6 +49,13 @@ export default function CreateReservationModal({
   const [duration, setDuration] = useState<string>("");
   const [notes, setNotes] = useState<string>("");
   const [availabilityError, setAvailabilityError] = useState<string | null>(null);
+
+  // New Client State
+  const [isNewClient, setIsNewClient] = useState(false);
+  const [newClientLastName, setNewClientLastName] = useState("");
+  const [newClientFirstName, setNewClientFirstName] = useState("");
+  const [newClientPhone, setNewClientPhone] = useState("");
+  const [newClientEmail, setNewClientEmail] = useState("");
 
   // Charger les services et employés
   useEffect(() => {
@@ -115,6 +126,7 @@ export default function CreateReservationModal({
       email: client.email
     });
     setClientSearch(client.name);
+    setIsNewClient(false);
   }, []);
 
   useEffect(() => {
@@ -195,9 +207,19 @@ export default function CreateReservationModal({
     setAvailabilityError(null);
     
     // Validation des champs obligatoires
-    if (!client) {
+    if (!isNewClient && !client) {
       setAvailabilityError("Veuillez sélectionner un client");
       return;
+    }
+
+    if (isNewClient && (!newClientLastName || !newClientFirstName)) {
+      setAvailabilityError("Veuillez renseigner le nom et le prénom du client");
+      return;
+    }
+    
+    if (isNewClient && !newClientPhone) {
+        setAvailabilityError("Veuillez renseigner le numéro de téléphone");
+        return;
     }
     
     if (!serviceId) {
@@ -226,7 +248,13 @@ export default function CreateReservationModal({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          client_id: client.id,
+          client_id: isNewClient ? null : client?.id,
+          new_client: isNewClient ? {
+            first_name: newClientFirstName,
+            last_name: newClientLastName,
+            phone: newClientPhone,
+            email: newClientEmail
+          } : null,
           employee_id: employeeId === "none" ? null : employeeId || null,
           starts_at: starts_at.toISOString(),
           notes: notes || null,
@@ -254,6 +282,13 @@ export default function CreateReservationModal({
       // Réinitialiser le formulaire
       setClient(null);
       setClientSearch("");
+      setIsNewClient(false);
+      setNewClientFirstName("");
+      setNewClientLastName("");
+      setNewClientFirstName("");
+      setNewClientLastName("");
+      setNewClientPhone("");
+      setNewClientEmail("");
       setServiceId("");
       setVariantId("");
       setEmployeeId("none");
@@ -274,7 +309,7 @@ export default function CreateReservationModal({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Nouveau RDV</DialogTitle>
           {availabilityError && (
@@ -306,19 +341,84 @@ export default function CreateReservationModal({
             <div className="space-y-4">
               {/* Section Client */}
               <div className="space-y-2">
-                <Label htmlFor="client">Client *</Label>
-                <ClientSearch
-                  value={clientSearch}
-                  onChange={setClientSearch}
-                  onSelect={handleClientSelect}
-                  placeholder="Rechercher un client par nom, email ou téléphone"
-                />
-                {client && (
-                  <div className="mt-2 p-3 bg-gray-50 rounded-md">
-                    <div className="font-medium">{client.name}</div>
-                    {client.phone && <div className="text-sm text-gray-600">📞 {client.phone}</div>}
-                    {client.email && <div className="text-sm text-gray-600">✉️ {client.email}</div>}
-                  </div>
+                <div className="flex justify-between items-center">
+                    <Label htmlFor="client">Client *</Label>
+                    <Button 
+                        type="button" 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-auto p-0 text-blue-600 hover:text-blue-800"
+                        onClick={() => {
+                            setIsNewClient(!isNewClient);
+                            setClient(null);
+                            setClientSearch("");
+                        }}
+                    >
+                        {isNewClient ? "Rechercher un client existant" : "Nouveau client ?"}
+                    </Button>
+                </div>
+                
+                {isNewClient ? (
+                    <div className="grid grid-cols-2 gap-3 p-3 bg-gray-50 rounded-md border border-gray-100">
+                        <div className="space-y-1">
+                            <Label htmlFor="newClientLastName" className="text-xs">Nom *</Label>
+                            <Input 
+                                id="newClientLastName"
+                                value={newClientLastName}
+                                onChange={(e) => setNewClientLastName(e.target.value)}
+                                placeholder="Nom"
+                                className="h-8 text-sm"
+                            />
+                        </div>
+                        <div className="space-y-1">
+                            <Label htmlFor="newClientFirstName" className="text-xs">Prénom *</Label>
+                            <Input 
+                                id="newClientFirstName"
+                                value={newClientFirstName}
+                                onChange={(e) => setNewClientFirstName(e.target.value)}
+                                placeholder="Prénom"
+                                className="h-8 text-sm"
+                            />
+                        </div>
+                        <div className="space-y-1">
+                            <Label htmlFor="newClientPhone" className="text-xs">Téléphone *</Label>
+                            <Input 
+                                id="newClientPhone"
+                                value={newClientPhone}
+                                onChange={(e) => setNewClientPhone(e.target.value)}
+                                placeholder="05XXXXXXXX"
+                                className="h-8 text-sm"
+                            />
+                        </div>
+                        <div className="space-y-1">
+                            <Label htmlFor="newClientEmail" className="text-xs">Email</Label>
+                            <Input 
+                                id="newClientEmail"
+                                type="email"
+                                value={newClientEmail}
+                                onChange={(e) => setNewClientEmail(e.target.value)}
+                                placeholder="client@exemple.com"
+                                className="h-8 text-sm"
+                            />
+                        </div>
+                    </div>
+                ) : (
+                    <>
+                        <ClientSearch
+                        value={clientSearch}
+                        onChange={setClientSearch}
+                        onSelect={handleClientSelect}
+                        placeholder="Rechercher un client par nom, email ou téléphone"
+                        businessId={businessId}
+                        />
+                        {client && (
+                        <div className="mt-2 p-3 bg-gray-50 rounded-md">
+                            <div className="font-medium">{client.name}</div>
+                            {client.phone && <div className="text-sm text-gray-600">📞 {client.phone}</div>}
+                            {client.email && <div className="text-sm text-gray-600">✉️ {client.email}</div>}
+                        </div>
+                        )}
+                    </>
                 )}
               </div>
 
@@ -519,26 +619,28 @@ export default function CreateReservationModal({
                   <div className="relative group">
                     <Button 
                       type="submit"
-                      disabled={submitting || !client || !serviceId || !date || !time}
+                      disabled={submitting || (!isNewClient && !client) || (isNewClient && (!newClientFirstName || !newClientLastName)) || !serviceId || !date || !time}
                       className="w-full"
                     >
                       {submitting ? "Création en cours..." : "Confirmer la réservation"}
                     </Button>
                     
                     {/* Message d'aide au survol */}
-                    {(submitting || !client || !serviceId || !date || !time) && (
+                    {(submitting || (!isNewClient && !client) || (isNewClient && (!newClientFirstName || !newClientLastName)) || !serviceId || !date || !time) && (
                       <div className="absolute bottom-full right-0 mb-2 hidden group-hover:block bg-gray-800 text-white text-xs rounded px-2 py-1 whitespace-nowrap">
                         {submitting ? "Traitement en cours..." :
-                         !client ? "Sélectionnez d'abord un client" :
+                         (!isNewClient && !client) ? "Sélectionnez d'abord un client" :
+                         (isNewClient && (!newClientFirstName || !newClientLastName)) ? "Remplissez le nom et prénom" : 
                          !serviceId ? "Sélectionnez un service" :
                          !date || !time ? "Sélectionnez une date et une heure" : 
                          "Confirmer la réservation"}
                       </div>
                     )}
                   </div>
-                  {!client || !serviceId || !date || !time ? (
+                  {(!isNewClient && !client) || (isNewClient && (!newClientFirstName || !newClientLastName)) || !serviceId || !date || !time ? (
                     <p className="text-sm text-gray-500 text-center">
-                      {!client ? "Sélectionnez un client" :
+                      {(!isNewClient && !client) ? "Sélectionnez un client" :
+                       (isNewClient && (!newClientFirstName || !newClientLastName)) ? "Remplissez le nom et prénom" :
                        !serviceId ? "Sélectionnez un service" :
                        !date || !time ? "Sélectionnez une date et une heure" : ""}
                     </p>
