@@ -659,7 +659,7 @@ interface BookingWizardProps {
           {error && <div className="text-sm text-red-600 text-center">{error}</div>}
           <Button
             className="w-full bg-black text-white hover:bg-gray-800"
-            disabled={authLoading || submitting || selectedItems.length === 0 || !selectedDate || !selectedTime}
+            disabled={authLoading || submitting || submitLock.current || selectedItems.length === 0 || !selectedDate || !selectedTime}
             onClick={async () => {
               if (submitLock.current) return
               submitLock.current = true
@@ -1005,7 +1005,7 @@ const errorMessage = res.status === 409
           {error && <div className="text-sm text-red-600 text-center">{error}</div>}
           <Button
             className="w-full bg-black text-white hover:bg-gray-800"
-            disabled={authLoading || submitting || selectedItems.length === 0 || !selectedDate || !selectedTime}
+            disabled={authLoading || submitting || submitLock.current || selectedItems.length === 0 || !selectedDate || !selectedTime}
             onClick={async () => {
               if (submitLock.current) return
               submitLock.current = true
