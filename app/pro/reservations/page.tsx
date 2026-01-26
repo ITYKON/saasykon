@@ -706,95 +706,102 @@ export default function ReservationsPage() {
           <DialogHeader>
             <DialogTitle>Modifier la réservation</DialogTitle>
           </DialogHeader>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm mb-1">Client</label>
-              <ClientSearch 
-                value={editData?.client?.name || ''}
-                onChange={() => {}}
-                onSelect={(c: any) => setEditData(d => d ? { ...d, client: c ? { id: c.id, name: c.name } : null } : d)} 
-              />
+          <form 
+            onSubmit={(e) => {
+              e.preventDefault();
+              saveEdit();
+            }}
+          >
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm mb-1">Client</label>
+                <ClientSearch 
+                  value={editData?.client?.name || ''}
+                  onChange={(val) => setEditData(d => d ? { ...d, client: { ...(d.client || { id: '' }), name: val } } : d)}
+                  onSelect={(c: any) => setEditData(d => d ? { ...d, client: c ? { id: c.id, name: c.name } : null } : d)} 
+                />
+              </div>
+              <div>
+                <label className="block text-sm mb-1">Statut</label>
+                <Select value={editData?.status || 'CONFIRMED'} onValueChange={(v) => setEditData(d => d ? { ...d, status: v } : d)}>
+                  <SelectTrigger><SelectValue placeholder="Sélectionner" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="CONFIRMED">Confirmé</SelectItem>
+                    <SelectItem value="PENDING">En attente</SelectItem>
+                    <SelectItem value="COMPLETED">Terminé</SelectItem>
+                    <SelectItem value="CANCELLED">Annulé</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="block text-sm mb-1">Date</label>
+                <Input type="date" value={editData?.date || ''} onChange={(e) => setEditData(d => d ? { ...d, date: e.target.value } : d)} />
+              </div>
+              <div>
+                <label className="block text-sm mb-1">Heure</label>
+                <Input type="time" value={editData?.time || ''} onChange={(e) => setEditData(d => d ? { ...d, time: e.target.value } : d)} />
+              </div>
+              <div>
+                <label className="block text-sm mb-1">Service</label>
+                <Select value={editData?.item?.service_id || ''} onValueChange={(v) => {
+                  const svc = services.find((s: any) => s.id === v)
+                  setVariants(svc?.service_variants || [])
+                  setEditData(d => d ? { ...d, item: d.item ? { ...d.item, service_id: v, variant_id: null } : d.item } : d)
+                }}>
+                  <SelectTrigger><SelectValue placeholder="Sélectionner" /></SelectTrigger>
+                  <SelectContent>
+                    {services.map((s: any) => (
+                      <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="block text-sm mb-1">Variante</label>
+                <Select value={editData?.item?.variant_id || ""} onValueChange={(v) => setEditData(d => d ? { ...d, item: d.item ? { ...d.item, variant_id: v } : d.item } : d)}>
+                  <SelectTrigger><SelectValue placeholder="Sélectionner" /></SelectTrigger>
+                  <SelectContent>
+                    {variants.map((v: any) => (
+                      <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="block text-sm mb-1">Employé (item)</label>
+                <Select value={editData?.item?.employee_id ?? "none"} onValueChange={(v) => setEditData(d => d ? { ...d, item: d.item ? { ...d.item, employee_id: v === 'none' ? null : v } : d.item } : d)}>
+                  <SelectTrigger><SelectValue placeholder="Sélectionner" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Aucun</SelectItem>
+                    {employees.map((e: any) => (
+                      <SelectItem key={e.id} value={e.id}>{e.full_name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="block text-sm mb-1">Durée (minutes)</label>
+                <Input type="number" value={editData?.item?.duration_minutes ?? 0} onChange={(e) => setEditData(d => d && d.item ? { ...d, item: { ...d.item, duration_minutes: Number(e.target.value || 0) } } : d)} />
+              </div>
+              <div>
+                <label className="block text-sm mb-1">Prix (DA)</label>
+                <Input 
+                  type="number" 
+                  step="1" 
+                  value={editData?.item ? String(Math.floor((editData.item.price_cents || 0)/100)) : ''} 
+                  onChange={(e) => setEditData(d => d && d.item ? { ...d, item: { ...d.item, price_cents: Math.max(0, Math.floor(Number(e.target.value || 0))) * 100 } } : d)} 
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm mb-1">Notes</label>
+                <Input value={editData?.notes || ''} onChange={(e) => setEditData(d => d ? { ...d, notes: e.target.value } : d)} />
+              </div>
             </div>
-            <div>
-              <label className="block text-sm mb-1">Statut</label>
-              <Select value={editData?.status || 'CONFIRMED'} onValueChange={(v) => setEditData(d => d ? { ...d, status: v } : d)}>
-                <SelectTrigger><SelectValue placeholder="Sélectionner" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="CONFIRMED">Confirmé</SelectItem>
-                  <SelectItem value="PENDING">En attente</SelectItem>
-                  <SelectItem value="COMPLETED">Terminé</SelectItem>
-                  <SelectItem value="CANCELLED">Annulé</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="flex justify-end gap-2 mt-4">
+              <Button type="button" variant="outline" onClick={() => setIsEditOpen(false)}>Annuler</Button>
+              <Button type="submit" disabled={savingEdit || !editData?.date || !editData?.time || !editData?.item?.service_id}>{savingEdit ? 'Enregistrement...' : 'Enregistrer'}</Button>
             </div>
-            <div>
-              <label className="block text-sm mb-1">Date</label>
-              <Input type="date" value={editData?.date || ''} onChange={(e) => setEditData(d => d ? { ...d, date: e.target.value } : d)} />
-            </div>
-            <div>
-              <label className="block text-sm mb-1">Heure</label>
-              <Input type="time" value={editData?.time || ''} onChange={(e) => setEditData(d => d ? { ...d, time: e.target.value } : d)} />
-            </div>
-            <div>
-              <label className="block text-sm mb-1">Service</label>
-              <Select value={editData?.item?.service_id || ''} onValueChange={(v) => {
-                const svc = services.find((s: any) => s.id === v)
-                setVariants(svc?.service_variants || [])
-                setEditData(d => d ? { ...d, item: d.item ? { ...d.item, service_id: v, variant_id: null } : d.item } : d)
-              }}>
-                <SelectTrigger><SelectValue placeholder="Sélectionner" /></SelectTrigger>
-                <SelectContent>
-                  {services.map((s: any) => (
-                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="block text-sm mb-1">Variante</label>
-              <Select value={editData?.item?.variant_id || ""} onValueChange={(v) => setEditData(d => d ? { ...d, item: d.item ? { ...d.item, variant_id: v } : d.item } : d)}>
-                <SelectTrigger><SelectValue placeholder="Sélectionner" /></SelectTrigger>
-                <SelectContent>
-                  {variants.map((v: any) => (
-                    <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="block text-sm mb-1">Employé (item)</label>
-              <Select value={editData?.item?.employee_id ?? "none"} onValueChange={(v) => setEditData(d => d ? { ...d, item: d.item ? { ...d.item, employee_id: v === 'none' ? null : v } : d.item } : d)}>
-                <SelectTrigger><SelectValue placeholder="Sélectionner" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Aucun</SelectItem>
-                  {employees.map((e: any) => (
-                    <SelectItem key={e.id} value={e.id}>{e.full_name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="block text-sm mb-1">Durée (minutes)</label>
-              <Input type="number" value={editData?.item?.duration_minutes ?? 0} onChange={(e) => setEditData(d => d && d.item ? { ...d, item: { ...d.item, duration_minutes: Number(e.target.value || 0) } } : d)} />
-            </div>
-            <div>
-              <label className="block text-sm mb-1">Prix (DA)</label>
-              <Input 
-                type="number" 
-                step="1" 
-                value={editData?.item ? String(Math.floor((editData.item.price_cents || 0)/100)) : ''} 
-                onChange={(e) => setEditData(d => d && d.item ? { ...d, item: { ...d.item, price_cents: Math.max(0, Math.floor(Number(e.target.value || 0))) * 100 } } : d)} 
-              />
-            </div>
-            <div className="md:col-span-2">
-              <label className="block text-sm mb-1">Notes</label>
-              <Input value={editData?.notes || ''} onChange={(e) => setEditData(d => d ? { ...d, notes: e.target.value } : d)} />
-            </div>
-          </div>
-          <div className="flex justify-end gap-2 mt-4">
-            <Button variant="outline" onClick={() => setIsEditOpen(false)}>Annuler</Button>
-            <Button onClick={saveEdit} disabled={savingEdit || !editData?.date || !editData?.time || !editData?.item?.service_id}>{savingEdit ? 'Enregistrement...' : 'Enregistrer'}</Button>
-          </div>
+          </form>
         </DialogContent>
       </Dialog>
     </div>

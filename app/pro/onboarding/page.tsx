@@ -139,14 +139,20 @@ export default function ProOnboardingPage() {
         </CardHeader>
         <CardContent>
           {step === 0 && (
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <form 
+              onSubmit={(e) => {
+                e.preventDefault();
+                next();
+              }}
+              className="grid grid-cols-1 gap-3 md:grid-cols-2"
+            >
               <div>
-                <Label>Prénom</Label>
-                <Input value={draft.identity?.first_name || ""} onChange={(e)=>setDraft(d=>({ ...d, identity:{...d.identity, first_name:e.target.value} }))} />
+                <Label htmlFor="ident-first">Prénom</Label>
+                <Input id="ident-first" value={draft.identity?.first_name || ""} onChange={(e)=>setDraft(d=>({ ...d, identity:{...d.identity, first_name:e.target.value} }))} required />
               </div>
               <div>
-                <Label>Nom</Label>
-                <Input value={draft.identity?.last_name || ""} onChange={(e)=>setDraft(d=>({ ...d, identity:{...d.identity, last_name:e.target.value} }))} />
+                <Label htmlFor="ident-last">Nom</Label>
+                <Input id="ident-last" value={draft.identity?.last_name || ""} onChange={(e)=>setDraft(d=>({ ...d, identity:{...d.identity, last_name:e.target.value} }))} required />
               </div>
               <div className="md:col-span-2 space-y-1">
                 <Label>Carte d'identité (recto) — requis</Label>
@@ -164,18 +170,28 @@ export default function ProOnboardingPage() {
                 </div>
                 {uploading === "id_card_back" ? <div className="text-xs text-muted-foreground">Téléversement…</div> : draft.identity?.id_card_back && <div className="text-xs text-emerald-600">Fichier téléversé</div>}
               </div>
-            </div>
+              <div className="md:col-span-2 pt-2">
+                <Button type="submit" className="w-full">Suivant</Button>
+              </div>
+            </form>
           )}
 
+
           {step === 1 && (
-            <div className="grid grid-cols-1 gap-3">
+            <form 
+              onSubmit={(e) => {
+                e.preventDefault();
+                next();
+              }}
+              className="grid grid-cols-1 gap-3"
+            >
               <div>
-                <Label>Numéro RC</Label>
-                <Input value={draft.registry?.rc_number || ""} onChange={(e)=>setDraft(d=>({ ...d, registry:{...d.registry, rc_number:e.target.value} }))} />
+                <Label htmlFor="reg-rc">Numéro RC</Label>
+                <Input id="reg-rc" value={draft.registry?.rc_number || ""} onChange={(e)=>setDraft(d=>({ ...d, registry:{...d.registry, rc_number:e.target.value} }))} required />
               </div>
               <div>
-                <Label>NIF</Label>
-                <Input value={draft.registry?.nif || ""} onChange={(e)=>setDraft(d=>({ ...d, registry:{...d.registry, nif:e.target.value} }))} />
+                <Label htmlFor="reg-nif">NIF</Label>
+                <Input id="reg-nif" value={draft.registry?.nif || ""} onChange={(e)=>setDraft(d=>({ ...d, registry:{...d.registry, nif:e.target.value} }))} required />
               </div>
               <div className="space-y-1">
                 <Label>Document registre (PDF/JPG) — requis</Label>
@@ -185,45 +201,109 @@ export default function ProOnboardingPage() {
                 </div>
                 {uploading === "registry_doc" ? <div className="text-xs text-muted-foreground">Téléversement…</div> : draft.registry?.registry_doc && <div className="text-xs text-emerald-600">Fichier téléversé</div>}
               </div>
-            </div>
+              <div className="pt-2">
+                <Button type="submit" className="w-full">Suivant</Button>
+              </div>
+            </form>
           )}
 
+
           {step === 2 && (
-            <div className="grid grid-cols-1 gap-3">
-              <div>
-                <Label>Nom du salon</Label>
-                <Input value={draft.business?.name || ""} onChange={(e)=>setDraft(d=>({ ...d, business:{...d.business, name:e.target.value} }))} />
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                next(); // Use the existing 'next' function
+              }}
+              className="space-y-6"
+            >
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="firstName">Prénom</Label>
+                    <Input
+                      id="firstName"
+                      value={draft.identity?.first_name || ""} // Map to existing draft state
+                      onChange={(e) => setDraft(d => ({ ...d, identity: { ...d.identity, first_name: e.target.value } }))}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="lastName">Nom</Label>
+                    <Input
+                      id="lastName"
+                      value={draft.identity?.last_name || ""} // Map to existing draft state
+                      onChange={(e) => setDraft(d => ({ ...d, identity: { ...d.identity, last_name: e.target.value } }))}
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="salonName">Nom du salon</Label>
+                  <Input
+                    id="salonName"
+                    value={draft.business?.name || ""} // Map to existing draft state
+                    onChange={(e) => setDraft(d => ({ ...d, business: { ...d.business, name: e.target.value } }))}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="address">Adresse du salon</Label>
+                  <Input
+                    id="address"
+                    value={draft.business?.address || ""} // Map to existing draft state
+                    onChange={(e) => setDraft(d => ({ ...d, business: { ...d.business, address: e.target.value } }))}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Téléphone portable</Label>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    // This field is new, assuming it should be stored somewhere, e.g., in business or identity.
+                    // For now, let's add it to business as a placeholder.
+                    value={draft.business?.phone || ""} // Assuming a 'phone' field in business
+                    onChange={(e) => setDraft(d => ({ ...d, business: { ...d.business, phone: e.target.value } }))}
+                    required
+                  />
+                </div>
               </div>
-              <div>
-                <Label>Adresse</Label>
-                <Input value={draft.business?.address || ""} onChange={(e)=>setDraft(d=>({ ...d, business:{...d.business, address:e.target.value} }))} />
-              </div>
-              <div>
-                <Label>Ville</Label>
-                <Input value={draft.business?.city || ""} onChange={(e)=>setDraft(d=>({ ...d, business:{...d.business, city:e.target.value} }))} />
-              </div>
-              <div>
-                <Label>Description</Label>
-                <Textarea value={draft.business?.description || ""} onChange={(e)=>setDraft(d=>({ ...d, business:{...d.business, description:e.target.value} }))} />
-              </div>
-            </div>
+              <Button type="submit" className="w-full">
+                Suivant
+              </Button>
+            </form>
           )}
 
           {step === 3 && (
-            <div className="grid grid-cols-1 gap-3">
+            <form 
+              onSubmit={(e) => {
+                e.preventDefault();
+                next();
+              }}
+              className="grid grid-cols-1 gap-3"
+            >
               <div className="text-sm text-muted-foreground">Configurez vos horaires (ex: 09:00 - 18:00).</div>
               {["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"].map((day, idx)=> (
                 <div key={day} className="grid grid-cols-3 items-center gap-2">
                   <Label>{day}</Label>
                   <Input placeholder="Ouverture (ex: 09:00)" value={draft.hours?.[idx]?.open || ""} onChange={(e)=>setDraft(d=>({ ...d, hours:{ ...(d.hours||{}), [idx]:{ ...(d.hours?.[idx]||{}), open:e.target.value } } }))} />
-                  <Input placeholder="Fermeture (ex: 18:00)" value={draft.hours?.[idx]?.close || ""} onChange={(e)=>setDraft(d=>({ ...d, hours:{ ...(d.hours||{}), [idx]:{ ...(d.hours?.[idx]||{}), close:e.target.value } } }))} />
+                  <Input placeholder="Fermeture (ex: 18:00)" value={draft.hours?.[idx]?.close || ""} onChange={(e)=>setDraft(d=>({ ...d, hours:{ ...(d.hours?.[idx]||{}), [idx]:{ ...(d.hours?.[idx]||{}), close:e.target.value } } }))} />
                 </div>
               ))}
-            </div>
+              <div className="pt-2">
+                <Button type="submit" className="w-full">Suivant</Button>
+              </div>
+            </form>
           )}
 
           {step === 4 && (
-            <div className="grid grid-cols-1 gap-3">
+            <form 
+              onSubmit={(e) => {
+                e.preventDefault();
+                next();
+              }}
+              className="grid grid-cols-1 gap-3"
+            >
               {(draft.employees || [{first_name:"", last_name:"", role:"", phone:"", email:""}]).map((emp, i)=> (
                 <div key={i} className="grid grid-cols-1 gap-2 md:grid-cols-5">
                   <Input placeholder="Prénom" value={emp.first_name || ""} onChange={(e)=>setDraft(d=>{ const arr=[...(d.employees||[])]; arr[i]={...arr[i], first_name:e.target.value}; return { ...d, employees:arr }; })} />
@@ -234,10 +314,14 @@ export default function ProOnboardingPage() {
                 </div>
               ))}
               <div>
-                <Button variant="outline" onClick={()=>setDraft(d=>({ ...d, employees:[...(d.employees||[]), {first_name:"", last_name:"", role:"", phone:"", email:""}] }))}>+ Ajouter un employé</Button>
+                <Button type="button" variant="outline" onClick={()=>setDraft(d=>({ ...d, employees:[...(d.employees||[]), {first_name:"", last_name:"", role:"", phone:"", email:""}] }))}>+ Ajouter un employé</Button>
               </div>
-            </div>
+              <div className="pt-2">
+                <Button type="submit" className="w-full">Suivant</Button>
+              </div>
+            </form>
           )}
+
 
           {step === 5 && (
             <div className="space-y-4 text-sm">
@@ -315,7 +399,7 @@ export default function ProOnboardingPage() {
         <div className="flex gap-2">
           <Button variant="ghost" onClick={skip}>Plus tard</Button>
           {step < STEPS.length - 1 ? (
-            <Button onClick={next}>Suivant</Button>
+            null /* Move Suivant into forms */
           ) : (
             <Button onClick={finish} disabled={!canFinish} title={!canFinish ? "Veuillez téléverser carte d'identité (recto/verso) et le registre de commerce" : undefined}>Terminer</Button>
           )}

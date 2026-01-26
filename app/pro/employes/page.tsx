@@ -515,62 +515,68 @@ export default function EmployeesPage() {
               <DialogHeader>
                 <DialogTitle>Ajouter un nouvel employé</DialogTitle>
               </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="name">Nom complet</Label>
-                    <Input id="name" placeholder="Nom de l'employé" />
+              <form 
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleAddEmployee();
+                }}
+              >
+                <div className="grid gap-4 py-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="name">Nom complet</Label>
+                      <Input id="name" placeholder="Nom de l'employé" required />
+                    </div>
+                    <div>
+                      <Label htmlFor="role">Poste</Label>
+                      <Input id="role" placeholder="Ex: Coiffeur, Esthéticienne" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="email">Email</Label>
+                      <Input id="email" type="email" placeholder="email@exemple.com" />
+                    </div>
+                    <div>
+                      <Label htmlFor="phone">Téléphone</Label>
+                      <Input id="phone" placeholder="+213 555 123 456" />
+                    </div>
                   </div>
                   <div>
-                    <Label htmlFor="role">Poste</Label>
-                    <Input id="role" placeholder="Ex: Coiffeur, Esthéticienne" />
+                    <Label>Jours de travail</Label>
+                    <div className="grid grid-cols-4 gap-2 mt-2">
+                      {workDays.map((day) => (
+                        <div key={day} className="flex items-center space-x-2">
+                          <Checkbox id={day} checked={addDays.has(day)} onCheckedChange={(v) => {
+                            const next = new Set(addDays)
+                            if (v) next.add(day); else next.delete(day)
+                            setAddDays(next)
+                          }} />
+                          <Label htmlFor={day} className="text-sm">
+                            {day}
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="startTime">Heure de début</Label>
+                      <Input id="startTime" type="time" value={addStart} onChange={(e) => setAddStart(e.target.value)} />
+                    </div>
+                    <div>
+                      <Label htmlFor="endTime">Heure de fin</Label>
+                      <Input id="endTime" type="time" value={addEnd} onChange={(e) => setAddEnd(e.target.value)} />
+                    </div>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="email">Email</Label>
-                    <Input id="email" type="email" placeholder="email@exemple.com" />
-                  </div>
-                  <div>
-                    <Label htmlFor="phone">Téléphone</Label>
-                    <Input id="phone" placeholder="+213 555 123 456" />
-                  </div>
+                <div className="flex justify-end space-x-2">
+                  <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+                    Annuler
+                  </Button>
+                  <Button type="submit" className="bg-black text-white hover:bg-gray-800">Ajouter l'employé</Button>
                 </div>
-                {/* Services non affectés à l'ajout */}
-                <div>
-                  <Label>Jours de travail</Label>
-                  <div className="grid grid-cols-4 gap-2 mt-2">
-                    {workDays.map((day) => (
-                      <div key={day} className="flex items-center space-x-2">
-                        <Checkbox id={day} checked={addDays.has(day)} onCheckedChange={(v) => {
-                          const next = new Set(addDays)
-                          if (v) next.add(day); else next.delete(day)
-                          setAddDays(next)
-                        }} />
-                        <Label htmlFor={day} className="text-sm">
-                          {day}
-                        </Label>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="startTime">Heure de début</Label>
-                    <Input id="startTime" type="time" value={addStart} onChange={(e) => setAddStart(e.target.value)} />
-                  </div>
-                  <div>
-                    <Label htmlFor="endTime">Heure de fin</Label>
-                    <Input id="endTime" type="time" value={addEnd} onChange={(e) => setAddEnd(e.target.value)} />
-                  </div>
-                </div>
-              </div>
-              <div className="flex justify-end space-x-2">
-                <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
-                  Annuler
-                </Button>
-                <Button className="bg-black text-white hover:bg-gray-800" onClick={handleAddEmployee}>Ajouter l'employé</Button>
-              </div>
+              </form>
             </DialogContent>
           </Dialog>
         </div>
@@ -754,71 +760,80 @@ export default function EmployeesPage() {
               <DialogTitle>Modifier l'employé</DialogTitle>
             </DialogHeader>
             {selectedEmployee && (
-              <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-2 gap-4">
+              <form 
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleSaveEdit();
+                }}
+              >
+                <div className="grid gap-4 py-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="edit-name">Nom complet</Label>
+                      <Input id="edit-name" defaultValue={selectedEmployee.name} required />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-role">Poste</Label>
+                      <Input id="edit-role" defaultValue={selectedEmployee.role} />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="edit-email">Email</Label>
+                      <Input id="edit-email" type="email" defaultValue={selectedEmployee.email} />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-phone">Téléphone</Label>
+                      <Input id="edit-phone" defaultValue={selectedEmployee.phone} />
+                    </div>
+                  </div>
+                  {/* Services non modifiés ici */}
                   <div>
-                    <Label htmlFor="edit-name">Nom complet</Label>
-                    <Input id="edit-name" defaultValue={selectedEmployee.name} />
+                    <Label>Jours de travail</Label>
+                    <div className="grid grid-cols-4 gap-2 mt-2">
+                      {workDays.map((day) => (
+                        <div key={day} className="flex items-center space-x-2">
+                          <Checkbox id={`edit-day-${day}`} checked={editDays.has(day)} onCheckedChange={(v) => {
+                            const next = new Set(editDays)
+                            if (v) next.add(day); else next.delete(day)
+                            setEditDays(next)
+                          }} />
+                          <Label htmlFor={`edit-day-${day}`} className="text-sm">{day}</Label>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <div>
-                    <Label htmlFor="edit-role">Poste</Label>
-                    <Input id="edit-role" defaultValue={selectedEmployee.role} />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="edit-startTime">Heure de début</Label>
+                      <Input id="edit-startTime" type="time" value={editStart} onChange={(e) => setEditStart(e.target.value)} />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-endTime">Heure de fin</Label>
+                      <Input id="edit-endTime" type="time" value={editEnd} onChange={(e) => setEditEnd(e.target.value)} />
+                    </div>
                   </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="edit-email">Email</Label>
-                    <Input id="edit-email" type="email" defaultValue={selectedEmployee.email} />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="col-span-1">
+                      <Label>Statut</Label>
+                      <Select value={editStatus} onValueChange={setEditStatus}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Choisir un statut" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Actif">Actif</SelectItem>
+                          <SelectItem value="Inactif">Inactif</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
-                  <div>
-                    <Label htmlFor="edit-phone">Téléphone</Label>
-                    <Input id="edit-phone" defaultValue={selectedEmployee.phone} />
-                  </div>
-                </div>
-                {/* Services non modifiés ici */}
-                <div>
-                  <Label>Jours de travail</Label>
-                  <div className="grid grid-cols-4 gap-2 mt-2">
-                    {workDays.map((day) => (
-                      <div key={day} className="flex items-center space-x-2">
-                        <Checkbox id={`edit-day-${day}`} checked={editDays.has(day)} onCheckedChange={(v) => {
-                          const next = new Set(editDays)
-                          if (v) next.add(day); else next.delete(day)
-                          setEditDays(next)
-                        }} />
-                        <Label htmlFor={`edit-day-${day}`} className="text-sm">{day}</Label>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="edit-startTime">Heure de début</Label>
-                    <Input id="edit-startTime" type="time" value={editStart} onChange={(e) => setEditStart(e.target.value)} />
-                  </div>
-                  <div>
-                    <Label htmlFor="edit-endTime">Heure de fin</Label>
-                    <Input id="edit-endTime" type="time" value={editEnd} onChange={(e) => setEditEnd(e.target.value)} />
-                  </div>
-                </div>
-                <div>
-                  <Label>Statut</Label>
-                  <Select value={editStatus} onValueChange={setEditStatus}>
-                    <SelectTrigger className="mt-2">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Actif">Actif</SelectItem>
-                      <SelectItem value="Inactif">Inactif</SelectItem>
-                    </SelectContent>
-                  </Select>
                 </div>
                 <div>
                   <Label>Congés</Label>
                   <div className="grid gap-2 mt-2">
                     {!showTimeOffForm ? (
                       <div className="flex justify-start">
-                        <Button variant="outline" size="sm" onClick={() => setShowTimeOffForm(true)}>Ajouter un congé</Button>
+                        <Button type="button" variant="outline" size="sm" onClick={() => setShowTimeOffForm(true)}>Ajouter un congé</Button>
                       </div>
                     ) : (
                       <>
@@ -828,8 +843,8 @@ export default function EmployeesPage() {
                         </div>
                         <Input placeholder="Raison (optionnel)" value={toReason} onChange={(e) => setToReason(e.target.value)} />
                         <div className="flex justify-end gap-2">
-                          <Button variant="ghost" size="sm" onClick={() => { setShowTimeOffForm(false); setToStart(""); setToEnd(""); setToReason("") }}>Annuler</Button>
-                          <Button variant="outline" size="sm" onClick={handleAddTimeOff}>Ajouter le congé</Button>
+                          <Button type="button" variant="ghost" size="sm" onClick={() => { setShowTimeOffForm(false); setToStart(""); setToEnd(""); setToReason("") }}>Annuler</Button>
+                          <Button type="button" variant="outline" size="sm" onClick={handleAddTimeOff}>Ajouter le congé</Button>
                         </div>
                       </>
                     )}
@@ -850,7 +865,7 @@ export default function EmployeesPage() {
                   <div className="grid gap-2 mt-2">
                     {!showOverrideForm ? (
                       <div className="flex justify-start">
-                        <Button variant="outline" size="sm" onClick={() => setShowOverrideForm(true)}>Ajouter une disponibilité exceptionnelle</Button>
+                        <Button type="button" variant="outline" size="sm" onClick={() => setShowOverrideForm(true)}>Ajouter une disponibilité exceptionnelle</Button>
                       </div>
                     ) : (
                       <>
@@ -864,8 +879,9 @@ export default function EmployeesPage() {
                           <Input type="time" value={ovEnd} onChange={(e) => setOvEnd(e.target.value)} />
                         </div>
                         <div className="flex justify-end gap-2">
-                          <Button variant="ghost" size="sm" onClick={() => { setShowOverrideForm(false); setOvDate(""); setOvAvailable(false); setOvStart(""); setOvEnd("") }}>Annuler</Button>
+                          <Button type="button" variant="ghost" size="sm" onClick={() => { setShowOverrideForm(false); setOvDate(""); setOvAvailable(false); setOvStart(""); setOvEnd("") }}>Annuler</Button>
                           <Button
+                            type="button"
                             variant="outline"
                             size="sm"
                             onClick={() => {
@@ -889,24 +905,21 @@ export default function EmployeesPage() {
                                 <div className="text-gray-500">{o.start_time?.slice(11,16) || o.start_time} → {o.end_time?.slice(11,16) || o.end_time}</div>
                               )}
                             </div>
-                            <Button variant="ghost" size="sm" onClick={() => setOverrides((prev) => prev.filter((x: any) => String(x.date).slice(0,10) !== String(o.date).slice(0,10)))}>Retirer</Button>
+                            <Button type="button" variant="ghost" size="sm" onClick={() => setOverrides((prev) => prev.filter((x: any) => String(x.date).slice(0,10) !== String(o.date).slice(0,10)))}>Retirer</Button>
                           </div>
                         )) : <div className="text-gray-500">Aucune exception</div>}
                     </div>
                     <div className="flex justify-end">
-                      <Button className="bg-black text-white hover:bg-gray-800" size="sm" onClick={handleSaveOverrides}>Enregistrer les exceptions</Button>
+                      <Button type="button" className="bg-black text-white hover:bg-gray-800" size="sm" onClick={handleSaveOverrides}>Enregistrer les exceptions</Button>
                     </div>
                   </div>
                 </div>
-
-              </div>
+                <div className="flex justify-end space-x-2 pt-4 border-t mt-4">
+                  <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>Annuler</Button>
+                  <Button type="submit" className="bg-black text-white hover:bg-gray-800">Sauvegarder les modifications</Button>
+                </div>
+              </form>
             )}
-            <div className="flex justify-end space-x-2">
-              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-                Annuler
-              </Button>
-              <Button className="bg-black text-white hover:bg-gray-800" onClick={handleSaveEdit}>Sauvegarder</Button>
-            </div>
           </DialogContent>
         </Dialog>
       </div>

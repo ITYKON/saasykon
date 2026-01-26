@@ -41,11 +41,17 @@ export default function CreateClientModal({ trigger, onCreated }: { trigger: Rea
         <DialogHeader>
           <DialogTitle>Nouveau client</DialogTitle>
         </DialogHeader>
-        <div className="space-y-4">
+        <form 
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (firstName || lastName || email) submit();
+          }}
+          className="space-y-4"
+        >
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label>Prénom</Label>
-              <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+              <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
             </div>
             <div>
               <Label>Nom</Label>
@@ -65,12 +71,12 @@ export default function CreateClientModal({ trigger, onCreated }: { trigger: Rea
             </div>
           </div>
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setOpen(false)}>Annuler</Button>
-            <Button onClick={submit} disabled={submitting || (!firstName && !lastName && !email)}>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>Annuler</Button>
+            <Button type="submit" disabled={submitting || (!firstName && !lastName && !email)}>
               {submitting ? "Création…" : "Créer"}
             </Button>
           </div>
-        </div>
+        </form>
       </DialogContent>
     </Dialog>
   );

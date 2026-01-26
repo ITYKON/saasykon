@@ -2193,46 +2193,54 @@ export default function ProAgenda() {
         </DialogContent>
       </Dialog>
 
-      {/* Availability dialog */}
       <Dialog open={availabilityOpen} onOpenChange={setAvailabilityOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Gérer les disponibilités</DialogTitle>
           </DialogHeader>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <Select>
-              <SelectTrigger>
-                <SelectValue placeholder="Employé" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {allEmployees.map((e) => (
-                    <SelectItem key={e.name} value={e.name}>
-                      {e.name}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-            <Input type="date" />
-            <Select>
-              <SelectTrigger>
-                <SelectValue placeholder="Statut" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectItem value="open">Disponible</SelectItem>
-                  <SelectItem value="closed">Fermé</SelectItem>
-                  <SelectItem value="break">Pause</SelectItem>
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </div>
-          <DialogFooter>
-            <Button onClick={() => setAvailabilityOpen(false)}>
-              Enregistrer
-            </Button>
-          </DialogFooter>
+          <form 
+            onSubmit={(e) => {
+              e.preventDefault();
+              setAvailabilityOpen(false);
+              // Note: The original code didn't have a save function defined here, 
+              // just closing the modal. Keeping the same behavior but as a form.
+            }}
+          >
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <Select>
+                <SelectTrigger>
+                  <SelectValue placeholder="Employé" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {allEmployees.map((e) => (
+                      <SelectItem key={e.name} value={e.name}>
+                        {e.name}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+              <Input type="date" />
+              <Select>
+                <SelectTrigger>
+                  <SelectValue placeholder="Statut" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value="open">Disponible</SelectItem>
+                    <SelectItem value="closed">Fermé</SelectItem>
+                    <SelectItem value="break">Pause</SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </div>
+            <DialogFooter className="mt-4">
+              <Button type="submit">
+                Enregistrer
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </div>

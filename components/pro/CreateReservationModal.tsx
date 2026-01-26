@@ -296,7 +296,13 @@ export default function CreateReservationModal({
         {loading ? (
           <div className="py-6 text-sm text-gray-600">Chargement…</div>
         ) : (
-          <div className="space-y-4">
+          <form 
+            onSubmit={(e) => {
+              e.preventDefault();
+              submit();
+            }}
+            className="space-y-4"
+          >
             <div className="space-y-4">
               {/* Section Client */}
               <div className="space-y-2">
@@ -498,6 +504,7 @@ export default function CreateReservationModal({
               <div className="flex flex-col gap-3 pt-2">
                 <div className="flex justify-end gap-3">
                   <Button 
+                    type="button" 
                     variant="outline" 
                     onClick={() => setOpen(false)}
                     disabled={submitting}
@@ -506,8 +513,7 @@ export default function CreateReservationModal({
                   </Button>
                   <div className="relative group">
                     <Button 
-                      type="button"
-                      onClick={submit}
+                      type="submit"
                       disabled={submitting || !client || !serviceId || !date || !time}
                       className="w-full"
                     >
@@ -518,20 +524,13 @@ export default function CreateReservationModal({
                     {(submitting || !client || !serviceId || !date || !time) && (
                       <div className="absolute bottom-full right-0 mb-2 hidden group-hover:block bg-gray-800 text-white text-xs rounded px-2 py-1 whitespace-nowrap">
                         {submitting ? "Traitement en cours..." :
-                         !client ? "Sélectionnez d'abord un client" :
-                         !serviceId ? "Sélectionnez un service" :
-                         !date || !time ? "Sélectionnez une date et une heure" : 
-                         "Confirmer la réservation"}
+                        !client ? "Sélectionnez d'abord un client" :
+                        !serviceId ? "Sélectionnez un service" :
+                        !date || !time ? "Sélectionnez une date et une heure" : 
+                        "Confirmer la réservation"}
                       </div>
                     )}
                   </div>
-                  {!client || !serviceId || !date || !time ? (
-                    <p className="text-sm text-gray-500 text-center">
-                      {!client ? "Sélectionnez un client" :
-                       !serviceId ? "Sélectionnez un service" :
-                       !date || !time ? "Sélectionnez une date et une heure" : ""}
-                    </p>
-                  ) : null}
                 </div>
               </div>
               
@@ -539,7 +538,7 @@ export default function CreateReservationModal({
                 * Champs obligatoires
               </p>
             </div>
-          </div>
+          </form>
         )}
       </DialogContent>
     </Dialog>

@@ -465,77 +465,84 @@ export default function ProServices() {
             <DialogHeader>
               <DialogTitle>Ajouter un nouveau service</DialogTitle>
             </DialogHeader>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="serviceName">Nom du service</Label>
-                <Input id="serviceName" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Ex: COUPE + BRUSHING" />
-              </div>
-              <div>
-                <Label>Catégorie</Label>
-                <div className="flex flex-col gap-2">
-                  <Select value={selectedCategoryId} onValueChange={(v) => setSelectedCategoryId(v)}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Sélectionner une catégorie" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {categoriesApi.map((cat) => (
-                        <SelectItem key={cat.id} value={String(cat.id)}>
-                          {cat.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Button type="button" variant="outline" className="w-full" onClick={() => setIsCategoryModalOpen(true)}>+ Catégorie</Button>
+            <form 
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleCreateService();
+              }}
+            >
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="serviceName">Nom du service</Label>
+                  <Input id="serviceName" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Ex: COUPE + BRUSHING" />
+                </div>
+                <div>
+                  <Label>Catégorie</Label>
+                  <div className="flex flex-col gap-2">
+                    <Select value={selectedCategoryId} onValueChange={(v) => setSelectedCategoryId(v)}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Sélectionner une catégorie" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {categoriesApi.map((cat) => (
+                          <SelectItem key={cat.id} value={String(cat.id)}>
+                            {cat.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button type="button" variant="outline" className="w-full" onClick={() => setIsCategoryModalOpen(true)}>+ Catégorie</Button>
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="serviceDuration">Durée (minutes)</Label>
+                  <Input id="serviceDuration" type="number" value={newDuration} onChange={(e) => setNewDuration(e.target.value)} placeholder="30" />
+                </div>
+                <div>
+                  <Label htmlFor="servicePrice">Prix (DA)</Label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <Select value={priceMode} onValueChange={(v) => setPriceMode(v as any)}>
+                      <SelectTrigger><SelectValue placeholder="Mode" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="fixed">Fixe</SelectItem>
+                        <SelectItem value="range">Plage</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {priceMode === "fixed" ? (
+                      <Input id="servicePrice" type="number" value={newPrice} onChange={(e) => setNewPrice(e.target.value)} placeholder="200" />
+                    ) : (
+                      <>
+                        <Input id="servicePriceMin" type="number" value={newPriceMin} onChange={(e) => setNewPriceMin(e.target.value)} placeholder="Min" />
+                        <Input id="servicePriceMax" type="number" value={newPriceMax} onChange={(e) => setNewPriceMax(e.target.value)} placeholder="Max" />
+                      </>
+                    )}
+                  </div>
+                </div>
+                <div className="md:col-span-2">
+                  <Label htmlFor="serviceDescription">Description</Label>
+                  <Textarea id="serviceDescription" value={newDescription} onChange={(e) => setNewDescription(e.target.value)} placeholder="Description du service..." rows={3} />
+                </div>
+                <div className="md:col-span-2">
+                  <Label>Employés</Label>
+                  <div className="mt-2 max-h-40 overflow-auto border rounded p-2">
+                    {employees.map((e) => (
+                      <div key={e.id} className="flex items-center space-x-2 py-1">
+                        <Checkbox id={`add-emp-${e.id}`} checked={addSelectedEmployeeIds.has(e.id)} onCheckedChange={(v) => {
+                          const next = new Set(addSelectedEmployeeIds)
+                          if (v) next.add(e.id); else next.delete(e.id)
+                          setAddSelectedEmployeeIds(next)
+                        }} />
+                        <Label htmlFor={`add-emp-${e.id}`} className="text-sm">{e.name}</Label>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
-              <div>
-                <Label htmlFor="serviceDuration">Durée (minutes)</Label>
-                <Input id="serviceDuration" type="number" value={newDuration} onChange={(e) => setNewDuration(e.target.value)} placeholder="30" />
+              <div className="flex justify-end gap-2 mt-4">
+                <Button type="button" variant="outline" onClick={() => setIsServiceModalOpen(false)}>Annuler</Button>
+                <Button type="submit" disabled={loading} className="bg-black text-white hover:bg-gray-800">Ajouter le service</Button>
               </div>
-              <div>
-                <Label htmlFor="servicePrice">Prix (DA)</Label>
-                <div className="grid grid-cols-3 gap-2">
-                  <Select value={priceMode} onValueChange={(v) => setPriceMode(v as any)}>
-                    <SelectTrigger><SelectValue placeholder="Mode" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="fixed">Fixe</SelectItem>
-                      <SelectItem value="range">Plage</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {priceMode === "fixed" ? (
-                    <Input id="servicePrice" type="number" value={newPrice} onChange={(e) => setNewPrice(e.target.value)} placeholder="200" />
-                  ) : (
-                    <>
-                      <Input id="servicePriceMin" type="number" value={newPriceMin} onChange={(e) => setNewPriceMin(e.target.value)} placeholder="Min" />
-                      <Input id="servicePriceMax" type="number" value={newPriceMax} onChange={(e) => setNewPriceMax(e.target.value)} placeholder="Max" />
-                    </>
-                  )}
-                </div>
-              </div>
-              <div className="md:col-span-2">
-                <Label htmlFor="serviceDescription">Description</Label>
-                <Textarea id="serviceDescription" value={newDescription} onChange={(e) => setNewDescription(e.target.value)} placeholder="Description du service..." rows={3} />
-             </div>
-              <div className="md:col-span-2">
-                <Label>Employés</Label>
-                <div className="mt-2 max-h-40 overflow-auto border rounded p-2">
-                  {employees.map((e) => (
-                    <div key={e.id} className="flex items-center space-x-2 py-1">
-                      <Checkbox id={`add-emp-${e.id}`} checked={addSelectedEmployeeIds.has(e.id)} onCheckedChange={(v) => {
-                        const next = new Set(addSelectedEmployeeIds)
-                        if (v) next.add(e.id); else next.delete(e.id)
-                        setAddSelectedEmployeeIds(next)
-                      }} />
-                      <Label htmlFor={`add-emp-${e.id}`} className="text-sm">{e.name}</Label>
-                    </div>
-                  ))}
-                </div>
-              </div>
-           </div>
-           <div className="flex justify-end gap-2">
-             <Button variant="outline" onClick={() => setIsServiceModalOpen(false)}>Annuler</Button>
-             <Button onClick={handleCreateService} disabled={loading} className="bg-black text-white hover:bg-gray-800">Ajouter le service</Button>
-           </div>
+            </form>
          </DialogContent>
        </Dialog>
       </div>
@@ -548,20 +555,27 @@ export default function ProServices() {
           <DialogHeader>
             <DialogTitle>Nouvelle catégorie</DialogTitle>
           </DialogHeader>
-          <div className="grid gap-4">
-            <div>
-              <Label htmlFor="catName">Nom</Label>
-              <Input id="catName" value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} placeholder="Ex: Coiffure" />
+          <form 
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleCreateCategory();
+            }}
+          >
+            <div className="grid gap-4">
+              <div>
+                <Label htmlFor="catName">Nom</Label>
+                <Input id="catName" value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} placeholder="Ex: Coiffure" />
+              </div>
+              <div>
+                <Label htmlFor="catCode">Code (optionnel)</Label>
+                <Input id="catCode" value={newCategoryCode} onChange={(e) => setNewCategoryCode(e.target.value)} placeholder="coiffure" />
+              </div>
             </div>
-            <div>
-              <Label htmlFor="catCode">Code (optionnel)</Label>
-              <Input id="catCode" value={newCategoryCode} onChange={(e) => setNewCategoryCode(e.target.value)} placeholder="coiffure" />
+            <div className="flex justify-end gap-2 mt-4">
+              <Button type="button" variant="outline" onClick={() => setIsCategoryModalOpen(false)}>Annuler</Button>
+              <Button type="submit" className="bg-black text-white hover:bg-gray-800">Créer</Button>
             </div>
-          </div>
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setIsCategoryModalOpen(false)}>Annuler</Button>
-            <Button onClick={handleCreateCategory} className="bg-black text-white hover:bg-gray-800">Créer</Button>
-          </div>
+          </form>
         </DialogContent>
       </Dialog>
 
@@ -724,80 +738,87 @@ export default function ProServices() {
           <DialogHeader>
             <DialogTitle>Modifier le service</DialogTitle>
           </DialogHeader>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="editServiceName">Nom du service</Label>
-              <Input id="editServiceName" value={editName} onChange={(e) => setEditName(e.target.value)} />
-            </div>
-            <div>
-              <Label>Catégorie</Label>
-              <div className="grid grid-cols-1">
-                <Select value={editCategoryId} onValueChange={(v) => setEditCategoryId(v)}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Sélectionner une catégorie" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categoriesApi.map((cat) => (
-                      <SelectItem key={cat.id} value={String(cat.id)}>
-                        {cat.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+          <form 
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSaveEdit();
+            }}
+          >
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="editServiceName">Nom du service</Label>
+                <Input id="editServiceName" value={editName} onChange={(e) => setEditName(e.target.value)} />
+              </div>
+              <div>
+                <Label>Catégorie</Label>
+                <div className="grid grid-cols-1">
+                  <Select value={editCategoryId} onValueChange={(v) => setEditCategoryId(v)}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Sélectionner une catégorie" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categoriesApi.map((cat) => (
+                        <SelectItem key={cat.id} value={String(cat.id)}>
+                          {cat.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="editServiceDuration">Durée (minutes)</Label>
+                <Input id="editServiceDuration" type="number" value={editDuration} onChange={(e) => setEditDuration(e.target.value)} />
+              </div>
+              <div>
+                <Label htmlFor="editServicePrice">Prix (DA)</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  <Select value={editPriceMode} onValueChange={(v) => setEditPriceMode(v as any)}>
+                    <SelectTrigger><SelectValue placeholder="Mode" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="fixed">Fixe</SelectItem>
+                      <SelectItem value="range">Plage</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {editPriceMode === "fixed" ? (
+                    <Input id="editServicePrice" type="number" value={editPrice} onChange={(e) => setEditPrice(e.target.value)} />
+                  ) : (
+                    <>
+                      <Input id="editServicePriceMin" type="number" value={editPriceMin} onChange={(e) => setEditPriceMin(e.target.value)} placeholder="Min" />
+                      <Input id="editServicePriceMax" type="number" value={editPriceMax} onChange={(e) => setEditPriceMax(e.target.value)} placeholder="Max" />
+                    </>
+                  )}
+                </div>
+              </div>
+              <div className="md:col-span-2">
+                <Label htmlFor="editServiceDescription">Description</Label>
+                <Textarea id="editServiceDescription" value={editDescription} onChange={(e) => setEditDescription(e.target.value)} rows={3} />
+              </div>
+              <div className="md:col-span-2">
+                <Label>Employés</Label>
+                <div className="mt-2 max-h-40 overflow-auto border rounded p-2">
+                  {employees.map((e) => (
+                    <div key={e.id} className="flex items-center space-x-2 py-1">
+                      <Checkbox id={`edit-emp-${e.id}`} checked={editSelectedEmployeeIds.has(e.id)} onCheckedChange={(v) => {
+                        const next = new Set(editSelectedEmployeeIds)
+                        if (v) next.add(e.id); else next.delete(e.id)
+                        setEditSelectedEmployeeIds(next)
+                      }} />
+                      <Label htmlFor={`edit-emp-${e.id}`} className="text-sm">{e.name}</Label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="md:col-span-2 flex items-center gap-2">
+                <input id="editActive" type="checkbox" checked={editActive} onChange={(e) => setEditActive(e.target.checked)} />
+                <Label htmlFor="editActive">Actif</Label>
               </div>
             </div>
-            <div>
-              <Label htmlFor="editServiceDuration">Durée (minutes)</Label>
-              <Input id="editServiceDuration" type="number" value={editDuration} onChange={(e) => setEditDuration(e.target.value)} />
+            <div className="flex justify-end gap-2 mt-4">
+              <Button type="button" variant="outline" onClick={() => setIsEditModalOpen(false)}>Annuler</Button>
+              <Button type="submit" className="bg-black text-white hover:bg-gray-800">Enregistrer</Button>
             </div>
-            <div>
-              <Label htmlFor="editServicePrice">Prix (DA)</Label>
-              <div className="grid grid-cols-3 gap-2">
-                <Select value={editPriceMode} onValueChange={(v) => setEditPriceMode(v as any)}>
-                  <SelectTrigger><SelectValue placeholder="Mode" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="fixed">Fixe</SelectItem>
-                    <SelectItem value="range">Plage</SelectItem>
-                  </SelectContent>
-                </Select>
-                {editPriceMode === "fixed" ? (
-                  <Input id="editServicePrice" type="number" value={editPrice} onChange={(e) => setEditPrice(e.target.value)} />
-                ) : (
-                  <>
-                    <Input id="editServicePriceMin" type="number" value={editPriceMin} onChange={(e) => setEditPriceMin(e.target.value)} placeholder="Min" />
-                    <Input id="editServicePriceMax" type="number" value={editPriceMax} onChange={(e) => setEditPriceMax(e.target.value)} placeholder="Max" />
-                  </>
-                )}
-              </div>
-            </div>
-            <div className="md:col-span-2">
-              <Label htmlFor="editServiceDescription">Description</Label>
-              <Textarea id="editServiceDescription" value={editDescription} onChange={(e) => setEditDescription(e.target.value)} rows={3} />
-            </div>
-            <div className="md:col-span-2">
-              <Label>Employés</Label>
-              <div className="mt-2 max-h-40 overflow-auto border rounded p-2">
-                {employees.map((e) => (
-                  <div key={e.id} className="flex items-center space-x-2 py-1">
-                    <Checkbox id={`edit-emp-${e.id}`} checked={editSelectedEmployeeIds.has(e.id)} onCheckedChange={(v) => {
-                      const next = new Set(editSelectedEmployeeIds)
-                      if (v) next.add(e.id); else next.delete(e.id)
-                      setEditSelectedEmployeeIds(next)
-                    }} />
-                    <Label htmlFor={`edit-emp-${e.id}`} className="text-sm">{e.name}</Label>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="md:col-span-2 flex items-center gap-2">
-              <input id="editActive" type="checkbox" checked={editActive} onChange={(e) => setEditActive(e.target.checked)} />
-              <Label htmlFor="editActive">Actif</Label>
-            </div>
-          </div>
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setIsEditModalOpen(false)}>Annuler</Button>
-            <Button onClick={handleSaveEdit} className="bg-black text-white hover:bg-gray-800">Enregistrer</Button>
-          </div>
+          </form>
         </DialogContent>
       </Dialog>
       </div>
