@@ -47,6 +47,8 @@ interface BookingWizardProps {
   const [loginPassword, setLoginPassword] = useState('')
   const [signupPhone, setSignupPhone] = useState('')
   const [signupEmail, setSignupEmail] = useState('')
+  const [signupFirstName, setSignupFirstName] = useState('')
+  const [signupLastName, setSignupLastName] = useState('')
   const [signupPassword, setSignupPassword] = useState('')
   const [signupCGU, setSignupCGU] = useState(false)
   const [signupOkMsg, setSignupOkMsg] = useState<string | null>(null)
@@ -657,7 +659,7 @@ interface BookingWizardProps {
           {error && <div className="text-sm text-red-600 text-center">{error}</div>}
           <Button
             className="w-full bg-black text-white hover:bg-gray-800"
-            disabled={authLoading || submitting || selectedItems.length === 0 || !selectedDate || !selectedTime}
+            disabled={authLoading || submitting || submitLock.current || selectedItems.length === 0 || !selectedDate || !selectedTime}
             onClick={async () => {
               if (submitLock.current) return
               submitLock.current = true
@@ -739,6 +741,29 @@ interface BookingWizardProps {
             <div className="bg-white border rounded-xl p-6 shadow-sm space-y-6">
               {error && <div className="text-sm text-red-600">{error}</div>}
               <div className="space-y-4 sm:space-y-6 px-2 sm:px-0">
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <div className="flex-1">
+                    <Label className="block text-sm font-medium text-gray-700 mb-1">Nom</Label>
+                    <Input 
+                      type="text" 
+                      placeholder="Votre nom" 
+                      className="mt-1" 
+                      value={signupLastName} 
+                      onChange={e => setSignupLastName(e.target.value)} 
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <Label className="block text-sm font-medium text-gray-700 mb-1">Prénom</Label>
+                    <Input 
+                      type="text" 
+                      placeholder="Votre prénom" 
+                      className="mt-1" 
+                      value={signupFirstName} 
+                      onChange={e => setSignupFirstName(e.target.value)} 
+                    />
+                  </div>
+                </div>
+
                 <div>
                   <Label className="block text-sm font-medium text-gray-700 mb-1">Téléphone portable</Label>
                   <div className="mt-1 relative rounded-md shadow-sm">
@@ -809,7 +834,7 @@ interface BookingWizardProps {
                     J'accepte les CGU de Yoka
                   </label>
                 </div>
-                
+
                 <p className="text-xs text-gray-500">
                   En créant votre compte, vous acceptez notre politique de confidentialité et nos conditions d'utilisation.
                    La politique de confidentialité et les conditions d'utilisation de Google s'appliquent.
@@ -818,7 +843,7 @@ interface BookingWizardProps {
               <div className="grid grid-cols-1 gap-3">
                 <Button 
                   className="w-full bg-black text-white hover:bg-gray-800" 
-                  disabled={authSubmitting || !signupPhone || !signupEmail || !signupPassword || !signupCGU}
+                  disabled={authSubmitting || !signupPhone || !signupEmail || !signupPassword || !signupCGU || !signupFirstName || !signupLastName}
                   onClick={async () => {
                     try {
                       setAuthSubmitting(true)
@@ -828,7 +853,9 @@ interface BookingWizardProps {
                         phone: signupPhone,
                         email: signupEmail,
                         password: signupPassword,
-                        name: signupEmail.split('@')[0] // Utiliser la partie avant @ de l'email comme nom par défaut
+                        first_name: signupFirstName,
+                        last_name: signupLastName,
+                        name: `${signupFirstName} ${signupLastName}`.trim() || signupEmail.split('@')[0]
                       };
                       
 
@@ -978,7 +1005,7 @@ const errorMessage = res.status === 409
           {error && <div className="text-sm text-red-600 text-center">{error}</div>}
           <Button
             className="w-full bg-black text-white hover:bg-gray-800"
-            disabled={authLoading || submitting || selectedItems.length === 0 || !selectedDate || !selectedTime}
+            disabled={authLoading || submitting || submitLock.current || selectedItems.length === 0 || !selectedDate || !selectedTime}
             onClick={async () => {
               if (submitLock.current) return
               submitLock.current = true
@@ -1131,6 +1158,29 @@ const errorMessage = res.status === 409
                   </label>
                 </div>
                 
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <div className="flex-1">
+                    <Label className="block text-sm font-medium text-gray-700 mb-1">Nom</Label>
+                    <Input 
+                      type="text" 
+                      placeholder="Votre nom" 
+                      className="mt-1" 
+                      value={signupLastName} 
+                      onChange={e => setSignupLastName(e.target.value)} 
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <Label className="block text-sm font-medium text-gray-700 mb-1">Prénom</Label>
+                    <Input 
+                      type="text" 
+                      placeholder="Votre prénom" 
+                      className="mt-1" 
+                      value={signupFirstName} 
+                      onChange={e => setSignupFirstName(e.target.value)} 
+                    />
+                  </div>
+                </div>
+
                 <p className="text-xs text-gray-500">
                   En créant votre compte, vous acceptez notre politique de confidentialité et nos conditions d'utilisation.
                    La politique de confidentialité et les conditions d'utilisation de Google s'appliquent.
@@ -1139,7 +1189,7 @@ const errorMessage = res.status === 409
               <div className="grid grid-cols-1 gap-3">
                 <Button 
                   className="w-full bg-black text-white hover:bg-gray-800" 
-                  disabled={authSubmitting || !signupPhone || !signupEmail || !signupPassword || !signupCGU}
+                  disabled={authSubmitting || !signupPhone || !signupEmail || !signupPassword || !signupCGU || !signupFirstName || !signupLastName}
                   onClick={async () => {
                     try {
                       setAuthSubmitting(true)
@@ -1149,7 +1199,9 @@ const errorMessage = res.status === 409
                         phone: signupPhone,
                         email: signupEmail,
                         password: signupPassword,
-                        name: signupEmail.split('@')[0] // Utiliser la partie avant @ de l'email comme nom par défaut
+                        first_name: signupFirstName,
+                        last_name: signupLastName,
+                        name: `${signupFirstName} ${signupLastName}`.trim() || signupEmail.split('@')[0]
                       };
                       
 
