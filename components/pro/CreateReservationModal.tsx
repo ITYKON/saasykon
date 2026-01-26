@@ -497,6 +497,12 @@ export default function CreateReservationModal({
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Notes supplémentaires pour la réservation..."
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      submit();
+                    }
+                  }}
                 />
               </div>
 
@@ -512,8 +518,7 @@ export default function CreateReservationModal({
                   </Button>
                   <div className="relative group">
                     <Button 
-                      type="button"
-                      onClick={submit}
+                      type="submit"
                       disabled={submitting || !client || !serviceId || !date || !time}
                       className="w-full"
                     >

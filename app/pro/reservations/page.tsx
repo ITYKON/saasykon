@@ -19,6 +19,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { Textarea } from "@/components/ui/textarea"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { 
@@ -331,6 +332,13 @@ export default function ReservationsPage() {
 
   const saveEdit = async () => {
     if (!editData) return
+    
+    // Validation basique
+    if (!editData.date || !editData.time) {
+      alert("Veuillez renseigner la date et l'heure.");
+      return;
+    }
+
     setSavingEdit(true)
     try {
       const starts_at = new Date(`${editData.date}T${editData.time}:00`).toISOString()
@@ -363,8 +371,9 @@ export default function ReservationsPage() {
       setIsEditOpen(false)
       setEditData(null)
       fetchReservations()
-    } catch (e) {
+    } catch (e: any) {
       console.error(e)
+      alert(e.message || "Erreur lors de l'enregistrement");
     } finally {
       setSavingEdit(false)
     }
@@ -706,13 +715,20 @@ export default function ReservationsPage() {
           <DialogHeader>
             <DialogTitle>Modifier la réservation</DialogTitle>
           </DialogHeader>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <form 
+            onSubmit={(e) => {
+              e.preventDefault();
+              saveEdit();
+            }}
+            className="grid grid-cols-1 md:grid-cols-2 gap-4"
+          >
             <div>
               <label className="block text-sm mb-1">Client</label>
               <ClientSearch 
                 value={editData?.client?.name || ''}
-                onChange={() => {}}
+                onChange={(val) => setEditData(d => d ? { ...d, client: { ...(d.client || { id: '' }), name: val } } : d)}
                 onSelect={(c: any) => setEditData(d => d ? { ...d, client: c ? { id: c.id, name: c.name } : null } : d)} 
+                onKeyDown={(e) => { if(e.key === 'Enter') { e.preventDefault(); saveEdit(); } }}
               />
             </div>
             <div>
@@ -729,11 +745,21 @@ export default function ReservationsPage() {
             </div>
             <div>
               <label className="block text-sm mb-1">Date</label>
-              <Input type="date" value={editData?.date || ''} onChange={(e) => setEditData(d => d ? { ...d, date: e.target.value } : d)} />
+              <Input 
+                type="date" 
+                value={editData?.date || ''} 
+                onChange={(e) => setEditData(d => d ? { ...d, date: e.target.value } : d)} 
+                onKeyDown={(e) => { if(e.key === 'Enter') { e.preventDefault(); saveEdit(); } }}
+              />
             </div>
             <div>
               <label className="block text-sm mb-1">Heure</label>
-              <Input type="time" value={editData?.time || ''} onChange={(e) => setEditData(d => d ? { ...d, time: e.target.value } : d)} />
+              <Input 
+                type="time" 
+                value={editData?.time || ''} 
+                onChange={(e) => setEditData(d => d ? { ...d, time: e.target.value } : d)} 
+                onKeyDown={(e) => { if(e.key === 'Enter') { e.preventDefault(); saveEdit(); } }}
+              />
             </div>
             <div>
               <label className="block text-sm mb-1">Service</label>
@@ -775,7 +801,12 @@ export default function ReservationsPage() {
             </div>
             <div>
               <label className="block text-sm mb-1">Durée (minutes)</label>
-              <Input type="number" value={editData?.item?.duration_minutes ?? 0} onChange={(e) => setEditData(d => d && d.item ? { ...d, item: { ...d.item, duration_minutes: Number(e.target.value || 0) } } : d)} />
+              <Input 
+                type="number" 
+                value={editData?.item?.duration_minutes ?? 0} 
+                onChange={(e) => setEditData(d => d && d.item ? { ...d, item: { ...d.item, duration_minutes: Number(e.target.value || 0) } } : d)} 
+                onKeyDown={(e) => { if(e.key === 'Enter') { e.preventDefault(); saveEdit(); } }}
+              />
             </div>
             <div>
               <label className="block text-sm mb-1">Prix (DA)</label>
@@ -784,17 +815,30 @@ export default function ReservationsPage() {
                 step="1" 
                 value={editData?.item ? String(Math.floor((editData.item.price_cents || 0)/100)) : ''} 
                 onChange={(e) => setEditData(d => d && d.item ? { ...d, item: { ...d.item, price_cents: Math.max(0, Math.floor(Number(e.target.value || 0))) * 100 } } : d)} 
+                onKeyDown={(e) => { if(e.key === 'Enter') { e.preventDefault(); saveEdit(); } }}
               />
             </div>
             <div className="md:col-span-2">
               <label className="block text-sm mb-1">Notes</label>
-              <Input value={editData?.notes || ''} onChange={(e) => setEditData(d => d ? { ...d, notes: e.target.value } : d)} />
+              <Textarea 
+                value={editData?.notes || ''} 
+                onChange={(e) => setEditData(d => d ? { ...d, notes: e.target.value } : d)} 
+                rows={3}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    saveEdit();
+                  }
+                }}
+              />
             </div>
-          </div>
-          <div className="flex justify-end gap-2 mt-4">
-            <Button variant="outline" onClick={() => setIsEditOpen(false)}>Annuler</Button>
-            <Button onClick={saveEdit} disabled={savingEdit || !editData?.date || !editData?.time || !editData?.item?.service_id}>{savingEdit ? 'Enregistrement...' : 'Enregistrer'}</Button>
-          </div>
+            <div className="md:col-span-2 flex justify-end gap-2 mt-4">
+              <Button type="button" variant="outline" onClick={() => setIsEditOpen(false)}>Annuler</Button>
+              <Button type="submit" disabled={savingEdit}>
+                {savingEdit ? "Enregistrement..." : "Enregistrer"}
+              </Button>
+            </div>
+          </form>
         </DialogContent>
       </Dialog>
     </div>

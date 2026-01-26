@@ -336,6 +336,12 @@ const responseData = await response.json();
                     onChange={handleInputChange}
                     placeholder="Décrivez votre établissement"
                     rows={4}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSubmit(e);
+                      }
+                    }}
                   />
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

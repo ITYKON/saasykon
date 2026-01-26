@@ -520,7 +520,19 @@ export default function ProServices() {
                 </div>
                 <div className="md:col-span-2">
                   <Label htmlFor="serviceDescription">Description</Label>
-                  <Textarea id="serviceDescription" value={newDescription} onChange={(e) => setNewDescription(e.target.value)} placeholder="Description du service..." rows={3} />
+                  <Textarea 
+                    id="serviceDescription" 
+                    value={newDescription} 
+                    onChange={(e) => setNewDescription(e.target.value)} 
+                    placeholder="Description du service..." 
+                    rows={3}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleCreateService();
+                      }
+                    }}
+                  />
                 </div>
                 <div className="md:col-span-2">
                   <Label>Employés</Label>
@@ -792,7 +804,18 @@ export default function ProServices() {
               </div>
               <div className="md:col-span-2">
                 <Label htmlFor="editServiceDescription">Description</Label>
-                <Textarea id="editServiceDescription" value={editDescription} onChange={(e) => setEditDescription(e.target.value)} rows={3} />
+                <Textarea 
+                  id="editServiceDescription" 
+                  value={editDescription} 
+                  onChange={(e) => setEditDescription(e.target.value)} 
+                  rows={3} 
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSaveEdit();
+                    }
+                  }}
+                />
               </div>
               <div className="md:col-span-2">
                 <Label>Employés</Label>
