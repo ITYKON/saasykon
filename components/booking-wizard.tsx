@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { X, ChevronLeft, ChevronRight, Plus } from "lucide-react"
+import { X, ChevronLeft, ChevronRight, Plus, Eye, EyeOff } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -45,9 +45,12 @@ interface BookingWizardProps {
   const [authOverride, setAuthOverride] = useState(false)
   const [loginEmail, setLoginEmail] = useState('')
   const [loginPassword, setLoginPassword] = useState('')
+  const [signupFirstName, setSignupFirstName] = useState('')
+  const [signupLastName, setSignupLastName] = useState('')
   const [signupPhone, setSignupPhone] = useState('')
   const [signupEmail, setSignupEmail] = useState('')
   const [signupPassword, setSignupPassword] = useState('')
+  const [showSignupPassword, setShowSignupPassword] = useState(false)
   const [signupCGU, setSignupCGU] = useState(false)
   const [signupOkMsg, setSignupOkMsg] = useState<string | null>(null)
   const [authSubmitting, setAuthSubmitting] = useState(false)
@@ -219,7 +222,7 @@ interface BookingWizardProps {
                   <AlertDialogFooter>
                     <AlertDialogAction onClick={() => { 
                       setShowInfo(false); 
-                      setCurrentStep(3); // Passer à l'étape d'identification après la confirmation
+                      setCurrentStep(2); // Passer à l'étape d'identification après la confirmation
                     }}>J'ai compris</AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
@@ -737,8 +740,26 @@ interface BookingWizardProps {
 
           {identMode === 'signup' && (
             <div className="bg-white border rounded-xl p-6 shadow-sm space-y-6">
-              {error && <div className="text-sm text-red-600">{error}</div>}
-              <div className="space-y-4 sm:space-y-6 px-2 sm:px-0">
+              {error && <div className="text-sm text-red-600 font-medium mb-4">{error}</div>}
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="block text-sm font-medium text-gray-700 mb-1">Prénom</Label>
+                    <Input 
+                      placeholder="Prénom"
+                      value={signupFirstName}
+                      onChange={e => setSignupFirstName(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label className="block text-sm font-medium text-gray-700 mb-1">Nom</Label>
+                    <Input 
+                      placeholder="Nom"
+                      value={signupLastName}
+                      onChange={e => setSignupLastName(e.target.value)}
+                    />
+                  </div>
+                </div>
                 <div>
                   <Label className="block text-sm font-medium text-gray-700 mb-1">Téléphone portable</Label>
                   <div className="mt-1 relative rounded-md shadow-sm">
@@ -770,7 +791,7 @@ interface BookingWizardProps {
                   <Label className="block text-sm font-medium text-gray-700 mb-1">Mot de passe </Label>
                   <div className="relative">
                     <Input 
-                      type={signupCGU ? 'text' : 'password'} 
+                      type={showSignupPassword ? 'text' : 'password'} 
                       placeholder="Mot de passe" 
                       className="mt-1 pr-10" 
                       value={signupPassword} 
@@ -779,17 +800,12 @@ interface BookingWizardProps {
                     <button 
                       type="button" 
                       className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
-                      onClick={() => setSignupCGU(!signupCGU)}
+                      onClick={() => setShowSignupPassword(!showSignupPassword)}
                     >
-                      {signupCGU ? (
-                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-                        </svg>
+                      {showSignupPassword ? (
+                        <EyeOff className="h-5 w-5" />
                       ) : (
-                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                        </svg>
+                        <Eye className="h-5 w-5" />
                       )}
                     </button>
                   </div>
@@ -798,21 +814,20 @@ interface BookingWizardProps {
                 <div className="flex items-start">
                   <div className="flex items-center h-5">
                     <input 
-                      id="cgu" 
+                      id="signup-cgu-2" 
                       type="checkbox" 
                       checked={signupCGU} 
                       onChange={e => setSignupCGU(e.target.checked)} 
                       className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                     />
                   </div>
-                  <label htmlFor="cgu" className="ml-2 block text-sm text-gray-700">
+                  <label htmlFor="signup-cgu-2" className="ml-2 block text-sm text-gray-700">
                     J'accepte les CGU de Yoka
                   </label>
                 </div>
                 
                 <p className="text-xs text-gray-500">
                   En créant votre compte, vous acceptez notre politique de confidentialité et nos conditions d'utilisation.
-                   La politique de confidentialité et les conditions d'utilisation de Google s'appliquent.
                 </p>
               </div>
               <div className="grid grid-cols-1 gap-3">
@@ -825,10 +840,11 @@ interface BookingWizardProps {
                       setError(null)
                       
                       const userData = {
+                        first_name: signupFirstName,
+                        last_name: signupLastName,
                         phone: signupPhone,
                         email: signupEmail,
                         password: signupPassword,
-                        name: signupEmail.split('@')[0] // Utiliser la partie avant @ de l'email comme nom par défaut
                       };
                       
 
@@ -1059,7 +1075,25 @@ const errorMessage = res.status === 409
           {identMode === 'signup' && (
             <div className="bg-white border rounded-xl p-6 shadow-sm space-y-6">
               {error && <div className="text-sm text-red-600">{error}</div>}
-              <div className="space-y-4 sm:space-y-6 px-2 sm:px-0">
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="block text-sm font-medium text-gray-700 mb-1">Prénom</Label>
+                    <Input 
+                      placeholder="Prénom"
+                      value={signupFirstName}
+                      onChange={e => setSignupFirstName(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label className="block text-sm font-medium text-gray-700 mb-1">Nom</Label>
+                    <Input 
+                      placeholder="Nom"
+                      value={signupLastName}
+                      onChange={e => setSignupLastName(e.target.value)}
+                    />
+                  </div>
+                </div>
                 <div>
                   <Label className="block text-sm font-medium text-gray-700 mb-1">Téléphone portable</Label>
                   <div className="mt-1 relative rounded-md shadow-sm">
@@ -1091,7 +1125,7 @@ const errorMessage = res.status === 409
                   <Label className="block text-sm font-medium text-gray-700 mb-1">Mot de passe </Label>
                   <div className="relative">
                     <Input 
-                      type={signupCGU ? 'text' : 'password'} 
+                      type={showSignupPassword ? 'text' : 'password'} 
                       placeholder="Mot de passe" 
                       className="mt-1 pr-10" 
                       value={signupPassword} 
@@ -1100,17 +1134,12 @@ const errorMessage = res.status === 409
                     <button 
                       type="button" 
                       className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
-                      onClick={() => setSignupCGU(!signupCGU)}
+                      onClick={() => setShowSignupPassword(!showSignupPassword)}
                     >
-                      {signupCGU ? (
-                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-                        </svg>
+                      {showSignupPassword ? (
+                        <EyeOff className="h-5 w-5" />
                       ) : (
-                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                        </svg>
+                        <Eye className="h-5 w-5" />
                       )}
                     </button>
                   </div>
@@ -1119,21 +1148,20 @@ const errorMessage = res.status === 409
                 <div className="flex items-start">
                   <div className="flex items-center h-5">
                     <input 
-                      id="cgu" 
+                      id="signup-cgu-2" 
                       type="checkbox" 
                       checked={signupCGU} 
                       onChange={e => setSignupCGU(e.target.checked)} 
                       className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                     />
                   </div>
-                  <label htmlFor="cgu" className="ml-2 block text-sm text-gray-700">
+                  <label htmlFor="signup-cgu-2" className="ml-2 block text-sm text-gray-700">
                     J'accepte les CGU de Yoka
                   </label>
                 </div>
                 
                 <p className="text-xs text-gray-500">
                   En créant votre compte, vous acceptez notre politique de confidentialité et nos conditions d'utilisation.
-                   La politique de confidentialité et les conditions d'utilisation de Google s'appliquent.
                 </p>
               </div>
               <div className="grid grid-cols-1 gap-3">
@@ -1146,10 +1174,11 @@ const errorMessage = res.status === 409
                       setError(null)
                       
                       const userData = {
+                        first_name: signupFirstName,
+                        last_name: signupLastName,
                         phone: signupPhone,
                         email: signupEmail,
                         password: signupPassword,
-                        name: signupEmail.split('@')[0] // Utiliser la partie avant @ de l'email comme nom par défaut
                       };
                       
 
@@ -1309,6 +1338,7 @@ const errorMessage = res.status === 409
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-xl">
+                    {currentStep === 1 && "1. Sélectionnez votre prestation"}
                     {currentStep === 2 && "2. Date et heure sélectionnées"}
                     {currentStep === 3 && "3. Identification"}
                   </CardTitle>
@@ -1323,7 +1353,6 @@ const errorMessage = res.status === 409
               <CardContent>
                 {renderStep1()}
                 {currentStep >= 2 && renderStep2()}
-                {currentStep >= 3 && renderStep3()}
               </CardContent>
             </Card>
           </div>
