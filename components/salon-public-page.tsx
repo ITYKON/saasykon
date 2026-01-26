@@ -314,16 +314,20 @@ export default function SalonPublicPage({ salonId }: SalonPublicPageProps) {
                 {(salon?.services || []).map((category: any, categoryIndex: number) => (
                   <Card key={categoryIndex}>
                     <CardContent className="p-6">
-                      <h3 className="font-semibold text-lg mb-4">{category.category}</h3>
-                      <div className="space-y-3">
-                        {category.items.map((service: any) => (
+                      <h3 className="font-semibold text-lg mb-4 uppercase text-gray-700">{category.category}</h3>
+                      <div className="divide-y divide-gray-200">
+                        {category.items.map((service: any, index: number) => (
                           <div
                             key={service.id}
-                            className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                            className="flex flex-col sm:flex-row sm:items-center justify-between py-4 first:pt-0"
                           >
                             <div className="flex-1 mb-3 sm:mb-0">
-                              <p className="font-medium text-black">{service.name}</p>
-                              <p className="text-sm text-gray-600">{service.description}</p>
+                              <p className="font-normal text-gray-900">
+                                {service.name} {service.price && service.price !== "—" && service.price}
+                              </p>
+                              {service.description && (
+                                <p className="text-sm text-gray-600 mt-1">{service.description}</p>
+                              )}
                             </div>
                             <div className="flex items-center justify-between sm:justify-end gap-4">
                               <span className="text-sm text-gray-600">{service.duration}</span>
