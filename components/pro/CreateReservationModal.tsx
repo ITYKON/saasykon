@@ -545,7 +545,7 @@ export default function CreateReservationModal({
                 * Champs obligatoires
               </p>
             </div>
-          </div>
+          </form>
         )}
       </DialogContent>
     </Dialog>
