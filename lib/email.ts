@@ -1,19 +1,32 @@
 // lib/email.ts
 import { EmailClient } from "@azure/communication-email";
 
-const connectionString = process.env.AZURE_COMMUNICATION_CONNECTION_STRING;
-const emailClient = new EmailClient(connectionString!);
-
 const EMAIL_FROM = process.env.EMAIL_FROM || "support@yoka-dz.com";
 
 // Interface de compatibilité AWS SES
 export interface EmailSendResult {
   messageId: string;
-  // Tu peux ajouter d'autres champs si nécessaire pour la compatibilité
   status?: string;
 }
 
-// Fonction TEST (ajoutée)
+// Lazy loading du client - n'est instancié qu'à la première utilisation
+let emailClientInstance: EmailClient | null = null;
+
+function getEmailClient(): EmailClient {
+  if (!emailClientInstance) {
+    const connectionString = process.env.AZURE_COMMUNICATION_CONNECTION_STRING;
+    
+    if (!connectionString) {
+      console.error("AZURE_COMMUNICATION_CONNECTION_STRING manquante");
+      throw new Error("Configuration email manquante");
+    }
+    
+    emailClientInstance = new EmailClient(connectionString);
+  }
+  return emailClientInstance;
+}
+
+// Fonction TEST
 export async function sendTestEmail(): Promise<EmailSendResult> {
   return sendEmail({
     to: process.env.EMAIL_TEST_TO || "test@example.com",
@@ -23,7 +36,7 @@ export async function sendTestEmail(): Promise<EmailSendResult> {
   });
 }
 
-// Fonction principale (avec category ajoutée)
+// Fonction principale
 export async function sendEmail(opts: {
   to: string;
   subject: string;
@@ -45,7 +58,9 @@ export async function sendEmail(opts: {
       },
     };
 
-    const poller = await emailClient.beginSend(message);
+    // Utilise le lazy loader
+    const client = getEmailClient();
+    const poller = await client.beginSend(message);
     const response = await poller.pollUntilDone();
     
     console.log("Email sent:", response.id);
