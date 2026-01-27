@@ -12,6 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { useAuth } from "@/hooks/useAuth"
 import { buildSalonSlug } from "@/lib/salon-slug"
+import { PhoneInput } from "@/components/ui/phone-input"
+import { isValidPhoneNumber } from "react-phone-number-input"
 
 interface BookingWizardProps {
   salon: any
@@ -52,6 +54,16 @@ interface BookingWizardProps {
   const [signupPassword, setSignupPassword] = useState('')
   const [signupCGU, setSignupCGU] = useState(false)
   const [signupOkMsg, setSignupOkMsg] = useState<string | null>(null)
+  
+  // Field-level validation state
+  const [fieldErrors, setFieldErrors] = useState<{
+    firstName?: string;
+    lastName?: string;
+    phone?: string;
+    email?: string;
+    password?: string;
+  }>({});
+
   const [authSubmitting, setAuthSubmitting] = useState(false)
   const [ticketOpen, setTicketOpen] = useState(false)
   const [ticketData, setTicketData] = useState<any>(null)
@@ -65,6 +77,42 @@ interface BookingWizardProps {
 
   const totalDuration = selectedItems.reduce((sum, it) => sum + Number(it?.duration_minutes || 0), 0)
   const totalPriceCents = selectedItems.reduce((sum, it) => sum + Number(it?.price_cents ?? 0), 0)
+
+  const validateEmail = (email: string) => {
+    // Stricter email regex:  example@****.**
+    const re = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    return re.test(email);
+  };
+
+  const validateName = (name: string) => {
+    const re = /^[a-zA-ZÀ-ÿ\s'-]+$/;
+    return re.test(name) && name.trim().length >= 3;
+  };
+
+  const validateField = (field: keyof typeof fieldErrors, value: string) => {
+    let error = '';
+    switch (field) {
+      case 'firstName':
+      case 'lastName':
+        if (!value.trim()) error = 'Ce champ est requis.';
+        else if (!validateName(value)) error = 'Doit contenir au moins 3 lettres.';
+        break;
+      case 'phone':
+        if (!value) error = 'Ce champ est requis.';
+        else if (!isValidPhoneNumber(value)) error = 'Numéro de téléphone invalide.';
+        break;
+      case 'email':
+        if (!value) error = 'Ce champ est requis.';
+        else if (!validateEmail(value)) error = 'Adresse email invalide.';
+        break;
+      case 'password':
+        if (!value) error = 'Ce champ est requis.';
+        else if (value.length < 6) error = 'Le mot de passe doit contenir au moins 6 caractères.';
+        break;
+    }
+    setFieldErrors(prev => ({ ...prev, [field]: error }));
+    return !error;
+  };
 
   async function loadSlotsForService(serviceId: string) {
     if (!serviceId) return [] as Array<{ date: string; slots: string[] }>
@@ -747,37 +795,54 @@ interface BookingWizardProps {
                     <Input 
                       type="text" 
                       placeholder="Votre nom" 
-                      className="mt-1" 
+                      className={`mt-1 ${fieldErrors.lastName ? "border-red-500" : ""}`} 
                       value={signupLastName} 
-                      onChange={e => setSignupLastName(e.target.value)} 
+                      onChange={e => {
+                        if (/^[a-zA-ZÀ-ÿ\s'-]*$/.test(e.target.value)) {
+                          setSignupLastName(e.target.value)
+                          if(fieldErrors.lastName) setFieldErrors(prev => ({...prev, lastName: ''}))
+                        }
+                      }} 
+                      onBlur={() => validateField('lastName', signupLastName)}
                     />
+                    {fieldErrors.lastName && <p className="text-red-500 text-xs mt-1">{fieldErrors.lastName}</p>}
                   </div>
                   <div className="flex-1">
                     <Label className="block text-sm font-medium text-gray-700 mb-1">Prénom</Label>
                     <Input 
                       type="text" 
                       placeholder="Votre prénom" 
-                      className="mt-1" 
+                      className={`mt-1 ${fieldErrors.firstName ? "border-red-500" : ""}`} 
                       value={signupFirstName} 
-                      onChange={e => setSignupFirstName(e.target.value)} 
+                      onChange={e => {
+                        if (/^[a-zA-ZÀ-ÿ\s'-]*$/.test(e.target.value)) {
+                          setSignupFirstName(e.target.value)
+                          if(fieldErrors.firstName) setFieldErrors(prev => ({...prev, firstName: ''}))
+                        }
+                      }} 
+                      onBlur={() => validateField('firstName', signupFirstName)}
                     />
+                    {fieldErrors.firstName && <p className="text-red-500 text-xs mt-1">{fieldErrors.firstName}</p>}
                   </div>
                 </div>
 
                 <div>
                   <Label className="block text-sm font-medium text-gray-700 mb-1">Téléphone portable</Label>
-                  <div className="mt-1 relative rounded-md shadow-sm">
-                    <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                      <span className="text-gray-500 sm:text-sm">+213</span>
-                    </div>
-                    <Input 
-                      type="tel" 
-                      placeholder="Entrez votre numéro..." 
-                      className="pl-16" 
-                      value={signupPhone} 
-                      onChange={e => setSignupPhone(e.target.value.replace(/\D/g, ''))}
-                    />
-                  </div>
+                  <PhoneInput
+                    defaultCountry="DZ"
+                    placeholder="Entrez votre numéro..."
+                    maxLength={16}
+                    value={signupPhone}
+                    onChange={(value) => {
+                      setSignupPhone(value || '')
+                      if(fieldErrors.phone) setFieldErrors(prev => ({...prev, phone: ''}))
+                    }}
+                    className={`mt-1 ${signupPhone && !isValidPhoneNumber(signupPhone) || fieldErrors.phone ? "border-red-500 rounded-lg" : ""}`}
+                    onBlur={() => validateField('phone', signupPhone)}
+                  />
+                  {(fieldErrors.phone || (signupPhone && !isValidPhoneNumber(signupPhone))) && (
+                    <p className="text-sm text-red-500 mt-1">{fieldErrors.phone || "Numéro invalide"}</p>
+                  )}
                 </div>
                 
                 <div>
@@ -785,10 +850,15 @@ interface BookingWizardProps {
                   <Input 
                     type="email" 
                     placeholder="Email" 
-                    className="mt-1" 
+                    className={`mt-1 ${fieldErrors.email ? "border-red-500" : ""}`} 
                     value={signupEmail} 
-                    onChange={e => setSignupEmail(e.target.value)} 
+                    onChange={e => {
+                      setSignupEmail(e.target.value)
+                      if(fieldErrors.email) setFieldErrors(prev => ({...prev, email: ''}))
+                    }} 
+                    onBlur={() => validateField('email', signupEmail)}
                   />
+                  {fieldErrors.email && <p className="text-red-500 text-xs mt-1">{fieldErrors.email}</p>}
                 </div>
                 
                 <div>
@@ -797,10 +867,15 @@ interface BookingWizardProps {
                     <Input 
                       type={signupCGU ? 'text' : 'password'} 
                       placeholder="Mot de passe" 
-                      className="mt-1 pr-10" 
+                      className={`mt-1 pr-10 ${fieldErrors.password ? "border-red-500" : ""}`} 
                       value={signupPassword} 
-                      onChange={e => setSignupPassword(e.target.value)} 
+                      onChange={e => {
+                        setSignupPassword(e.target.value)
+                        if(fieldErrors.password) setFieldErrors(prev => ({...prev, password: ''}))
+                      }} 
+                      onBlur={() => validateField('password', signupPassword)}
                     />
+                    {fieldErrors.password && <p className="text-red-500 text-xs mt-1">{fieldErrors.password}</p>}
                     <button 
                       type="button" 
                       className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
@@ -849,6 +924,19 @@ interface BookingWizardProps {
                       setAuthSubmitting(true)
                       setError(null)
                       
+                      // Strict Validation
+                      let isValid = true;
+                      isValid = validateField('firstName', signupFirstName) && isValid;
+                      isValid = validateField('lastName', signupLastName) && isValid;
+                      isValid = validateField('phone', signupPhone) && isValid;
+                      isValid = validateField('email', signupEmail) && isValid;
+                      isValid = validateField('password', signupPassword) && isValid;
+
+                      if (!isValid) {
+                        setAuthSubmitting(false)
+                        return
+                      }
+
                       const userData = {
                         phone: signupPhone,
                         email: signupEmail,
@@ -1089,18 +1177,21 @@ const errorMessage = res.status === 409
               <div className="space-y-4 sm:space-y-6 px-2 sm:px-0">
                 <div>
                   <Label className="block text-sm font-medium text-gray-700 mb-1">Téléphone portable</Label>
-                  <div className="mt-1 relative rounded-md shadow-sm">
-                    <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                      <span className="text-gray-500 sm:text-sm">+213</span>
-                    </div>
-                    <Input 
-                      type="tel" 
-                      placeholder="Entrez votre numéro..." 
-                      className="pl-16" 
-                      value={signupPhone} 
-                      onChange={e => setSignupPhone(e.target.value.replace(/\D/g, ''))}
-                    />
-                  </div>
+                  <PhoneInput
+                    defaultCountry="DZ"
+                    placeholder="Entrez votre numéro..."
+                    maxLength={16}
+                    value={signupPhone}
+                    onChange={(value) => {
+                      setSignupPhone(value || '')
+                      if(fieldErrors.phone) setFieldErrors(prev => ({...prev, phone: ''}))
+                    }}
+                    className={`mt-1 ${signupPhone && !isValidPhoneNumber(signupPhone) || fieldErrors.phone ? "border-red-500 rounded-lg" : ""}`}
+                    onBlur={() => validateField('phone', signupPhone)}
+                  />
+                  {(fieldErrors.phone || (signupPhone && !isValidPhoneNumber(signupPhone))) && (
+                    <p className="text-sm text-red-500 mt-1">{fieldErrors.phone || "Numéro invalide"}</p>
+                  )}
                 </div>
                 
                 <div>
@@ -1108,10 +1199,15 @@ const errorMessage = res.status === 409
                   <Input 
                     type="email" 
                     placeholder="Email" 
-                    className="mt-1" 
+                    className={`mt-1 ${fieldErrors.email ? "border-red-500" : ""}`} 
                     value={signupEmail} 
-                    onChange={e => setSignupEmail(e.target.value)} 
+                    onChange={e => {
+                      setSignupEmail(e.target.value)
+                      if(fieldErrors.email) setFieldErrors(prev => ({...prev, email: ''}))
+                    }} 
+                    onBlur={() => validateField('email', signupEmail)}
                   />
+                  {fieldErrors.email && <p className="text-red-500 text-xs mt-1">{fieldErrors.email}</p>}
                 </div>
                 
                 <div>
@@ -1120,10 +1216,15 @@ const errorMessage = res.status === 409
                     <Input 
                       type={signupCGU ? 'text' : 'password'} 
                       placeholder="Mot de passe" 
-                      className="mt-1 pr-10" 
+                      className={`mt-1 pr-10 ${fieldErrors.password ? "border-red-500" : ""}`} 
                       value={signupPassword} 
-                      onChange={e => setSignupPassword(e.target.value)} 
+                      onChange={e => {
+                        setSignupPassword(e.target.value)
+                        if(fieldErrors.password) setFieldErrors(prev => ({...prev, password: ''}))
+                      }} 
+                      onBlur={() => validateField('password', signupPassword)}
                     />
+                    {fieldErrors.password && <p className="text-red-500 text-xs mt-1">{fieldErrors.password}</p>}
                     <button 
                       type="button" 
                       className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
@@ -1164,20 +1265,34 @@ const errorMessage = res.status === 409
                     <Input 
                       type="text" 
                       placeholder="Votre nom" 
-                      className="mt-1" 
+                      className={`mt-1 ${fieldErrors.lastName ? "border-red-500" : ""}`} 
                       value={signupLastName} 
-                      onChange={e => setSignupLastName(e.target.value)} 
+                      onChange={e => {
+                        if (/^[a-zA-ZÀ-ÿ\s'-]*$/.test(e.target.value)) {
+                          setSignupLastName(e.target.value)
+                          if(fieldErrors.lastName) setFieldErrors(prev => ({...prev, lastName: ''}))
+                        }
+                      }} 
+                      onBlur={() => validateField('lastName', signupLastName)}
                     />
+                    {fieldErrors.lastName && <p className="text-red-500 text-xs mt-1">{fieldErrors.lastName}</p>}
                   </div>
                   <div className="flex-1">
                     <Label className="block text-sm font-medium text-gray-700 mb-1">Prénom</Label>
                     <Input 
                       type="text" 
                       placeholder="Votre prénom" 
-                      className="mt-1" 
+                      className={`mt-1 ${fieldErrors.firstName ? "border-red-500" : ""}`} 
                       value={signupFirstName} 
-                      onChange={e => setSignupFirstName(e.target.value)} 
+                      onChange={e => {
+                        if (/^[a-zA-ZÀ-ÿ\s'-]*$/.test(e.target.value)) {
+                          setSignupFirstName(e.target.value)
+                          if(fieldErrors.firstName) setFieldErrors(prev => ({...prev, firstName: ''}))
+                        }
+                      }} 
+                      onBlur={() => validateField('firstName', signupFirstName)}
                     />
+                    {fieldErrors.firstName && <p className="text-red-500 text-xs mt-1">{fieldErrors.firstName}</p>}
                   </div>
                 </div>
 
@@ -1195,6 +1310,19 @@ const errorMessage = res.status === 409
                       setAuthSubmitting(true)
                       setError(null)
                       
+                      // Strict Validation
+                      let isValid = true;
+                      isValid = validateField('firstName', signupFirstName) && isValid;
+                      isValid = validateField('lastName', signupLastName) && isValid;
+                      isValid = validateField('phone', signupPhone) && isValid;
+                      isValid = validateField('email', signupEmail) && isValid;
+                      isValid = validateField('password', signupPassword) && isValid;
+
+                      if (!isValid) {
+                        setAuthSubmitting(false)
+                        return
+                      }
+
                       const userData = {
                         phone: signupPhone,
                         email: signupEmail,
@@ -1203,6 +1331,8 @@ const errorMessage = res.status === 409
                         last_name: signupLastName,
                         name: `${signupFirstName} ${signupLastName}`.trim() || signupEmail.split('@')[0]
                       };
+                      
+
                       
 
                       
