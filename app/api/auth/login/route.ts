@@ -104,7 +104,7 @@ export async function POST(request: Request) {
     
     if (!user.password_hash) {
       await logFailedLoginAttempt(user.id, email);
-      return NextResponse.json({ error: "Veuvez d'abord définir votre mot de passe" }, { status: 401 });
+      return NextResponse.json({ error: "Veuillez d'abord définir votre mot de passe" }, { status: 401 });
     }
     const ok = await verifyPassword(password, user.password_hash || '');
     
