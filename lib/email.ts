@@ -6,11 +6,23 @@ const emailClient = new EmailClient(connectionString!);
 
 const EMAIL_FROM = process.env.EMAIL_FROM || "support@yoka-dz.com";
 
+// Fonction TEST (ajoutée)
+export async function sendTestEmail() {
+  return sendEmail({
+    to: process.env.EMAIL_TEST_TO || "test@example.com",
+    subject: "Test Email from SaaS YKON",
+    html: "<h1>Test Email</h1><p>This is a test email sent from SaaS YKON.</p>",
+    text: "This is a test email sent from SaaS YKON.",
+  });
+}
+
+// Fonction principale (avec category ajoutée)
 export async function sendEmail(opts: {
   to: string;
   subject: string;
   html: string;
   text?: string;
+  category?: string; //  AJOUTÉ
 }) {
   try {
     const message = {
@@ -29,14 +41,14 @@ export async function sendEmail(opts: {
     const response = await poller.pollUntilDone();
     
     console.log("Email sent:", response.id);
-    return { messageId: response.id };
+    return response;
   } catch (error) {
     console.error("Email error:", error);
     throw error;
   }
 }
 
-// Nos templates restent identiques
+// Tes templates (inchangés)
 export function inviteEmailTemplate(params: {
   firstName?: string | null;
   appUrl: string;
