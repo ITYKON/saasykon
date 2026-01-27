@@ -23,6 +23,7 @@ export async function sendEmail(opts: {
   html: string;
   text?: string;
   category?: string; //  AJOUTÉ
+  sandbox?: boolean;
 }) {
   try {
     const message = {
