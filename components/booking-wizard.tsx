@@ -1051,7 +1051,35 @@ const errorMessage = res.status === 409
 
                     const res = await fetch('/api/auth/login', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({email: loginEmail, password: loginPassword})})
 
-                    if(!res.ok){ const body = await res.text(); console.error('[Login] error body', body); throw new Error(`[Login ${res.status}] ${body}`) }
+                    if(!res.ok){ 
+                      const body = await res.text(); 
+                      console.error('[Login] error body', body); 
+                      
+                      let message = 'Erreur de connexion';
+                      try {
+                          const json = JSON.parse(body);
+                          message = json.error || json.message || message;
+                      } catch {
+                          // Body is not JSON, sticking to default or status based
+                      }
+
+                      // Status specific overrides for better UX
+                      if (res.status === 401) {
+                          if (message.includes('définir votre mot de passe')) {
+                              message = "Ce compte n'a pas de mot de passe (ex: connexion Google). Veuillez utiliser 'Mot de passe oublié' pour en définir un.";
+                          } else {
+                              message = "Email ou mot de passe incorrect.";
+                          }
+                      } else if (res.status === 404) {
+                          message = "Aucun compte associé à cet email.";
+                      } else if (res.status === 429) {
+                          message = "Trop de tentatives de connexion. Veuillez réessayer plus tard.";
+                      } else if (res.status >= 500) {
+                          message = "Une erreur serveur est survenue. Veuillez réessayer plus tard.";
+                      }
+
+                      throw new Error(message); 
+                    }
                     setAuthOverride(true); setIdentMode('none'); setSignupOkMsg(null)
 
                   }catch(e:any){ setError(e?.message||'Erreur de connexion') }
@@ -1470,18 +1498,7 @@ const errorMessage = res.status === 409
   return (
     <div className="min-h-screen bg-gray-50 overflow-x-hidden flex flex-col">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <Link href="/" className="text-2xl font-bold text-black tracking-wide">
-              YOKA
-            </Link>
-            <Button variant="ghost" size="sm" onClick={onClose}>
-              <X className="h-5 w-5" />
-            </Button>
-          </div>
-        </div>
-      </header>
+
 
       <div className="w-full max-w-7xl mx-auto px-0 sm:px-4 lg:px-8 py-0 sm:py-6 lg:py-8 flex-1">
         <div className="flex flex-col lg:flex-row lg:gap-8 w-full">
