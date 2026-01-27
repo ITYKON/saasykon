@@ -1394,7 +1394,7 @@ const errorMessage = res.status === 409
                           }
                         }
                         
-                        const errorMessage = errorData?.message || 'Erreur lors de la création du compte. Veuillez réessayer.';
+                        const errorMessage = errorData?.error || errorData?.message || 'Erreur lors de la création du compte. Veuillez réessayer.';
                         console.error('[Inscription] Message d\'erreur à afficher à l\'utilisateur:', errorMessage);
                         throw new Error(errorMessage);
                       }
