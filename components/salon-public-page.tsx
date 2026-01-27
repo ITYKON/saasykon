@@ -113,7 +113,9 @@ export default function SalonPublicPage({ salonId }: SalonPublicPageProps) {
         duration: `${it.duration_minutes || 30}min`,
         price: (typeof it.price_min_cents === 'number' && typeof it.price_max_cents === 'number')
           ? `${Math.round(it.price_min_cents / 100)}–${Math.round(it.price_max_cents / 100)} DA`
-          : (it.price_cents != null ? `${Math.round(it.price_cents / 100)} DA` : "—"),
+          : (typeof it.price_min_cents === 'number'
+            ? `à partir de ${Math.round(it.price_min_cents / 100)} DA`
+            : (it.price_cents != null ? `${Math.round(it.price_cents / 100)} DA` : "—")),
       })),
     }))
     const hours: Record<string, string> = (data.hours as Record<string, string>) || {

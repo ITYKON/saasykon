@@ -245,11 +245,11 @@ interface BookingWizardProps {
                               const pmin = typeof (it as any).price_min_cents === 'number' ? (it as any).price_min_cents : null
                               const pmax = typeof (it as any).price_max_cents === 'number' ? (it as any).price_max_cents : null
                               if (pc != null) { minTotal += pc; maxTotal += pc; counted = true }
-                              else if (pmin != null && pmax != null) { minTotal += pmin; maxTotal += pmax; counted = true }
+                              else if (pmin != null) { minTotal += pmin; maxTotal += (pmax ?? pmin); counted = true }
                             }
                             const hasPrice = counted
                             const isRange = counted && minTotal !== maxTotal
-                            return !hasPrice ? '—' : (isRange ? `À partir de ${Math.round(minTotal / 100)} DA` : `${Math.round(minTotal / 100)} DA`)
+                            return !hasPrice ? '—' : (isRange ? `à partir de ${Math.round(minTotal / 100)} DA` : `${Math.round(minTotal / 100)} DA`)
                           })()}
                         </span>
                       </div>
@@ -331,6 +331,8 @@ interface BookingWizardProps {
                             <div className="text-sm text-gray-500">
                               {svc.duration_minutes || 30} min • {typeof svc.price_min_cents === 'number' && typeof svc.price_max_cents === 'number'
                                 ? `${Math.round(svc.price_min_cents / 100)}–${Math.round(svc.price_max_cents / 100)} DA`
+                                : typeof svc.price_min_cents === 'number'
+                                ? `à partir de ${Math.round(svc.price_min_cents / 100)} DA`
                                 : `${Math.round(((svc.price_cents ?? 0) as number) / 100)} DA`}
                             </div>
                           </div>
@@ -564,6 +566,8 @@ interface BookingWizardProps {
                               {svc.duration_minutes || 30} min • {
                                 typeof svc.price_min_cents === 'number' && typeof svc.price_max_cents === 'number'
                                   ? `${Math.round(svc.price_min_cents / 100)}–${Math.round(svc.price_max_cents / 100)} DA`
+                                  : typeof svc.price_min_cents === 'number'
+                                  ? `à partir de ${Math.round(svc.price_min_cents / 100)} DA`
                                   : `${Math.round(((svc.price_cents ?? 0) as number) / 100)} DA`
                               }
                             </div>
@@ -626,13 +630,14 @@ interface BookingWizardProps {
                   const pmin = typeof (it as any).price_min_cents === 'number' ? (it as any).price_min_cents : null
                   const pmax = typeof (it as any).price_max_cents === 'number' ? (it as any).price_max_cents : null
                   if (pc != null) { minTotal += pc; maxTotal += pc; counted = true }
-                  else if (pmin != null && pmax != null) { minTotal += pmin; maxTotal += pmax; counted = true }
+                  else if (pmin != null) { minTotal += pmin; maxTotal += (pmax ?? pmin); counted = true }
                 }
+                const isRange = counted && minTotal !== maxTotal
                 const priceText = !counted
                   ? '—'
-                  : (minTotal === maxTotal)
-                    ? `${Math.round(minTotal / 100)} DA`
-                    : `${Math.round(minTotal / 100)}–${Math.round(maxTotal / 100)} DA`
+                  : (isRange)
+                    ? `à partir de ${Math.round(minTotal / 100)} DA`
+                    : `${Math.round(minTotal / 100)} DA`
                 setTicketData({
                   id: bookingId,
                   salonName: salon?.name,
@@ -1040,13 +1045,14 @@ const errorMessage = res.status === 409
                   const pmin = typeof (it as any).price_min_cents === 'number' ? (it as any).price_min_cents : null
                   const pmax = typeof (it as any).price_max_cents === 'number' ? (it as any).price_max_cents : null
                   if (pc != null) { minTotal += pc; maxTotal += pc; counted = true }
-                  else if (pmin != null && pmax != null) { minTotal += pmin; maxTotal += pmax; counted = true }
+                  else if (pmin != null) { minTotal += pmin; maxTotal += (pmax ?? pmin); counted = true }
                 }
+                const isRange = counted && minTotal !== maxTotal
                 const priceText = !counted
                   ? '—'
-                  : (minTotal === maxTotal)
-                    ? `${Math.round(minTotal / 100)} DA`
-                    : `${Math.round(minTotal / 100)}–${Math.round(maxTotal / 100)} DA`
+                  : (isRange)
+                    ? `à partir de ${Math.round(minTotal / 100)} DA`
+                    : `${Math.round(minTotal / 100)} DA`
                 setTicketData({
                   id: bookingId,
                   salonName: salon?.name,
@@ -1426,9 +1432,11 @@ const errorMessage = res.status === 409
                           <div className="flex flex-nowrap items-center justify-between w-full gap-2">
                             <span className="truncate flex-1 min-w-0">{it.name}</span>
                             <span className="text-gray-600 whitespace-nowrap">
-                              {it.duration_minutes}min • {typeof (it as any).price_min_cents === 'number' && typeof (it as any).price_max_cents === 'number'
-                                ? `${Math.round((it as any).price_min_cents / 100)}–${Math.round((it as any).price_max_cents / 100)} DA`
-                                : `${Math.round(((it.price_cents ?? 0) as number) / 100)} DA`}
+                                {it.duration_minutes}min • {typeof (it as any).price_min_cents === 'number' && typeof (it as any).price_max_cents === 'number'
+                                  ? `${Math.round((it as any).price_min_cents / 100)}–${Math.round((it as any).price_max_cents / 100)} DA`
+                                  : typeof (it as any).price_min_cents === 'number'
+                                  ? `à partir de ${Math.round((it as any).price_min_cents / 100)} DA`
+                                  : `${Math.round(((it.price_cents ?? 0) as number) / 100)} DA`}
                             </span>
                           </div>
                           <div className="flex items-center justify-between text-xs text-gray-600 w-full">
@@ -1503,14 +1511,15 @@ const errorMessage = res.status === 409
                           if (pc != null) { 
                             minTotal += pc; 
                             maxTotal += pc 
-                          } else if (pmin != null && pmax != null) { 
+                          } else if (pmin != null) { 
                             minTotal += pmin; 
-                            maxTotal += pmax 
+                            maxTotal += (pmax ?? pmin) 
                           }
                         }
-                        const text = (minTotal === maxTotal)
-                          ? `${Math.round(minTotal / 100)} DA`
-                          : `${Math.round(minTotal / 100)}–${Math.round(maxTotal / 100)} DA`
+                        const isRange = minTotal !== maxTotal
+                        const text = (isRange)
+                          ? `à partir de ${Math.round(minTotal / 100)} DA`
+                          : `${Math.round(minTotal / 100)} DA`
                         return (
                           <span className="font-medium">
                             {totalDuration} min • {text}
