@@ -1498,18 +1498,7 @@ const errorMessage = res.status === 409
   return (
     <div className="min-h-screen bg-gray-50 overflow-x-hidden flex flex-col">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <Link href="/" className="text-2xl font-bold text-black tracking-wide">
-              YOKA
-            </Link>
-            <Button variant="ghost" size="sm" onClick={onClose}>
-              <X className="h-5 w-5" />
-            </Button>
-          </div>
-        </div>
-      </header>
+
 
       <div className="w-full max-w-7xl mx-auto px-0 sm:px-4 lg:px-8 py-0 sm:py-6 lg:py-8 flex-1">
         <div className="flex flex-col lg:flex-row lg:gap-8 w-full">
