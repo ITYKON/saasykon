@@ -21,7 +21,7 @@ export default function ProServices() {
   const [newPrice, setNewPrice] = useState<string>("")
   const [newPriceMin, setNewPriceMin] = useState<string>("")
   const [newPriceMax, setNewPriceMax] = useState<string>("")
-  const [priceMode, setPriceMode] = useState<"fixed" | "range">("fixed")
+  const [priceMode, setPriceMode] = useState<"fixed" | "range" | "starting_at">("fixed")
   const [newDescription, setNewDescription] = useState("")
   const [isServiceModalOpen, setIsServiceModalOpen] = useState(false)
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false)
@@ -42,7 +42,7 @@ export default function ProServices() {
   const [editPrice, setEditPrice] = useState<string>("")
   const [editPriceMin, setEditPriceMin] = useState<string>("")
   const [editPriceMax, setEditPriceMax] = useState<string>("")
-  const [editPriceMode, setEditPriceMode] = useState<"fixed" | "range">("fixed")
+  const [editPriceMode, setEditPriceMode] = useState<"fixed" | "range" | "starting_at">("fixed")
   const [editDescription, setEditDescription] = useState("")
   const [editActive, setEditActive] = useState<boolean>(true)
   const [editSelectedEmployeeIds, setEditSelectedEmployeeIds] = useState<Set<string>>(new Set())
@@ -72,7 +72,11 @@ export default function ProServices() {
         const max = typeof v?.price_max_cents === "number" ? String(Math.round(v.price_max_cents / 100)) : ""
         setEditPriceMin(min)
         setEditPriceMax(max)
-        setEditPriceMode("range")
+        if (min && !max) {
+          setEditPriceMode("starting_at")
+        } else {
+          setEditPriceMode("range")
+        }
       }
       try {
         const empRes = await fetch(`/api/pro/employees?include=services&limit=200`)
@@ -108,6 +112,9 @@ export default function ProServices() {
       if (isNaN(priceMin) || isNaN(priceMax) || priceMin < 0 || priceMax < 0) return alert("Prix min/max invalides")
       if (priceMin > priceMax) return alert("Prix min > max")
     }
+    if (editPriceMode === "starting_at") {
+      if (isNaN(priceMin) || priceMin < 0) return alert("Prix minimum invalide")
+    }
     try {
       // Update service fields
       const body: any = { name, description: editDescription || null, is_active: !!editActive }
@@ -127,10 +134,14 @@ export default function ProServices() {
           variantPatch.price_cents = price * 100
           variantPatch.price_min_cents = null
           variantPatch.price_max_cents = null
-        } else {
+        } else if (editPriceMode === "range") {
           variantPatch.price_cents = null
           variantPatch.price_min_cents = priceMin * 100
           variantPatch.price_max_cents = priceMax * 100
+        } else if (editPriceMode === "starting_at") {
+          variantPatch.price_cents = null
+          variantPatch.price_min_cents = priceMin * 100
+          variantPatch.price_max_cents = null
         }
         await fetch(`/api/pro/variants/${editVariantId}`, {
           method: "PATCH",
@@ -199,7 +210,6 @@ export default function ProServices() {
         const v = Array.isArray(s.service_variants) ? s.service_variants[0] : undefined
         const minPrice = typeof v?.price_min_cents === "number" ? Math.round(v.price_min_cents / 100) : undefined
         const maxPrice = typeof v?.price_max_cents === "number" ? Math.round(v.price_max_cents / 100) : undefined
-        const hasRange = typeof minPrice === "number" && typeof maxPrice === "number"
         const price = typeof v?.price_cents === "number" ? Math.round(v.price_cents / 100) : (typeof minPrice === "number" ? minPrice : (typeof maxPrice === "number" ? maxPrice : 0))
         return {
           id: String(s.id),
@@ -297,6 +307,9 @@ export default function ProServices() {
       if (isNaN(priceMin) || isNaN(priceMax) || priceMin < 0 || priceMax < 0) return alert("Prix min/max invalides")
       if (priceMin > priceMax) return alert("Prix min > max")
     }
+    if (priceMode === "starting_at") {
+      if (isNaN(priceMin) || priceMin < 0) return alert("Prix minimum invalide")
+    }
     const category_id = selectedCategoryId ? parseInt(selectedCategoryId, 10) : undefined
     try {
       // Front guard: check duplicates before creating
@@ -327,6 +340,10 @@ export default function ProServices() {
       if (priceMode === "range") {
         variantPayload.price_min_cents = priceMin * 100
         variantPayload.price_max_cents = priceMax * 100
+      }
+      if (priceMode === "starting_at") {
+        variantPayload.price_min_cents = priceMin * 100
+        variantPayload.price_max_cents = null
       }
       await fetch(`/api/pro/services/${serviceId}/variants`, {
         method: "POST",
@@ -471,7 +488,7 @@ export default function ProServices() {
                 handleCreateService();
               }}
             >
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-[0.8fr_1.2fr] gap-4">
                 <div>
                   <Label htmlFor="serviceName">Nom du service</Label>
                   <Input id="serviceName" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Ex: COUPE + BRUSHING" />
@@ -480,7 +497,7 @@ export default function ProServices() {
                   <Label>Catégorie</Label>
                   <div className="flex flex-col gap-2">
                     <Select value={selectedCategoryId} onValueChange={(v) => setSelectedCategoryId(v)}>
-                      <SelectTrigger className="w-full">
+                      <SelectTrigger className="w-full whitespace-nowrap">
                         <SelectValue placeholder="Sélectionner une catégorie" />
                       </SelectTrigger>
                       <SelectContent>
@@ -500,21 +517,24 @@ export default function ProServices() {
                 </div>
                 <div>
                   <Label htmlFor="servicePrice">Prix (DA)</Label>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-[90px_1fr_1fr] gap-2">
                     <Select value={priceMode} onValueChange={(v) => setPriceMode(v as any)}>
-                      <SelectTrigger><SelectValue placeholder="Mode" /></SelectTrigger>
+                      <SelectTrigger className="whitespace-nowrap min-w-[90px]"><SelectValue placeholder="Mode" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="fixed">Fixe</SelectItem>
                         <SelectItem value="range">Plage</SelectItem>
+                        <SelectItem value="starting_at">Min.</SelectItem>
                       </SelectContent>
                     </Select>
                     {priceMode === "fixed" ? (
-                      <Input id="servicePrice" type="number" value={newPrice} onChange={(e) => setNewPrice(e.target.value)} placeholder="200" />
-                    ) : (
+                      <Input className="col-span-2" id="servicePrice" type="number" value={newPrice} onChange={(e) => setNewPrice(e.target.value)} placeholder="200" />
+                    ) : priceMode === "range" ? (
                       <>
                         <Input id="servicePriceMin" type="number" value={newPriceMin} onChange={(e) => setNewPriceMin(e.target.value)} placeholder="Min" />
                         <Input id="servicePriceMax" type="number" value={newPriceMax} onChange={(e) => setNewPriceMax(e.target.value)} placeholder="Max" />
                       </>
+                    ) : (
+                      <Input className="col-span-2" id="servicePriceMin" type="number" value={newPriceMin} onChange={(e) => setNewPriceMin(e.target.value)} placeholder="Min" />
                     )}
                   </div>
                 </div>
@@ -701,6 +721,8 @@ export default function ProServices() {
                       <div className="text-lg font-bold text-black">
                         {typeof service.priceMin === "number" && typeof service.priceMax === "number"
                           ? `${service.priceMin}–${service.priceMax} DA`
+                          : typeof service.priceMin === "number"
+                          ? `à partir de ${service.priceMin} DA`
                           : `${service.price} DA`}
                       </div>
                     </div>
@@ -756,7 +778,7 @@ export default function ProServices() {
               handleSaveEdit();
             }}
           >
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-[0.8fr_1.2fr] gap-4">
               <div>
                 <Label htmlFor="editServiceName">Nom du service</Label>
                 <Input id="editServiceName" value={editName} onChange={(e) => setEditName(e.target.value)} />
@@ -765,7 +787,7 @@ export default function ProServices() {
                 <Label>Catégorie</Label>
                 <div className="grid grid-cols-1">
                   <Select value={editCategoryId} onValueChange={(v) => setEditCategoryId(v)}>
-                    <SelectTrigger className="w-full">
+                    <SelectTrigger className="w-full whitespace-nowrap">
                       <SelectValue placeholder="Sélectionner une catégorie" />
                     </SelectTrigger>
                     <SelectContent>
@@ -784,21 +806,24 @@ export default function ProServices() {
               </div>
               <div>
                 <Label htmlFor="editServicePrice">Prix (DA)</Label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-[90px_1fr_1fr] gap-2">
                   <Select value={editPriceMode} onValueChange={(v) => setEditPriceMode(v as any)}>
-                    <SelectTrigger><SelectValue placeholder="Mode" /></SelectTrigger>
+                    <SelectTrigger className="whitespace-nowrap min-w-[90px]"><SelectValue placeholder="Mode" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="fixed">Fixe</SelectItem>
                       <SelectItem value="range">Plage</SelectItem>
+                      <SelectItem value="starting_at">Min.</SelectItem>
                     </SelectContent>
                   </Select>
                   {editPriceMode === "fixed" ? (
-                    <Input id="editServicePrice" type="number" value={editPrice} onChange={(e) => setEditPrice(e.target.value)} />
-                  ) : (
+                    <Input className="col-span-2" id="editServicePrice" type="number" value={editPrice} onChange={(e) => setEditPrice(e.target.value)} />
+                  ) : editPriceMode === "range" ? (
                     <>
                       <Input id="editServicePriceMin" type="number" value={editPriceMin} onChange={(e) => setEditPriceMin(e.target.value)} placeholder="Min" />
                       <Input id="editServicePriceMax" type="number" value={editPriceMax} onChange={(e) => setEditPriceMax(e.target.value)} placeholder="Max" />
                     </>
+                  ) : (
+                    <Input className="col-span-2" id="editServicePriceMin" type="number" value={editPriceMin} onChange={(e) => setEditPriceMin(e.target.value)} placeholder="Min" />
                   )}
                 </div>
               </div>
