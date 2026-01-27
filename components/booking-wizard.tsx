@@ -114,6 +114,22 @@ interface BookingWizardProps {
     return !error;
   };
 
+  const handleSalonRedirect = () => {
+    if (salon?.id) {
+      router.push(salon.slug ? `/${salon.slug}` : `/salon/${buildSalonSlug(salon?.name || "", salon.id, salon?.city || null)}`)
+    }
+  };
+
+  // Auto redirect to salon after 10s when ticket is open
+  useEffect(() => {
+    if (ticketOpen) {
+      const timer = setTimeout(() => {
+        handleSalonRedirect();
+      }, 10000);
+      return () => clearTimeout(timer);
+    }
+  }, [ticketOpen]);
+
   async function loadSlotsForService(serviceId: string) {
     if (!serviceId) return [] as Array<{ date: string; slots: string[] }>
     if (itemSlotsCache[serviceId]) return itemSlotsCache[serviceId]
@@ -251,75 +267,7 @@ interface BookingWizardProps {
                   </div>
                 </div>
               )}
-              {/* Information modal shown after slot selection */}
-              <AlertDialog open={showInfo} onOpenChange={setShowInfo}>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Informations</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Merci d'avoir réservé votre rendez-vous chez {salon?.name || 'notre institut'} ! Votre confirmation est bien enregistrée et nous sommes impatients de vous accueillir.
-                      Si vous avez besoin de modifier ou annuler votre rendez-vous, n'hésitez pas à nous contacter.
-                      <br />
-                      <br />TEAM {salon?.name || 'YOKA'}
-                      <br />Nous avons hâte de vous offrir une expérience de beauté exceptionnelle !
-                      <br />À très bientôt,
-                      <br />L'équipe {salon?.name || 'Yoka'}
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogAction onClick={() => { 
-                      setShowInfo(false); 
-                      setCurrentStep(3); // Passer à l'étape d'identification après la confirmation
-                    }}>J'ai compris</AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
 
-              {/* Ticket modal after successful reservation */}
-              <AlertDialog open={ticketOpen} onOpenChange={setTicketOpen}>
-                <AlertDialogContent>
-                  <button aria-label="Fermer" className="absolute right-4 top-4 text-gray-500 hover:text-black" onClick={() => setTicketOpen(false)}>
-                    <X className="h-5 w-5" />
-                  </button>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Ticket de réservation</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      {ticketData ? (
-                        <div id="ticket">
-                          <div className="font-medium">{ticketData.salonName}</div>
-                          <div className="text-sm text-gray-600">{ticketData.date} • à {ticketData.time}</div>
-                          <div className="mt-2 text-sm">Prestation: {ticketData.serviceName}</div>
-                          {ticketData.price && (
-                            <div className="text-sm">Prix: {ticketData.price}</div>
-                          )}
-                          <div className="text-sm">Avec: {ticketData.employee}</div>
-                          <div className="mt-2 text-xs text-gray-500">Référence: {ticketData.id}</div>
-                        </div>
-                      ) : null}
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter className="flex flex-wrap gap-2 justify-between">
-                    <AlertDialogAction onClick={() => {
-                      const w = window.open('', 'PRINT', 'height=600,width=800')
-                      if (!w) return
-                      const html = document.getElementById('ticket')?.outerHTML || ''
-                      w.document.write('<html><head><title>Ticket</title></head><body>' + html + '</body></html>')
-                      w.document.close(); w.focus(); w.print(); w.close();
-                    }}>Télécharger</AlertDialogAction>
-                    <AlertDialogAction onClick={() => { setTicketOpen(false); router.push(`/client/dashboard`) }}>Mon espace</AlertDialogAction>
-                    <AlertDialogAction
-                      onClick={() => {
-                        setTicketOpen(false)
-                        if (salon?.id) {
-                          router.push(salon.slug ? `/${salon.slug}` : `/salon/${buildSalonSlug(salon?.name || "", salon.id, salon?.city || null)}`)
-                        }
-                      }}
-                    >
-                      Retour au salon
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
             </div>
             {!!selectedItems.length && (
               <div className="min-w-0 flex-1">
@@ -345,72 +293,7 @@ interface BookingWizardProps {
                 </div>
               </div>
             )}
-            {/* Information modal shown after slot selection */}
-            <AlertDialog open={showInfo} onOpenChange={setShowInfo}>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Informations</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Merci d'avoir réservé votre rendez-vous chez {salon?.name || 'notre institut'} ! Votre confirmation est bien enregistrée et nous sommes impatients de vous accueillir.
-                    Si vous avez besoin de modifier ou annuler votre rendez-vous, n'hésitez pas à nous contacter.
-                    <br />
-                    <br />TEAM {salon?.name || 'YOKA'}
-                    <br />Nous avons hâte de vous offrir une expérience de beauté exceptionnelle !
-                    <br />À très bientôt,
-                    <br />L'équipe {salon?.name || 'Yoka'}
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogAction onClick={() => { setShowInfo(false); setCurrentStep(2) }}>J'ai compris</AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
 
-            {/* Ticket modal after successful reservation */}
-            <AlertDialog open={ticketOpen} onOpenChange={setTicketOpen}>
-              <AlertDialogContent>
-                <button aria-label="Fermer" className="absolute right-4 top-4 text-gray-500 hover:text-black" onClick={() => setTicketOpen(false)}>
-                  <X className="h-5 w-5" />
-                </button>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Ticket de réservation</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    {ticketData ? (
-                      <div id="ticket">
-                        <div className="font-medium">{ticketData.salonName}</div>
-                        <div className="text-sm text-gray-600">{ticketData.date} • à {ticketData.time}</div>
-                        <div className="mt-2 text-sm">Prestation: {ticketData.serviceName}</div>
-                        {ticketData.price && (
-                          <div className="text-sm">Prix: {ticketData.price}</div>
-                        )}
-                        <div className="text-sm">Avec: {ticketData.employee}</div>
-                        <div className="mt-2 text-xs text-gray-500">Référence: {ticketData.id}</div>
-                      </div>
-                    ) : null}
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter className="flex flex-wrap gap-2 justify-between">
-                  <AlertDialogAction onClick={() => {
-                    const w = window.open('', 'PRINT', 'height=600,width=800')
-                    if (!w) return
-                    const html = document.getElementById('ticket')?.outerHTML || ''
-                    w.document.write('<html><head><title>Ticket</title></head><body>' + html + '</body></html>')
-                    w.document.close(); w.focus(); w.print(); w.close();
-                  }}>Télécharger</AlertDialogAction>
-                  <AlertDialogAction onClick={() => { setTicketOpen(false); router.push(`/client/dashboard`) }}>Mon espace</AlertDialogAction>
-                  <AlertDialogAction
-                    onClick={() => {
-                      setTicketOpen(false)
-                      if (salon?.id) {
-                        router.push(salon.slug ? `/${salon.slug}` : `/salon/${buildSalonSlug(salon?.name || "", salon.id, salon?.city || null)}`)
-                      }
-                    }}
-                  >
-                    Retour au salon
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
           </div>
           {/* right area left blank when multi */}
         </div>
@@ -1652,6 +1535,63 @@ const errorMessage = res.status === 409
           </div>
         </div>
       </div>
+
+      {/* Shared Modals */}
+      <AlertDialog open={showInfo} onOpenChange={setShowInfo}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Informations</AlertDialogTitle>
+            <AlertDialogDescription>
+              Merci d'avoir réservé votre rendez-vous chez {salon?.name || 'notre institut'} ! Votre confirmation est bien enregistrée et nous sommes impatients de vous accueillir.
+              Si vous avez besoin de modifier ou annuler votre rendez-vous, n'hésitez pas à nous contacter.
+              <br />
+              <br />TEAM {salon?.name || 'YOKA'}
+              <br />Nous avons hâte de vous offrir une expérience de beauté exceptionnelle !
+              <br />À très bientôt,
+              <br />L'équipe {salon?.name || 'Yoka'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => { 
+                setShowInfo(false); 
+                if (currentStep < 3) setCurrentStep(v => v + 1);
+            }}>J'ai compris</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={ticketOpen} onOpenChange={setTicketOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Ticket de réservation</AlertDialogTitle>
+            <AlertDialogDescription>
+              {ticketData ? (
+                <div id="ticket">
+                  <div className="font-medium">{ticketData.salonName}</div>
+                  <div className="text-sm text-gray-600">{ticketData.date} • à {ticketData.time}</div>
+                  <div className="mt-2 text-sm">Prestation: {ticketData.serviceName}</div>
+                  {ticketData.price && (
+                    <div className="text-sm">Prix: {ticketData.price}</div>
+                  )}
+                  <div className="text-sm">Avec: {ticketData.employee}</div>
+                  <div className="mt-2 text-xs text-gray-500">Référence: {ticketData.id}</div>
+                </div>
+              ) : null}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex flex-wrap gap-2 justify-between">
+            <AlertDialogAction onClick={() => {
+              const w = window.open('', 'PRINT', 'height=600,width=800')
+              if (!w) return
+              const html = document.getElementById('ticket')?.outerHTML || ''
+              w.document.write('<html><head><title>Ticket</title></head><body>' + html + '</body></html>')
+              w.document.close(); w.focus(); w.print(); w.close();
+              handleSalonRedirect();
+            }}>Télécharger</AlertDialogAction>
+            <AlertDialogAction onClick={() => { setTicketOpen(false); router.push(`/client/dashboard`) }}>Mon espace</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
