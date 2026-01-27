@@ -327,14 +327,19 @@ export default function SalonPublicPage({ salonId }: SalonPublicPageProps) {
                           >
                             <div className="flex-1 mb-3 sm:mb-0">
                               <p className="font-normal text-gray-900">
-                                {service.name} {service.price && service.price !== "—" && service.price}
+                                {service.name}
                               </p>
+                              {service.price && service.price !== "—" && (
+                                <p className="text-sm text-gray-600 mt-0.5">{service.price}</p>
+                              )}
                               {service.description && (
                                 <p className="text-sm text-gray-600 mt-1">{service.description}</p>
                               )}
                             </div>
-                            <div className="flex items-center justify-between sm:justify-end gap-4">
-                              <span className="text-sm text-gray-600">{service.duration}</span>
+                            <div className="flex items-center justify-between sm:justify-end gap-6">
+                              <div className="flex flex-col items-end min-w-[70px]">
+                                <span className="text-sm text-gray-600">{service.duration}</span>
+                              </div>
                               <Button
                                 size="sm"
                                 className="bg-black hover:bg-gray-800 text-white"
