@@ -6,8 +6,15 @@ const emailClient = new EmailClient(connectionString!);
 
 const EMAIL_FROM = process.env.EMAIL_FROM || "support@yoka-dz.com";
 
+// Interface de compatibilité AWS SES
+export interface EmailSendResult {
+  messageId: string;
+  // Tu peux ajouter d'autres champs si nécessaire pour la compatibilité
+  status?: string;
+}
+
 // Fonction TEST (ajoutée)
-export async function sendTestEmail() {
+export async function sendTestEmail(): Promise<EmailSendResult> {
   return sendEmail({
     to: process.env.EMAIL_TEST_TO || "test@example.com",
     subject: "Test Email from SaaS YKON",
@@ -22,9 +29,9 @@ export async function sendEmail(opts: {
   subject: string;
   html: string;
   text?: string;
-  category?: string; //  AJOUTÉ
+  category?: string;
   sandbox?: boolean;
-}) {
+}): Promise<EmailSendResult> {
   try {
     const message = {
       senderAddress: EMAIL_FROM,
@@ -42,7 +49,12 @@ export async function sendEmail(opts: {
     const response = await poller.pollUntilDone();
     
     console.log("Email sent:", response.id);
-    return response;
+    
+    // Mapping Azure (id) -> Compatibilité AWS SES (messageId)
+    return {
+      messageId: response.id,
+      status: response.status
+    };
   } catch (error) {
     console.error("Email error:", error);
     throw error;
