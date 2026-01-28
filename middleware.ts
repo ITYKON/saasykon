@@ -77,7 +77,7 @@ export async function middleware(request: NextRequest) {
   const authData = sessionToken ? await getAuthDataFromTokenEdge(sessionToken) : null
   
   if (pathname !== "/" && !pathname.startsWith("/_next") && !pathname.startsWith("/static") && !PUBLIC_FILE.test(pathname)) {
-    console.log(`[Middleware] Path: ${pathname}, Session: ${!!sessionToken}, AuthData: ${!!authData}`)
+    
     if (sessionToken && !authData) {
       console.warn(`[Middleware] Token found but verification failed for path: ${pathname}`)
     }
@@ -97,7 +97,7 @@ export async function middleware(request: NextRequest) {
   const canAccessAdmin = isAdmin || isSubAdmin
   
   if (sessionToken && authData) {
-     console.log(`[Middleware] Roles: ${roles.join(',')}, canAccessAdmin: ${canAccessAdmin}, isPro: ${isPro}, isClient: ${isClient}`)
+    
   }
   
   const isProtected = ["/admin", "/pro", "/client", "/api/admin", "/api/client"].some((p) => pathname.startsWith(p))
