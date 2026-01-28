@@ -743,7 +743,7 @@ export default function ReservationsPage() {
                 setEditData(d => d ? { ...d, item: d.item ? { ...d.item, service_id: v, variant_id: null } : d.item } : d)
               }}>
                 <SelectTrigger  className="h-auto max-h-12 overflow-hidden whitespace-normal line-clamp-2"><SelectValue placeholder="Sélectionner" /></SelectTrigger>
-                <SelectContent>
+                <SelectContent className="z-50 max-w-xs overflow-hidden" sideOffset={5}>
                   {services.map((s: any) => (
                     <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                   ))}
