@@ -134,6 +134,9 @@ export async function POST(request: Request) {
 
   await prisma.$transaction(async (tx) => {
     for (const it of items) {
+      if (it.starts_at) {
+        currentStart = new Date(it.starts_at)
+      }
       const duration = Number(it.duration_minutes || 0)
       const currentEnd = new Date(currentStart.getTime() + duration * 60000)
       const serviceId = String(it.service_id || '')
