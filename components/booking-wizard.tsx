@@ -52,6 +52,7 @@ interface BookingWizardProps {
   const [signupFirstName, setSignupFirstName] = useState('')
   const [signupLastName, setSignupLastName] = useState('')
   const [signupPassword, setSignupPassword] = useState('')
+  const [showSignupPassword, setShowSignupPassword] = useState(false)
   const [signupCGU, setSignupCGU] = useState(false)
   const [signupOkMsg, setSignupOkMsg] = useState<string | null>(null)
   
@@ -753,7 +754,7 @@ interface BookingWizardProps {
                   <Label className="block text-sm font-medium text-gray-700 mb-1">Mot de passe </Label>
                   <div className="relative">
                     <Input 
-                      type={signupCGU ? 'text' : 'password'} 
+                      type={showSignupPassword ? 'text' : 'password'} 
                       placeholder="Mot de passe" 
                       className={`mt-1 pr-10 ${fieldErrors.password ? "border-red-500" : ""}`} 
                       value={signupPassword} 
@@ -767,16 +768,16 @@ interface BookingWizardProps {
                     <button 
                       type="button" 
                       className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
-                      onClick={() => setSignupCGU(!signupCGU)}
+                      onClick={() => setShowSignupPassword(!showSignupPassword)}
                     >
-                      {signupCGU ? (
+                      {showSignupPassword ? (
                         <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268-2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
                         </svg>
                       ) : (
                         <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268-2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                         </svg>
                       )}
                     </button>
@@ -846,31 +847,26 @@ interface BookingWizardProps {
 
                       
                       if (!res.ok) {
-                        let errorData;
+                        const body = await res.text();
+                        console.error('[Inscription] Erreur détaillée du serveur:', body);
+                        
+                        let message = 'Erreur lors de la création du compte. Veuillez réessayer.';
                         try {
-                          errorData = await res.json();
-                          console.error('[Inscription] Erreur détaillée du serveur:', errorData);
-                        } catch (e) {
-                          console.error('[Inscription] Erreur lors de la lecture de la réponse d\'erreur:', e);
-                          errorData = { message: 'Réserve d\'erreur invalide du serveur' };
-                        }
-                        
-                        console.error(`[Inscription] Échec de l'inscription avec le statut ${res.status}:`, errorData);
-                        
-                        if (res.status === 409) {
-                          console.error('[Inscription] Conflit détecté. Données en conflit:', errorData);
-                          if (errorData.field === 'email') {
-                            throw new Error('Cette adresse email est déjà utilisée. Veuillez vous connecter ou utiliser une autre adresse.')
-                          } else if (errorData.field === 'phone') {
-                            throw new Error('Ce numéro de téléphone est déjà utilisé. Veuillez vous connecter ou utiliser un autre numéro.')
+                          const errorData = JSON.parse(body);
+                          message = errorData.error || errorData.message || message;
+
+                          if (res.status === 409) {
+                            if (errorData.field === 'email') {
+                              message = 'Cette adresse email est déjà utilisée. Veuillez vous connecter ou utiliser une autre adresse.';
+                            } else if (errorData.field === 'phone') {
+                              message = 'Ce numéro de téléphone est déjà utilisé. Veuillez vous connecter ou utiliser un autre numéro.';
+                            }
                           }
+                        } catch (e) {
+                          // Pas du JSON
                         }
                         
-const errorMessage = res.status === 409 
-  ? 'Cette adresse email est déjà utilisée. Si c\'est la vôtre, veuillez vous connecter ou utiliser la fonction "Mot de passe oublié".'
-  : errorData?.message || 'Erreur lors de la création du compte. Veuillez réessayer.';
-                          console.error('[Inscription] Message d\'erreur à afficher à l\'utilisateur:', errorMessage);
-                        throw new Error(errorMessage);
+                        throw new Error(message);
                       }
                       
                       // Connexion automatique après inscription
@@ -1131,7 +1127,7 @@ const errorMessage = res.status === 409
                   <Label className="block text-sm font-medium text-gray-700 mb-1">Mot de passe </Label>
                   <div className="relative">
                     <Input 
-                      type={signupCGU ? 'text' : 'password'} 
+                      type={showSignupPassword ? 'text' : 'password'} 
                       placeholder="Mot de passe" 
                       className={`mt-1 pr-10 ${fieldErrors.password ? "border-red-500" : ""}`} 
                       value={signupPassword} 
@@ -1145,9 +1141,9 @@ const errorMessage = res.status === 409
                     <button 
                       type="button" 
                       className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
-                      onClick={() => setSignupCGU(!signupCGU)}
+                      onClick={() => setShowSignupPassword(!showSignupPassword)}
                     >
-                      {signupCGU ? (
+                      {showSignupPassword ? (
                         <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
                         </svg>
@@ -1263,29 +1259,26 @@ const errorMessage = res.status === 409
 
                       
                       if (!res.ok) {
-                        let errorData;
+                        const body = await res.text();
+                        console.error('[Inscription] Erreur détaillée du serveur:', body);
+                        
+                        let message = 'Erreur lors de la création du compte. Veuillez réessayer.';
                         try {
-                          errorData = await res.json();
-                          console.error('[Inscription] Erreur détaillée du serveur:', errorData);
-                        } catch (e) {
-                          console.error('[Inscription] Erreur lors de la lecture de la réponse d\'erreur:', e);
-                          errorData = { message: 'Réserve d\'erreur invalide du serveur' };
-                        }
-                        
-                        console.error(`[Inscription] Échec de l'inscription avec le statut ${res.status}:`, errorData);
-                        
-                        if (res.status === 409) {
-                          console.error('[Inscription] Conflit détecté. Données en conflit:', errorData);
-                          if (errorData.field === 'email') {
-                            throw new Error('Cette adresse email est déjà utilisée. Veuillez vous connecter ou utiliser une autre adresse.')
-                          } else if (errorData.field === 'phone') {
-                            throw new Error('Ce numéro de téléphone est déjà utilisé. Veuillez vous connecter ou utiliser un autre numéro.')
+                          const errorData = JSON.parse(body);
+                          message = errorData.error || errorData.message || message;
+
+                          if (res.status === 409) {
+                            if (errorData.field === 'email') {
+                              message = 'Cette adresse email est déjà utilisée. Veuillez vous connecter ou utiliser une autre adresse.';
+                            } else if (errorData.field === 'phone') {
+                              message = 'Ce numéro de téléphone est déjà utilisé. Veuillez vous connecter ou utiliser un autre numéro.';
+                            }
                           }
+                        } catch (e) {
+                          // Pas du JSON
                         }
                         
-                        const errorMessage = errorData?.error || errorData?.message || 'Erreur lors de la création du compte. Veuillez réessayer.';
-                        console.error('[Inscription] Message d\'erreur à afficher à l\'utilisateur:', errorMessage);
-                        throw new Error(errorMessage);
+                        throw new Error(message);
                       }
                       
                       // Connexion automatique après inscription
