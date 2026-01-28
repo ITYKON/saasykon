@@ -28,9 +28,10 @@ interface SearchMapProps {
   onBoundsChange?: (bounds: { north: number, south: number, east: number, west: number }) => void
   searchLocation?: string
   wasMapMoved?: boolean
+  onMapClick?: () => void
 }
 
-export function SearchMap({ businesses, center, onMarkerClick, onBoundsChange, searchLocation, wasMapMoved }: SearchMapProps) {
+export function SearchMap({ businesses, center, onMarkerClick, onBoundsChange, searchLocation, wasMapMoved, onMapClick }: SearchMapProps) {
   const [viewState, setViewState] = useState({
     latitude: center?.lat || 36.7538, // Alger par défaut
     longitude: center?.lng || 3.0588,
@@ -116,13 +117,21 @@ export function SearchMap({ businesses, center, onMarkerClick, onBoundsChange, s
     if (style && style.layers) {
       style.layers.forEach((layer: any) => {
         if (layer.type === 'symbol' && layer.layout && layer.layout['text-field']) {
-          // Force French language for labels
-          map.setLayoutProperty(layer.id, 'text-field', [
-            'coalesce',
-            ['get', 'name:fr'],
-            ['get', 'name:latin'],
-            ['get', 'name']
-          ])
+          // Check if the layer is displaying a name to avoid overwriting road shields (which use 'ref')
+          const textField = layer.layout['text-field']
+          const isNameLayer = typeof textField === 'string' 
+            ? textField.toLowerCase().includes('name') 
+            : JSON.stringify(textField).toLowerCase().includes('name')
+
+          if (isNameLayer) {
+            // Force French language for labels
+            map.setLayoutProperty(layer.id, 'text-field', [
+              'coalesce',
+              ['get', 'name:fr'],
+              ['get', 'name:latin'],
+              ['get', 'name']
+            ])
+          }
         }
       })
     }
@@ -157,14 +166,28 @@ export function SearchMap({ businesses, center, onMarkerClick, onBoundsChange, s
           }))
         }}
       >
-        <div className={`relative group cursor-pointer transition-transform ${isActive ? 'scale-125 z-10' : 'hover:scale-110'}`}>
+        <div className={`flex flex-col items-center group cursor-pointer transition-transform ${isActive ? 'scale-110 z-10' : 'hover:scale-105'}`}>
+          {/* Label du nom - affiché uniquement si le nom existe */}
+          {business.name && (
+            <div 
+                className={`mb-1 px-2 py-1 rounded shadow-md text-xs font-semibold whitespace-nowrap transition-colors border ${
+                isActive 
+                    ? 'bg-blue-600 text-white border-blue-700' 
+                    : 'bg-white text-gray-800 border-gray-200 group-hover:bg-gray-50'
+                }`}
+            >
+                {business.name}
+            </div>
+          )}
+          
+          {/* Icône du Pin */}
           <div 
             className={`rounded-full p-2 shadow-lg flex items-center justify-center border border-gray-100 transition-colors ${
               isActive ? 'bg-blue-600' : 'bg-white'
             }`}
           >
             <MapPin 
-                className={`w-5 h-5 fill-transparent stroke-[2.5px] ${
+                className={`w-4 h-4 fill-transparent stroke-[2.5px] ${
                   isActive ? 'text-white' : 'text-black'
                 }`} 
             />
@@ -178,6 +201,7 @@ export function SearchMap({ businesses, center, onMarkerClick, onBoundsChange, s
     <div className="w-full h-full rounded-lg overflow-hidden border border-gray-200 shadow-sm relative">
       <Map
         {...viewState}
+        onClick={() => onMapClick?.()}
         onMove={evt => setViewState(evt.viewState)}
         onMoveEnd={evt => {
            const bounds = evt.target.getBounds();
