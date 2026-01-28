@@ -169,7 +169,7 @@ interface BookingWizardProps {
         
         // Sync selectedEmployeeId with item's stored employee or default
         const storedId = activeItem.employee_id
-        if (storedId && list.find(e => e.id === storedId)) {
+        if (storedId && list.find((e: any) => e.id === storedId)) {
           setSelectedEmployeeId(storedId)
         } else if (list.length > 0) {
           // Auto-assign randomly when 'Sans préférence' to drive agenda if needed
