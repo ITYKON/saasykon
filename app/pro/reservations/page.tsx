@@ -479,7 +479,7 @@ export default function ReservationsPage() {
               <div className="text-right">
                 <div className="text-sm font-medium">{reservation.prix}</div>
                 <div className="text-xs text-gray-500">
-                  {new Date(reservation.date).toLocaleDateString("fr-FR")} à {reservation.heure}
+                  {new Date(reservation.date).toLocaleDateString("fr-FR")} à {new Date(reservation.date).toLocaleTimeString("fr-FR", { hour: '2-digit', minute: '2-digit' })}
                 </div>
               </div>
             </div>
@@ -517,7 +517,7 @@ export default function ReservationsPage() {
                       <h4 className="font-semibold mb-2">Rendez-vous</h4>
                       <p>
                         {new Date(reservation.date).toLocaleDateString("fr-FR")} à{" "}
-                        {reservation.heure}
+                        {new Date(reservation.date).toLocaleTimeString("fr-FR", { hour: '2-digit', minute: '2-digit' })}
                       </p>
                       <p className="text-sm text-gray-500">Avec {reservation.employe}</p>
                     </div>
@@ -585,7 +585,7 @@ export default function ReservationsPage() {
                       <div className="font-medium">{new Date(reservation.date).toLocaleDateString("fr-FR")}</div>
                       <div className="text-sm text-gray-500 flex items-center gap-1">
                         <Clock className="h-3 w-3" />
-                        {reservation.heure}
+                        {new Date(reservation.date).toLocaleTimeString("fr-FR", { hour: '2-digit', minute: '2-digit' })}
                       </div>
                     </div>
                   </div>
@@ -656,7 +656,7 @@ export default function ReservationsPage() {
                               <h4 className="font-semibold mb-2">Rendez-vous</h4>
                               <p>
                                 {new Date(selectedReservation.date).toLocaleDateString("fr-FR")} à{" "}
-                                {selectedReservation.heure}
+                                {new Date(selectedReservation.date).toLocaleTimeString("fr-FR", { hour: '2-digit', minute: '2-digit' })}
                               </p>
                               <p className="text-sm text-gray-500">Avec {selectedReservation.employe}</p>
                             </div>

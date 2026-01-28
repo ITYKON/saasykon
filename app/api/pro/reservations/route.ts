@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
       include: {
         clients: { select: { id: true, first_name: true, last_name: true, phone: true, users: { select: { email: true } } } },
         employees: { select: { id: true, full_name: true } },
-        business_locations: { select: { address_line1: true } },
+        business_locations: { select: { address_line1: true, timezone: true } },
         reservation_items: {
           select: {
             id: true,
@@ -125,6 +125,7 @@ export async function GET(req: NextRequest) {
         : (minTotal === maxTotal)
           ? (Math.round(minTotal / 100) + ' DA')
           : (`${Math.round(minTotal / 100)}–${Math.round(maxTotal / 100)} DA`)
+      const tz = location?.timezone || 'Africa/Algiers';
       return {
         id: reservation.id,
         client: clientName,
@@ -133,7 +134,11 @@ export async function GET(req: NextRequest) {
         service: serviceNames.join(' + ') || 'Aucun service',
         employe: employeeName,
         date: reservation.starts_at,
-        heure: new Date(reservation.starts_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+        heure: new Date(reservation.starts_at).toLocaleTimeString('fr-FR', { 
+          hour: '2-digit', 
+          minute: '2-digit',
+          timeZone: tz
+        }),
         duree: `${totalDuration} min`,
         prix: prixText,
         status: STATUS_FR[reservation.status] || reservation.status,
