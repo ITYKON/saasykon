@@ -140,10 +140,8 @@ export default function ProfilInstitutPage() {
         })
       } catch (error) {
         console.error('Erreur lors du chargement du profil:', error)
-        toast({
-          title: 'Erreur',
+        toast.error('Erreur', {
           description: 'Impossible de charger les informations du profil',
-          variant: 'destructive',
         })
       } finally {
         setIsLoading(false)
