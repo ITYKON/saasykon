@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 
 type Profile = {
   id: string
@@ -108,6 +109,13 @@ export default function ClientProfil() {
       })
       const refreshed = await fetch("/api/client/profile").then((r) => r.json())
       setProfile(refreshed.user)
+      toast.success('Modification effectuée avec succès', {
+        description: 'Vos informations personnelles ont été mises à jour',
+      })
+    } catch (error) {
+      toast.error('Erreur', {
+        description: 'Une erreur est survenue lors de la mise à jour du profil',
+      })
     } finally {
       setSaving(false)
     }

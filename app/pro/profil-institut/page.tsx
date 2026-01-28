@@ -11,8 +11,8 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Camera, MapPin, Clock, Phone, Star, Upload, X, Plus, Edit2, Loader2 } from "lucide-react"
-import { toast } from "@/components/ui/use-toast"
+import { Camera, MapPin, Clock, Phone, Star, Upload, X, Plus, Edit2, Loader2, CheckCircle } from "lucide-react"
+import { toast } from "sonner"
 import { logger } from "@/lib/logger"
 import {
   AlertDialog,
@@ -187,16 +187,13 @@ const responseData = await response.json();
         throw new Error(responseData.error || 'Erreur lors de la mise à jour du profil');
       }
 
-      toast({
-        title: 'Succès',
+      toast.success('Modification effectuée avec succès', {
         description: responseData.message || 'Votre profil a été mis à jour avec succès',
       })
     } catch (error) {
       logger.error('Erreur lors de la mise à jour du profil:', error)
-      toast({
-        title: 'Erreur',
+      toast.error('Erreur', {
         description: 'Une erreur est survenue lors de la mise à jour du profil',
-        variant: 'destructive',
       })
     } finally {
       setIsSaving(false)
@@ -261,9 +258,8 @@ const responseData = await response.json();
         photos: prev.photos.filter((_, i) => i !== photoToDelete),
       }))
       setPhotoToDelete(null)
-      toast({
-        title: "Photo supprimée",
-        description: "La photo a été supprimée avec succès.",
+      toast.success('Photo supprimée', {
+        description: 'La photo a été supprimée avec succès.',
       })
     }
   }
