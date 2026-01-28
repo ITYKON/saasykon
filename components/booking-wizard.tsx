@@ -151,37 +151,40 @@ interface BookingWizardProps {
     }
   }
 
-  // Fetch employees when at least one service is selected (use the first one as reference)
+  // Fetch employees when the active item being edited changes
   useEffect(() => {
     let ignore = false
     async function run() {
-      const first = selectedItems[0]
-      if (!first) { setEmployees([]); setSelectedEmployeeId(null); return }
+      const activeIdx = editingItemIndex !== null ? editingItemIndex : 0
+      const activeItem = selectedItems[activeIdx]
+      if (!activeItem) { setEmployees([]); setSelectedEmployeeId(null); return }
+      
       try {
-        const url = `/api/salon/${salon.id}/employees?serviceId=${first.id}`
+        const url = `/api/salon/${salon.id}/employees?serviceId=${activeItem.id}`
         const res = await fetch(url, { cache: 'no-store' })
         const j = await res.json().catch(() => ({ employees: [] }))
         if (ignore) return
         const list = Array.isArray(j?.employees) ? j.employees : []
         setEmployees(list)
-        // Reset selection if not in list
-        setSelectedEmployeeId((prev) => {
-          const stillThere = list.find((e: any) => e.id === prev) ? prev : null
-          if (stillThere) return stillThere
-          // Auto-assign randomly when 'Sans préférence' to drive agenda by a concrete employee
-          if (list.length > 0) {
-            const pick = list[Math.floor(Math.random() * list.length)]
-            return pick.id
-          }
-          return null
-        })
+        
+        // Sync selectedEmployeeId with item's stored employee or default
+        const storedId = activeItem.employee_id
+        if (storedId && list.find(e => e.id === storedId)) {
+          setSelectedEmployeeId(storedId)
+        } else if (list.length > 0) {
+          // Auto-assign randomly when 'Sans préférence' to drive agenda if needed
+          const pick = list[Math.floor(Math.random() * list.length)]
+          setSelectedEmployeeId(pick.id)
+        } else {
+          setSelectedEmployeeId(null)
+        }
       } catch {
         if (!ignore) { setEmployees([]); setSelectedEmployeeId(null) }
       }
     }
     run()
     return () => { ignore = true }
-  }, [selectedItems, salon.id])
+  }, [editingItemIndex, selectedItems.length, salon.id])
 
   // Fetch time slots when the active item being edited, employee or startDate changes
   useEffect(() => {
@@ -239,7 +242,7 @@ interface BookingWizardProps {
             duration_minutes: Number(it.duration_minutes || 30),
             price_cents: (typeof it.price_cents === 'number' ? it.price_cents : null) as any,
             currency: 'DZD',
-            employee_id: selectedEmployeeId || undefined,
+            employee_id: it.employee_id || selectedEmployeeId || undefined,
             starts_at: itemStartsAt.toISOString(),
           }
         }),
@@ -270,7 +273,8 @@ interface BookingWizardProps {
         items: selectedItems.map(it => ({
           name: it.name,
           date: it.date || baseDate,
-          time: it.time || baseTime
+          time: it.time || baseTime,
+          employee_name: it.employee_name || employees.find(e => e.id === selectedEmployeeId)?.full_name || 'Sans préférence'
         })),
         employee: employees.find(e => e.id === selectedEmployeeId)?.full_name || 'Sans préférence',
         price: priceText,
@@ -361,7 +365,19 @@ interface BookingWizardProps {
                       <span className="truncate">{employees.length === 1 ? employees[0].full_name : "Sans préférence"}</span>
                     </div>
                   ) : (
-                    <Select value={selectedEmployeeId ?? "none"} onValueChange={(v) => setSelectedEmployeeId(v === 'none' ? null : v)}>
+                    <Select 
+                      value={selectedEmployeeId ?? "none"} 
+                      onValueChange={(v) => {
+                        const newId = v === 'none' ? null : v
+                        setSelectedEmployeeId(newId)
+                        if (editingItemIndex !== null) {
+                          const emp = employees.find(e => e.id === newId)
+                          setSelectedItems(prev => prev.map((it, idx) => 
+                            idx === editingItemIndex ? { ...it, employee_id: newId, employee_name: emp?.full_name || 'Sans préférence' } : it
+                          ))
+                        }
+                      }}
+                    >
                       <SelectTrigger className="w-full h-9 min-w-0">
                         <SelectValue placeholder="Sans préférence" className="truncate" />
                       </SelectTrigger>
@@ -552,11 +568,18 @@ interface BookingWizardProps {
                             <button
                               key={time}
                               onClick={() => {
+                                const emp = employees.find(e => e.id === selectedEmployeeId);
                                 if (editingItemIndex !== null) {
                                   setSelectedItems(prev => {
                                     const next = [...prev]
                                     if (next[editingItemIndex]) {
-                                      next[editingItemIndex] = { ...next[editingItemIndex], date: selectedDate, time: time }
+                                      next[editingItemIndex] = { 
+                                        ...next[editingItemIndex], 
+                                        date: selectedDate, 
+                                        time: time,
+                                        employee_id: selectedEmployeeId,
+                                        employee_name: emp?.full_name || 'Sans préférence'
+                                      }
                                     }
                                     return next
                                   })
@@ -1371,7 +1394,7 @@ interface BookingWizardProps {
                             <div className="flex items-center gap-2">
                               <span>{
                                 (it as any).date && (it as any).time
-                                  ? `${new Date((it as any).date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })} • ${(it as any).time}`
+                                  ? `${new Date((it as any).date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })} • ${(it as any).time}${it.employee_name ? ` • ${it.employee_name}` : ''}`
                                   : (selectedDate && selectedTime 
                                       ? `${new Date(selectedDate).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })} • ${selectedTime}` 
                                       : '—'
@@ -1515,6 +1538,12 @@ interface BookingWizardProps {
                           {new Date(item.date).toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: 'short' })}
                           { ' • ' }
                           {item.time}
+                          {item.employee_name && (
+                            <>
+                              { ' • ' }
+                              <span className="text-blue-600 font-medium">{item.employee_name}</span>
+                            </>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -1524,7 +1553,6 @@ interface BookingWizardProps {
                     {ticketData.price && (
                       <div className="text-sm font-medium">Prix total: {ticketData.price}</div>
                     )}
-                    <div className="text-sm">Praticien: {ticketData.employee}</div>
                     <div className="mt-4 pt-2 text-[10px] text-gray-400 font-mono break-all">
                       Référence: {ticketData.id}
                     </div>
@@ -1551,6 +1579,7 @@ interface BookingWizardProps {
                   .text-\\[10px\\] { font-size: 10px; }
                   .text-gray-900 { color: #111827; }
                   .text-gray-600 { color: #4b5563; }
+                  .text-blue-600 { color: #2563eb; }
                   .text-gray-400 { color: #9ca3af; }
                   .border-b { border-bottom: 1px solid #e5e7eb; }
                   .border-t { border-top: 1px solid #e5e7eb; }
