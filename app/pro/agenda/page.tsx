@@ -312,6 +312,7 @@ export default function ProAgenda() {
                 color: '#3b82f6',
                 client: it.client || undefined,
                 clientPhone: it.client_phone || undefined,
+                employee: e.employee_name || undefined,
                 durationMin: typeof it.duration_minutes !== 'undefined' ? Number(it.duration_minutes) : undefined,
               }));
               if (e.employee_id) liveMap[e.employee_id] = slots;
@@ -942,6 +943,9 @@ export default function ProAgenda() {
                           <div className="text-[11px] text-white/90 truncate">
                             {ev.title}
                           </div>
+                          <div className="text-[10px] text-white italic truncate">
+                            {ev.employee}
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -1034,6 +1038,9 @@ export default function ProAgenda() {
                                 className="p-2 rounded border-l-4 border-blue-500 bg-blue-50"
                               >
                                 <div className="text-sm font-medium text-gray-900">{event.client || 'Client'}</div>
+                                <div className="text-xs text-gray-700 font-medium mt-0.5">
+                                  {event.employee}
+                                </div>
                                 <div className="text-xs text-gray-600 mt-0.5">
                                   {event.title}
                                 </div>
@@ -1335,6 +1342,9 @@ export default function ProAgenda() {
                           <div className="text-[12px] text-gray-900 leading-snug truncate">
                             {ev.title}
                           </div>
+                          <div className="text-[10px] text-gray-600 italic truncate">
+                            {ev.employee}
+                          </div>
                         </div>
                       </div>
                     );
@@ -1459,6 +1469,9 @@ export default function ProAgenda() {
                           />
                           <div className="truncate text-gray-800">
                             <span className="font-semibold">{(e as any).client || 'Client'}</span> • {e.title}
+                          </div>
+                          <div className="truncate text-[10px] text-gray-500 italic">
+                            {(e as any).employee}
                           </div>
                         </button>
                       );
