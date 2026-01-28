@@ -9,39 +9,66 @@ export function ClientSearch({
   onChange,
   onSelect,
   className,
-  placeholder = "Rechercher un client..."
+  placeholder = "Rechercher un client...",
+  onKeyDown,
+  businessId
 }: {
   value: string;
   onChange: (value: string) => void;
   onSelect: (client: { id: string; name: string; phone?: string; email?: string }) => void;
   className?: string;
   placeholder?: string;
+  onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
+  businessId?: string;
 }) {
+  // Remove unstable props object
+  // const props = { value, onChange, onSelect, className, placeholder, onKeyDown, businessId };
+
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  const lastRequestRef = useRef<number>(0);
+
   // Recherche des clients correspondant à la saisie
   const searchClients = useCallback(
     async (query: string) => {
+      const requestId = Date.now();
+      lastRequestRef.current = requestId;
       setLoading(true);
       try {
-        const response = await fetch(
-          `/api/pro/clients/search?q=${encodeURIComponent(query || "")}`
-        );
+        const url = new URL("/api/pro/clients/search", window.location.origin);
+        url.searchParams.set("q", query || "");
+        if (businessId) url.searchParams.set("business_id", businessId);
+
+        const response = await fetch(url.toString());
+        if (requestId !== lastRequestRef.current) return;
+        
         if (response.ok) {
           const data = await response.json();
+          if (requestId !== lastRequestRef.current) return;
           setSuggestions(data.items || []);
         }
       } catch (error) {
+        if (requestId !== lastRequestRef.current) return;
         console.error("Erreur lors de la recherche de clients:", error);
       } finally {
-        setLoading(false);
+        if (requestId === lastRequestRef.current) {
+          setLoading(false);
+        }
       }
     },
-    []
+    [businessId] // Stable dependency
   );
+
+  // Debounce search when value changes
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      searchClients(value);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [value, searchClients]);
 
   // Gestion du clic en dehors du composant
   useEffect(() => {
@@ -59,9 +86,8 @@ export function ClientSearch({
 
   // Gestion du changement de la valeur de recherche
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    onChange(value);
-    searchClients(value);
+    const val = e.target.value;
+    onChange(val);
     setIsOpen(true);
   };
 
@@ -85,10 +111,11 @@ export function ClientSearch({
         onFocus={() => { setIsOpen(true); searchClients(value); }}
         placeholder={placeholder}
         className={className}
+        onKeyDown={onKeyDown}
       />
       {isOpen && (value.length > 0 || suggestions.length > 0) && (
-        <div className="absolute z-10 mt-1 w-full rounded-md bg-white shadow-lg">
-          <ScrollArea className="max-h-60 rounded-md border">
+        <div className="absolute z-50 mt-1 w-full rounded-md bg-white shadow-lg border border-gray-200">
+          <ScrollArea className="h-[240px] max-h-[240px] rounded-md">
             {loading ? (
               <div className="p-2 text-sm text-gray-500">Chargement...</div>
             ) : suggestions.length > 0 ? (

@@ -116,107 +116,106 @@ export async function POST(request: Request) {
         created_at: { gte: recent },
         status: { in: ["PENDING", "CONFIRMED"] as any },
       },
-      include: { reservation_items: { select: { service_id: true, duration_minutes: true, price_cents: true } } },
+      include: { reservation_items: { select: { service_id: true } } },
     })
     if (existing) {
-      // comparer l'ensemble des services et le nombre d'items
-      const existingSet = new Map<string, number>()
-      for (const it of existing.reservation_items) {
-        existingSet.set(String(it.service_id), (existingSet.get(String(it.service_id)) || 0) + 1)
-      }
-      const incomingSet = new Map<string, number>()
-      for (const it of items) {
-        incomingSet.set(String(it.service_id), (incomingSet.get(String(it.service_id)) || 0) + 1)
-      }
-      let same = existing.reservation_items.length === items.length && existingSet.size === incomingSet.size
-      if (same) {
-        for (const [k, v] of incomingSet) {
-          if (existingSet.get(k) !== v) { same = false; break }
-        }
-      }
-      if (same) {
+      // Si la première prestation correspond, on considère que c'est un doublon (cas des clics multiples sur un panier)
+      const firstIncoming = String(items[0]?.service_id || '')
+      const hasFirstMatch = existing.reservation_items.some((it: any) => String(it.service_id) === firstIncoming)
+      if (hasFirstMatch) {
         return NextResponse.json({ booking: { id: existing.id } }, { status: 200 })
       }
     }
   } catch {}
 
-  // Calculer la fin en fonction des durées d'items
-  const durations: number[] = items.map((i: any) => Number(i?.duration_minutes || 0))
-  const totalMinutes = durations.reduce((s, x) => s + (isFinite(x) ? x : 0), 0)
-  const ends = new Date(start.getTime() + totalMinutes * 60000)
+  // Créer des réservations séparées pour chaque item dans une transaction
+  let currentStart = new Date(start)
+  const createdReservations: any[] = []
 
-  // Sélectionner un employé si 'Sans préférence'
-  let resolvedEmployeeId: string | null = employee_id || null
-  try {
-    if (!resolvedEmployeeId && Array.isArray(items) && items.length > 0) {
-      const firstServiceId = String(items[0]?.service_id || '')
-      if (firstServiceId) {
-        // Employés actifs du salon capables de faire ce service
-        const emps = await prisma.employees.findMany({
+  await prisma.$transaction(async (tx) => {
+    for (const it of items) {
+      if (it.starts_at) {
+        currentStart = new Date(it.starts_at)
+      }
+      const duration = Number(it.duration_minutes || 0)
+      const currentEnd = new Date(currentStart.getTime() + duration * 60000)
+      const serviceId = String(it.service_id || '')
+
+      // Résolution de l'employé pour CET item spécifique
+      let itemEmployeeId: string | null = it.employee_id || employee_id || null
+
+      // Vérifier si l'employé choisi (ou global) peut faire ce service
+      if (itemEmployeeId) {
+        const canDo = await tx.employee_services.findFirst({
+          where: { employee_id: itemEmployeeId, service_id: serviceId }
+        })
+        if (!canDo) {
+          itemEmployeeId = null // On invalide pour forcer une nouvelle recherche
+        }
+      }
+
+      // Si pas d'employé ou incapable, on en cherche un disponible et compétent
+      if (!itemEmployeeId) {
+        const capableEmps = await tx.employees.findMany({
           where: {
             business_id,
             is_active: true,
-            employee_services: { some: { service_id: firstServiceId } },
+            employee_services: { some: { service_id: serviceId } },
           },
           select: { id: true },
         })
-        const candidateIds: any[] = emps.map((e: any) => e.id)
-        if (candidateIds.length) {
-          // Vérifier disponibilité (pas de chevauchement)
-          const available: any[] = []
-          for (const eid of candidateIds) {
-            const conflict = await prisma.reservations.findFirst({
-              where: {
-                employee_id: eid,
-                status: { in: ["PENDING", "CONFIRMED"] as any },
-                starts_at: { lt: ends },
-                ends_at: { gt: start },
-              },
-              select: { id: true },
-            })
-            if (!conflict) available.push(eid)
-          }
-          if (available.length) {
-            resolvedEmployeeId = available[Math.floor(Math.random() * available.length)]
+
+        const candidateIds = capableEmps.map(e => e.id)
+        for (const eid of candidateIds) {
+          const conflict = await tx.reservations.findFirst({
+            where: {
+              employee_id: eid,
+              status: { in: ["PENDING", "CONFIRMED"] as any },
+              starts_at: { lt: currentEnd },
+              ends_at: { gt: currentStart },
+            },
+            select: { id: true },
+          })
+          if (!conflict) {
+            itemEmployeeId = eid
+            break
           }
         }
       }
-    }
-  } catch {}
 
-  // Créer la réservation + items dans une transaction
-  const created = await prisma.$transaction(async (tx) => {
-    const reservation = await tx.reservations.create({
-      data: {
-        business_id,
-        client_id: client.id,
-        employee_id: resolvedEmployeeId || null,
-        location_id: location_id || null,
-        booker_user_id: user.id,
-        starts_at: start,
-        ends_at: ends,
-        status: 'PENDING' as any,
-        notes: notes || null,
-        source: 'WEB',
-      },
-    })
+      const reservation = await tx.reservations.create({
+        data: {
+          business_id,
+          client_id: client.id,
+          employee_id: itemEmployeeId,
+          location_id: location_id || null,
+          booker_user_id: user.id,
+          starts_at: currentStart,
+          ends_at: currentEnd,
+          status: 'PENDING' as any,
+          notes: notes || null,
+          source: 'WEB',
+        },
+      })
 
-    for (const it of items) {
       await tx.reservation_items.create({
         data: {
           reservation_id: reservation.id,
-          service_id: it.service_id,
+          service_id: serviceId,
           variant_id: it.variant_id || null,
-          employee_id: it.employee_id || resolvedEmployeeId || null,
+          employee_id: itemEmployeeId,
           price_cents: Number(it.price_cents || 0),
           currency: it.currency || 'DZD',
-          duration_minutes: Number(it.duration_minutes || 0),
+          duration_minutes: duration,
         },
       })
-    }
 
-    return reservation
+      createdReservations.push(reservation)
+      currentStart = currentEnd
+    }
   })
+
+  const created = createdReservations[0]
 
   // Fire-and-forget email notification
   ;(async () => {

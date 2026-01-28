@@ -37,13 +37,15 @@ export const authConfig: AuthOptions = {
         sameSite: 'lax',
         path: '/',
         secure: process.env.NODE_ENV === 'production',
-        domain: process.env.NODE_ENV === 'production' ? '.railway.app' : undefined
+        // ❌ REMOVED: domain: process.env.NODE_ENV === 'production' ? '.railway.app' : undefined
+        // This was causing cookie issues on Azure. Let the browser handle the domain automatically.
       }
     }
   },
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
+        console.log(`[NextAuth] Creating JWT for user: ${user.id}, email: ${user.email}`)
         token.id = user.id;
         // Fetch roles from DB when user logs in
         const userRoles = await prisma.user_roles.findMany({
@@ -54,6 +56,7 @@ export const authConfig: AuthOptions = {
         // Find businessId
         const special = userRoles.find((ur) => ur.business_id === "00000000-0000-0000-0000-000000000000");
         token.businessId = special ? special.business_id : (userRoles.length > 0 ? userRoles[0].business_id : "");
+        console.log(`[NextAuth] Assigned roles: ${(token.roles as string[])?.join(',')}, businessId: ${token.businessId}`)
       }
       return token;
     },

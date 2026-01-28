@@ -90,11 +90,17 @@ export default function EditClientModal({
         {loading ? (
           <div className="py-4 text-sm text-gray-600">Chargement…</div>
         ) : (
-          <div className="space-y-4">
+          <form 
+            onSubmit={(e) => {
+              e.preventDefault();
+              save();
+            }}
+            className="space-y-4"
+          >
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>Prénom</Label>
-                <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+                <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
               </div>
               <div>
                 <Label>Nom</Label>
@@ -126,15 +132,15 @@ export default function EditClientModal({
               </div>
             </div>
             <div className="flex justify-between">
-              <Button variant="destructive" onClick={removeClient} disabled={deleting}>
+              <Button type="button" variant="destructive" onClick={removeClient} disabled={deleting}>
                 {deleting ? "Suppression…" : "Supprimer"}
               </Button>
               <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setOpen(false)}>Annuler</Button>
-                <Button onClick={save} disabled={saving}>{saving ? "Sauvegarde…" : "Enregistrer"}</Button>
+                <Button type="button" variant="outline" onClick={() => setOpen(false)}>Annuler</Button>
+                <Button type="submit" disabled={saving}>{saving ? "Sauvegarde…" : "Enregistrer"}</Button>
               </div>
             </div>
-          </div>
+          </form>
         )}
       </DialogContent>
     </Dialog>

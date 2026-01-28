@@ -1,7 +1,7 @@
 'use client' // Add this at the top to mark this as a Client Component
 import type React from "react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import { Toaster } from "sonner"
 import {
@@ -28,11 +28,16 @@ export default function ProLayout({
   children: React.ReactNode
 }) {
   const pathname = usePathname()
+  const router = useRouter()
   const linkBase = "flex items-center px-6 py-3 rounded-lg font-medium transition-colors"
   const inactive = "text-gray-700 hover:bg-gray-100"
   const active = "bg-gray-100 text-gray-900"
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
-  const [me, setMe] = useState<{ employee: { name: string | null; role: string | null } | null; permissions: string[] }>({ employee: null, permissions: [] })
+  const [me, setMe] = useState<{ 
+    employee: { name: string | null; role: string | null } | null; 
+    permissions: string[];
+    needsVerification?: boolean;
+  }>({ employee: null, permissions: [], needsVerification: false })
   const perms = me.permissions || []
   const [roles, setRoles] = useState<string[]>([])
 
@@ -102,9 +107,15 @@ export default function ProLayout({
       if (mounted && r.ok) {
         setMe({ 
           employee: data?.employee || null, 
-          permissions: data?.permissions || [] 
+          permissions: data?.permissions || [] ,
+          needsVerification: !!data?.needsVerification
         })
         if (data?.roles) setRoles(data.roles)
+        
+        // Redirection logic for needsVerification
+        if (data?.needsVerification && !pathname?.startsWith('/pro/documents-verification')) {
+          router.push('/pro/documents-verification');
+        }
       }
     }).catch(() => {})
     

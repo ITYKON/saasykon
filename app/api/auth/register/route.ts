@@ -20,9 +20,24 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Nom invalide" }, { status: 400 });
     }
 
-    const existing = await prisma.users.findUnique({ where: { email } });
-    if (existing) {
-      return NextResponse.json({ error: "Email déjà utilisé" }, { status: 409 });
+    // Check for existing email
+    const existingEmail = await prisma.users.findUnique({ where: { email } });
+    if (existingEmail) {
+      return NextResponse.json({ 
+        error: "Cet email est déjà utilisé", 
+        field: "email" 
+      }, { status: 409 });
+    }
+
+    // Check for existing phone if provided
+    if (phone) {
+      const existingPhone = await prisma.users.findFirst({ where: { phone } });
+      if (existingPhone) {
+        return NextResponse.json({ 
+          error: "Ce numéro de téléphone est déjà utilisé", 
+          field: "phone" 
+        }, { status: 409 });
+      }
     }
 
     const passwordHash = await hashPassword(password);

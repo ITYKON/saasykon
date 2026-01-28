@@ -476,7 +476,7 @@ export async function POST(req: Request) {
     }
 
     // Generate slug
-    const { generateUniqueSlug } = await import("@/lib/salon-slug");
+    const { generateUniqueSlug } = await import("@/lib/salon-slug-server");
     const cityForSlug = parse.data.location || "";
     const nameForSlug = salonData.public_name || salonData.legal_name || "salon";
     salonData.slug = await generateUniqueSlug(nameForSlug, cityForSlug);

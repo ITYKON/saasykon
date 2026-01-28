@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyPassword, createSessionData, setAuthCookies } from "@/lib/auth";
+import { rateLimit, getClientIp } from "@/lib/rateLimit";
 
 // Fonction pour enregistrer une tentative de connexion échouée
 async function logFailedLoginAttempt(userId: string | null, email: string) {
@@ -52,6 +53,24 @@ async function logSuccessfulLogin(userId: string, email: string) {
 
 export async function POST(request: Request) {
   try {
+    // Rate limiting: 5 attempts per 15 minutes per IP
+    const clientIp = getClientIp(request);
+    const rateLimitKey = `login:${clientIp}`;
+    const rateLimitResult = rateLimit(rateLimitKey, 5, 15 * 60 * 1000); // 15 minutes
+    
+    if (!rateLimitResult.ok) {
+      const retryAfterSeconds = Math.ceil(rateLimitResult.retryAfterMs! / 1000);
+      return NextResponse.json(
+        { error: "Trop de tentatives de connexion. Veuillez réessayer plus tard." },
+        { 
+          status: 429,
+          headers: {
+            'Retry-After': retryAfterSeconds.toString()
+          }
+        }
+      );
+    }
+    
     //  CORRECTION : Protection contre les erreurs de parsing JSON
     let body;
     try {
@@ -85,7 +104,7 @@ export async function POST(request: Request) {
     
     if (!user.password_hash) {
       await logFailedLoginAttempt(user.id, email);
-      return NextResponse.json({ error: "Veuvez d'abord définir votre mot de passe" }, { status: 401 });
+      return NextResponse.json({ error: "Veuillez d'abord définir votre mot de passe" }, { status: 401 });
     }
     const ok = await verifyPassword(password, user.password_hash || '');
     

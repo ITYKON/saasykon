@@ -77,15 +77,47 @@ const CountrySelect = ({
   onChange,
   options,
 }: CountrySelectProps) => {
+  const [open, setOpen] = React.useState(false);
+  const ref = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    const handleEvent = (e: Event) => {
+      if (!open) return;
+      
+      // If the event target is inside our dropdown content, allow it (don't close)
+      // This handles scrolling the list of countries
+      if (ref.current && e.target instanceof Node && ref.current.contains(e.target)) {
+        return;
+      }
+      
+      // Otherwise (scrolling/wheeling outside), close the dropdown
+      setOpen(false);
+    };
+
+    // Catch scroll, wheel, and touchmove events to close the dropdown immediately
+    // when the user interacts with the rest of the page.
+    const opts = { capture: true, passive: true };
+    window.addEventListener("scroll", handleEvent, opts);
+    window.addEventListener("wheel", handleEvent, opts);
+    window.addEventListener("touchmove", handleEvent, opts);
+    
+    return () => {
+      window.removeEventListener("scroll", handleEvent, opts);
+      window.removeEventListener("wheel", handleEvent, opts);
+      window.removeEventListener("touchmove", handleEvent, opts);
+    };
+  }, [open]);
+
   const handleSelect = React.useCallback(
     (country: RPNInput.Country) => {
       onChange(country);
+      setOpen(false);
     },
     [onChange]
   );
 
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
           type="button"
@@ -103,42 +135,44 @@ const CountrySelect = ({
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[300px] p-0" side="bottom" align="start" avoidCollisions={false}>
-        <Command>
-          <CommandList>
-            <ScrollArea className="h-72">
-              <CommandInput placeholder="Rechercher un pays..." />
-              <CommandEmpty>Aucun pays trouvé.</CommandEmpty>
-              <CommandGroup>
-                {options
-                  .filter((x) => x.value)
-                  .map((option) => (
-                    <CommandItem
-                      className="gap-2"
-                      key={option.value}
-                      onSelect={() => handleSelect(option.value)}
-                    >
-                      <FlagComponent
-                        country={option.value}
-                        countryName={option.label}
-                      />
-                      <span className="flex-1 text-sm">{option.label}</span>
-                      {option.value && (
-                        <span className="text-foreground/50 text-sm">
-                          {`+${RPNInput.getCountryCallingCode(option.value)}`}
-                        </span>
-                      )}
-                      <Check
-                        className={cn(
-                          "ml-auto h-4 w-4",
-                          option.value === value ? "opacity-100" : "opacity-0"
+        <div ref={ref}>
+          <Command>
+            <CommandList>
+              <ScrollArea className="h-72">
+                <CommandInput placeholder="Rechercher un pays..." />
+                <CommandEmpty>Aucun pays trouvé.</CommandEmpty>
+                <CommandGroup>
+                  {options
+                    .filter((x) => x.value)
+                    .map((option) => (
+                      <CommandItem
+                        className="gap-2"
+                        key={option.value}
+                        onSelect={() => handleSelect(option.value)}
+                      >
+                        <FlagComponent
+                          country={option.value}
+                          countryName={option.label}
+                        />
+                        <span className="flex-1 text-sm">{option.label}</span>
+                        {option.value && (
+                          <span className="text-foreground/50 text-sm">
+                            {`+${RPNInput.getCountryCallingCode(option.value)}`}
+                          </span>
                         )}
-                      />
-                    </CommandItem>
-                  ))}
-              </CommandGroup>
-            </ScrollArea>
-          </CommandList>
-        </Command>
+                        <Check
+                          className={cn(
+                            "ml-auto h-4 w-4",
+                            option.value === value ? "opacity-100" : "opacity-0"
+                          )}
+                        />
+                      </CommandItem>
+                    ))}
+                </CommandGroup>
+              </ScrollArea>
+            </CommandList>
+          </Command>
+        </div>
       </PopoverContent>
     </Popover>
   );

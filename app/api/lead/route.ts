@@ -30,7 +30,7 @@ export async function POST(req: Request) {
   // Les salons créés depuis le formulaire de lead ne sont PAS revendicables
   
   // Generate slug
-  const { generateUniqueSlug } = await import("@/lib/salon-slug");
+  const { generateUniqueSlug } = await import("@/lib/salon-slug-server");
   const slug = await generateUniqueSlug(data.companyName, data.city);
 
   const lead = await prisma.businesses.create({

@@ -113,7 +113,9 @@ export default function SalonPublicPage({ salonId }: SalonPublicPageProps) {
         duration: `${it.duration_minutes || 30}min`,
         price: (typeof it.price_min_cents === 'number' && typeof it.price_max_cents === 'number')
           ? `${Math.round(it.price_min_cents / 100)}–${Math.round(it.price_max_cents / 100)} DA`
-          : (it.price_cents != null ? `${Math.round(it.price_cents / 100)} DA` : "—"),
+          : (typeof it.price_min_cents === 'number'
+            ? `à partir de ${Math.round(it.price_min_cents / 100)} DA`
+            : (it.price_cents != null ? `${Math.round(it.price_cents / 100)} DA` : "—")),
       })),
     }))
     const hours: Record<string, string> = (data.hours as Record<string, string>) || {
@@ -248,14 +250,18 @@ export default function SalonPublicPage({ salonId }: SalonPublicPageProps) {
         <div className="relative mb-8">
           <div className="aspect-video lg:aspect-[21/6] rounded-lg overflow-hidden">
             <Image
-              src={(salon?.images?.[currentImageIndex]) || "/placeholder.svg"}
+              src={
+                businessId === '71831c69-7b17-4344-b873-583e4a976f07' 
+                  ? "/institutbykm.jpg" 
+                  : (salon?.images?.[currentImageIndex]) || "/placeholder.svg"
+              }
               alt={`${salon?.name || "Salon"} ${currentImageIndex + 1}`}
               fill
               className="object-cover"
               priority
             />
           </div>
-          {salon?.images?.length > 1 && (
+          {businessId !== '71831c69-7b17-4344-b873-583e4a976f07' && salon?.images?.length > 1 && (
             <>
               <Button
                 variant="outline"
@@ -314,19 +320,28 @@ export default function SalonPublicPage({ salonId }: SalonPublicPageProps) {
                 {(salon?.services || []).map((category: any, categoryIndex: number) => (
                   <Card key={categoryIndex}>
                     <CardContent className="p-6">
-                      <h3 className="font-semibold text-lg mb-4">{category.category}</h3>
-                      <div className="space-y-3">
-                        {category.items.map((service: any) => (
+                      <h3 className="font-semibold text-lg mb-4 uppercase text-gray-700">{category.category}</h3>
+                      <div className="divide-y divide-gray-200">
+                        {category.items.map((service: any, index: number) => (
                           <div
                             key={service.id}
-                            className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                            className="flex flex-col sm:flex-row sm:items-center justify-between py-4 first:pt-0"
                           >
                             <div className="flex-1 mb-3 sm:mb-0">
-                              <p className="font-medium text-black">{service.name}</p>
-                              <p className="text-sm text-gray-600">{service.description}</p>
+                              <p className="font-normal text-gray-900">
+                                {service.name}
+                              </p>
+                              {service.price && service.price !== "—" && (
+                                <p className="text-sm text-gray-600 mt-0.5">{service.price}</p>
+                              )}
+                              {service.description && (
+                                <p className="text-sm text-gray-600 mt-1">{service.description}</p>
+                              )}
                             </div>
-                            <div className="flex items-center justify-between sm:justify-end gap-4">
-                              <span className="text-sm text-gray-600">{service.duration}</span>
+                            <div className="flex items-center justify-between sm:justify-end gap-6">
+                              <div className="flex flex-col items-end min-w-[70px]">
+                                <span className="text-sm text-gray-600">{service.duration}</span>
+                              </div>
                               <Button
                                 size="sm"
                                 className="bg-black hover:bg-gray-800 text-white"

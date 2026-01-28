@@ -416,7 +416,13 @@ export default function ComptesEmployesPage() {
                 <DialogHeader>
                   <DialogTitle>Créer un compte employé</DialogTitle>
                 </DialogHeader>
-                <div className="space-y-4">
+                <form 
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleCreateAccount();
+                  }}
+                  className="space-y-4"
+                >
                   <div className="rounded-lg border bg-white shadow-sm p-4 space-y-4">
                     <Label htmlFor="email">Email</Label>
                     <Input
@@ -526,11 +532,11 @@ export default function ComptesEmployesPage() {
                         ))}
                       </div>
                   </div>
-                </div>
-                <div className="pt-4 mt-4 border-t flex justify-end gap-2">
-                  <Button variant="outline" onClick={() => setIsCreateModalOpen(false)} className="min-w-[120px]">Annuler</Button>
-                  <Button className="bg-black hover:bg-gray-800 min-w-[120px]" onClick={handleCreateAccount}>Créer le compte</Button>
-                </div>
+                  <div className="pt-4 mt-4 border-t flex justify-end gap-2">
+                    <Button type="button" variant="outline" onClick={() => setIsCreateModalOpen(false)} className="min-w-[120px]">Annuler</Button>
+                    <Button type="submit" className="bg-black hover:bg-gray-800 min-w-[120px]">Créer le compte</Button>
+                  </div>
+                </form>
               </DialogContent>
             </Dialog>
           </div>
@@ -826,7 +832,14 @@ export default function ComptesEmployesPage() {
               Chargement des informations...
             </div>
           ) : (
-            <div className="space-y-6">
+            <form 
+              onSubmit={(e) => {
+                e.preventDefault();
+                setEditEmployeeRole(customEditRole || editEmployeeRole);
+                handleSaveEdit();
+              }}
+              className="space-y-6"
+            >
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <Label>Statut</Label>
@@ -905,6 +918,7 @@ export default function ComptesEmployesPage() {
               </div>
               <div className="flex justify-between">
                 <Button
+                  type="button"
                   variant="destructive"
                   onClick={handleUnlinkAccount}
                   disabled={editSaving}
@@ -913,6 +927,7 @@ export default function ComptesEmployesPage() {
                 </Button>
                 <div className="space-x-2">
                   <Button
+                    type="button"
                     variant="outline"
                     onClick={() => setIsEditOpen(false)}
                     disabled={editSaving}
@@ -920,18 +935,15 @@ export default function ComptesEmployesPage() {
                     Annuler
                   </Button>
                   <Button
+                    type="submit"
                     className="bg-black hover:bg-gray-800"
                     disabled={!isEditDirtyFn() || editSaving}
-                    onClick={() => {
-                      setEditEmployeeRole(customEditRole || editEmployeeRole);
-                      handleSaveEdit();
-                    }}
                   >
                     {editSaving ? "Enregistrement..." : "Enregistrer"}
                   </Button>
                 </div>
               </div>
-            </div>
+            </form>
           )}
         </DialogContent>
       </Dialog>

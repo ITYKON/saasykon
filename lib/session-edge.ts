@@ -8,6 +8,7 @@ export async function getAuthDataFromTokenEdge(token: string) {
   try {
     const { payload } = await jwtVerify(token, JWT_SECRET);
     if (payload) {
+      console.log(`[EdgeAuth] JWT verified for userId: ${payload.userId}`)
       return {
         userId: payload.userId as string,
         roles: payload.roles as string[],
@@ -15,6 +16,7 @@ export async function getAuthDataFromTokenEdge(token: string) {
       };
     }
   } catch (err: any) {
+    console.warn(`[EdgeAuth] JWT verification failed: ${err.message}. Secret present: ${!!process.env.NEXTAUTH_SECRET}`)
     // Fail silent for middleware
     return null;
   }
