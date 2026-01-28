@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { getAuthDataFromToken } from "@/lib/auth";
 
-const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME || "__yk_sb_";
+const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME || "__yk_sb_hg";
 
 export type AuthContext = {
   userId: string;

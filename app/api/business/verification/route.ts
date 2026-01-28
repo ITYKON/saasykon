@@ -35,21 +35,6 @@ type BusinessStatus =
   | "rejected"
   | "blocked";
 
-// Surcharge du type pour accepter notre statut personnalisé
-type CustomVerificationStatus = VerificationStatus | string;
-
-declare global {
-  namespace Prisma {
-    // Surcharge de l'interface verification_status pour accepter notre statut personnalisé
-    interface verification_status {
-      equals?: CustomVerificationStatus;
-      in?: CustomVerificationStatus[];
-      notIn?: CustomVerificationStatus[];
-      not?: CustomVerificationStatus;
-    }
-  }
-}
-
 // Configuration des types pour les fichiers
 type FileWithName = {
   name: string;

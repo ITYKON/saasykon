@@ -1,111 +1,82 @@
-import nodemailer from "nodemailer";
+// lib/email.ts
+import { EmailClient } from "@azure/communication-email";
 
-// Détection environnement
-const isProduction = process.env.NODE_ENV === "production";
-const useSES = process.env.EMAIL_PROVIDER === "ses";
+const EMAIL_FROM = process.env.EMAIL_FROM || "support@yoka-dz.com";
 
-// Configuration du transport (SES SMTP ou MailDev)
-let transporter: nodemailer.Transporter;
-
-if (useSES && isProduction) {
-  // Production: Amazon SES via SMTP
-  transporter = nodemailer.createTransport({
-    host: "email-smtp.eu-central-1.amazonaws.com",
-    port: 587,
-    secure: false,
-    auth: {
-      user: process.env.AWS_ACCESS_KEY_ID!,
-      pass: process.env.AWS_SECRET_ACCESS_KEY!,
-    },
-    tls: {
-      rejectUnauthorized: true,
-    },
-  });
-  console.log("Email Provider: Amazon SES SMTP (Production)");
-} else {
-  // Développement: MailDev/SMTP
-  transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST || "localhost",
-    port: Number(process.env.SMTP_PORT || 1025),
-    secure: process.env.SMTP_SECURE === "true",
-    auth: process.env.SMTP_USER
-      ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
-      : undefined,
-    tls: {
-      rejectUnauthorized: process.env.NODE_ENV === "production",
-    },
-  });
-  console.log("Email Provider: SMTP/MailDev (Development)");
+// Interface de compatibilité AWS SES
+export interface EmailSendResult {
+  messageId: string;
+  status?: string;
 }
 
-// Configuration
-const EMAIL_FROM = process.env.EMAIL_FROM || "no-reply@example.com";
-const EMAIL_TEST_TO = process.env.EMAIL_TEST_TO || "test@example.com";
+// Lazy loading du client - n'est instancié qu'à la première utilisation
+let emailClientInstance: EmailClient | null = null;
 
-// Log SMTP configuration (without sensitive data)
-
-
-// Function to send a test email
-export async function sendTestEmail() {
-  // Ne pas envoyer d'emails pendant le build
-  if (
-    process.env.NEXT_PHASE === "phase-production-build" ||
-    process.env.NODE_ENV === "test"
-  ) {
-
-    return { success: true, messageId: "skipped-during-build" };
+function getEmailClient(): EmailClient {
+  if (!emailClientInstance) {
+    const connectionString = process.env.AZURE_COMMUNICATION_CONNECTION_STRING;
+    
+    if (!connectionString) {
+      console.error("AZURE_COMMUNICATION_CONNECTION_STRING manquante");
+      throw new Error("Configuration email manquante");
+    }
+    
+    emailClientInstance = new EmailClient(connectionString);
   }
-
-  try {
-    const info = await transporter.sendMail({
-      from: EMAIL_FROM,
-      to: EMAIL_TEST_TO,
-      subject: "Test Email from SaaS YKON",
-      text: "This is a test email sent from SaaS YKON application.",
-      html: `
-        <h1>Test Email</h1>
-        <p>This is a test email sent from SaaS YKON application.</p>
-        <p>Provider: ${useSES && isProduction ? "Amazon SES" : "SMTP/MailDev"}</p>
-        <p>Sent at: ${new Date().toISOString()}</p>
-      `,
-    });
-
-
-    return { success: true, messageId: info.messageId };
-  } catch (error) {
-    console.error("Error sending test email:", error);
-    throw error;
-  }
+  return emailClientInstance;
 }
 
-// Fonction principale (CORRIGÉE - ajout de sandbox)
+// Fonction TEST
+export async function sendTestEmail(): Promise<EmailSendResult> {
+  return sendEmail({
+    to: process.env.EMAIL_TEST_TO || "aissou.ahlem2002@gmail.com",
+    subject: "Test Email from SaaS YKON",
+    html: "<h1>Test Email</h1><p>This is a test email sent from SaaS YKON.</p>",
+    text: "This is a test email sent from SaaS YKON.",
+  });
+}
+
+// Fonction principale
 export async function sendEmail(opts: {
   to: string;
   subject: string;
   html: string;
   text?: string;
   category?: string;
-  sandbox?: boolean; // <-- AJOUTÉ pour compatibilité
-}) {
-
-
+  sandbox?: boolean;
+}): Promise<EmailSendResult> {
   try {
-    const result = await transporter.sendMail({
-      from: EMAIL_FROM,
-      to: opts.to,
-      subject: opts.subject,
-      html: opts.html,
-      text: opts.text,
-      headers: opts.category ? { "X-Category": opts.category } : undefined,
-    });
+    const message = {
+      senderAddress: EMAIL_FROM,
+      content: {
+        subject: opts.subject,
+        html: opts.html,
+        plainText: opts.text,
+      },
+      recipients: {
+        to: [{ address: opts.to }],
+      },
+    };
 
+    // Utilise le lazy loader
+    const client = getEmailClient();
+    const poller = await client.beginSend(message);
+    const response = await poller.pollUntilDone();
+    
+    console.log("Email sent:", response.id);
+    
+    // Mapping Azure (id) -> Compatibilité AWS SES (messageId)
+    return {
+      messageId: response.id,
+      status: response.status
+    };
   } catch (error) {
-    console.error("Email sending failed:", error);
+    console.error("Email error:", error);
     throw error;
   }
 }
 
-// Templates (inchangés)
+// Tes templates (inchangés)
 export function inviteEmailTemplate(params: {
   firstName?: string | null;
   appUrl: string;
@@ -154,5 +125,3 @@ export function claimApprovedEmailTemplate(params: {
 
   return { text, html };
 }
-
-export { transporter };

@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { rateLimit, getClientIp } from "@/lib/rateLimit";
 
 interface BusinessLocation {
   is_primary: boolean;
@@ -57,6 +58,24 @@ interface Business {
 
 export async function GET(req: Request): Promise<NextResponse> {
   try {
+    // Rate limiting: 30 requests per minute per IP
+    const clientIp = getClientIp(req);
+    const rateLimitKey = `search:${clientIp}`;
+    const rateLimitResult = rateLimit(rateLimitKey, 30, 60 * 1000); // 1 minute
+    
+    if (!rateLimitResult.ok) {
+      const retryAfterSeconds = Math.ceil(rateLimitResult.retryAfterMs! / 1000);
+      return NextResponse.json(
+        { error: "Trop de requêtes de recherche. Veuillez réessayer plus tard." },
+        { 
+          status: 429,
+          headers: {
+            'Retry-After': retryAfterSeconds.toString()
+          }
+        }
+      );
+    }
+    
     // Récupération des paramètres de requête
     const { searchParams } = new URL(req.url);
     const query = (searchParams.get("q") || "").trim();
