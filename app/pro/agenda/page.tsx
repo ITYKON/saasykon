@@ -312,6 +312,7 @@ export default function ProAgenda() {
                 color: '#3b82f6',
                 client: it.client || undefined,
                 clientPhone: it.client_phone || undefined,
+                employee: e.employee_name || undefined,
                 durationMin: typeof it.duration_minutes !== 'undefined' ? Number(it.duration_minutes) : undefined,
               }));
               if (e.employee_id) liveMap[e.employee_id] = slots;
@@ -937,11 +938,13 @@ export default function ProAgenda() {
                           }}
                         >
                           <div className="text-[11px] font-medium text-white truncate">
-                            {ev.start} - {ev.end}
-                            {typeof ev.durationMin === 'number' ? ` • ${ev.durationMin} min` : ''}
+                            {ev.client || 'Client'}
                           </div>
                           <div className="text-[11px] text-white/90 truncate">
                             {ev.title}
+                          </div>
+                          <div className="text-[10px] text-white italic truncate">
+                            {ev.employee}
                           </div>
                         </div>
                       </div>
@@ -1034,15 +1037,13 @@ export default function ProAgenda() {
                                 key={eventIdx}
                                 className="p-2 rounded border-l-4 border-blue-500 bg-blue-50"
                               >
-                                <div className="text-sm font-medium text-gray-900">{event.title}</div>
-                                <div className="text-xs text-gray-500">
-                                  {formatTime12h(event.start)} - {formatTime12h(event.end)}
+                                <div className="text-sm font-medium text-gray-900">{event.client || 'Client'}</div>
+                                <div className="text-xs text-gray-700 font-medium mt-0.5">
+                                  {event.employee}
                                 </div>
-                                {event.client && (
-                                  <div className="text-xs text-gray-600 mt-1">
-                                    👤 {event.client}
-                                  </div>
-                                )}
+                                <div className="text-xs text-gray-600 mt-0.5">
+                                  {event.title}
+                                </div>
                               </div>
                             ))}
                           </div>
@@ -1336,11 +1337,13 @@ export default function ProAgenda() {
                         <div className="px-2 py-1">
                           <div className="flex items-center gap-1 text-[10px] text-gray-600 font-medium">
                             <span className="inline-block h-1.5 w-1.5 rounded-sm" style={{ backgroundColor: empColor }} />
-                            <span>{ev.start} - {ev.end}</span>
-                            {typeof ev.durationMin === 'number' ? <span>• {ev.durationMin} min</span> : null}
+                            <span>{ev.client || 'Client'}</span>
                           </div>
                           <div className="text-[12px] text-gray-900 leading-snug truncate">
                             {ev.title}
+                          </div>
+                          <div className="text-[10px] text-gray-600 italic truncate">
+                            {ev.employee}
                           </div>
                         </div>
                       </div>
@@ -1465,8 +1468,10 @@ export default function ProAgenda() {
                             style={{ backgroundColor: badgeColor }}
                           />
                           <div className="truncate text-gray-800">
-                            {e.time ? `${e.time} ` : ""}
-                            {e.title}
+                            <span className="font-semibold">{(e as any).client || 'Client'}</span> • {e.title}
+                          </div>
+                          <div className="truncate text-[10px] text-gray-500 italic">
+                            {(e as any).employee}
                           </div>
                         </button>
                       );
@@ -2051,31 +2056,19 @@ export default function ProAgenda() {
                   style={{ backgroundColor: e.color || colorMap[norm(e.employee || "")] || "#3b82f6" }}
                 />
                 <div className="min-w-0">
-                  <div className="text-sm text-gray-900 truncate">
-                    {(() => {
-                      const mins = (typeof e.durationMin === 'number' ? e.durationMin : (e as any)?.duration_minutes) as number | undefined;
-                      if (!e.time) return e.title;
-                      if (!mins || !isFinite(mins) || mins <= 0) return `${e.time} ${e.title}`;
-                      const [hh, mm] = e.time.split(":").map(Number);
-                      const startTotal = hh * 60 + mm;
-                      const endTotal = startTotal + mins;
-                      const eh = Math.floor((endTotal % (24*60)) / 60);
-                      const em = endTotal % 60;
-                      const pad2 = (n: number) => n.toString().padStart(2, '0');
-                      return `${e.time}-${pad2(eh)}:${pad2(em)} ${e.title}`;
-                    })()}
+                  <div className="text-sm font-semibold text-gray-900 truncate">
+                    {(e as any).client || 'Client'}
                   </div>
-                  <div className="text-xs text-gray-600 truncate">
+                  <div className="text-xs text-gray-700 truncate">
+                    {e.title}
+                  </div>
+                  <div className="text-xs text-gray-500 truncate mt-1">
                     {e.employee || "Employé"}
-                    {e.service ? ` • ${e.service}` : ""}
                     {typeof e.durationMin === "number"
                       ? ` • ${e.durationMin} min`
                       : ""}
                     {typeof e.priceDA === "number" ? ` • ${e.priceDA} DA` : ((e as any)?.price_cents ? ` • ${Math.round(((e as any).price_cents)/100)} DA` : "")}
-                  </div>
-                  <div className="text-xs text-gray-600 truncate">
-                    {(e as any)?.client ? `Client: ${(e as any).client}` : ""}
-                    {(e as any)?.client_phone ? ` • 📞 ${(e as any).client_phone}` : ""}
+                    {(e as any).client_phone ? ` • 📞 ${(e as any).client_phone}` : ""}
                   </div>
                 </div>
               </button>
