@@ -40,7 +40,7 @@ function ClientSidebar({ onLinkClick }: { onLinkClick?: () => void }) {
   ]
 
   return (
-    <aside className="w-full h-full overflow-y-auto">
+    <aside className="sticky top-0 h-screen w-full overflow-y-auto">
       <div className="p-6">
         <div className="text-center mb-8">
           <div className="flex justify-center mb-6">
