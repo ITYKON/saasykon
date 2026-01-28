@@ -267,9 +267,11 @@ interface BookingWizardProps {
       setTicketData({
         id: bookingId,
         salonName: salon?.name,
-        date: new Date(selectedDate).toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }),
-        time: selectedTime,
-        serviceName: selectedItems.map(s=>s.name).join(' + '),
+        items: selectedItems.map(it => ({
+          name: it.name,
+          date: it.date || baseDate,
+          time: it.time || baseTime
+        })),
         employee: employees.find(e => e.id === selectedEmployeeId)?.full_name || 'Sans préférence',
         price: priceText,
       })
@@ -1502,15 +1504,31 @@ interface BookingWizardProps {
             <AlertDialogTitle>Ticket de réservation</AlertDialogTitle>
             <AlertDialogDescription>
               {ticketData ? (
-                <div id="ticket">
-                  <div className="font-medium">{ticketData.salonName}</div>
-                  <div className="text-sm text-gray-600">{ticketData.date} • à {ticketData.time}</div>
-                  <div className="mt-2 text-sm">Prestation: {ticketData.serviceName}</div>
-                  {ticketData.price && (
-                    <div className="text-sm">Prix: {ticketData.price}</div>
-                  )}
-                  <div className="text-sm">Avec: {ticketData.employee}</div>
-                  <div className="mt-2 text-xs text-gray-500">Référence: {ticketData.id}</div>
+                <div id="ticket" className="space-y-4">
+                  <div className="font-bold text-lg border-b pb-2">{ticketData.salonName}</div>
+                  
+                  <div className="space-y-3">
+                    {ticketData.items?.map((item: any, idx: number) => (
+                      <div key={idx} className="border-l-2 border-blue-500 pl-3 py-1">
+                        <div className="font-semibold text-gray-900">{item.name}</div>
+                        <div className="text-sm text-gray-600">
+                          {new Date(item.date).toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: 'short' })}
+                          { ' • ' }
+                          {item.time}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="pt-2 border-t space-y-1">
+                    {ticketData.price && (
+                      <div className="text-sm font-medium">Prix total: {ticketData.price}</div>
+                    )}
+                    <div className="text-sm">Praticien: {ticketData.employee}</div>
+                    <div className="mt-4 pt-2 text-[10px] text-gray-400 font-mono break-all">
+                      Référence: {ticketData.id}
+                    </div>
+                  </div>
                 </div>
               ) : null}
             </AlertDialogDescription>
@@ -1520,7 +1538,34 @@ interface BookingWizardProps {
               const w = window.open('', 'PRINT', 'height=600,width=800')
               if (!w) return
               const html = document.getElementById('ticket')?.outerHTML || ''
-              w.document.write('<html><head><title>Ticket</title></head><body>' + html + '</body></html>')
+              const style = `
+                <style>
+                  body { font-family: sans-serif; padding: 20px; color: #333; }
+                  .space-y-4 > * + * { margin-top: 1rem; }
+                  .space-y-3 > * + * { margin-top: 0.75rem; }
+                  .space-y-1 > * + * { margin-top: 0.25rem; }
+                  .font-bold { font-weight: bold; }
+                  .font-semibold { font-weight: 600; }
+                  .text-lg { font-size: 1.125rem; }
+                  .text-sm { font-size: 0.875rem; }
+                  .text-\\[10px\\] { font-size: 10px; }
+                  .text-gray-900 { color: #111827; }
+                  .text-gray-600 { color: #4b5563; }
+                  .text-gray-400 { color: #9ca3af; }
+                  .border-b { border-bottom: 1px solid #e5e7eb; }
+                  .border-t { border-top: 1px solid #e5e7eb; }
+                  .border-l-2 { border-left: 2px solid; }
+                  .border-blue-500 { border-color: #3b82f6; }
+                  .pb-2 { padding-bottom: 0.5rem; }
+                  .pt-2 { padding-top: 0.5rem; }
+                  .pt-4 { padding-top: 1rem; }
+                  .pl-3 { padding-left: 0.75rem; }
+                  .py-1 { padding-top: 0.25rem; padding-bottom: 0.25rem; }
+                  .break-all { word-break: break-all; }
+                  .font-mono { font-family: monospace; }
+                </style>
+              `
+              w.document.write('<html><head><title>Ticket de réservation</title>' + style + '</head><body>' + html + '</body></html>')
               w.document.close(); w.focus(); w.print(); w.close();
               handleSalonRedirect();
             }}>Télécharger</AlertDialogAction>
