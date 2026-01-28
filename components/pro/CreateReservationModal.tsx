@@ -57,22 +57,27 @@ export default function CreateReservationModal({
   const [newClientPhone, setNewClientPhone] = useState("");
   const [newClientEmail, setNewClientEmail] = useState("");
 
-  // Charger les services et employés
+  const [business, setBusiness] = useState<any>(null);
+
+  // Charger les services, employés et infos salon
   useEffect(() => {
     if (!open) return;
     setLoading(true);
+    const businessId = auth?.assignments?.[0]?.business_id;
     Promise.all([
       fetch(`/api/pro/services`).then((r) => r.json()),
       fetch(`/api/pro/employees?include=services&limit=200`).then((r) => r.json()),
+      fetch(`/api/pro/business/profile`).then((r) => r.json()),
     ])
-      .then(([s, e]) => {
+      .then(([s, e, b]) => {
         setServices(s.services || []);
         setAllEmployees(e.items || []);
         setFilteredEmployees(e.items || []);
         setEmployees(e.items || []);
+        setBusiness(b.business || null);
       })
       .finally(() => setLoading(false));
-  }, [open]);
+  }, [open, auth?.assignments]);
 
   // Appliquer des valeurs par défaut à l'ouverture
   useEffect(() => {
@@ -142,14 +147,23 @@ export default function CreateReservationModal({
 
   // Vérifier la disponibilité du créneau
   async function checkAvailability() {
-    if (!date || !time || !duration) return true; // Pas de vérification si les champs requis ne sont pas remplis
+    if (!date || !time) return true;
+    const dur = Number(duration) || 30;
     
+    // 1. Déterminer si c'est dans le passé
+    const tz = business?.business_locations?.[0]?.timezone || 'Africa/Algiers';
+    const now = new Date();
     const startsAt = new Date(`${date}T${time}:00`);
-    const endsAt = new Date(startsAt.getTime() + (Number(duration) || 30) * 60000);
+    const endsAt = new Date(startsAt.getTime() + dur * 60000);
+
+    // Comparer par rapport à l'heure locale du salon
+    // Pour simplifier on vérifie si startsAt < now - 5min (marge)
+    if (startsAt.getTime() < now.getTime() - 300000) {
+      setAvailabilityError("⚠️ La date et l'heure ne peuvent pas être dans le passé.");
+      return false;
+    }
     
     try {
-
-      
       const res = await fetch(`/api/pro/availability/check`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -163,30 +177,21 @@ export default function CreateReservationModal({
       const data = await res.json();
       
       if (!res.ok) {
-        throw new Error(data.message || data.error || "Erreur de vérification de disponibilité");
+        setAvailabilityError(`⚠️ ${data.message || data.error || "Erreur de disponibilité"}`);
+        return false;
       }
       
       if (data.available === false) {
         if (data.conflict) {
-          // Utiliser les informations du conflit renvoyées par l'API
           const { client_name, employee_name, starts_at, ends_at } = data.conflict;
           const startTime = new Date(starts_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
           const endTime = new Date(ends_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
           
           setAvailabilityError(
-            `⚠️ ${employee_name} est déjà réservé(e) pour ${client_name} de ${startTime} à ${endTime}. ` +
-            "Veuillez choisir un autre horaire ou un autre employé."
+            `⚠️ ${employee_name} est déjà réservé(e) pour ${client_name} de ${startTime} à ${endTime}.`
           );
         } else {
-          // Fallback si les informations de conflit ne sont pas disponibles
-          const employeeName = employeeId && employeeId !== "none" 
-            ? employeesRef.current.find((e: { id: string }) => e.id === employeeId)?.full_name 
-            : "l'employé sélectionné";
-          
-          setAvailabilityError(
-            `⚠️ ${employeeName} est déjà occupé(e) sur ce créneau. ` +
-            "Veuillez choisir un autre horaire ou un autre employé."
-          );
+          setAvailabilityError(`⚠️ ${data.message || "Ce créneau n'est pas disponible (fermeture ou occupé)."}`);
         }
         return false;
       }
@@ -195,12 +200,20 @@ export default function CreateReservationModal({
       return true;
       
     } catch (e) {
-      const errorMessage = e instanceof Error ? e.message : "Erreur inconnue";
-      console.error("Erreur lors de la vérification de disponibilité:", e);
-      setAvailabilityError(`Erreur de vérification de disponibilité: ${errorMessage}`);
+      setAvailabilityError("Erreur de vérification de disponibilité");
       return false;
     }
   }
+
+  // Déclencher la vérification quand date/time change
+  useEffect(() => {
+    if (date && time && open) {
+      const timer = setTimeout(() => {
+        checkAvailability();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [date, time, employeeId, duration, open]);
 
   async function submit() {
     // Réinitialiser les erreurs
@@ -500,7 +513,10 @@ export default function CreateReservationModal({
                   <Label>Employé (optionnel)</Label>
                   <Select 
                     value={employeeId} 
-                    onValueChange={setEmployeeId}
+                    onValueChange={(v) => {
+                      setEmployeeId(v);
+                      setAvailabilityError(null);
+                    }}
                     disabled={!serviceId}
                   >
                     <SelectTrigger>
@@ -524,7 +540,10 @@ export default function CreateReservationModal({
                     type="date" 
                     value={date} 
                     min={new Date().toISOString().split('T')[0]}
-                    onChange={(e) => setDate(e.target.value)} 
+                    onChange={(e) => {
+                      setDate(e.target.value);
+                      setAvailabilityError(null);
+                    }} 
                     required
                   />
                 </div>
@@ -534,7 +553,10 @@ export default function CreateReservationModal({
                   <Input 
                     type="time" 
                     value={time} 
-                    onChange={(e) => setTime(e.target.value)} 
+                    onChange={(e) => {
+                      setTime(e.target.value);
+                      setAvailabilityError(null);
+                    }} 
                     required
                   />
                 </div>
@@ -619,16 +641,17 @@ export default function CreateReservationModal({
                   <div className="relative group">
                     <Button 
                       type="submit"
-                      disabled={submitting || (!isNewClient && !client) || (isNewClient && (!newClientFirstName || !newClientLastName)) || !serviceId || !date || !time}
+                      disabled={submitting || !!availabilityError || (!isNewClient && !client) || (isNewClient && (!newClientFirstName || !newClientLastName)) || !serviceId || !date || !time}
                       className="w-full"
                     >
                       {submitting ? "Création en cours..." : "Confirmer la réservation"}
                     </Button>
                     
                     {/* Message d'aide au survol */}
-                    {(submitting || (!isNewClient && !client) || (isNewClient && (!newClientFirstName || !newClientLastName)) || !serviceId || !date || !time) && (
-                      <div className="absolute bottom-full right-0 mb-2 hidden group-hover:block bg-gray-800 text-white text-xs rounded px-2 py-1 whitespace-nowrap">
+                    {(submitting || !!availabilityError || (!isNewClient && !client) || (isNewClient && (!newClientFirstName || !newClientLastName)) || !serviceId || !date || !time) && (
+                      <div className="absolute bottom-full right-0 mb-2 hidden group-hover:block bg-gray-800 text-white text-xs rounded px-2 py-1 whitespace-nowrap z-50">
                         {submitting ? "Traitement en cours..." :
+                         availabilityError ? availabilityError.replace('⚠️', '').trim() :
                          (!isNewClient && !client) ? "Sélectionnez d'abord un client" :
                          (isNewClient && (!newClientFirstName || !newClientLastName)) ? "Remplissez le nom et prénom" : 
                          !serviceId ? "Sélectionnez un service" :
