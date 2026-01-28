@@ -52,6 +52,7 @@ interface BookingWizardProps {
   const [signupFirstName, setSignupFirstName] = useState('')
   const [signupLastName, setSignupLastName] = useState('')
   const [signupPassword, setSignupPassword] = useState('')
+  const [showSignupPassword, setShowSignupPassword] = useState(false)
   const [signupCGU, setSignupCGU] = useState(false)
   const [signupOkMsg, setSignupOkMsg] = useState<string | null>(null)
   
@@ -68,7 +69,7 @@ interface BookingWizardProps {
   const [ticketOpen, setTicketOpen] = useState(false)
   const [ticketData, setTicketData] = useState<any>(null)
   const [showAddService, setShowAddService] = useState(false)
-  const [editingItemIndex, setEditingItemIndex] = useState<number | null>(null)
+  const [editingItemIndex, setEditingItemIndex] = useState<number | null>(() => initialService ? 0 : null)
   const [itemSlotsCache, setItemSlotsCache] = useState<Record<string, Array<{ date: string; slots: string[] }>>>({})
   const submitLock = useRef(false)
   const [showAgenda, setShowAgenda] = useState(true)
@@ -182,16 +183,17 @@ interface BookingWizardProps {
     return () => { ignore = true }
   }, [selectedItems, salon.id])
 
-  // Fetch time slots when first service, employee or startDate changes
+  // Fetch time slots when the active item being edited, employee or startDate changes
   useEffect(() => {
     let ignore = false
     async function loadSlots() {
-      const first = selectedItems[0]
-      if (!first) { setSlots([]); return }
+      const activeIdx = editingItemIndex !== null ? editingItemIndex : (selectedItems.length > 0 ? selectedItems.length - 1 : null)
+      const activeItem = activeIdx !== null ? selectedItems[activeIdx] : null
+      if (!activeItem) { setSlots([]); return }
       setLoadingSlots(true)
       try {
         const p = new URLSearchParams()
-        p.set('serviceId', first.id)
+        p.set('serviceId', activeItem.id)
         if (selectedEmployeeId) p.set('employeeId', selectedEmployeeId)
         p.set('days', '7')
         p.set('start', startDate)
@@ -208,7 +210,87 @@ interface BookingWizardProps {
     }
     loadSlots()
     return () => { ignore = true }
-  }, [selectedItems, selectedEmployeeId, salon.id, startDate])
+  }, [selectedItems, editingItemIndex, selectedEmployeeId, salon.id, startDate])
+
+  const handleConfirmBooking = async () => {
+    if (submitLock.current) return
+    submitLock.current = true
+    setSubmitting(true)
+    setError(null)
+    try {
+      const firstTimed = selectedItems.find(it => it.date && it.time)
+      const baseDate = selectedDate || firstTimed?.date
+      const baseTime = selectedTime || firstTimed?.time
+      
+      if (!baseDate || !baseTime) throw new Error("Veuillez sélectionner un horaire pour vos prestations")
+      
+      const starts_at = new Date(`${baseDate}T${baseTime}:00`)
+      const payload = {
+        business_id: salon.id,
+        starts_at: starts_at.toISOString(),
+        employee_id: selectedEmployeeId || undefined,
+        items: selectedItems.map((it) => {
+          let itemStartsAt = starts_at;
+          if (it.date && it.time) {
+            itemStartsAt = new Date(`${it.date}T${it.time}:00`);
+          }
+          return {
+            service_id: it.id,
+            duration_minutes: Number(it.duration_minutes || 30),
+            price_cents: (typeof it.price_cents === 'number' ? it.price_cents : null) as any,
+            currency: 'DZD',
+            employee_id: selectedEmployeeId || undefined,
+            starts_at: itemStartsAt.toISOString(),
+          }
+        }),
+      }
+
+      const res = await fetch('/api/client/bookings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+      const j = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(j?.error || 'Impossible de créer la réservation')
+      const bookingId = j?.booking?.id
+
+      // Compute price text
+      let minTotal = 0
+      let maxTotal = 0
+      let counted = false
+      for (const it of selectedItems) {
+        const pc = typeof it.price_cents === 'number' ? it.price_cents : null
+        const pmin = typeof (it as any).price_min_cents === 'number' ? (it as any).price_min_cents : null
+        const pmax = typeof (it as any).price_max_cents === 'number' ? (it as any).price_max_cents : null
+        if (pc != null) { minTotal += pc; maxTotal += pc; counted = true }
+        else if (pmin != null) { minTotal += pmin; maxTotal += (pmax ?? pmin); counted = true }
+      }
+      const isRange = counted && minTotal !== maxTotal
+      const priceText = !counted ? '—' : (isRange ? `à partir de ${Math.round(minTotal / 100)} DA` : `${Math.round(minTotal / 100)} DA`)
+
+      setTicketData({
+        id: bookingId,
+        salonName: salon?.name,
+        items: selectedItems.map(it => ({
+          name: it.name,
+          date: it.date || baseDate,
+          time: it.time || baseTime
+        })),
+        employee: employees.find(e => e.id === selectedEmployeeId)?.full_name || 'Sans préférence',
+        price: priceText,
+      })
+      setTicketOpen(true)
+      if (bookingId) {
+        try {
+          const det = await fetch(`/api/client/bookings/${bookingId}`, { cache: 'no-store' })
+          const dj = await det.json().catch(() => null)
+          const name = dj?.booking?.employees?.full_name || null
+          if (name) setTicketData((prev: any) => ({ ...prev, employee: name }))
+        } catch {}
+      }
+    } catch (e: any) {
+      setError(e?.message || 'Erreur de création')
+    } finally {
+      setSubmitting(false)
+      submitLock.current = false
+    }
+  }
 
   const renderStep1 = () => (
     <div className="space-y-6">
@@ -259,6 +341,7 @@ interface BookingWizardProps {
                       onClick={(e) => {
                         e.stopPropagation()
                         setSelectedItems([])
+                        setEditingItemIndex(null)
                         setShowAddService(false)
                       }}
                     >
@@ -293,10 +376,9 @@ interface BookingWizardProps {
                 </div>
               </div>
             )}
-
           </div>
-          {/* right area left blank when multi */}
         </div>
+
         {!selectedItems.length && (
           <div className="mt-3">
             <div className="text-sm text-gray-700 mb-4">Choisir une prestation</div>
@@ -315,14 +397,19 @@ interface BookingWizardProps {
                           className="w-full text-left p-3 border rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-between"
                           onClick={() => {
                             const hasRange = typeof svc.price_min_cents === 'number' && typeof svc.price_max_cents === 'number'
-                            setSelectedItems((prev)=> [...prev, {
-                              id: svc.id,
-                              name: svc.name,
-                              duration_minutes: svc.duration_minutes || 30,
-                              price_cents: hasRange ? null : (typeof svc.price_cents === 'number' ? svc.price_cents : null),
-                              ...(typeof svc.price_min_cents === 'number' ? { price_min_cents: svc.price_min_cents } : {}),
-                              ...(typeof svc.price_max_cents === 'number' ? { price_max_cents: svc.price_max_cents } : {}),
-                            }])
+                            setSelectedItems((prev)=> {
+                              const newItems = [...prev, {
+                                id: svc.id,
+                                name: svc.name,
+                                duration_minutes: svc.duration_minutes || 30,
+                                price_cents: hasRange ? null : (typeof svc.price_cents === 'number' ? svc.price_cents : null),
+                                ...(typeof svc.price_min_cents === 'number' ? { price_min_cents: svc.price_min_cents } : {}),
+                                ...(typeof svc.price_max_cents === 'number' ? { price_max_cents: svc.price_max_cents } : {}),
+                              }];
+                              setEditingItemIndex(newItems.length - 1);
+                              setShowAgenda(true);
+                              return newItems;
+                            })
                             setShowAddService(false)
                           }}
                         >
@@ -346,12 +433,15 @@ interface BookingWizardProps {
             </div>
           </div>
         )}
+
         {!!selectedItems.length && (
           <div className="mt-6">
-            {/* Section 2 header */}
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-base font-semibold text-black">
-                <span className="text-blue-600 mr-2">2.</span> Choix de la date & heure
+                <span className="text-blue-600 mr-2">2.</span> 
+                {editingItemIndex !== null 
+                  ? `Choisir l'horaire pour : ${selectedItems[editingItemIndex]?.name}` 
+                  : "Choix de la date & heure"}
               </h2>
               {!showAgenda && selectedDate && selectedTime && (
                 <button 
@@ -363,7 +453,6 @@ interface BookingWizardProps {
               )}
             </div>
             
-            {/* Résumé sélection si agenda masqué */}
             {!showAgenda && selectedDate && selectedTime && (
               <div className="mb-4">
                 <div className="w-full bg-white border border-gray-200 rounded-xl p-3 flex items-center justify-between">
@@ -375,20 +464,15 @@ interface BookingWizardProps {
                     </div>
                     <div>
                       <div className="text-sm font-medium text-gray-900">
-                        {new Date(selectedDate).toLocaleDateString('fr-FR', { 
-                          weekday: 'long', 
-                          day: 'numeric', 
-                          month: 'long' 
-                        })}
+                        {new Date(selectedDate).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
                       </div>
-                      <div className="text-sm text-gray-600">
-                        À {selectedTime}
-                      </div>
+                      <div className="text-sm text-gray-600">À {selectedTime}</div>
                     </div>
                   </div>
                 </div>
               </div>
             )}
+
             {loadingSlots ? (
               <div className="text-sm text-gray-500">Chargement des créneaux…</div>
             ) : (
@@ -440,20 +524,12 @@ interface BookingWizardProps {
                             setSelectedTime('')
                           }}
                           className={`flex flex-col items-center p-2 rounded-lg transition-colors ${
-                            isSelected 
-                              ? 'bg-blue-100 text-blue-700' 
-                              : isToday 
-                                ? 'bg-gray-100 text-gray-900' 
-                                : 'text-gray-700 hover:bg-gray-50'
+                            isSelected ? 'bg-blue-100 text-blue-700' : isToday ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50'
                           }`}
                         >
                           <div className="text-xs font-medium">{dayName}</div>
-                          <div className="h-8 w-8 flex items-center justify-center text-sm font-medium rounded-full">
-                            {day}
-                          </div>
-                          {d.slots.length > 0 && (
-                            <div className="h-1 w-1 rounded-full bg-blue-500 mt-1"></div>
-                          )}
+                          <div className="h-8 w-8 flex items-center justify-center text-sm font-medium rounded-full">{day}</div>
+                          {d.slots.length > 0 && <div className="h-1 w-1 rounded-full bg-blue-500 mt-1"></div>}
                         </button>
                       )
                     })}
@@ -464,38 +540,38 @@ interface BookingWizardProps {
                   {selectedDate ? (
                     <div className="space-y-3">
                       <h3 className="font-medium text-gray-900">
-                        {new Date(selectedDate).toLocaleDateString('fr-FR', { 
-                          weekday: 'long', 
-                          day: 'numeric', 
-                          month: 'long' 
-                        })}
+                        {new Date(selectedDate).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
                       </h3>
                       <div className="grid grid-cols-3 gap-2">
                         {(() => {
                           const selectedDay = slots.find(s => s.date === selectedDate)
                           if (!selectedDay) return null
-                          
-                          if (selectedDay.slots.length === 0) {
-                            return (
-                              <div className="col-span-3 text-sm text-gray-500 py-4 text-center">
-                                Aucun créneau disponible
-                              </div>
-                            )
-                          }
+                          if (selectedDay.slots.length === 0) return <div className="col-span-3 text-sm text-gray-500 py-4 text-center">Aucun créneau disponible</div>
                           
                           return selectedDay.slots.map((time) => (
                             <button
                               key={time}
                               onClick={() => {
-                                setSelectedTime(time);
+                                if (editingItemIndex !== null) {
+                                  setSelectedItems(prev => {
+                                    const next = [...prev]
+                                    if (next[editingItemIndex]) {
+                                      next[editingItemIndex] = { ...next[editingItemIndex], date: selectedDate, time: time }
+                                    }
+                                    return next
+                                  })
+                                  setSelectedDate(selectedDate)
+                                  setSelectedTime(time)
+                                  setEditingItemIndex(null)
+                                } else {
+                                  setSelectedDate(selectedDate)
+                                  setSelectedTime(time)
+                                }
                                 setShowAgenda(false);
-                                // Afficher un message de confirmation
                                 setShowInfo(true);
                               }}
                               className={`py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
-                                selectedTime === time
-                                  ? 'bg-blue-600 text-white'
-                                  : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
+                                selectedTime === time ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
                               }`}
                             >
                               {time}
@@ -505,9 +581,7 @@ interface BookingWizardProps {
                       </div>
                     </div>
                   ) : (
-                    <div className="text-sm text-gray-500 text-center py-4">
-                      Sélectionnez une date pour voir les créneaux disponibles
-                    </div>
+                    <div className="text-sm text-gray-500 text-center py-4">Sélectionnez une date pour voir les créneaux disponibles</div>
                   )}
                 </div>
               </div>
@@ -516,73 +590,70 @@ interface BookingWizardProps {
         )}
       </div>
 
-      {/* Bouton pour ajouter une prestation supplémentaire */}
-      <div className="mt-3">
-        <Button 
-          variant="default" 
-          className="bg-black hover:bg-gray-800 text-white mb-3 w-full sm:w-auto" 
-          onClick={() => setShowAddService(v => !v)}
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Ajouter une prestation à la suite
-        </Button>
+      {editingItemIndex === null && (
+        <div className="mt-3">
+          <Button variant="default" className="bg-black hover:bg-gray-800 text-white mb-3 w-full sm:w-auto" onClick={() => setShowAddService(v => !v)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Ajouter une prestation à la suite
+          </Button>
+        </div>
+      )}
         
-        {showAddService && (
-          <div className="mt-4 bg-white rounded-lg border p-4 shadow-sm">
-            <div className="text-sm font-medium text-gray-700 mb-3">Choisir une prestation supplémentaire</div>
-            <div className="space-y-4 max-h-60 overflow-y-auto">
-              {(salon?.services || []).map((category: any, catIndex: number) => {
-                if (!category.items?.length) return null;
-                return (
-                  <div key={`add-${catIndex}`} className="space-y-2">
-                    <h3 className="text-sm font-medium text-gray-900">
-                      {category.category || 'Autres prestations'}
-                    </h3>
-                    <div className="space-y-2">
-                      {category.items.map((svc: any) => (
-                        <button
-                          key={`add-${svc.id}`}
-                          className="w-full text-left p-3 border rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-between"
-                          onClick={() => {
-                            const hasRange = typeof svc.price_min_cents === 'number' && 
-                                          typeof svc.price_max_cents === 'number';
-                            setSelectedItems(prev => [
-                              ...prev, 
-                              {
+      {showAddService && (
+        <div className="mt-4 bg-white rounded-lg border p-4 shadow-sm">
+          <div className="text-sm font-medium text-gray-700 mb-3">Choisir une prestation supplémentaire</div>
+          <div className="space-y-4 max-h-60 overflow-y-auto">
+            {(salon?.services || []).map((category: any, catIndex: number) => {
+              if (!category.items?.length) return null;
+              return (
+                <div key={`add-${catIndex}`} className="space-y-2">
+                  <h3 className="text-sm font-medium text-gray-900">{category.category || 'Autres prestations'}</h3>
+                  <div className="space-y-2">
+                    {category.items.map((svc: any) => (
+                      <button
+                        key={`add-${svc.id}`}
+                        className="w-full text-left p-3 border rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-between"
+                        onClick={() => {
+                          const hasRange = typeof svc.price_min_cents === 'number' && typeof svc.price_max_cents === 'number';
+                          setSelectedItems(prev => {
+                            const newItems = [...prev, {
                                 id: svc.id,
                                 name: svc.name,
                                 duration_minutes: svc.duration_minutes || 30,
                                 price_cents: hasRange ? null : (typeof svc.price_cents === 'number' ? svc.price_cents : null),
                                 ...(typeof svc.price_min_cents === 'number' ? { price_min_cents: svc.price_min_cents } : {}),
                                 ...(typeof svc.price_max_cents === 'number' ? { price_max_cents: svc.price_max_cents } : {}),
-                              }
-                            ]);
-                            setShowAddService(false);
-                          }}
-                        >
-                          <div className="flex-1 min-w-0">
-                            <div className="font-medium text-gray-900 truncate">{svc.name}</div>
-                            <div className="text-sm text-gray-500">
-                              {svc.duration_minutes || 30} min • {
-                                typeof svc.price_min_cents === 'number' && typeof svc.price_max_cents === 'number'
-                                  ? `${Math.round(svc.price_min_cents / 100)}–${Math.round(svc.price_max_cents / 100)} DA`
-                                  : typeof svc.price_min_cents === 'number'
-                                  ? `à partir de ${Math.round(svc.price_min_cents / 100)} DA`
-                                  : `${Math.round(((svc.price_cents ?? 0) as number) / 100)} DA`
-                              }
-                            </div>
+                            }];
+                            setEditingItemIndex(newItems.length - 1);
+                            setShowAgenda(true);
+                            return newItems;
+                          });
+                          setShowAddService(false);
+                        }}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-gray-900 truncate">{svc.name}</div>
+                          <div className="text-sm text-gray-500">
+                            {svc.duration_minutes || 30} min • {
+                              typeof svc.price_min_cents === 'number' && typeof svc.price_max_cents === 'number'
+                                ? `${Math.round(svc.price_min_cents / 100)}–${Math.round(svc.price_max_cents / 100)} DA`
+                                : typeof svc.price_min_cents === 'number'
+                                ? `à partir de ${Math.round(svc.price_min_cents / 100)} DA`
+                                : `${Math.round(((svc.price_cents ?? 0) as number) / 100)} DA`
+                            }
                           </div>
-                          <ChevronRight className="h-4 w-4 text-gray-400 ml-4 flex-shrink-0" />
-                        </button>
-                      ))}
-                    </div>
+                        </div>
+                        <ChevronRight className="h-4 w-4 text-gray-400 ml-4 flex-shrink-0" />
+                      </button>
+                    ))}
                   </div>
-                );
-              })}
-            </div>
+                </div>
+              );
+            })}
           </div>
-        )}
-      </div>
+        </div>
+      )}
+
     </div>
   );
 
@@ -594,76 +665,8 @@ interface BookingWizardProps {
           {error && <div className="text-sm text-red-600 text-center">{error}</div>}
           <Button
             className="w-full bg-black text-white hover:bg-gray-800"
-            disabled={authLoading || submitting || submitLock.current || selectedItems.length === 0 || !selectedDate || !selectedTime}
-            onClick={async () => {
-              if (submitLock.current) return
-              submitLock.current = true
-              setSubmitting(true)
-              setError(null)
-              try {
-                const starts_at = new Date(`${selectedDate}T${selectedTime}:00`)
-                const payload = {
-                  business_id: salon.id,
-                  starts_at: starts_at.toISOString(),
-                  employee_id: selectedEmployeeId || undefined,
-                  items: selectedItems.map((it) => ({
-                    service_id: it.id,
-                    duration_minutes: Number(it.duration_minutes || 30),
-                    price_cents: (typeof it.price_cents === 'number' ? it.price_cents : null) as any,
-                    currency: 'DZD',
-                    employee_id: selectedEmployeeId || undefined,
-                  })),
-                }
-
-                const res = await fetch('/api/client/bookings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
-                const j = await res.json().catch(() => ({}))
-                if (!res.ok) throw new Error(j?.error || 'Impossible de créer la réservation')
-                // Open ticket modal with data (provisional employee name)
-                const bookingId = j?.booking?.id
-
-                // Compute price text (fixed total or min–max range)
-                let minTotal = 0
-                let maxTotal = 0
-                let counted = false
-                for (const it of selectedItems) {
-                  const pc = typeof it.price_cents === 'number' ? it.price_cents : null
-                  const pmin = typeof (it as any).price_min_cents === 'number' ? (it as any).price_min_cents : null
-                  const pmax = typeof (it as any).price_max_cents === 'number' ? (it as any).price_max_cents : null
-                  if (pc != null) { minTotal += pc; maxTotal += pc; counted = true }
-                  else if (pmin != null) { minTotal += pmin; maxTotal += (pmax ?? pmin); counted = true }
-                }
-                const isRange = counted && minTotal !== maxTotal
-                const priceText = !counted
-                  ? '—'
-                  : (isRange)
-                    ? `à partir de ${Math.round(minTotal / 100)} DA`
-                    : `${Math.round(minTotal / 100)} DA`
-                setTicketData({
-                  id: bookingId,
-                  salonName: salon?.name,
-                  date: new Date(selectedDate).toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }),
-                  time: selectedTime,
-                  serviceName: selectedItems.map(s=>s.name).join(' + '),
-                  employee: employees.find(e => e.id === selectedEmployeeId)?.full_name || 'Sans préférence',
-                  price: priceText,
-                })
-                setTicketOpen(true)
-                // Refresh employee from server-assigned value (handles 'Sans préférence')
-                if (bookingId) {
-                  try {
-                    const det = await fetch(`/api/client/bookings/${bookingId}`, { cache: 'no-store' })
-                    const dj = await det.json().catch(() => null)
-                    const name = dj?.booking?.employees?.full_name || null
-                    if (name) setTicketData((prev: any) => ({ ...prev, employee: name }))
-                  } catch {}
-                }
-              } catch (e: any) {
-                setError(e?.message || 'Erreur de création')
-              } finally {
-                setSubmitting(false)
-                submitLock.current = false
-              }
-            }}
+            disabled={authLoading || submitting || submitLock.current || selectedItems.length === 0 || selectedItems.some(it => !it.date || !it.time)}
+            onClick={handleConfirmBooking}
           >
             {submitting ? 'Création…' : 'Confirmer la réservation'}
           </Button>
@@ -753,7 +756,7 @@ interface BookingWizardProps {
                   <Label className="block text-sm font-medium text-gray-700 mb-1">Mot de passe </Label>
                   <div className="relative">
                     <Input 
-                      type={signupCGU ? 'text' : 'password'} 
+                      type={showSignupPassword ? 'text' : 'password'} 
                       placeholder="Mot de passe" 
                       className={`mt-1 pr-10 ${fieldErrors.password ? "border-red-500" : ""}`} 
                       value={signupPassword} 
@@ -767,16 +770,16 @@ interface BookingWizardProps {
                     <button 
                       type="button" 
                       className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
-                      onClick={() => setSignupCGU(!signupCGU)}
+                      onClick={() => setShowSignupPassword(!showSignupPassword)}
                     >
-                      {signupCGU ? (
+                      {showSignupPassword ? (
                         <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268-2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
                         </svg>
                       ) : (
                         <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268-2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                         </svg>
                       )}
                     </button>
@@ -846,31 +849,26 @@ interface BookingWizardProps {
 
                       
                       if (!res.ok) {
-                        let errorData;
+                        const body = await res.text();
+                        console.error('[Inscription] Erreur détaillée du serveur:', body);
+                        
+                        let message = 'Erreur lors de la création du compte. Veuillez réessayer.';
                         try {
-                          errorData = await res.json();
-                          console.error('[Inscription] Erreur détaillée du serveur:', errorData);
-                        } catch (e) {
-                          console.error('[Inscription] Erreur lors de la lecture de la réponse d\'erreur:', e);
-                          errorData = { message: 'Réserve d\'erreur invalide du serveur' };
-                        }
-                        
-                        console.error(`[Inscription] Échec de l'inscription avec le statut ${res.status}:`, errorData);
-                        
-                        if (res.status === 409) {
-                          console.error('[Inscription] Conflit détecté. Données en conflit:', errorData);
-                          if (errorData.field === 'email') {
-                            throw new Error('Cette adresse email est déjà utilisée. Veuillez vous connecter ou utiliser une autre adresse.')
-                          } else if (errorData.field === 'phone') {
-                            throw new Error('Ce numéro de téléphone est déjà utilisé. Veuillez vous connecter ou utiliser un autre numéro.')
+                          const errorData = JSON.parse(body);
+                          message = errorData.error || errorData.message || message;
+
+                          if (res.status === 409) {
+                            if (errorData.field === 'email') {
+                              message = 'Cette adresse email est déjà utilisée. Veuillez vous connecter ou utiliser une autre adresse.';
+                            } else if (errorData.field === 'phone') {
+                              message = 'Ce numéro de téléphone est déjà utilisé. Veuillez vous connecter ou utiliser un autre numéro.';
+                            }
                           }
+                        } catch (e) {
+                          // Pas du JSON
                         }
                         
-const errorMessage = res.status === 409 
-  ? 'Cette adresse email est déjà utilisée. Si c\'est la vôtre, veuillez vous connecter ou utiliser la fonction "Mot de passe oublié".'
-  : errorData?.message || 'Erreur lors de la création du compte. Veuillez réessayer.';
-                          console.error('[Inscription] Message d\'erreur à afficher à l\'utilisateur:', errorMessage);
-                        throw new Error(errorMessage);
+                        throw new Error(message);
                       }
                       
                       // Connexion automatique après inscription
@@ -1009,76 +1007,8 @@ const errorMessage = res.status === 409
           {error && <div className="text-sm text-red-600 text-center">{error}</div>}
           <Button
             className="w-full bg-black text-white hover:bg-gray-800"
-            disabled={authLoading || submitting || submitLock.current || selectedItems.length === 0 || !selectedDate || !selectedTime}
-            onClick={async () => {
-              if (submitLock.current) return
-              submitLock.current = true
-              setSubmitting(true)
-              setError(null)
-              try {
-                const starts_at = new Date(`${selectedDate}T${selectedTime}:00`)
-                const payload = {
-                  business_id: salon.id,
-                  starts_at: starts_at.toISOString(),
-                  employee_id: selectedEmployeeId || undefined,
-                  items: selectedItems.map((it) => ({
-                    service_id: it.id,
-                    duration_minutes: Number(it.duration_minutes || 30),
-                    price_cents: (typeof it.price_cents === 'number' ? it.price_cents : null) as any,
-                    currency: 'DZD',
-                    employee_id: selectedEmployeeId || undefined,
-                  })),
-                }
-
-                const res = await fetch('/api/client/bookings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
-                const j = await res.json().catch(() => ({}))
-                if (!res.ok) throw new Error(j?.error || 'Impossible de créer la réservation')
-                // Open ticket modal with data (provisional employee name)
-                const bookingId = j?.booking?.id
-
-                // Compute price text (fixed total or min–max range)
-                let minTotal = 0
-                let maxTotal = 0
-                let counted = false
-                for (const it of selectedItems) {
-                  const pc = typeof it.price_cents === 'number' ? it.price_cents : null
-                  const pmin = typeof (it as any).price_min_cents === 'number' ? (it as any).price_min_cents : null
-                  const pmax = typeof (it as any).price_max_cents === 'number' ? (it as any).price_max_cents : null
-                  if (pc != null) { minTotal += pc; maxTotal += pc; counted = true }
-                  else if (pmin != null) { minTotal += pmin; maxTotal += (pmax ?? pmin); counted = true }
-                }
-                const isRange = counted && minTotal !== maxTotal
-                const priceText = !counted
-                  ? '—'
-                  : (isRange)
-                    ? `à partir de ${Math.round(minTotal / 100)} DA`
-                    : `${Math.round(minTotal / 100)} DA`
-                setTicketData({
-                  id: bookingId,
-                  salonName: salon?.name,
-                  date: new Date(selectedDate).toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }),
-                  time: selectedTime,
-                  serviceName: selectedItems.map(s=>s.name).join(' + '),
-                  employee: employees.find(e => e.id === selectedEmployeeId)?.full_name || 'Sans préférence',
-                  price: priceText,
-                })
-                setTicketOpen(true)
-                // Refresh employee from server-assigned value (handles 'Sans préférence')
-                if (bookingId) {
-                  try {
-                    const det = await fetch(`/api/client/bookings/${bookingId}`, { cache: 'no-store' })
-                    const dj = await det.json().catch(() => null)
-                    const name = dj?.booking?.employees?.full_name || null
-                    if (name) setTicketData((prev: any) => ({ ...prev, employee: name }))
-                  } catch {}
-                }
-              } catch (e: any) {
-                setError(e?.message || 'Erreur de création')
-              } finally {
-                setSubmitting(false)
-                submitLock.current = false
-              }
-            }}
+            disabled={authLoading || submitting || submitLock.current || selectedItems.length === 0 || selectedItems.some(it => !it.date || !it.time)}
+            onClick={handleConfirmBooking}
           >
             {submitting ? 'Création…' : 'Confirmer la réservation'}
           </Button>
@@ -1131,7 +1061,7 @@ const errorMessage = res.status === 409
                   <Label className="block text-sm font-medium text-gray-700 mb-1">Mot de passe </Label>
                   <div className="relative">
                     <Input 
-                      type={signupCGU ? 'text' : 'password'} 
+                      type={showSignupPassword ? 'text' : 'password'} 
                       placeholder="Mot de passe" 
                       className={`mt-1 pr-10 ${fieldErrors.password ? "border-red-500" : ""}`} 
                       value={signupPassword} 
@@ -1145,9 +1075,9 @@ const errorMessage = res.status === 409
                     <button 
                       type="button" 
                       className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
-                      onClick={() => setSignupCGU(!signupCGU)}
+                      onClick={() => setShowSignupPassword(!showSignupPassword)}
                     >
-                      {signupCGU ? (
+                      {showSignupPassword ? (
                         <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
                         </svg>
@@ -1263,29 +1193,26 @@ const errorMessage = res.status === 409
 
                       
                       if (!res.ok) {
-                        let errorData;
+                        const body = await res.text();
+                        console.error('[Inscription] Erreur détaillée du serveur:', body);
+                        
+                        let message = 'Erreur lors de la création du compte. Veuillez réessayer.';
                         try {
-                          errorData = await res.json();
-                          console.error('[Inscription] Erreur détaillée du serveur:', errorData);
-                        } catch (e) {
-                          console.error('[Inscription] Erreur lors de la lecture de la réponse d\'erreur:', e);
-                          errorData = { message: 'Réserve d\'erreur invalide du serveur' };
-                        }
-                        
-                        console.error(`[Inscription] Échec de l'inscription avec le statut ${res.status}:`, errorData);
-                        
-                        if (res.status === 409) {
-                          console.error('[Inscription] Conflit détecté. Données en conflit:', errorData);
-                          if (errorData.field === 'email') {
-                            throw new Error('Cette adresse email est déjà utilisée. Veuillez vous connecter ou utiliser une autre adresse.')
-                          } else if (errorData.field === 'phone') {
-                            throw new Error('Ce numéro de téléphone est déjà utilisé. Veuillez vous connecter ou utiliser un autre numéro.')
+                          const errorData = JSON.parse(body);
+                          message = errorData.error || errorData.message || message;
+
+                          if (res.status === 409) {
+                            if (errorData.field === 'email') {
+                              message = 'Cette adresse email est déjà utilisée. Veuillez vous connecter ou utiliser une autre adresse.';
+                            } else if (errorData.field === 'phone') {
+                              message = 'Ce numéro de téléphone est déjà utilisé. Veuillez vous connecter ou utiliser un autre numéro.';
+                            }
                           }
+                        } catch (e) {
+                          // Pas du JSON
                         }
                         
-                        const errorMessage = errorData?.error || errorData?.message || 'Erreur lors de la création du compte. Veuillez réessayer.';
-                        console.error('[Inscription] Message d\'erreur à afficher à l\'utilisateur:', errorMessage);
-                        throw new Error(errorMessage);
+                        throw new Error(message);
                       }
                       
                       // Connexion automatique après inscription
@@ -1454,6 +1381,7 @@ const errorMessage = res.status === 409
                                 className="text-blue-600 hover:underline whitespace-nowrap" 
                                 onClick={async () => {
                                   setEditingItemIndex(idx)
+                                  setShowAgenda(true)
                                   await loadSlotsForService(it.id)
                                 }}
                               >
@@ -1563,7 +1491,8 @@ const errorMessage = res.status === 409
           <AlertDialogFooter>
             <AlertDialogAction onClick={() => { 
                 setShowInfo(false); 
-                if (currentStep < 3) setCurrentStep(v => v + 1);
+                const allTimed = selectedItems.length > 0 && selectedItems.every(it => it.date && it.time)
+                if (allTimed && currentStep === 1) setCurrentStep(2)
             }}>J'ai compris</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1575,15 +1504,31 @@ const errorMessage = res.status === 409
             <AlertDialogTitle>Ticket de réservation</AlertDialogTitle>
             <AlertDialogDescription>
               {ticketData ? (
-                <div id="ticket">
-                  <div className="font-medium">{ticketData.salonName}</div>
-                  <div className="text-sm text-gray-600">{ticketData.date} • à {ticketData.time}</div>
-                  <div className="mt-2 text-sm">Prestation: {ticketData.serviceName}</div>
-                  {ticketData.price && (
-                    <div className="text-sm">Prix: {ticketData.price}</div>
-                  )}
-                  <div className="text-sm">Avec: {ticketData.employee}</div>
-                  <div className="mt-2 text-xs text-gray-500">Référence: {ticketData.id}</div>
+                <div id="ticket" className="space-y-4">
+                  <div className="font-bold text-lg border-b pb-2">{ticketData.salonName}</div>
+                  
+                  <div className="space-y-3">
+                    {ticketData.items?.map((item: any, idx: number) => (
+                      <div key={idx} className="border-l-2 border-blue-500 pl-3 py-1">
+                        <div className="font-semibold text-gray-900">{item.name}</div>
+                        <div className="text-sm text-gray-600">
+                          {new Date(item.date).toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: 'short' })}
+                          { ' • ' }
+                          {item.time}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="pt-2 border-t space-y-1">
+                    {ticketData.price && (
+                      <div className="text-sm font-medium">Prix total: {ticketData.price}</div>
+                    )}
+                    <div className="text-sm">Praticien: {ticketData.employee}</div>
+                    <div className="mt-4 pt-2 text-[10px] text-gray-400 font-mono break-all">
+                      Référence: {ticketData.id}
+                    </div>
+                  </div>
                 </div>
               ) : null}
             </AlertDialogDescription>
@@ -1593,7 +1538,34 @@ const errorMessage = res.status === 409
               const w = window.open('', 'PRINT', 'height=600,width=800')
               if (!w) return
               const html = document.getElementById('ticket')?.outerHTML || ''
-              w.document.write('<html><head><title>Ticket</title></head><body>' + html + '</body></html>')
+              const style = `
+                <style>
+                  body { font-family: sans-serif; padding: 20px; color: #333; }
+                  .space-y-4 > * + * { margin-top: 1rem; }
+                  .space-y-3 > * + * { margin-top: 0.75rem; }
+                  .space-y-1 > * + * { margin-top: 0.25rem; }
+                  .font-bold { font-weight: bold; }
+                  .font-semibold { font-weight: 600; }
+                  .text-lg { font-size: 1.125rem; }
+                  .text-sm { font-size: 0.875rem; }
+                  .text-\\[10px\\] { font-size: 10px; }
+                  .text-gray-900 { color: #111827; }
+                  .text-gray-600 { color: #4b5563; }
+                  .text-gray-400 { color: #9ca3af; }
+                  .border-b { border-bottom: 1px solid #e5e7eb; }
+                  .border-t { border-top: 1px solid #e5e7eb; }
+                  .border-l-2 { border-left: 2px solid; }
+                  .border-blue-500 { border-color: #3b82f6; }
+                  .pb-2 { padding-bottom: 0.5rem; }
+                  .pt-2 { padding-top: 0.5rem; }
+                  .pt-4 { padding-top: 1rem; }
+                  .pl-3 { padding-left: 0.75rem; }
+                  .py-1 { padding-top: 0.25rem; padding-bottom: 0.25rem; }
+                  .break-all { word-break: break-all; }
+                  .font-mono { font-family: monospace; }
+                </style>
+              `
+              w.document.write('<html><head><title>Ticket de réservation</title>' + style + '</head><body>' + html + '</body></html>')
               w.document.close(); w.focus(); w.print(); w.close();
               handleSalonRedirect();
             }}>Télécharger</AlertDialogAction>
