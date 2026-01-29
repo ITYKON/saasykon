@@ -551,13 +551,13 @@ export default function ReservationsPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Client</TableHead>
-                <TableHead>Service</TableHead>
+                <TableHead className="w-[180px]">Service</TableHead>
                 <TableHead>Employé</TableHead>
                 <TableHead>Date & Heure</TableHead>
                 <TableHead>Prix</TableHead>
                 <TableHead>Paiement</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead className="text-center">Actions</TableHead>
               </TableRow>
             </TableHeader>
           <TableBody>
@@ -567,11 +567,12 @@ export default function ReservationsPage() {
                   <div>
                     <div className="font-medium">{reservation.client}</div>
                     <div className="text-sm text-gray-500">{reservation.email}</div>
+                    <div className="text-sm text-gray-500">{reservation.telephone}</div>
                   </div>
                 </TableCell>
                 <TableCell>
-                  <div>
-                    <div className="font-medium">{reservation.service}</div>
+                  <div className="max-w-[180px]">
+                    <div className="font-medium truncate" title={reservation.service}>{reservation.service}</div>
                     <div className="text-sm text-gray-500">{reservation.duree}</div>
                   </div>
                 </TableCell>
@@ -626,8 +627,8 @@ export default function ReservationsPage() {
                     )
                   })()}
                 </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex justify-end gap-2">
+                <TableCell className="text-center">
+                  <div className="flex justify-center gap-2">
                     <Dialog>
                       <DialogTrigger asChild>
                         <Button variant="ghost" size="sm" onClick={() => setSelectedReservation(reservation)}>

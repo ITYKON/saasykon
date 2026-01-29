@@ -277,7 +277,7 @@ export async function getAuthDataFromToken(token: string) {
     if (!token) return null;
     const { payload } = await jwtVerify(token, JWT_SECRET);
     if (payload) {
-      console.log(`[Auth] JWT verified for userId: ${payload.userId}`)
+      
       return {
         userId: payload.userId as string,
         roles: payload.roles as string[],

@@ -8,7 +8,7 @@ export async function getAuthDataFromTokenEdge(token: string) {
   try {
     const { payload } = await jwtVerify(token, JWT_SECRET);
     if (payload) {
-      console.log(`[EdgeAuth] JWT verified for userId: ${payload.userId}`)
+     
       return {
         userId: payload.userId as string,
         roles: payload.roles as string[],
