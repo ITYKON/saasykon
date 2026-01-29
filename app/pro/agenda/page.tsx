@@ -816,14 +816,14 @@ export default function ProAgenda() {
     });
     return (
       <div className="bg-white rounded-xl p-3 border border-gray-200">
-        {/* Employees header chips above grid to avoid overlapping 09:00 */}
-        <div className="mb-2 overflow-x-auto no-scrollbar">
-          <div className="grid" style={{ gridTemplateColumns: `${gutter}px repeat(${sourceEmployees.length}, minmax(${colMin}px, 1fr))` }}>
+        {/* Time grid with synced employees header */}
+        <div className="overflow-x-auto no-scrollbar">
+          {/* Employees header chips - sticky at top */}
+          <div className="grid sticky top-0 z-10 bg-white" style={{ gridTemplateColumns: `${gutter}px repeat(${sourceEmployees.length}, minmax(${colMin}px, 1fr))` }}>
             <div />
             {sourceEmployees.map((emp) => (
-              <div key={emp.name} className="px-1">
+              <div key={emp.name} className="px-1 py-2">
                 <div className="bg-white rounded-full shadow-sm border border-gray-200 px-2 py-0.5 inline-flex items-center gap-2">
-                  <img src={emp.avatar} alt={emp.name} className="h-5 w-5 rounded-full object-cover" />
                   <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: colorMap[norm(emp.name)] || '#3b82f6' }} />
                   <span className="text-[12px] font-medium text-gray-900">{emp.name}</span>
                   {Array.isArray(emp.slots) && emp.slots.filter(Boolean).length > 0 && (
@@ -835,10 +835,7 @@ export default function ProAgenda() {
               </div>
             ))}
           </div>
-        </div>
-
-        {/* Time grid */}
-        <div className="overflow-x-auto no-scrollbar">
+          {/* Time grid */}
           <div className="grid" style={{ gridTemplateColumns: `${gutter}px repeat(${sourceEmployees.length}, minmax(${colMin}px, 1fr))` }}>
             {/* gutter */}
             <div className="relative">
