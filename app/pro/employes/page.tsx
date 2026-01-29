@@ -631,18 +631,8 @@ export default function EmployeesPage() {
                     </div>
                   </div>
 
-                  {/* Services & Schedule */}
+                  {/* Schedule */}
                   <div className="flex-1 lg:max-w-md">
-                    <div className="mb-3">
-                      <h4 className="text-sm font-medium text-gray-900 mb-2">Services</h4>
-                      <div className="flex flex-wrap gap-1">
-                        {employee.services.map((service) => (
-                          <Badge key={service} variant="outline" className="text-xs">
-                            {service}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div>
                         <div className="flex items-center gap-1 text-gray-600 mb-1">
