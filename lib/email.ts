@@ -22,7 +22,7 @@ export interface EmailSendResult {
 
 export async function sendTestEmail(): Promise<EmailSendResult> {
   return sendEmail({
-    to: process.env.EMAIL_TEST_TO || "test@example.com",
+    to: process.env.EMAIL_TEST_TO || "ahlem.aissou@yatek.fr",
     subject: "Test Email from SaaS YKON",
     html: "<h1>Test Email</h1><p>This is a test email sent from SaaS YKON.</p>",
     text: "This is a test email sent from SaaS YKON.",
