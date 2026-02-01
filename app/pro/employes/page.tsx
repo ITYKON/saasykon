@@ -20,6 +20,7 @@ type UIEmployee = {
   email: string | null
   phone: string | null
   avatar?: string | null
+  post: string
   role: string
   services: string[]
   workDays: string[]
@@ -170,6 +171,7 @@ export default function EmployeesPage() {
           phone: emp.phone || null,
           avatar: null,
           role,
+          post: emp.profession_label || "",
           services: servicesNames,
           workDays: Array.from(workSet),
           restDays: rest,
@@ -229,7 +231,7 @@ export default function EmployeesPage() {
     const emailEl = document.getElementById("email") as HTMLInputElement | null
     const phoneEl = document.getElementById("phone") as HTMLInputElement | null
     // times come from controlled state
-    const roleEl = document.getElementById("role") as HTMLInputElement | null
+    const postEl = document.getElementById("post") as HTMLInputElement | null
 
     const full_name = nameEl?.value?.trim() || ""
     const email = emailEl?.value?.trim() || ""
@@ -247,7 +249,7 @@ export default function EmployeesPage() {
       const createRes = await fetch(`/api/pro/employees` , {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ full_name, email: email || undefined, phone: phone || undefined }),
+        body: JSON.stringify({ full_name, email: email || undefined, phone: phone || undefined, profession_label: postEl?.value?.trim() || undefined }),
       })
       const created = await createRes.json()
       if (!createRes.ok) throw new Error(created?.error || "Erreur de création")
@@ -280,15 +282,7 @@ export default function EmployeesPage() {
         }
       }
 
-      // Optional: store role as an internal label if provided
-      const roleVal = roleEl?.value?.trim()
-      if (roleVal) {
-        await fetch(`/api/pro/employees/${empId}/roles`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ roles: [roleVal] }),
-        }).catch(() => {})
-      }
+      // Optional: store role (Permissions level/Access level) - deprecated here as it should be in accounts page
 
       alert("Employé ajouté")
       setIsAddDialogOpen(false)
@@ -303,7 +297,7 @@ export default function EmployeesPage() {
     .filter(
       (employee) =>
         employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        employee.role.toLowerCase().includes(searchTerm.toLowerCase()),
+        employee.post.toLowerCase().includes(searchTerm.toLowerCase()),
     )
 
   const handleEditEmployee = (employee: any) => {
@@ -365,7 +359,7 @@ export default function EmployeesPage() {
     const nameEl = document.getElementById("edit-name") as HTMLInputElement | null
     const emailEl = document.getElementById("edit-email") as HTMLInputElement | null
     const phoneEl = document.getElementById("edit-phone") as HTMLInputElement | null
-    const roleEl = document.getElementById("edit-role") as HTMLInputElement | null
+    const postEl = document.getElementById("edit-post") as HTMLInputElement | null
     // times come from controlled state
 
     const full_name = nameEl?.value?.trim() || ""
@@ -385,25 +379,12 @@ export default function EmployeesPage() {
       const res = await fetch(`/api/pro/employees/${selectedEmployee.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ full_name, email: email || undefined, phone: phone || undefined, is_active }),
+        body: JSON.stringify({ full_name, email: email || undefined, phone: phone || undefined, is_active, profession_label: postEl?.value?.trim() || "" }),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data?.error || "Mise à jour impossible")
 
-      if (roleVal) {
-        await fetch(`/api/pro/employees/${selectedEmployee.id}/roles`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ roles: [roleVal] }),
-        }).catch(() => {})
-      } else {
-        // vide => retire les rôles
-        await fetch(`/api/pro/employees/${selectedEmployee.id}/roles`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ roles: [] }),
-        }).catch(() => {})
-      }
+      // REMOVED: Role (Access level) is now managed in accounts page
 
       // Pas d'affectation de services dans la modale Modifier
 
@@ -528,8 +509,8 @@ export default function EmployeesPage() {
                       <Input id="name" placeholder="Nom de l'employé" required />
                     </div>
                     <div>
-                      <Label htmlFor="role">Poste</Label>
-                      <Input id="role" placeholder="Ex: Coiffeur, Esthéticienne" />
+                      <Label htmlFor="post">Poste</Label>
+                      <Input id="post" placeholder="Ex: Coiffeur, Esthéticienne" />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
@@ -617,7 +598,7 @@ export default function EmployeesPage() {
                         <h3 className="text-lg font-semibold text-gray-900">{employee.name}</h3>
                         <Badge variant={employee.status === "Actif" ? "default" : "secondary"}>{employee.status}</Badge>
                       </div>
-                      <p className="text-gray-600 mb-1">{employee.role}</p>
+                      <p className="text-gray-600 mb-1">{employee.post}</p>
                       <div className="flex items-center gap-4 text-sm text-gray-500">
                         <div className="flex items-center gap-1">
                           <Mail className="h-4 w-4" />
@@ -694,7 +675,7 @@ export default function EmployeesPage() {
                   </div>
                   <div>
                     <Label>Poste</Label>
-                    <div className="mt-1">{viewEmployee.role || "-"}</div>
+                    <div className="mt-1">{viewEmployee.post || "-"}</div>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
@@ -763,8 +744,8 @@ export default function EmployeesPage() {
                       <Input id="edit-name" defaultValue={selectedEmployee.name} required />
                     </div>
                     <div>
-                      <Label htmlFor="edit-role">Poste</Label>
-                      <Input id="edit-role" defaultValue={selectedEmployee.role} />
+                      <Label htmlFor="edit-post">Poste</Label>
+                      <Input id="edit-post" defaultValue={selectedEmployee.post} />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">

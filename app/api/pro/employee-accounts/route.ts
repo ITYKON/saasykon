@@ -106,7 +106,8 @@ export async function GET(req: NextRequest) {
       email: e.email || u?.email || null,
       phone: e.phone || null,
       status: e.is_active ? "Actif" : "Inactif",
-      profession: e.profession_label || dbRole,
+      profession: e.profession_label || null,
+      access_level: dbRole || "-",
       permissions: perms,
       last_login_at: last || null,
     };
@@ -189,19 +190,14 @@ export async function POST(req: NextRequest) {
       const norm = employee_role.trim().toLowerCase();
       const labelMap: Record<string, string> = {
         admin_institut: "Admin Institut",
-        manager: "Manager",
-        gestionnaire: "Gestionnaire",
         receptionniste: "Réceptionniste",
-        praticien: "Praticien",
-        agent_commercial: "Agent commercial",
+        praticienne: "Praticienne",
+       
       };
-      const exactRole = labelMap[norm] || employee_role.trim();
+      const accessLevelLabel = labelMap[norm] || employee_role.trim();
       await tx.employee_roles.deleteMany({ where: { employee_id } });
-      await tx.employee_roles.create({ data: { employee_id, role: exactRole } });
-      await tx.employees.update({ 
-        where: { id: employee_id }, 
-        data: { profession_label: exactRole } 
-      });
+      await tx.employee_roles.create({ data: { employee_id, role: accessLevelLabel } });
+      // REMOVED: No longer overwriting profession_label (Poste) with access level
     }
 
     // Gérer les permissions

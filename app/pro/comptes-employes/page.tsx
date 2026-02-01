@@ -40,6 +40,7 @@ type AccountItem = {
   status: string;
   profession: string | null;
   permissions: string[];
+  access_level: string;
   last_login_at: string | null;
 };
 
@@ -94,11 +95,9 @@ export default function ComptesEmployesPage() {
 
   const employeeRoleOptions = [
     { value: "admin_institut", label: "Admin Institut" },
-    { value: "manager", label: "Manager" },
-    { value: "gestionnaire", label: "Gestionnaire" },
     { value: "receptionniste", label: "Réceptionniste" },
-    { value: "praticien", label: "Praticien" },
-    { value: "agent_commercial", label: "Agent commercial" },
+    { value: "praticienne", label: "Praticienne" },
+    
   ];
 
   // Show all institute-scoped roles returned by the API (business-specific). No whitelist filter.
@@ -176,7 +175,7 @@ export default function ComptesEmployesPage() {
       const byLabel = new Map(
         employeeRoleOptions.map((o) => [o.label, o.value])
       );
-      const label = ((data.role || account.profession || "") as string).trim();
+      const label = ((data.role || "") as string).trim();
       const mappedCode = byLabel.get(label);
       if (mappedCode) {
         setEditEmployeeRole(mappedCode);
@@ -454,13 +453,22 @@ export default function ComptesEmployesPage() {
                     </div>
 
                     <div>
-                      <Label htmlFor="empRole">Rôle Employé (Institut)</Label>
+                      <Label htmlFor="empRole">Rôle (Permissions)</Label>
+                      <p className="text-[10px] text-gray-500 mb-1">Définit les permissions par défaut. Le poste (ex: Coiffeuse) se gère dans la liste des employés.</p>
                       <Select
                         value={createEmployeeRole || undefined}
-                        onValueChange={setCreateEmployeeRole}
+                        onValueChange={(val) => {
+                          setCreateEmployeeRole(val);
+                          // Auto-fill permissions based on selected role
+                          const roleData = roles.find((r) => r.code === val);
+                          if (roleData && roleData.permissions) {
+                            const perms = roleData.permissions.map((p: any) => p.code);
+                            setSelectedPermissionCodes(perms);
+                          }
+                        }}
                       >
                         <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Sélectionner un rôle" />
+                          <SelectValue placeholder="Choisir un role" />
                         </SelectTrigger>
                         <SelectContent>
                           {employeeRoleOptions.map((opt) => (
@@ -523,9 +531,8 @@ export default function ComptesEmployesPage() {
                               <label
                                 htmlFor={`perm-${p.code}`}
                                 className="text-sm font-medium leading-tight truncate"
-                                title={p.description || p.code}
                               >
-                                {p.code}
+                                {p.description || p.code}
                               </label>
                             </div>
                           </div>
@@ -579,10 +586,10 @@ export default function ComptesEmployesPage() {
             <div className="flex items-center">
               <User className="h-8 w-8 text-orange-600" />
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Praticiens</p>
+                <p className="text-sm font-medium text-gray-600">Praticiennes</p>
                 <p className="text-2xl font-bold text-gray-900">
                   {rolesBreakdown.find(
-                    (r) => (r.role || "").toLowerCase() === "praticien"
+                    (r) => (r.role || "").toLowerCase() === "praticienne"
                   )?.count || 0}
                 </p>
               </div>
@@ -668,7 +675,7 @@ export default function ComptesEmployesPage() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline">{account.profession || "-"}</Badge>
+                    <Badge variant="outline">{(account as any).access_level || "-"}</Badge>
                   </TableCell>
                   <TableCell>
                     <Badge
@@ -693,7 +700,7 @@ export default function ComptesEmployesPage() {
                           className="text-xs"
                         >
                           {proPermissions.find((p) => p.code === permission)
-                            ?.code || permission}
+                            ?.description || permission}
                         </Badge>
                       ))}
                       {account.permissions.length > 4 && (
@@ -855,13 +862,22 @@ export default function ComptesEmployesPage() {
                 </div>
 
                 <div>
-                  <Label>Rôle Employé (Institut)</Label>
+                  <Label>Rôle (Permissions)</Label>
+                  <p className="text-[10px] text-gray-500 mb-1">Définit les permissions par défaut. Le poste (ex: Coiffeuse) se gère dans la liste des employés.</p>
                   <Select
                     value={editEmployeeRole || undefined}
-                    onValueChange={setEditEmployeeRole}
+                    onValueChange={(val) => {
+                      setEditEmployeeRole(val);
+                      // Auto-fill permissions based on selected role
+                      const roleData = roles.find((r) => r.code === val);
+                      if (roleData && roleData.permissions) {
+                        const perms = roleData.permissions.map((p: any) => p.code);
+                        setEditSelectedPermissionCodes(perms);
+                      }
+                    }}
                   >
                     <SelectTrigger className="mt-2">
-                      <SelectValue placeholder="Sélectionner" />
+                      <SelectValue placeholder="Choisir un rôle" />
                     </SelectTrigger>
                     <SelectContent>
                       {employeeRoleOptions.map((opt) => (
@@ -906,11 +922,8 @@ export default function ComptesEmployesPage() {
                           htmlFor={`edit-${p.code}`}
                           className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                         >
-                          {p.code}
+                          {p.description || p.code}
                         </label>
-                        <p className="text-xs text-muted-foreground">
-                          {p.description || ""}
-                        </p>
                       </div>
                     </div>
                   ))}

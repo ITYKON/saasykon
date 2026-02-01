@@ -76,7 +76,7 @@ export async function GET(req: NextRequest) {
       ? { updated_at: "desc" as const }
       : { full_name: "asc" as const };
 
-  const selectBase: any = { id: true, full_name: true, email: true, phone: true, is_active: true };
+  const selectBase: any = { id: true, full_name: true, email: true, phone: true, is_active: true, profession_label: true };
   const withRoles = include.includes("roles");
   const withServices = include.includes("services");
   const withHours = include.includes("hours");
@@ -118,7 +118,7 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  const { full_name, email, phone, color, is_active } = body || {};
+  const { full_name, email, phone, color, is_active, profession_label } = body || {};
   if (!full_name || typeof full_name !== "string") {
     return NextResponse.json({ error: "full_name required" }, { status: 400 });
   }
@@ -130,6 +130,7 @@ export async function POST(req: NextRequest) {
       email: email || null,
       phone: phone || null,
       color: color || null,
+      profession_label: profession_label || null,
       ...(typeof is_active === "boolean" ? { is_active } : {}),
     },
     select: { id: true },
