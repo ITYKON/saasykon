@@ -1,74 +1,47 @@
-// lib/email.ts
-import { EmailClient } from "@azure/communication-email";
+import { Resend } from 'resend';
 
-const EMAIL_FROM = process.env.EMAIL_FROM || "support@yoka-dz.com";
+const resend = new Resend(process.env.RESEND_API_KEY);
 
-// Interface de compatibilité AWS SES
+const EMAIL_FROM = process.env.EMAIL_FROM || 'onboarding@resend.dev';
+
 export interface EmailSendResult {
   messageId: string;
-  status?: string;
 }
 
-// Lazy loading du client - n'est instancié qu'à la première utilisation
-let emailClientInstance: EmailClient | null = null;
-
-function getEmailClient(): EmailClient {
-  if (!emailClientInstance) {
-    const connectionString = process.env.AZURE_COMMUNICATION_CONNECTION_STRING;
-    
-    if (!connectionString) {
-      console.error("AZURE_COMMUNICATION_CONNECTION_STRING manquante");
-      throw new Error("Configuration email manquante");
-    }
-    
-    emailClientInstance = new EmailClient(connectionString);
-  }
-  return emailClientInstance;
-}
-
-// Fonction TEST
 export async function sendTestEmail(): Promise<EmailSendResult> {
   return sendEmail({
-    to: process.env.EMAIL_TEST_TO || "aissou.ahlem2002@gmail.com",
+    to: process.env.EMAIL_TEST_TO || "test@example.com",
     subject: "Test Email from SaaS YKON",
     html: "<h1>Test Email</h1><p>This is a test email sent from SaaS YKON.</p>",
     text: "This is a test email sent from SaaS YKON.",
   });
 }
 
-// Fonction principale
 export async function sendEmail(opts: {
   to: string;
   subject: string;
   html: string;
   text?: string;
   category?: string;
-  sandbox?: boolean;
 }): Promise<EmailSendResult> {
   try {
-    const message = {
-      senderAddress: EMAIL_FROM,
-      content: {
-        subject: opts.subject,
-        html: opts.html,
-        plainText: opts.text,
-      },
-      recipients: {
-        to: [{ address: opts.to }],
-      },
-    };
+    const { data, error } = await resend.emails.send({
+      from: EMAIL_FROM,
+      to: opts.to,
+      subject: opts.subject,
+      html: opts.html,
+      text: opts.text,
+      tags: opts.category ? [{ name: 'category', value: opts.category }] : undefined,
+    });
 
-    // Utilise le lazy loader
-    const client = getEmailClient();
-    const poller = await client.beginSend(message);
-    const response = await poller.pollUntilDone();
-    
-    console.log("Email sent:", response.id);
-    
-    // Mapping Azure (id) -> Compatibilité AWS SES (messageId)
+    if (error) {
+      console.error("Resend error:", error);
+      throw new Error(error.message);
+    }
+
+    console.log("Email sent:", data?.id);
     return {
-      messageId: response.id,
-      status: response.status
+      messageId: data?.id || 'unknown'
     };
   } catch (error) {
     console.error("Email error:", error);
@@ -76,7 +49,6 @@ export async function sendEmail(opts: {
   }
 }
 
-// Tes templates (inchangés)
 export function inviteEmailTemplate(params: {
   firstName?: string | null;
   appUrl: string;
