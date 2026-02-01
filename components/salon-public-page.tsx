@@ -227,7 +227,7 @@ export default function SalonPublicPage({ salonId }: SalonPublicPageProps) {
               className={isFavorite ? "text-red-500 border-red-500" : ""}
             >
               <Heart className={`h-4 w-4 mr-1 ${isFavorite ? "fill-current" : ""} ${isFavoriteLoading ? "opacity-50" : ""}`} />
-              {isFavoriteLoading ? "Chargement..." : (isFavorite ? "Retiré" : "Favoris")}
+              {isFavoriteLoading ? "Chargement..." : (isFavorite ? "Retirer" : "Favoris")}
             </Button>
             <Button variant="outline" size="sm">
               <Share2 className="h-4 w-4 mr-1" />
