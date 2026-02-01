@@ -25,19 +25,32 @@ jobs:
         host: ${{ env.VM_HOST }}
         username: ${{ env.VM_USER }}
         key: ${{ secrets.VM_SSH_PRIVATE_KEY }}
-        script_stop: true
-        timeout: 600s
-        command_timeout: 600s
+        script_stop: false  # ← Changé à false pour ne pas tout arrêter si une commande timeout
+        timeout: 120s
+        command_timeout: 5m  # ← Timeout global de 5 min max
         script: |
-         cd ${{ env.PROJECT_PATH }}
-         
-         echo "Pull de l'image"
-         # Pull l'image directement (contourne le problème de validation du réseau)
-         docker pull ghcr.io/itykon/saasykon-app:latest
-         
-         echo "Redémarrage de l'app avec override"
-         # Up avec les deux fichiers (le réseau existe sur la VM)
-         docker compose -f docker-compose.yml -f docker-compose.override.yml up -d --no-deps saasykon-app
-         
-         echo "Vérification"
-         docker compose -f docker-compose.yml -f docker-compose.override.yml ps saasykon-app
+          set -e  # Arrêter sur erreur explicite, mais pas sur timeout
+          cd ${{ env.PROJECT_PATH }}
+          
+          echo "1. Stop conteneur existant..."
+          docker stop saasykon-saasykon-app-1 || true
+          docker rm -f saasykon-saasykon-app-1 || true
+          
+          echo "2. Pull image (avec timeout 2 min)..."
+          timeout 120 docker pull ghcr.io/itykon/saasykon-app:latest || {
+            echo "⚠️ Pull timeout, on utilise l'image existante locale"
+          }
+          
+          echo "3. Démarrage..."
+          docker compose -f docker-compose.yml -f docker-compose.override.yml up -d saasykon-app
+          
+          echo "4. Attente santé (15s)..."
+          sleep 15
+          
+          echo "5. Vérification..."
+          docker ps | grep saasykon-app
+          
+          echo "6. Test d'envoi d'email..."
+          curl -s --max-time 10 https://yoka-dz.com/api/test-email || echo "⚠️ Test email failed, mais le déploiement est OK"
+          
+          echo "✅ Déploiement terminé"
