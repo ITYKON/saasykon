@@ -23,6 +23,7 @@ export async function sendEmail(opts: {
   html: string;
   text?: string;
   category?: string;
+  sandbox?: boolean; // Ajouté pour compatibilité avec le code existant
 }): Promise<EmailSendResult> {
   try {
     const { data, error } = await resend.emails.send({
