@@ -232,16 +232,6 @@ export default function ProLayout({
             </Link>
           )}
           
-          {hasAny(['pro_accounts', 'pro_accounts_manage', 'comptes', 'employee_accounts']) && (
-            <Link 
-              href="/pro/comptes-employes" 
-              className={cn(linkBase, pathname?.startsWith("/pro/comptes-employes") ? active : inactive)}
-              onClick={() => setIsMobileMenuOpen(false)}
-            >
-              <Shield className="h-5 w-5 mr-3" />
-              Comptes Employés
-            </Link>
-          )}
           
           {hasAny(['services', 'services_manage']) && (
             <Link 
