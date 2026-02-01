@@ -35,7 +35,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
       email: true,
       phone: true,
       color: true,
-      is_active: true,
+      profession_label: true,
       created_at: true,
       updated_at: true,
       employee_roles: { select: { role: true } },
@@ -53,11 +53,11 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  const { full_name, email, phone, color, is_active } = body;
+  const { full_name, email, phone, color, is_active, profession_label } = body;
 
   const updated = await prisma.employees.update({
     where: { id: params.id },
-    data: ({ full_name, email, phone, color, ...(typeof is_active === "boolean" ? { is_active } : {}) } as any),
+    data: ({ full_name, email, phone, color, profession_label, ...(typeof is_active === "boolean" ? { is_active } : {}) } as any),
     select: { id: true },
   });
 

@@ -11,7 +11,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Plus, Search, Edit, Trash2, Calendar, Clock, Phone, Mail, User, Eye } from "lucide-react"
+import { Plus, Search, Edit, Trash2, Calendar, Clock, Phone, Mail, User, Eye, Shield } from "lucide-react"
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 
 // Chargé dynamiquement depuis l'API
 type UIEmployee = {
@@ -20,6 +21,7 @@ type UIEmployee = {
   email: string | null
   phone: string | null
   avatar?: string | null
+  post: string
   role: string
   services: string[]
   workDays: string[]
@@ -28,6 +30,11 @@ type UIEmployee = {
   status: string
   totalClients?: number
   rating?: number
+  // Account info
+  hasAccount: boolean
+  accessLevel?: string
+  permissions?: string[]
+  lastLoginAt?: string | null
 }
 
 const services = [
@@ -75,6 +82,20 @@ export default function EmployeesPage() {
   const [ovEnd, setOvEnd] = useState<string>("")
   const [showTimeOffForm, setShowTimeOffForm] = useState<boolean>(false)
   const [showOverrideForm, setShowOverrideForm] = useState<boolean>(false)
+
+  // Account management states
+  const [proPermissions, setProPermissions] = useState<{ code: string; description?: string }[]>([])
+  const [createEmail, setCreateEmail] = useState<string>("")
+  const [selectedPermissionCodes, setSelectedPermissionCodes] = useState<string[]>([])
+  const [employeeAccessRole, setEmployeeAccessRole] = useState<string>("")
+  const [isAccountLoading, setIsAccountLoading] = useState(false)
+  const [permQuery, setPermQuery] = useState("")
+
+  const employeeRoleOptions = [
+    { value: "admin_institut", label: "Admin Institut" },
+    { value: "receptionniste", label: "Réceptionniste" },
+    { value: "praticienne", label: "Praticienne" },
+  ]
 
   function fmt(val: string | Date): string {
     let d: Date
@@ -137,13 +158,27 @@ export default function EmployeesPage() {
   async function loadEmployees() {
     setLoading(true)
     try {
+      // Fetch employees and accounts in parallel or sequence
       const q = new URLSearchParams()
       q.set("include", "roles,services,hours")
       q.set("limit", "200")
-      const res = await fetch(`/api/pro/employees?${q.toString()}`)
-      const data = await res.json()
-      if (!res.ok) throw new Error(data?.error || "Erreur de chargement")
-      const list = Array.isArray(data?.items) ? data.items : []
+      
+      const [empRes, accRes] = await Promise.all([
+        fetch(`/api/pro/employees?${q.toString()}`),
+        fetch(`/api/pro/employee-accounts`)
+      ]);
+
+      const empData = await empRes.json()
+      const accData = await accRes.json()
+
+      if (!empRes.ok) throw new Error(empData?.error || "Erreur de chargement des employés")
+      if (!accRes.ok) throw new Error(accData?.error || "Erreur de chargement des comptes")
+
+      const list = Array.isArray(empData?.items) ? empData.items : []
+      const accountMap = new Map(
+        (Array.isArray(accData?.items) ? accData.items : []).map((acc: any) => [acc.id, acc])
+      )
+
       const out: UIEmployee[] = list.map((emp: any) => {
         const servicesNames: string[] = (emp.employee_services || []).map((x: any) => x.services?.name).filter(Boolean)
         const hours = (emp.working_hours || [])
@@ -163,30 +198,48 @@ export default function EmployeesPage() {
         const workSet = new Set(workDaysNames)
         const rest = ["Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi","Dimanche"].filter((d) => !workSet.has(d))
         const role = (emp.employee_roles?.[0]?.role as string) || ""
+        
+        const account = accountMap.get(emp.id) as any
+
         return {
           id: emp.id,
           name: emp.full_name,
-          email: emp.email || null,
+          email: emp.email || account?.email || null,
           phone: emp.phone || null,
           avatar: null,
           role,
+          post: emp.profession_label || "",
           services: servicesNames,
           workDays: Array.from(workSet),
           restDays: rest,
           workHours: minStart && maxEnd ? `${minStart} - ${maxEnd}` : "",
           status: emp.is_active ? "Actif" : "Inactif",
+          hasAccount: !!account,
+          accessLevel: account?.access_level || null,
+          permissions: account?.permissions || [],
+          lastLoginAt: account?.last_login_at || null,
         }
       })
       setItems(out)
     } catch (e) {
-      // ignore for now
+      console.error("Load error:", e)
+      toast.error("Erreur de chargement des données")
     } finally {
       setLoading(false)
     }
   }
 
+  async function loadProPermissions() {
+    try {
+      const res = await fetch(`/api/pro/pro-permissions`)
+      const data = await res.json()
+      if (res.ok) setProPermissions(data?.permissions || [])
+    } catch {}
+  }
+
   useEffect(() => {
     loadEmployees()
+    loadProPermissions()
   }, [])
 
   useEffect(() => {
@@ -229,7 +282,7 @@ export default function EmployeesPage() {
     const emailEl = document.getElementById("email") as HTMLInputElement | null
     const phoneEl = document.getElementById("phone") as HTMLInputElement | null
     // times come from controlled state
-    const roleEl = document.getElementById("role") as HTMLInputElement | null
+    const postEl = document.getElementById("post") as HTMLInputElement | null
 
     const full_name = nameEl?.value?.trim() || ""
     const email = emailEl?.value?.trim() || ""
@@ -247,7 +300,7 @@ export default function EmployeesPage() {
       const createRes = await fetch(`/api/pro/employees` , {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ full_name, email: email || undefined, phone: phone || undefined }),
+        body: JSON.stringify({ full_name, email: email || undefined, phone: phone || undefined, profession_label: postEl?.value?.trim() || undefined }),
       })
       const created = await createRes.json()
       if (!createRes.ok) throw new Error(created?.error || "Erreur de création")
@@ -280,18 +333,31 @@ export default function EmployeesPage() {
         }
       }
 
-      // Optional: store role as an internal label if provided
-      const roleVal = roleEl?.value?.trim()
-      if (roleVal) {
-        await fetch(`/api/pro/employees/${empId}/roles`, {
-          method: "PUT",
+      // Optional: store role (Permissions level/Access level)
+      if (createEmail || employeeAccessRole || selectedPermissionCodes.length > 0) {
+        const accPut = await fetch(`/api/pro/employee-accounts`, {
+          method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ roles: [roleVal] }),
-        }).catch(() => {})
+          body: JSON.stringify({
+            employee_id: empId,
+            user_email: createEmail || email || "",
+            employee_role: employeeAccessRole,
+            permission_codes: selectedPermissionCodes,
+          }),
+        })
+        if (!accPut.ok) {
+          const j = await accPut.json().catch(() => ({}))
+          console.error("Account creation failed:", j)
+          toast.error("L'employé a été créé mais le compte n'a pas pu l'être : " + (j?.error || ""))
+        }
       }
 
       alert("Employé ajouté")
       setIsAddDialogOpen(false)
+      // Reset account states
+      setCreateEmail("")
+      setEmployeeAccessRole("")
+      setSelectedPermissionCodes([])
       await loadEmployees()
     } catch (e: any) {
       alert(e?.message || "Impossible d'ajouter l'employé")
@@ -303,11 +369,13 @@ export default function EmployeesPage() {
     .filter(
       (employee) =>
         employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        employee.role.toLowerCase().includes(searchTerm.toLowerCase()),
+        employee.post.toLowerCase().includes(searchTerm.toLowerCase()),
     )
 
   const handleEditEmployee = (employee: any) => {
     setSelectedEmployee(employee)
+    setEmployeeAccessRole(employee.accessLevel || "")
+    setSelectedPermissionCodes(employee.permissions || [])
     setIsEditDialogOpen(true)
   }
 
@@ -365,13 +433,12 @@ export default function EmployeesPage() {
     const nameEl = document.getElementById("edit-name") as HTMLInputElement | null
     const emailEl = document.getElementById("edit-email") as HTMLInputElement | null
     const phoneEl = document.getElementById("edit-phone") as HTMLInputElement | null
-    const roleEl = document.getElementById("edit-role") as HTMLInputElement | null
+    const postEl = document.getElementById("edit-post") as HTMLInputElement | null
     // times come from controlled state
 
     const full_name = nameEl?.value?.trim() || ""
     const email = emailEl?.value?.trim() || ""
     const phone = phoneEl?.value?.trim() || ""
-    const roleVal = roleEl?.value?.trim() || ""
     const start_time = editStart || "09:00"
     const end_time = editEnd || "18:00"
 
@@ -385,44 +452,35 @@ export default function EmployeesPage() {
       const res = await fetch(`/api/pro/employees/${selectedEmployee.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ full_name, email: email || undefined, phone: phone || undefined, is_active }),
+        body: JSON.stringify({ full_name, email: email || undefined, phone: phone || undefined, is_active, profession_label: postEl?.value?.trim() || "" }),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data?.error || "Mise à jour impossible")
 
-      if (roleVal) {
-        await fetch(`/api/pro/employees/${selectedEmployee.id}/roles`, {
-          method: "PUT",
+      // PASSED: Role (Access level) is now managed here
+      if (selectedEmployee.hasAccount || createEmail) {
+        const accRes = await fetch(`/api/pro/employee-accounts${selectedEmployee.hasAccount ? `/${selectedEmployee.id}` : ""}`, {
+          method: selectedEmployee.hasAccount ? "PATCH" : "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ roles: [roleVal] }),
-        }).catch(() => {})
-      } else {
-        // vide => retire les rôles
-        await fetch(`/api/pro/employees/${selectedEmployee.id}/roles`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ roles: [] }),
-        }).catch(() => {})
-      }
-
-      // Pas d'affectation de services dans la modale Modifier
-
-      const selectedDays = Array.from(editDays)
-      const dayIndex: Record<string, number> = { "Lundi": 1, "Mardi": 2, "Mercredi": 3, "Jeudi": 4, "Vendredi": 5, "Samedi": 6, "Dimanche": 0 }
-      const hours = selectedDays.map((d) => ({ weekday: dayIndex[d], start_time, end_time, breaks: [] }))
-      {
-        const hrsPut = await fetch(`/api/pro/employees/${selectedEmployee.id}/hours`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ hours }),
+          body: JSON.stringify({
+             employee_id: selectedEmployee.id,
+             user_email: createEmail || email || selectedEmployee.email || "",
+             employee_role: employeeAccessRole,
+             permission_codes: selectedPermissionCodes,
+             is_active: editStatus === "Actif"
+          })
         })
-        if (!hrsPut.ok) {
-          const j = await hrsPut.json().catch(() => ({}))
-          throw new Error(j?.error || "Échec de l'enregistrement des horaires")
+        if (!accRes.ok) {
+          const j = await accRes.json().catch(() => ({}))
+          toast.error("Erreur lors de la mise à jour du compte : " + (j?.error || ""))
         }
       }
 
       setIsEditDialogOpen(false)
+      // Reset account states
+      setCreateEmail("")
+      setEmployeeAccessRole("")
+      setSelectedPermissionCodes([])
       await loadEmployees()
     } catch (e: any) {
       alert(e?.message || "Erreur lors de la mise à jour")
@@ -521,54 +579,129 @@ export default function EmployeesPage() {
                   handleAddEmployee();
                 }}
               >
-                <div className="grid gap-4 py-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="name">Nom complet</Label>
-                      <Input id="name" placeholder="Nom de l'employé" required />
-                    </div>
-                    <div>
-                      <Label htmlFor="role">Poste</Label>
-                      <Input id="role" placeholder="Ex: Coiffeur, Esthéticienne" />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="email">Email</Label>
-                      <Input id="email" type="email" placeholder="email@exemple.com" />
-                    </div>
-                    <div>
-                      <Label htmlFor="phone">Téléphone</Label>
-                      <Input id="phone" placeholder="+213 555 123 456" />
-                    </div>
-                  </div>
-                  <div>
-                    <Label>Jours de travail</Label>
-                    <div className="grid grid-cols-4 gap-2 mt-2">
-                      {workDays.map((day) => (
-                        <div key={day} className="flex items-center space-x-2">
-                          <Checkbox id={day} checked={addDays.has(day)} onCheckedChange={(v) => {
-                            const next = new Set(addDays)
-                            if (v) next.add(day); else next.delete(day)
-                            setAddDays(next)
-                          }} />
-                          <Label htmlFor={day} className="text-sm">
-                            {day}
-                          </Label>
+                <div className="py-4">
+                  <Accordion type="multiple" defaultValue={["basic"]}>
+                    <AccordionItem value="basic">
+                      <AccordionTrigger>Informations de base</AccordionTrigger>
+                      <AccordionContent className="space-y-4 pt-2">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <Label className="mb-1.5 block" htmlFor="name">Nom complet</Label>
+                            <Input id="name" placeholder="Nom de l'employé" required />
+                          </div>
+                          <div>
+                            <Label className="mb-1.5 block" htmlFor="post">Poste</Label>
+                            <Input id="post" placeholder="Ex: Coiffeur, Esthéticienne" />
+                          </div>
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="startTime">Heure de début</Label>
-                      <Input id="startTime" type="time" value={addStart} onChange={(e) => setAddStart(e.target.value)} />
-                    </div>
-                    <div>
-                      <Label htmlFor="endTime">Heure de fin</Label>
-                      <Input id="endTime" type="time" value={addEnd} onChange={(e) => setAddEnd(e.target.value)} />
-                    </div>
-                  </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <Label className="mb-1.5 block" htmlFor="email">Email</Label>
+                            <Input id="email" type="email" placeholder="email@exemple.com" />
+                          </div>
+                          <div>
+                            <Label className="mb-1.5 block" htmlFor="phone">Téléphone</Label>
+                            <Input id="phone" placeholder="+213 555 123 456" />
+                          </div>
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+
+                    <AccordionItem value="schedule">
+                      <AccordionTrigger>Horaires & Planning</AccordionTrigger>
+                      <AccordionContent className="space-y-4 pt-2">
+                        <div>
+                          <Label className="mb-1.5 block">Jours de travail</Label>
+                          <div className="grid grid-cols-4 gap-2 mt-2">
+                            {workDays.map((day) => (
+                              <div key={day} className="flex items-center space-x-2">
+                                <Checkbox id={day} checked={addDays.has(day)} onCheckedChange={(v) => {
+                                  const next = new Set(addDays)
+                                  if (v) next.add(day); else next.delete(day)
+                                  setAddDays(next)
+                                }} />
+                                <Label className="mb-1.5 block text-sm" htmlFor={day}>{day}</Label>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <Label className="mb-1.5 block" htmlFor="startTime">Heure de début</Label>
+                            <Input id="startTime" type="time" value={addStart} onChange={(e) => setAddStart(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="mb-1.5 block" htmlFor="endTime">Heure de fin</Label>
+                            <Input id="endTime" type="time" value={addEnd} onChange={(e) => setAddEnd(e.target.value)} />
+                          </div>
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+
+                    <AccordionItem value="access">
+                      <AccordionTrigger>Accès & Sécurité</AccordionTrigger>
+                      <AccordionContent className="space-y-4 pt-2">
+                        <div className="grid gap-4">
+                          <div>
+                            <Label className="mb-1.5 block" htmlFor="acc-email">Email de connexion (Optionnel)</Label>
+                            <Input 
+                              id="acc-email" 
+                              placeholder="email@exemple.com" 
+                              value={createEmail} 
+                              onChange={(e) => setCreateEmail(e.target.value)} 
+                            />
+                            <p className="text-[10px] text-gray-500 mt-1">L'employé recevra une invitation par email pour activer son compte.</p>
+                          </div>
+                          <div>
+                            <Label className="mb-1.5 block">Rôle d'accès</Label>
+                            <Select value={employeeAccessRole} onValueChange={setEmployeeAccessRole}>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Choisir un rôle" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {employeeRoleOptions.map(opt => (
+                                  <SelectItem key={opt.value} value={opt.label}>{opt.label}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div>
+                            <div className="flex items-center justify-between mb-2">
+                              <Label className="mb-1.5 block">Permissions spécifiques</Label>
+                              <div className="flex gap-2">
+                                <Button type="button" variant="ghost" size="sm" className="h-6 text-[10px]" onClick={() => setSelectedPermissionCodes(proPermissions.map(p => p.code))}>Tout</Button>
+                                <Button type="button" variant="ghost" size="sm" className="h-6 text-[10px]" onClick={() => setSelectedPermissionCodes([])}>Aucun</Button>
+                              </div>
+                            </div>
+                            <Input 
+                              placeholder="Filtrer les permissions..." 
+                              className="h-8 text-sm mb-2"
+                              value={permQuery}
+                              onChange={(e) => setPermQuery(e.target.value)}
+                            />
+                            <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto border rounded-md p-2">
+                               {proPermissions.filter(p => !permQuery || p.code.includes(permQuery) || p.description?.toLowerCase().includes(permQuery.toLowerCase())).map(p => (
+                                 <div key={p.code} className="flex items-center space-x-2">
+                                   <Checkbox 
+                                     id={`perm-${p.code}`} 
+                                     checked={selectedPermissionCodes.includes(p.code)} 
+                                     onCheckedChange={(checked) => {
+                                       if (checked) setSelectedPermissionCodes(prev => [...prev, p.code])
+                                       else setSelectedPermissionCodes(prev => prev.filter(c => c !== p.code))
+                                     }}
+                                   />
+                                   <Label className="mb-1.5 block text-[11px] leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 truncate" htmlFor={`perm-${p.code}`} title={p.description}>
+                                     {p.description || p.code}
+                                   </Label>
+                                 </div>
+                               ))}
+                            </div>
+                          </div>
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
                 </div>
                 <div className="flex justify-end space-x-2">
                   <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
@@ -599,11 +732,11 @@ export default function EmployeesPage() {
         </div>
 
         {/* Employees Grid */}
-        <div className="grid gap-6">
+        <div className="grid gap-0">
           {filteredEmployees.map((employee) => (
-            <Card key={employee.id} className="hover:shadow-md transition-shadow">
-              <CardContent className="p-6">
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+            <Card key={employee.id} className="hover:shadow-md transition-shadow overflow-hidden">
+              <CardContent className="p-4">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                   {/* Employee Info */}
                   <div className="flex items-start space-x-4">
                     <Avatar className="h-16 w-16">
@@ -615,9 +748,19 @@ export default function EmployeesPage() {
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
                         <h3 className="text-lg font-semibold text-gray-900">{employee.name}</h3>
-                        <Badge variant={employee.status === "Actif" ? "default" : "secondary"}>{employee.status}</Badge>
+                        <div className="flex gap-2">
+                          <Badge variant={employee.status === "Actif" ? "default" : "secondary"}>{employee.status}</Badge>
+                          {employee.hasAccount ? (
+                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                              <Shield className="h-3 w-3 mr-1" />
+                              {employee.accessLevel || "Compte"}
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="bg-gray-50 text-gray-500 border-gray-200">Sans compte</Badge>
+                          )}
+                        </div>
                       </div>
-                      <p className="text-gray-600 mb-1">{employee.role}</p>
+                      <p className="text-gray-600 mb-1">{employee.post}</p>
                       <div className="flex items-center gap-4 text-sm text-gray-500">
                         <div className="flex items-center gap-1">
                           <Mail className="h-4 w-4" />
@@ -689,26 +832,26 @@ export default function EmployeesPage() {
               <div className="grid gap-4 py-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label>Nom complet</Label>
+                    <Label className="mb-1.5 block">Nom complet</Label>
                     <div className="mt-1 font-medium">{viewEmployee.name}</div>
                   </div>
                   <div>
-                    <Label>Poste</Label>
-                    <div className="mt-1">{viewEmployee.role || "-"}</div>
+                    <Label className="mb-1.5 block">Poste</Label>
+                    <div className="mt-1">{viewEmployee.post || "-"}</div>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label>Email</Label>
+                    <Label className="mb-1.5 block">Email</Label>
                     <div className="mt-1">{viewEmployee.email || "-"}</div>
                   </div>
                   <div>
-                    <Label>Téléphone</Label>
+                    <Label className="mb-1.5 block">Téléphone</Label>
                     <div className="mt-1">{viewEmployee.phone || "-"}</div>
                   </div>
                 </div>
                 <div>
-                  <Label>Services proposés</Label>
+                  <Label className="mb-1.5 block">Services proposés</Label>
                   <div className="mt-2 flex flex-wrap gap-2">
                     {viewEmployee.services.length ? viewEmployee.services.map((s) => (
                       <Badge key={s} variant="outline" className="text-xs">{s}</Badge>
@@ -717,21 +860,21 @@ export default function EmployeesPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label>Horaires</Label>
+                    <Label className="mb-1.5 block">Horaires</Label>
                     <div className="mt-1">{viewEmployee.workHours || "-"}</div>
                   </div>
                   <div>
-                    <Label>Repos</Label>
+                    <Label className="mb-1.5 block">Repos</Label>
                     <div className="mt-1">{viewEmployee.restDays.join(", ") || "-"}</div>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label>Statut</Label>
+                    <Label className="mb-1.5 block">Statut</Label>
                     <div className="mt-1">{viewEmployee.status}</div>
                   </div>
                   <div>
-                    <Label>ID</Label>
+                    <Label className="mb-1.5 block">ID</Label>
                     <div className="mt-1 text-xs text-gray-500 break-all">{viewEmployee.id}</div>
                   </div>
                 </div>
@@ -756,153 +899,267 @@ export default function EmployeesPage() {
                   handleSaveEdit();
                 }}
               >
-                <div className="grid gap-4 py-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="edit-name">Nom complet</Label>
-                      <Input id="edit-name" defaultValue={selectedEmployee.name} required />
-                    </div>
-                    <div>
-                      <Label htmlFor="edit-role">Poste</Label>
-                      <Input id="edit-role" defaultValue={selectedEmployee.role} />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="edit-email">Email</Label>
-                      <Input id="edit-email" type="email" defaultValue={selectedEmployee.email} />
-                    </div>
-                    <div>
-                      <Label htmlFor="edit-phone">Téléphone</Label>
-                      <Input id="edit-phone" defaultValue={selectedEmployee.phone} />
-                    </div>
-                  </div>
-                  {/* Services non modifiés ici */}
-                  <div>
-                    <Label>Jours de travail</Label>
-                    <div className="grid grid-cols-4 gap-2 mt-2">
-                      {workDays.map((day) => (
-                        <div key={day} className="flex items-center space-x-2">
-                          <Checkbox id={`edit-day-${day}`} checked={editDays.has(day)} onCheckedChange={(v) => {
-                            const next = new Set(editDays)
-                            if (v) next.add(day); else next.delete(day)
-                            setEditDays(next)
-                          }} />
-                          <Label htmlFor={`edit-day-${day}`} className="text-sm">{day}</Label>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="edit-startTime">Heure de début</Label>
-                      <Input id="edit-startTime" type="time" value={editStart} onChange={(e) => setEditStart(e.target.value)} />
-                    </div>
-                    <div>
-                      <Label htmlFor="edit-endTime">Heure de fin</Label>
-                      <Input id="edit-endTime" type="time" value={editEnd} onChange={(e) => setEditEnd(e.target.value)} />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="col-span-1">
-                      <Label>Statut</Label>
-                      <Select value={editStatus} onValueChange={setEditStatus}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Choisir un statut" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Actif">Actif</SelectItem>
-                          <SelectItem value="Inactif">Inactif</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                </div>
-                <div>
-                  <Label>Congés</Label>
-                  <div className="grid gap-2 mt-2">
-                    {!showTimeOffForm ? (
-                      <div className="flex justify-start">
-                        <Button type="button" variant="outline" size="sm" onClick={() => setShowTimeOffForm(true)}>Ajouter un congé</Button>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="grid grid-cols-2 gap-2">
-                          <Input type="datetime-local" value={toStart} onChange={(e) => setToStart(e.target.value)} />
-                          <Input type="datetime-local" value={toEnd} onChange={(e) => setToEnd(e.target.value)} />
-                        </div>
-                        <Input placeholder="Raison (optionnel)" value={toReason} onChange={(e) => setToReason(e.target.value)} />
-                        <div className="flex justify-end gap-2">
-                          <Button type="button" variant="ghost" size="sm" onClick={() => { setShowTimeOffForm(false); setToStart(""); setToEnd(""); setToReason("") }}>Annuler</Button>
-                          <Button type="button" variant="outline" size="sm" onClick={handleAddTimeOff}>Ajouter le congé</Button>
-                        </div>
-                      </>
-                    )}
-                    <div className="max-h-40 overflow-auto border rounded p-2 text-sm">
-                      {timeOff.length ? timeOff.map((t) => (
-                        <div key={t.id} className="flex items-center justify-between py-1">
+                <div className="py-4">
+                  <Accordion type="multiple" defaultValue={["edit-basic"]}>
+                    <AccordionItem value="edit-basic">
+                      <AccordionTrigger>Informations de base</AccordionTrigger>
+                      <AccordionContent className="space-y-4 pt-2">
+                        <div className="grid grid-cols-2 gap-4">
                           <div>
-                            <div className="font-medium">{new Date(t.starts_at).toLocaleString()} → {new Date(t.ends_at).toLocaleString()}</div>
-                            <div className="text-gray-500">{t.reason || ""}</div>
+                            <Label className="mb-1.5 block" htmlFor="edit-name">Nom complet</Label>
+                            <Input id="edit-name" defaultValue={selectedEmployee.name} required />
+                          </div>
+                          <div>
+                            <Label className="mb-1.5 block" htmlFor="edit-post">Poste</Label>
+                            <Input id="edit-post" defaultValue={selectedEmployee.post} />
                           </div>
                         </div>
-                      )) : <div className="text-gray-500">Aucun congé</div>}
-                    </div>
-                  </div>
-                </div>
-                <div>
-                  <Label>Disponibilités exceptionnelles</Label>
-                  <div className="grid gap-2 mt-2">
-                    {!showOverrideForm ? (
-                      <div className="flex justify-start">
-                        <Button type="button" variant="outline" size="sm" onClick={() => setShowOverrideForm(true)}>Ajouter une disponibilité exceptionnelle</Button>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="grid grid-cols-4 gap-2 items-center">
-                          <Input type="date" value={ovDate} onChange={(e) => setOvDate(e.target.value)} />
-                          <div className="flex items-center gap-2">
-                            <Checkbox id="ovAvail" checked={ovAvailable} onCheckedChange={(v) => setOvAvailable(!!v)} />
-                            <Label htmlFor="ovAvail" className="text-sm">Disponible</Label>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <Label className="mb-1.5 block" htmlFor="edit-email">Email</Label>
+                            <Input id="edit-email" type="email" defaultValue={selectedEmployee.email} />
                           </div>
-                          <Input type="time" value={ovStart} onChange={(e) => setOvStart(e.target.value)} />
-                          <Input type="time" value={ovEnd} onChange={(e) => setOvEnd(e.target.value)} />
+                          <div>
+                            <Label className="mb-1.5 block" htmlFor="edit-phone">Téléphone</Label>
+                            <Input id="edit-phone" defaultValue={selectedEmployee.phone} />
+                          </div>
                         </div>
-                        <div className="flex justify-end gap-2">
-                          <Button type="button" variant="ghost" size="sm" onClick={() => { setShowOverrideForm(false); setOvDate(""); setOvAvailable(false); setOvStart(""); setOvEnd("") }}>Annuler</Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              if (!ovDate) { alert("Date requise"); return }
-                              upsertOverrideLocal({ date: ovDate, is_available: ovAvailable, start_time: ovStart || null, end_time: ovEnd || null })
-                              setOvDate(""); setOvAvailable(false); setOvStart(""); setOvEnd(""); setShowOverrideForm(false)
-                            }}
-                          >Ajouter/Mettre à jour</Button>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="col-span-1">
+                            <Label className="mb-1.5 block">Statut</Label>
+                            <Select value={editStatus} onValueChange={setEditStatus}>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Choisir un statut" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Actif">Actif</SelectItem>
+                                <SelectItem value="Inactif">Inactif</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
                         </div>
-                      </>
-                    )}
-                    <div className="max-h-40 overflow-auto border rounded p-2 text-sm space-y-1">
-                      {overrides.length ? overrides
-                        .slice()
-                        .sort((a: any, b: any) => String(a.date).localeCompare(String(b.date)))
-                        .map((o: any) => (
-                          <div key={String(o.date)} className="flex items-center justify-between">
+                      </AccordionContent>
+                    </AccordionItem>
+
+                    <AccordionItem value="edit-schedule">
+                      <AccordionTrigger>Horaires & Planning</AccordionTrigger>
+                      <AccordionContent className="space-y-4 pt-2">
+                        <div>
+                          <Label className="mb-1.5 block">Jours de travail</Label>
+                          <div className="grid grid-cols-4 gap-2 mt-2">
+                            {workDays.map((day) => (
+                              <div key={day} className="flex items-center space-x-2">
+                                <Checkbox id={`edit-day-${day}`} checked={editDays.has(day)} onCheckedChange={(v) => {
+                                  const next = new Set(editDays)
+                                  if (v) next.add(day); else next.delete(day)
+                                  setEditDays(next)
+                                }} />
+                                <Label className="mb-1.5 block text-sm" htmlFor={`edit-day-${day}`}>{day}</Label>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <Label className="mb-1.5 block" htmlFor="edit-startTime">Heure de début</Label>
+                            <Input id="edit-startTime" type="time" value={editStart} onChange={(e) => setEditStart(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label className="mb-1.5 block" htmlFor="edit-endTime">Heure de fin</Label>
+                            <Input id="edit-endTime" type="time" value={editEnd} onChange={(e) => setEditEnd(e.target.value)} />
+                          </div>
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+
+                    <AccordionItem value="edit-access">
+                      <AccordionTrigger>Accès & Sécurité</AccordionTrigger>
+                      <AccordionContent className="space-y-4 pt-2">
+                        <div className="grid gap-4">
+                          {!selectedEmployee.hasAccount && (
                             <div>
-                              <div className="font-medium">{String(o.date).slice(0,10)} • {o.is_available ? "Disponible" : "Indisponible"}</div>
-                              {(o.start_time || o.end_time) && (
-                                <div className="text-gray-500">{o.start_time?.slice(11,16) || o.start_time} → {o.end_time?.slice(11,16) || o.end_time}</div>
-                              )}
+                              <Label className="mb-1.5 block" htmlFor="edit-acc-email">Email de connexion (pour créer un compte)</Label>
+                              <Input 
+                                id="edit-acc-email" 
+                                placeholder="email@exemple.com" 
+                                value={createEmail} 
+                                onChange={(e) => setCreateEmail(e.target.value)} 
+                              />
                             </div>
-                            <Button type="button" variant="ghost" size="sm" onClick={() => setOverrides((prev) => prev.filter((x: any) => String(x.date).slice(0,10) !== String(o.date).slice(0,10)))}>Retirer</Button>
+                          )}
+                          
+                          <div>
+                            <Label className="mb-1.5 block">Rôle d'accès</Label>
+                            <Select value={employeeAccessRole} onValueChange={setEmployeeAccessRole}>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Choisir un rôle" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {employeeRoleOptions.map(opt => (
+                                  <SelectItem key={opt.value} value={opt.label}>{opt.label}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           </div>
-                        )) : <div className="text-gray-500">Aucune exception</div>}
-                    </div>
-                    <div className="flex justify-end">
-                      <Button type="button" className="bg-black text-white hover:bg-gray-800" size="sm" onClick={handleSaveOverrides}>Enregistrer les exceptions</Button>
-                    </div>
-                  </div>
+
+                          <div>
+                            <div className="flex items-center justify-between mb-2">
+                              <Label className="mb-1.5 block">Permissions spécifiques</Label>
+                              <div className="flex gap-2">
+                                <Button type="button" variant="ghost" size="sm" className="h-6 text-[10px]" onClick={() => setSelectedPermissionCodes(proPermissions.map(p => p.code))}>Tout</Button>
+                                <Button type="button" variant="ghost" size="sm" className="h-6 text-[10px]" onClick={() => setSelectedPermissionCodes([])}>Aucun</Button>
+                              </div>
+                            </div>
+                            <Input 
+                              placeholder="Filtrer les permissions..." 
+                              className="h-8 text-sm mb-2"
+                              value={permQuery}
+                              onChange={(e) => setPermQuery(e.target.value)}
+                            />
+                            <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto border rounded-md p-2">
+                               {proPermissions.filter(p => !permQuery || p.code.includes(permQuery) || p.description?.toLowerCase().includes(permQuery.toLowerCase())).map(p => (
+                                 <div key={p.code} className="flex items-center space-x-2">
+                                   <Checkbox 
+                                     id={`edit-perm-${p.code}`} 
+                                     checked={selectedPermissionCodes.includes(p.code)} 
+                                     onCheckedChange={(checked) => {
+                                       if (checked) setSelectedPermissionCodes(prev => [...prev, p.code])
+                                       else setSelectedPermissionCodes(prev => prev.filter(c => c !== p.code))
+                                     }}
+                                   />
+                                   <Label className="mb-1.5 block text-[11px] leading-none truncate" htmlFor={`edit-perm-${p.code}`} title={p.description}>
+                                     {p.description || p.code}
+                                   </Label>
+                                 </div>
+                               ))}
+                            </div>
+                          </div>
+
+                          {selectedEmployee.hasAccount && (
+                            <div className="flex justify-between items-center bg-gray-50 p-3 rounded-lg border border-gray-100">
+                              <div>
+                                <p className="text-xs font-medium text-gray-700">Compte lié</p>
+                                <p className="text-[10px] text-gray-500">{selectedEmployee.email}</p>
+                              </div>
+                              <Button 
+                                type="button" 
+                                variant="destructive" 
+                                size="sm" 
+                                className="h-7 text-[10px]"
+                                onClick={async () => {
+                                   if (!confirm("Voulez-vous vraiment supprimer le compte utilisateur de cet employé ?")) return
+                                   const res = await fetch(`/api/pro/employees/${selectedEmployee.id}/account`, { method: "DELETE" })
+                                   if (res.ok) {
+                                     toast.success("Compte supprimé")
+                                     setSelectedEmployee({...selectedEmployee, hasAccount: false})
+                                     loadEmployees()
+                                   } else {
+                                      const d = await res.json()
+                                      toast.error("Erreur : " + d.error)
+                                   }
+                                }}
+                              >
+                                Supprimer l'accès
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+
+                    <AccordionItem value="edit-absences">
+                      <AccordionTrigger>Absences & Exceptions</AccordionTrigger>
+                      <AccordionContent className="space-y-6 pt-2">
+                        <div>
+                          <Label className="mb-1.5 block">Congés</Label>
+                          <div className="grid gap-2 mt-2">
+                            {!showTimeOffForm ? (
+                              <div className="flex justify-start">
+                                <Button type="button" variant="outline" size="sm" onClick={() => setShowTimeOffForm(true)}>Ajouter un congé</Button>
+                              </div>
+                            ) : (
+                              <>
+                                <div className="grid grid-cols-2 gap-2">
+                                  <Input type="date" value={toStart} onChange={(e) => setToStart(e.target.value)} />
+                                  <Input type="date" value={toEnd} onChange={(e) => setToEnd(e.target.value)} />
+                                </div>
+                                <Input placeholder="Raison (optionnel)" value={toReason} onChange={(e) => setToReason(e.target.value)} />
+                                <div className="flex justify-end gap-2">
+                                  <Button type="button" variant="ghost" size="sm" onClick={() => { setShowTimeOffForm(false); setToStart(""); setToEnd(""); setToReason("") }}>Annuler</Button>
+                                  <Button type="button" variant="outline" size="sm" onClick={handleAddTimeOff}>Ajouter le congé</Button>
+                                </div>
+                              </>
+                            )}
+                            <div className="max-h-40 overflow-auto border rounded p-2 text-sm">
+                              {timeOff.length ? timeOff.map((t) => (
+                                <div key={t.id} className="flex items-center justify-between py-1">
+                                  <div>
+                                    <div className="font-medium">{new Date(t.starts_at).toLocaleDateString()} → {new Date(t.ends_at).toLocaleDateString()}</div>
+                                    {t.reason && <div className="text-gray-500">{t.reason}</div>}
+                                  </div>
+                                </div>
+                              )) : <div className="text-gray-500">Aucun congé</div>}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div>
+                          <Label className="mb-1.5 block">Disponibilités exceptionnelles</Label>
+                          <div className="grid gap-2 mt-2">
+                            {!showOverrideForm ? (
+                              <div className="flex justify-start">
+                                <Button type="button" variant="outline" size="sm" onClick={() => setShowOverrideForm(true)}>Ajouter une disponibilité exceptionnelle</Button>
+                              </div>
+                            ) : (
+                              <>
+                                <div className="grid grid-cols-4 gap-2 items-center">
+                                  <Input type="date" value={ovDate} onChange={(e) => setOvDate(e.target.value)} />
+                                  <div className="flex items-center gap-2">
+                                    <Checkbox id="ovAvail" checked={ovAvailable} onCheckedChange={(v) => setOvAvailable(!!v)} />
+                                    <Label className="mb-1.5 block text-sm" htmlFor="ovAvail">Disponible</Label>
+                                  </div>
+                                  <Input type="time" value={ovStart} onChange={(e) => setOvStart(e.target.value)} />
+                                  <Input type="time" value={ovEnd} onChange={(e) => setOvEnd(e.target.value)} />
+                                </div>
+                                <div className="flex justify-end gap-2">
+                                  <Button type="button" variant="ghost" size="sm" onClick={() => { setShowOverrideForm(false); setOvDate(""); setOvAvailable(false); setOvStart(""); setOvEnd("") }}>Annuler</Button>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      if (!ovDate) { alert("Date requise"); return }
+                                      upsertOverrideLocal({ date: ovDate, is_available: ovAvailable, start_time: ovStart || null, end_time: ovEnd || null })
+                                      setOvDate(""); setOvAvailable(false); setOvStart(""); setOvEnd(""); setShowOverrideForm(false)
+                                    }}
+                                  >Ajouter/Mettre à jour</Button>
+                                </div>
+                              </>
+                            )}
+                            <div className="max-h-40 overflow-auto border rounded p-2 text-sm space-y-1">
+                              {overrides.length ? overrides
+                                .slice()
+                                .sort((a: any, b: any) => String(a.date).localeCompare(String(b.date)))
+                                .map((o: any) => (
+                                  <div key={String(o.date)} className="flex items-center justify-between">
+                                    <div>
+                                      <div className="font-medium">{String(o.date).slice(0,10)} • {o.is_available ? "Disponible" : "Indisponible"}</div>
+                                      {(o.start_time || o.end_time) && (
+                                        <div className="text-gray-500">{o.start_time?.slice(11,16) || o.start_time} → {o.end_time?.slice(11,16) || o.end_time}</div>
+                                      )}
+                                    </div>
+                                    <Button type="button" variant="ghost" size="sm" onClick={() => setOverrides((prev) => prev.filter((x: any) => String(x.date).slice(0,10) !== String(o.date).slice(0,10)))}>Retirer</Button>
+                                  </div>
+                                )) : <div className="text-gray-500">Aucune exception</div>}
+                            </div>
+                            <div className="flex justify-end">
+                              <Button type="button" className="bg-black text-white hover:bg-gray-800" size="sm" onClick={handleSaveOverrides}>Enregistrer les exceptions</Button>
+                            </div>
+                          </div>
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
                 </div>
                 <div className="flex justify-end space-x-2 pt-4 border-t mt-4">
                   <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>Annuler</Button>

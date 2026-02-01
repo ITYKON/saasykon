@@ -35,6 +35,24 @@ export async function getAuthContext(): Promise<AuthContext | null> {
         });
       });
 
+      // ADDED: Fetch granular employee permissions for the current business
+      const employeeAccount = await prisma.employee_accounts.findUnique({
+        where: { user_id: userId }
+      });
+
+      if (employeeAccount && businessId) {
+        const empPerms = await prisma.employee_permissions.findMany({
+          where: { 
+            employee_id: employeeAccount.employee_id,
+            business_id: businessId
+          },
+          include: { pro_permissions: true }
+        });
+        empPerms.forEach((ep) => {
+          if (ep.pro_permissions?.code) permissionSet.add(ep.pro_permissions.code);
+        });
+      }
+
       const assignments = userRoles.map((ur: any) => ({ role: ur.roles.code, business_id: ur.business_id }));
       return { userId, roles, permissions: Array.from(permissionSet), assignments, businessId };
     }
@@ -63,6 +81,24 @@ export async function getAuthContext(): Promise<AuthContext | null> {
         if (rp.permissions?.code) permissionSet.add(rp.permissions.code);
       });
     });
+
+    // ADDED: Fetch granular employee permissions for the current business
+    const employeeAccount = await prisma.employee_accounts.findUnique({
+      where: { user_id: userId }
+    });
+
+    if (employeeAccount && businessId) {
+      const empPerms = await prisma.employee_permissions.findMany({
+        where: { 
+          employee_id: employeeAccount.employee_id,
+          business_id: businessId
+        },
+        include: { pro_permissions: true }
+      });
+      empPerms.forEach((ep) => {
+        if (ep.pro_permissions?.code) permissionSet.add(ep.pro_permissions.code);
+      });
+    }
 
     const assignments = userRoles.map((ur: any) => ({ role: ur.roles.code, business_id: ur.business_id }));
     return { userId, roles, permissions: Array.from(permissionSet), assignments, businessId };

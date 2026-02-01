@@ -14,35 +14,55 @@ export async function GET(req: NextRequest) {
   if (!allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const scope = (url.searchParams.get("scope") || "").toLowerCase(); // "employee" or "institute"
 
+  const IN_CODE_ROLES = [
+    {
+      code: "admin_institut",
+      name: "Admin Institut",
+      permissions: [
+        { code: "pro_portal_access" },
+        { code: "agenda_view" },
+        { code: "reservations_manage" },
+        { code: "clients_manage" },
+        { code: "services_manage" },
+        { code: "employees_manage" },
+        { code: "billing_access" },
+        { code: "reports_view" },
+        { code: "settings_edit" },
+      ],
+    },
+    {
+      code: "receptionniste",
+      name: "Réceptionniste",
+      permissions: [
+        { code: "pro_portal_access" },
+        { code: "agenda_view" },
+        { code: "reservations_manage" },
+      ],
+    },
+    {
+      code: "praticienne",
+      name: "Praticienne",
+      permissions: [
+        { code: "pro_portal_access" },
+        { code: "agenda_view" },
+      ],
+    },
+  ];
+
+  if (scope === "institute") {
+    return NextResponse.json({ roles: IN_CODE_ROLES });
+  }
+
   const EMPLOYEE_ROLE_CODES = [
-    // Institute-specific employee roles (business-scoped), independent from SaaS admin
-    "admin_institut",
-    "manager",
-    "gestionnaire",
-    "receptionniste",
-    "praticien",
-    "agent_commercial",
-    // keep legacy/professional roles for backward compatibility if already used
     "PRO",
     "PROFESSIONNEL",
     "support",
     "gestion_clients",
   ];
 
-  const INSTITUTE_ROLE_CODES = [
-    "admin_institut",
-    "manager",
-    "gestionnaire",
-    "receptionniste",
-    "praticien",
-    "agent_commercial",
-  ];
-
   const where: any = scope === "employee"
     ? { code: { in: EMPLOYEE_ROLE_CODES } }
-    : scope === "institute"
-      ? { code: { in: INSTITUTE_ROLE_CODES } }
-      : {};
+    : {};
 
   const roles = await prisma.roles.findMany({
     where,

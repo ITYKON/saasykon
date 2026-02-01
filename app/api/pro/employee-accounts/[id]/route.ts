@@ -38,18 +38,15 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       const norm = trimmed.toLowerCase();
       const labelMap: Record<string, string> = {
         admin_institut: "Admin Institut",
-        manager: "Manager",
-        gestionnaire: "Gestionnaire",
         receptionniste: "Réceptionniste",
-        praticien: "Praticien",
-        agent_commercial: "Agent commercial",
+        praticienne: "Praticienne",
+      
       };
       const exactRole = trimmed ? (labelMap[norm] || trimmed) : null;
-      await tx.employee_roles.deleteMany({ where: { employee_id: employeeId } });
       if (exactRole) {
         await tx.employee_roles.create({ data: { employee_id: employeeId, role: exactRole } });
       }
-      await tx.employees.update({ where: { id: employeeId }, data: { profession_label: exactRole } });
+      // REMOVED: No longer overwriting profession_label (Poste) with access level
     }
 
     // Link to user if provided (account linkage only)
@@ -146,7 +143,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     email: emp.email,
     phone: emp.phone,
     is_active: emp.is_active,
-    role: emp.profession_label || (emp.employee_roles[0]?.role === 'MANAGER' ? 'Manager' : emp.employee_roles[0]?.role === 'STAFF' ? 'Staff' : emp.employee_roles[0]?.role || null),
+    role: emp.employee_roles[0]?.role || null,
     permission_codes: perms.map((p: any) => p.pro_permissions?.code).filter(Boolean),
   });
 }

@@ -35,55 +35,13 @@ export async function POST(req: NextRequest) {
     { code: "billing_access", description: "Accès à la facturation", space: 'pro' },
     { code: "reports_view", description: "Voir les statistiques", space: 'pro' },
     { code: "settings_edit", description: "Modifier les paramètres", space: 'pro' },
-    { code: "support", description: "Support Client", space: 'pro' },
     { code: "admin", description: "Administration complète", space: 'admin' },
   ];
 
   const ROLES: { code: string; name: string; permissions: string[]; space: 'admin' | 'pro' }[] = [
     { code: "ADMIN", name: "Admin", permissions: ["admin"], space: 'admin' },
-    { code: "support", name: "Support Client", permissions: ["support", "pro_portal_access"], space: 'pro' },
-    // Institute-specific employee roles (business-scoped)
-    { code: "admin_institut", name: "Admin Institut", permissions: [
-      "pro_portal_access",
-      "agenda_view",
-      "reservations_manage",
-      "clients_manage",
-      "services_manage",
-      "employees_manage",
-      "billing_access",
-      "reports_view",
-      "settings_edit",
-    ], space: 'pro' },
-    { code: "manager", name: "Manager", permissions: [
-      "pro_portal_access",
-      "agenda_view",
-      "reservations_manage",
-      "clients_manage",
-      "services_manage",
-      "employees_manage",
-      "reports_view",
-    ], space: 'pro' },
-    { code: "gestionnaire", name: "Gestionnaire", permissions: [
-      "pro_portal_access",
-      "agenda_view",
-      "reservations_manage",
-      "clients_manage",
-      "services_manage",
-      "reports_view",
-    ], space: 'pro' },
-    { code: "receptionniste", name: "Réceptionniste", permissions: [
-      "pro_portal_access",
-      "agenda_view",
-      "reservations_manage",
-    ], space: 'pro' },
-    { code: "praticien", name: "Praticien", permissions: [
-      "pro_portal_access",
-      "agenda_view",
-    ], space: 'pro' },
-    { code: "agent_commercial", name: "Agent commercial", permissions: [
-      "pro_portal_access",
-      "reports_view",
-    ], space: 'pro' },
+   
+  
     {
       code: "PRO",
       name: "Professionnel",
@@ -112,9 +70,7 @@ export async function POST(req: NextRequest) {
       space: 'pro'
     },
     { code: "receptionniste", name: "Réceptionniste", permissions: ["pro_portal_access", "agenda_view", "reservations_manage"], space: 'pro' },
-    { code: "praticien", name: "Praticien", permissions: ["pro_portal_access", "agenda_view"], space: 'pro' },
-    { code: "gestion_clients", name: "Gestion clients", permissions: ["pro_portal_access", "clients_manage"], space: 'pro' },
-    { code: "agent_commercial", name: "Agent commercial", permissions: ["pro_portal_access", "reports_view"], space: 'pro' },
+    { code: "praticienne", name: "Praticienne", permissions: ["pro_portal_access", "agenda_view"], space: 'pro' },
   ];
 
   await prisma.$transaction(async (tx) => {
@@ -125,6 +81,16 @@ export async function POST(req: NextRequest) {
         await tx.permissions.update({ where: { code: p.code }, data: { description: p.description } });
       } else {
         await tx.permissions.create({ data: { code: p.code, description: p.description } });
+      }
+
+      // Also upsert into pro_permissions if space is 'pro'
+      if (p.space === 'pro') {
+        const existingPro = await tx.pro_permissions.findUnique({ where: { code: p.code } });
+        if (existingPro) {
+          await tx.pro_permissions.update({ where: { code: p.code }, data: { description: p.description } });
+        } else {
+          await tx.pro_permissions.create({ data: { code: p.code, description: p.description } });
+        }
       }
     }
 
