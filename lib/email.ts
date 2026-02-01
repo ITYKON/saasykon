@@ -1,8 +1,29 @@
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 const EMAIL_FROM = process.env.EMAIL_FROM || 'onboarding@resend.dev';
+
+// Lazy loading - n'instancie Resend qu'à la première utilisation
+let resendInstance: Resend | null = null;
+
+function getResend(): Resend {
+  if (!resendInstance) {
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey) {
+      console.error("RESEND_API_KEY manquante");
+      // Pendant le build, on retourne un mock
+      if (process.env.NEXT_PHASE === 'phase-production-build') {
+        return {
+          emails: {
+            send: async () => ({ data: { id: 'build-mock-id' }, error: null })
+          }
+        } as any;
+      }
+      throw new Error("RESEND_API_KEY manquante");
+    }
+    resendInstance = new Resend(apiKey);
+  }
+  return resendInstance;
+}
 
 export interface EmailSendResult {
   messageId: string;
@@ -23,9 +44,10 @@ export async function sendEmail(opts: {
   html: string;
   text?: string;
   category?: string;
-  sandbox?: boolean; // Ajouté pour compatibilité avec le code existant
+  sandbox?: boolean;
 }): Promise<EmailSendResult> {
   try {
+    const resend = getResend();
     const { data, error } = await resend.emails.send({
       from: EMAIL_FROM,
       to: opts.to,
