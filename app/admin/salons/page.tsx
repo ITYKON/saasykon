@@ -23,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import Image from "next/image";
 import Link from "next/link";
 import { SalonFormModal } from "@/components/admin/SalonFormModal";
@@ -323,8 +324,9 @@ function AdminSalonsContent() {
       {/* Search and Filters */}
       <Card>
         <CardContent className="p-3 sm:p-4">
-          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-            <div className="flex-1">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-xs font-medium text-gray-500 ml-1">Recherche</Label>
               <Input
                 placeholder="Rechercher un salon..."
                 className="w-full"
@@ -332,63 +334,79 @@ function AdminSalonsContent() {
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full sm:w-48">
-                <SelectValue placeholder="Statut" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tous</SelectItem>
-                <SelectItem value="active">Actif</SelectItem>
-                <SelectItem value="pending_verification">En attente</SelectItem>
-                <SelectItem value="suspended">Suspendu</SelectItem>
-                <SelectItem value="inactive">Inactif</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select
-              value={subscriptionFilter}
-              onValueChange={setSubscriptionFilter}
-            >
-              <SelectTrigger className="w-full sm:w-48">
-                <SelectValue placeholder="Abonnement" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tous</SelectItem>
-                <SelectItem value="Premium">Premium</SelectItem>
-                <SelectItem value="Pro">Pro</SelectItem>
-                <SelectItem value="Basic">Basic</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={cityFilter} onValueChange={setCityFilter}>
-              <SelectTrigger className="w-full sm:w-48">
-                <SelectValue placeholder="Ville" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Toutes</SelectItem>
-                {wilayas.map((wilaya) => (
-                  <SelectItem key={wilaya} value={wilaya}>
-                    {wilaya}
+            
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-xs font-medium text-gray-500 ml-1">Statut</Label>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Statut" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tous</SelectItem>
+                  <SelectItem value="active">Actif</SelectItem>
+                  <SelectItem value="pending_verification">En attente</SelectItem>
+                  <SelectItem value="suspended">Suspendu</SelectItem>
+                  <SelectItem value="inactive">Inactif</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-xs font-medium text-gray-500 ml-1">Abonnement</Label>
+              <Select
+                value={subscriptionFilter}
+                onValueChange={setSubscriptionFilter}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Abonnement" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tous</SelectItem>
+                  <SelectItem value="Premium">Premium</SelectItem>
+                  <SelectItem value="Pro">Pro</SelectItem>
+                  <SelectItem value="Basic">Basic</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-xs font-medium text-gray-500 ml-1">Wilaya</Label>
+              <Select value={cityFilter} onValueChange={setCityFilter}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Ville" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Toutes</SelectItem>
+                  {wilayas.map((wilaya) => (
+                    <SelectItem key={wilaya} value={wilaya}>
+                      {wilaya}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-xs font-medium text-gray-500 ml-1">Revendication</Label>
+              <Select
+                value={claimStatusFilter}
+                onValueChange={setClaimStatusFilter}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Revendication" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tous</SelectItem>
+                  <SelectItem value="none">
+                    Disponible
                   </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select
-              value={claimStatusFilter}
-              onValueChange={setClaimStatusFilter}
-            >
-              <SelectTrigger className="w-full sm:w-48">
-                <SelectValue placeholder="Revendication" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tous</SelectItem>
-                <SelectItem value="none">
-                  Disponible pour revendication
-                </SelectItem>
-                <SelectItem value="pending">
-                  Revendication en attente
-                </SelectItem>
-                <SelectItem value="approved">Revendiqué</SelectItem>
-              </SelectContent>
-            </Select>
+                  <SelectItem value="pending">
+                    En attente
+                  </SelectItem>
+                  <SelectItem value="approved">Revendiqué</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardContent>
       </Card>
