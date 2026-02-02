@@ -1366,19 +1366,23 @@ export default function ProAgenda() {
     const days = getMonthMatrix(currentDate);
     const month = currentDate.getMonth();
     const todayKey = fmtKey(new Date());
-    const maxVisible = 3; // show up to 3 events per day cell
+    const maxVisible = isMobile ? 0 : 3; // show up to 3 events per day cell on desktop, none on mobile (indicators used instead)
     const monthEvents = liveMonthDays || getMonthEvents(days);
 
+    // Filter events for the currently selected day on mobile
+    const selectedDayKey = fmtKey(currentDate);
+    const selectedDayEvents = monthEvents[selectedDayKey] || [];
+
     return (
-      <div className="bg-white rounded-xl p-4 border border-gray-200">
+      <div className="bg-white rounded-xl p-2 sm:p-4 border border-gray-200">
         {/* Weekday header */}
         <div className="grid grid-cols-7 gap-0">
           {["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"].map((n) => (
             <div
               key={n}
-              className="text-[11px] font-medium text-gray-500 text-center py-2 uppercase tracking-wide"
+              className="text-[10px] sm:text-[11px] font-medium text-gray-500 text-center py-2 uppercase tracking-wide"
             >
-              {n}
+              {isMobile ? n.charAt(0) : n}
             </div>
           ))}
         </div>
@@ -1389,6 +1393,7 @@ export default function ProAgenda() {
             const key = fmtKey(d);
             const isOther = d.getMonth() !== month;
             const isToday = key === todayKey;
+            const isSelected = key === selectedDayKey;
             const evts = monthEvents[key] ?? [];
             const visible = evts.slice(0, maxVisible);
             const overflow = Math.max(0, evts.length - visible.length);
@@ -1396,101 +1401,179 @@ export default function ProAgenda() {
             return (
               <div
                 key={key}
-                className={`relative min-h-[112px] bg-white ${
+                className={`relative ${isMobile ? "min-h-[50px]" : "min-h-[112px]"} bg-white ${
                   isOther ? "opacity-50" : ""
-                }`}
+                } ${isMobile && isSelected ? "bg-blue-50/50" : ""}`}
+                onClick={() => {
+                  if (isMobile) {
+                    setCurrentDate(new Date(d.getFullYear(), d.getMonth(), d.getDate()));
+                  }
+                }}
                 onDoubleClick={() => {
-                  setPrefillDate(
-                    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(
-                      d.getDate()
-                    )}`
-                  );
-                  setPrefillTime(`${pad(Math.floor(workingStartMin/60))}:${pad(workingStartMin%60)}`);
-                  setPrefillEmployeeId("none");
-                  setOpenSignal((s) => s + 1);
+                  if (!isMobile) {
+                    setPrefillDate(
+                      `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(
+                        d.getDate()
+                      )}`
+                    );
+                    setPrefillTime(`${pad(Math.floor(workingStartMin/60))}:${pad(workingStartMin%60)}`);
+                    setPrefillEmployeeId("none");
+                    setOpenSignal((s) => s + 1);
+                  }
                 }}
               >
-                <div className="h-full p-2">
+                <div className={`h-full ${isMobile ? "p-1" : "p-2"}`}>
                   {/* Day number */}
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-center sm:justify-between">
                     <button
-                      className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                      className={`text-[10px] sm:text-xs font-medium px-1.5 sm:px-2 py-0.5 rounded-full ${
                         isToday
+                          ? "bg-blue-600 text-white"
+                          : isSelected && isMobile
                           ? "bg-black text-white"
                           : isOther
                           ? "text-gray-400"
                           : "text-gray-700"
                       }`}
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.stopPropagation();
                         setCurrentDate(
                           new Date(d.getFullYear(), d.getMonth(), d.getDate())
                         );
-                        setView("day");
+                        if (!isMobile) setView("day");
                       }}
                     >
                       {d.getDate()}
                     </button>
                   </div>
 
-                  {/* Events */}
-                  <div className="mt-2 space-y-1">
-                    {visible.map((e, i) => {
-                      const badgeColor = e.color || colorMap[norm(e.employee || "")] || "#3b82f6";
-                      const duration = typeof e.durationMin === 'number' ? e.durationMin : (e as any)?.duration_minutes;
-                      const price = typeof e.priceDA === 'number' ? e.priceDA : Math.round(((e as any)?.price_cents || 0) / 100);
-                      return (
+                  {/* Events - Desktop View */}
+                  {!isMobile && (
+                    <div className="mt-2 space-y-1">
+                      {visible.map((e, i) => {
+                        const badgeColor = e.color || colorMap[norm(e.employee || "")] || "#3b82f6";
+                        const duration = typeof e.durationMin === 'number' ? e.durationMin : (e as any)?.duration_minutes;
+                        const price = typeof e.priceDA === 'number' ? e.priceDA : Math.round(((e as any)?.price_cents || 0) / 100);
+                        return (
+                          <button
+                            key={i}
+                            className="w-full flex items-center gap-2 rounded-md border px-2 py-1 text-xs shadow-sm hover:bg-gray-50 cursor-pointer text-left"
+                            onClick={() => {
+                              setDetail({
+                                dateStr: `${d.getFullYear()}-${pad(
+                                  d.getMonth() + 1
+                                )}-${pad(d.getDate())}`,
+                                time: e.time,
+                                title: e.title,
+                                employee: e.employee,
+                                service: e.service,
+                                durationMin: typeof duration === 'number' ? duration : undefined,
+                                priceDA: typeof price === 'number' && isFinite(price) ? price : undefined,
+                                color: badgeColor,
+                                client: (e as any)?.client,
+                                clientPhone: (e as any)?.client_phone,
+                              });
+                              setDetailOpen(true);
+                            }}
+                          >
+                            <span
+                              className="h-3 w-1.5 rounded-sm"
+                              style={{ backgroundColor: badgeColor }}
+                            />
+                            <div className="truncate text-gray-800">
+                              <span className="font-semibold">{(e as any).client || 'Client'}</span> • {e.title}
+                            </div>
+                            <div className="truncate text-[10px] text-gray-500 italic">
+                              {(e as any).employee}
+                            </div>
+                          </button>
+                        );
+                      })}
+                      {overflow > 0 && (
                         <button
-                          key={i}
-                          className="w-full flex items-center gap-2 rounded-md border px-2 py-1 text-xs shadow-sm hover:bg-gray-50 cursor-pointer text-left"
+                          className="text-[11px] text-blue-600 hover:underline"
                           onClick={() => {
-                            setDetail({
-                              dateStr: `${d.getFullYear()}-${pad(
-                                d.getMonth() + 1
-                              )}-${pad(d.getDate())}`,
-                              time: e.time,
-                              title: e.title,
-                              employee: e.employee,
-                              service: e.service,
-                              durationMin: typeof duration === 'number' ? duration : undefined,
-                              priceDA: typeof price === 'number' && isFinite(price) ? price : undefined,
-                              color: badgeColor,
-                              client: (e as any)?.client,
-                              clientPhone: (e as any)?.client_phone,
-                            });
-                            setDetailOpen(true);
+                            setDayListDate(d);
+                            setDayListEvents(evts);
+                            setDayListOpen(true);
                           }}
                         >
-                          <span
-                            className="h-3 w-1.5 rounded-sm"
-                            style={{ backgroundColor: badgeColor }}
-                          />
-                          <div className="truncate text-gray-800">
-                            <span className="font-semibold">{(e as any).client || 'Client'}</span> • {e.title}
-                          </div>
-                          <div className="truncate text-[10px] text-gray-500 italic">
-                            {(e as any).employee}
-                          </div>
+                          +{overflow} autres
                         </button>
-                      );
-                    })}
-                    {overflow > 0 && (
-                      <button
-                        className="text-[11px] text-blue-600 hover:underline"
-                        onClick={() => {
-                          setDayListDate(d);
-                          setDayListEvents(evts);
-                          setDayListOpen(true);
-                        }}
-                      >
-                        +{overflow} autres
-                      </button>
-                    )}
-                  </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Event indicators - Mobile View */}
+                  {isMobile && evts.length > 0 && (
+                    <div className="mt-1 flex flex-wrap justify-center gap-0.5">
+                      {evts.slice(0, 4).map((e, i) => (
+                        <div 
+                          key={i} 
+                          className="h-1 w-1 rounded-full" 
+                          style={{ backgroundColor: e.color || colorMap[norm(e.employee || "")] || "#3b82f6" }}
+                        />
+                      ))}
+                      {evts.length > 4 && <div className="h-1 w-1 rounded-full bg-gray-400" />}
+                    </div>
+                  )}
                 </div>
               </div>
             );
           })}
         </div>
+
+            {/* Selected Day Events List - Mobile Only */}
+            {isMobile && (
+              <div className="mt-4 border-t pt-4">
+                <h3 className="text-sm font-semibold mb-3">
+                  Rendez-vous du {new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long' }).format(currentDate)}
+                </h3>
+            {selectedDayEvents.length > 0 ? (
+              <div className="space-y-2">
+                {selectedDayEvents.map((e, i) => {
+                  const badgeColor = e.color || colorMap[norm(e.employee || "")] || "#3b82f6";
+                  const duration = typeof e.durationMin === 'number' ? e.durationMin : (e as any)?.duration_minutes;
+                  return (
+                    <div 
+                      key={i} 
+                      className="bg-neutral-50 rounded-lg p-3 border-l-4 shadow-sm flex justify-between items-center"
+                      style={{ borderLeftColor: badgeColor }}
+                      onClick={() => {
+                        setDetail({
+                          dateStr: fmtKey(currentDate),
+                          time: e.time,
+                          title: e.title,
+                          employee: e.employee,
+                          service: e.service,
+                          durationMin: typeof duration === 'number' ? duration : undefined,
+                          color: badgeColor,
+                          client: (e as any)?.client,
+                          clientPhone: (e as any)?.client_phone,
+                        });
+                        setDetailOpen(true);
+                      }}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-gray-900">{e.time || '--:--'}</span>
+                          <span className="text-sm font-semibold text-gray-900 truncate">{(e as any).client || 'Client'}</span>
+                        </div>
+                        <div className="text-xs text-gray-600 truncate mt-0.5">{e.title}</div>
+                        <div className="text-[10px] text-gray-500 italic mt-0.5">{e.employee}</div>
+                      </div>
+                      <ChevronRight className="h-4 w-4 text-gray-400 shrink-0" />
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="py-8 text-center bg-gray-50 rounded-lg border border-dashed border-gray-300">
+                <p className="text-sm text-gray-500">Aucun rendez-vous pour ce jour</p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     );
   };
@@ -1967,19 +2050,21 @@ export default function ProAgenda() {
               </Dialog>
               )}
 
-              <CreateReservationModal
-                defaultDate={prefillDate}
-                defaultTime={prefillTime}
-                defaultEmployeeId={prefillEmployeeId}
-                forceOpenSignal={openSignal}
-                onCreated={() => setRefreshKey((k) => k + 1)}
-                trigger={
-                  <Button className="bg-black text-white hover:bg-neutral-800 rounded-lg px-4">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Nouveau rendez-vous
-                  </Button>
-                }
-              />
+              {!isMobile && (
+                <CreateReservationModal
+                  defaultDate={prefillDate}
+                  defaultTime={prefillTime}
+                  defaultEmployeeId={prefillEmployeeId}
+                  forceOpenSignal={openSignal}
+                  onCreated={() => setRefreshKey((k) => k + 1)}
+                  trigger={
+                    <Button className="bg-black text-white hover:bg-neutral-800 rounded-lg px-2 sm:px-4 h-8 sm:h-10 text-xs sm:text-sm whitespace-nowrap">
+                      <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-0 sm:mr-2" />
+                      <span className="hidden xs:inline">Nouveau rendez-vous</span>
+                    </Button>
+                  }
+                />
+              )}
             </div>
           </div>
         </div>
@@ -1990,6 +2075,24 @@ export default function ProAgenda() {
         {view === "week" && renderWeekView()}
         {view === "month" && renderMonthView()}
       </div>
+
+      {/* Mobile Floating Action Button (FAB) */}
+      {isMobile && (
+        <CreateReservationModal
+          defaultDate={fmtKey(currentDate)}
+          defaultTime={`${pad(Math.floor(workingStartMin / 60))}:${pad(workingStartMin % 60)}`}
+          defaultEmployeeId={prefillEmployeeId}
+          onCreated={() => setRefreshKey((k) => k + 1)}
+          trigger={
+            <Button 
+              className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-2xl bg-black text-white hover:bg-neutral-800 z-50 flex items-center justify-center p-0"
+              size="icon"
+            >
+              <Plus className="h-6 w-6" />
+            </Button>
+          }
+        />
+      )}
 
       {/* Create appointment handled by CreateReservationModal */}
 
