@@ -19,7 +19,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  const { is_active, profession, user_email, permission_codes } = body || {};
+  const { is_active, employee_role, user_email, permission_codes } = body || {};
 
   const account = await prisma.employee_accounts.findFirst({ where: { employee_id: employeeId } });
   const user = user_email ? await prisma.users.findUnique({ where: { email: user_email } }) : null;
@@ -32,21 +32,21 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       await tx.employees.update({ where: { id: employeeId }, data });
     }
 
-    // Update profession: store exact label in employee_roles + set employees.profession_label
-    if (typeof profession === "string") {
-      const trimmed = profession.trim();
+    // Update role: store exact label in employee_roles (used as Access Level)
+    if (typeof employee_role === "string") {
+      const trimmed = employee_role.trim();
       const norm = trimmed.toLowerCase();
       const labelMap: Record<string, string> = {
         admin_institut: "Admin Institut",
         receptionniste: "Réceptionniste",
         praticienne: "Praticienne",
-      
       };
       const exactRole = trimmed ? (labelMap[norm] || trimmed) : null;
       if (exactRole) {
+        // Clear existing roles and set new one
+        await tx.employee_roles.deleteMany({ where: { employee_id: employeeId } });
         await tx.employee_roles.create({ data: { employee_id: employeeId, role: exactRole } });
       }
-      // REMOVED: No longer overwriting profession_label (Poste) with access level
     }
 
     // Link to user if provided (account linkage only)
