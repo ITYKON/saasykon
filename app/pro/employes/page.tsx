@@ -394,7 +394,14 @@ export default function EmployeesPage() {
 
   const handleEditEmployee = (employee: any) => {
     setSelectedEmployee(employee)
-    setEmployeeAccessRole(employee.accessLevel || "")
+    // Normalize DB label to code
+    const roleLabel = employee.accessLevel || ""
+    let roleCode = roleLabel
+    if (roleLabel === "Praticienne") roleCode = "praticienne"
+    else if (roleLabel === "Réceptionniste") roleCode = "receptionniste"
+    else if (roleLabel === "Admin Institut") roleCode = "admin_institut"
+    
+    setEmployeeAccessRole(roleCode)
     setSelectedPermissionCodes(employee.permissions || [])
     setIsEditDialogOpen(true)
   }
@@ -606,7 +613,17 @@ export default function EmployeesPage() {
                 <h1 className="text-xl sm:text-3xl font-bold text-gray-900">Gestion des employés</h1>
                 <p className="hidden sm:block text-gray-600">Gérez votre équipe, leurs services et leurs horaires de travail.</p>
               </div>
-                  <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+                  <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
+                    setIsAddDialogOpen(open);
+                    if (open) {
+                      setEmployeeAccessRole("praticienne");
+                      setSelectedPermissionCodes(['pro_portal_access', 'agenda_view']);
+                      setCreateEmail("");
+                      setAddDays(new Set(["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi"]));
+                      setAddStart("09:00");
+                      setAddEnd("18:00");
+                    }
+                  }}>
             <DialogTrigger asChild>
               <Button size="sm" className="bg-black text-white hover:bg-gray-800 flex-shrink-0">
                 <Plus className="h-4 w-4 mr-1 sm:mr-2" />
@@ -699,13 +716,22 @@ export default function EmployeesPage() {
                           </div>
                           <div>
                             <Label className="mb-1.5 block">Rôle d'accès</Label>
-                            <Select value={employeeAccessRole} onValueChange={setEmployeeAccessRole}>
+                            <Select value={employeeAccessRole} onValueChange={(val) => {
+                              setEmployeeAccessRole(val)
+                              if (val === 'praticienne') {
+                                setSelectedPermissionCodes(['pro_portal_access', 'agenda_view'])
+                              } else if (val === 'receptionniste') {
+                                setSelectedPermissionCodes(['pro_portal_access', 'agenda_view', 'reservations_manage', 'clients_manage'])
+                              } else if (val === 'admin_institut') {
+                                setSelectedPermissionCodes(proPermissions.map(p => p.code))
+                              }
+                            }}>
                               <SelectTrigger>
                                 <SelectValue placeholder="Choisir un rôle" />
                               </SelectTrigger>
                               <SelectContent>
                                 {employeeRoleOptions.map(opt => (
-                                  <SelectItem key={opt.value} value={opt.label}>{opt.label}</SelectItem>
+                                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
                                 ))}
                               </SelectContent>
                             </Select>
@@ -1063,13 +1089,22 @@ export default function EmployeesPage() {
                           
                           <div>
                             <Label className="mb-1.5 block">Rôle d'accès</Label>
-                            <Select value={employeeAccessRole} onValueChange={setEmployeeAccessRole}>
+                            <Select value={employeeAccessRole} onValueChange={(val) => {
+                              setEmployeeAccessRole(val)
+                              if (val === 'praticienne') {
+                                setSelectedPermissionCodes(['pro_portal_access', 'agenda_view'])
+                              } else if (val === 'receptionniste') {
+                                setSelectedPermissionCodes(['pro_portal_access', 'agenda_view', 'reservations_manage', 'clients_manage'])
+                              } else if (val === 'admin_institut') {
+                                setSelectedPermissionCodes(proPermissions.map(p => p.code))
+                              }
+                            }}>
                               <SelectTrigger>
                                 <SelectValue placeholder="Choisir un rôle" />
                               </SelectTrigger>
                               <SelectContent>
                                 {employeeRoleOptions.map(opt => (
-                                  <SelectItem key={opt.value} value={opt.label}>{opt.label}</SelectItem>
+                                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
                                 ))}
                               </SelectContent>
                             </Select>
