@@ -580,17 +580,18 @@ export default function EmployeesPage() {
       <div>
         {/* Page Header */}
         <header className="bg-white border-b border-gray-200">
-          <div className="px-6 py-4">
-            <div className="flex justify-between items-center">
+          <div className="px-4 sm:px-6 py-3 sm:py-4">
+            <div className="flex flex-row justify-between items-center gap-4">
               <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Gestion des employés</h1>
-          <p className="text-gray-600">Gérez votre équipe, leurs services et leurs horaires de travail.</p>
-        </div>
+                <h1 className="text-xl sm:text-3xl font-bold text-gray-900">Gestion des employés</h1>
+                <p className="hidden sm:block text-gray-600">Gérez votre équipe, leurs services et leurs horaires de travail.</p>
+              </div>
                   <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
-              <Button className="bg-black text-white hover:bg-gray-800">
-                <Plus className="h-4 w-4 mr-2" />
-                Nouvel employé
+              <Button size="sm" className="bg-black text-white hover:bg-gray-800 flex-shrink-0">
+                <Plus className="h-4 w-4 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">Nouvel employé</span>
+                <span className="sm:hidden">Ajouter</span>
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -743,103 +744,96 @@ export default function EmployeesPage() {
         </header>
 
         {/* Actions Bar */}
-        <div className="p-6">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+        <div className="p-4 sm:p-6">
+        <div className="mb-4 sm:mb-6">
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
             <Input
               placeholder="Rechercher un employé..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
+              className="pl-10 h-10"
             />
           </div>
-
         </div>
 
         {/* Employees Grid */}
         <div className="grid gap-0">
           {filteredEmployees.map((employee) => (
-            <Card key={employee.id} className="hover:shadow-md transition-shadow overflow-hidden">
-              <CardContent className="p-4">
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                  {/* Employee Info */}
-                  <div className="flex items-start space-x-4">
-                    <Avatar className="h-16 w-16">
+            <Card key={employee.id} className="hover:shadow-md transition-shadow overflow-hidden mb-0 border-x-0 sm:border-x sm:mb-2 sm:rounded-xl rounded-none relative">
+              <CardContent className="p-3 sm:p-4">
+                {/* Fixed Top Actions for Mobile & Desktop */}
+                <div className="absolute top-2 right-2 flex gap-1 z-10">
+                  <Button variant="ghost" size="icon" className="h-7 w-7 sm:h-8 sm:w-8 text-gray-500 hover:text-black hover:bg-gray-100" onClick={() => handleViewEmployee(employee)}>
+                    <Eye className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 sm:h-8 sm:w-8 text-gray-500 hover:text-black hover:bg-gray-100" onClick={() => handleEditEmployee(employee)}>
+                    <Edit className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 sm:h-8 sm:w-8 text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => handleDeleteEmployee(employee.id)}>
+                    <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  </Button>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  {/* Top Row: Avatar, Name, Badges, Stats */}
+                  <div className="flex items-start gap-3 pr-24"> {/* Added padding-right to avoid overlap with buttons */}
+                    <Avatar className="h-10 w-10 sm:h-14 sm:w-14 flex-shrink-0">
                       <AvatarImage src={employee.avatar || "/placeholder.svg"} />
-                      <AvatarFallback>
-                        <User className="h-8 w-8" />
-                      </AvatarFallback>
+                      <AvatarFallback><User className="h-5 w-5 sm:h-7 sm:w-7 text-gray-400" /></AvatarFallback>
                     </Avatar>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-lg font-semibold text-gray-900">{employee.name}</h3>
-                        <div className="flex gap-2">
-                          <Badge variant={employee.status === "Actif" ? "default" : "secondary"}>{employee.status}</Badge>
-                          {employee.hasAccount ? (
-                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                              <Shield className="h-3 w-3 mr-1" />
-                              {employee.accessLevel || "Compte"}
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className="bg-gray-50 text-gray-500 border-gray-200">Sans compte</Badge>
-                          )}
-                        </div>
+                    
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mb-1">
+                        <h3 className="text-[13px] sm:text-base font-bold text-gray-900 truncate">{employee.name}</h3>
+                        <Badge variant={employee.status === "Actif" ? "default" : "secondary"} className="h-3.5 sm:h-4 px-1 text-[8px] sm:text-[9px] uppercase tracking-wider">{employee.status}</Badge>
                       </div>
-                      <p className="text-gray-600 mb-1">{employee.post}</p>
-                      <div className="flex items-center gap-4 text-sm text-gray-500">
-                        <div className="flex items-center gap-1">
-                          <Mail className="h-4 w-4" />
-                          {employee.email}
+                      
+                      <p className="text-[10px] sm:text-xs text-gray-600 mb-1 font-medium">{employee.post}</p>
+
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-0.5 bg-yellow-50 px-1 py-0.5 rounded border border-yellow-100">
+                          <span className="text-yellow-500 text-[9px]">★</span>
+                          <span className="text-[9px] font-bold text-yellow-700">{employee.rating || 5.0}</span>
                         </div>
-                        <div className="flex items-center gap-1">
-                          <Phone className="h-4 w-4" />
-                          {employee.phone}
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-[11px] font-bold text-gray-900">{employee.totalClients || 0}</span>
+                          <span className="text-[9px] text-gray-500 font-medium">clients</span>
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* Schedule */}
-                  <div className="flex-1 lg:max-w-md">
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <div className="flex items-center gap-1 text-gray-600 mb-1">
-                          <Clock className="h-4 w-4" />
-                          Horaires
-                        </div>
-                        <p className="font-medium">{employee.workHours}</p>
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-1 text-gray-600 mb-1">
-                          <Calendar className="h-4 w-4" />
-                          Jours de travail
-                        </div>
-                        <p className="font-medium">{employee.workDays.join(", ")}</p>
-                      </div>
+                  {/* Contact & Badges Unified */}
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] sm:text-[11px] text-gray-500">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <Mail className="h-3 w-3 text-gray-400 shrink-0" />
+                      <span className="truncate max-w-[120px] sm:max-w-none">{employee.email}</span>
                     </div>
+                    {employee.phone && (
+                      <div className="flex items-center gap-1.5">
+                        <Phone className="h-3 w-3 text-gray-400 shrink-0" />
+                        <span>{employee.phone}</span>
+                      </div>
+                    )}
+                    {employee.hasAccount && (
+                      <Badge variant="outline" className="h-3.5 bg-green-50 text-green-700 border-green-200 text-[8px] px-1 leading-none uppercase tracking-tighter sm:tracking-normal">
+                        <Shield className="h-2 w-2 mr-0.5" /> {employee.accessLevel || "Accès"}
+                      </Badge>
+                    )}
                   </div>
 
-                  {/* Stats & Actions */}
-                  <div className="flex flex-col items-end gap-4">
-                    <div className="text-right">
-                      <div className="text-2xl font-bold text-gray-900">{employee.totalClients}</div>
-                      <div className="text-sm text-gray-500">Clients</div>
-                      <div className="flex items-center gap-1 mt-1">
-                        <span className="text-yellow-500">★</span>
-                        <span className="text-sm font-medium">{employee.rating}</span>
+                  {/* Schedule Box - Ultra Compact */}
+                  <div className="bg-gray-50/60 rounded-md p-1.5 sm:p-2 border border-gray-100">
+                    <div className="grid grid-cols-2 gap-2 text-[9px] sm:text-[10px]">
+                      <div className="flex items-center gap-1.5">
+                        <Clock className="h-3 w-3 text-gray-400 shrink-0" />
+                        <span className="font-semibold text-gray-800 truncate">{employee.workHours}</span>
                       </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" onClick={() => handleViewEmployee(employee)}>
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={() => handleEditEmployee(employee)}>
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700 bg-transparent" onClick={() => handleDeleteEmployee(employee.id)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <div className="flex items-center gap-1.5">
+                        <Calendar className="h-3 w-3 text-gray-400 shrink-0" />
+                        <span className="font-semibold text-gray-800 truncate">{employee.workDays.join(", ")}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
