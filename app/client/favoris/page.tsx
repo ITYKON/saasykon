@@ -33,7 +33,7 @@ export default function ClientFavoris() {
 
   return (
     <div className="space-y-6">
-            <header className="bg-white border-b border-gray-200">
+            <header className="bg-white border-b border-gray-200 mb-0">
         <div className="px-8 py-6">
       <div className="flex justify-between items-center">
         <div>

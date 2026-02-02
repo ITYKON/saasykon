@@ -94,7 +94,7 @@ export default function ClientReservations() {
       </div>
       </header>
 {/* le corps avec son padding */}
-{/* <div  > */}
+<div className="px-6" >
       {/* Filters */}
       <Card>
         <CardContent className="p-4">
@@ -251,6 +251,6 @@ export default function ClientReservations() {
         </CardContent>
       </Card>
     </div>
-    // </div>
+    </div>
   )
 }

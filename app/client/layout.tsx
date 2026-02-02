@@ -43,7 +43,7 @@ function ClientSidebar({ onLinkClick }: { onLinkClick?: () => void }) {
     <aside className="sticky top-0 h-screen w-full overflow-y-auto">
       <div className="p-6">
         <div className="text-center mb-8">
-          <div className="flex justify-center mb-6">
+          {/* <div className="flex justify-center mb-6">
             <div className="relative h-28 w-28 rounded-full border-2 border-gray-200 overflow-hidden flex items-center justify-center">
               {authUser?.avatar_url ? (
                 <img 
@@ -60,8 +60,8 @@ function ClientSidebar({ onLinkClick }: { onLinkClick?: () => void }) {
               </div>
               )}
             </div>
-          </div>
-          <h2 className="text-xl font-semibold text-black">{authUser ? `${authUser.first_name || ""} ${authUser.last_name || ""}`.trim() : "Utilisateur"}</h2>
+          </div> */}
+          <h2 className="text-4xl font-semibold text-black">{authUser ? `${authUser.first_name || ""} ${authUser.last_name || ""}`.trim() : "Utilisateur"}</h2>
           <p className="text-gray-600 text-sm">{authUser?.email || ""}</p>
         </div>
 
@@ -163,7 +163,7 @@ export default function ClientLayout({
         </div>
 
         {/* Contenu principal */}
-        <main className="flex-1 overflow-y-auto p-4 lg:p-6 lg:ml-0 bg-white lg:bg-gray-50" style={{ minHeight: 'calc(100vh - 64px)' }}>
+        <main className="flex-1 overflow-y-auto lg:ml-0 bg-white lg:bg-gray-50" style={{ minHeight: 'calc(100vh - 64px)' }}>
           <div className="max-w-7xl mx-auto w-full">
             {children}
           </div>
