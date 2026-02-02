@@ -118,9 +118,34 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  
   const { full_name, email, phone, color, is_active, profession_label } = body || {};
   if (!full_name || typeof full_name !== "string") {
     return NextResponse.json({ error: "full_name required" }, { status: 400 });
+  }
+
+  const nameNorm = full_name.trim();
+  const emailNorm = typeof email === 'string' ? email.trim().toLowerCase() : null;
+
+  // Guard against duplicates: same name OR same email within same business
+  const existing = await prisma.employees.findFirst({
+    where: {
+      business_id: businessId,
+      OR: [
+        { full_name: { equals: nameNorm, mode: 'insensitive' as any } },
+        ...(emailNorm ? [{ email: { equals: emailNorm, mode: 'insensitive' as any } }] : []),
+      ],
+    },
+    select: { id: true, full_name: true, email: true },
+  } as any);
+
+  if (existing) {
+    const reason = existing.email && existing.email.toLowerCase() === emailNorm ? "Email déjà utilisé" : "Un employé avec ce nom existe déjà";
+    return NextResponse.json({ 
+      error: reason, 
+      code: "DUPLICATE_EMPLOYEE",
+      id: existing.id 
+    }, { status: 409 });
   }
 
   const created = await prisma.employees.create({

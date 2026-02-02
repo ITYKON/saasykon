@@ -88,6 +88,22 @@ export async function POST(req: NextRequest) {
     // Création d'un code unique
     const slug = (s: string) => s.toLowerCase().trim().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
     const baseCode = slug((code && typeof code === "string" ? code : name) || "cat");
+    const nameNorm = name.trim();
+
+    // Vérifier si une catégorie avec le même nom existe déjà
+    const existing = await prisma.service_categories.findFirst({
+      where: {
+        name: { equals: nameNorm, mode: 'insensitive' }
+      }
+    });
+
+    if (existing) {
+      return NextResponse.json({ 
+        error: "Une catégorie avec ce nom existe déjà",
+        id: existing.id,
+        name: existing.name
+      }, { status: 409 });
+    }
     
     // Tentative de création avec gestion des doublons
     for (let i = 0; i < 5; i++) {

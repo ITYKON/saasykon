@@ -90,6 +90,7 @@ export default function EmployeesPage() {
   const [employeeAccessRole, setEmployeeAccessRole] = useState<string>("")
   const [isAccountLoading, setIsAccountLoading] = useState(false)
   const [permQuery, setPermQuery] = useState("")
+  const [saving, setSaving] = useState(false)
 
   const employeeRoleOptions = [
     { value: "admin_institut", label: "Admin Institut" },
@@ -129,6 +130,7 @@ export default function EmployeesPage() {
 
   async function handleSaveOverrides() {
     if (!selectedEmployee?.id) return
+    setSaving(true)
     try {
       const payload = {
         overrides: overrides.map((o: any) => ({
@@ -148,6 +150,8 @@ export default function EmployeesPage() {
       alert("Exceptions enregistrées")
     } catch (e: any) {
       alert(e?.message || "Impossible d'enregistrer les exceptions")
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -180,7 +184,7 @@ export default function EmployeesPage() {
       )
 
       const out: UIEmployee[] = list.map((emp: any) => {
-        const servicesNames: string[] = (emp.employee_services || []).map((x: any) => x.services?.name).filter(Boolean)
+        const servicesNames: string[] = Array.from(new Set((emp.employee_services || []).map((x: any) => x.services?.name).filter(Boolean) as string[]))
         const hours = (emp.working_hours || [])
         let minStart: string | null = null
         let maxEnd: string | null = null
@@ -295,6 +299,20 @@ export default function EmployeesPage() {
       return
     }
 
+    // Front guard: avoid obvious duplicates if already loaded
+    const nameNorm = full_name.toLowerCase().trim()
+    const emailNorm = email.toLowerCase().trim()
+    const isDup = items.some(it => {
+      const sameName = it.name.toLowerCase().trim() === nameNorm
+      const sameEmail = emailNorm && it.email && it.email.toLowerCase().trim() === emailNorm
+      return sameName || sameEmail
+    })
+    if (isDup) {
+      alert("Un employé avec ce nom ou cet email existe déjà dans votre liste.")
+      return
+    }
+
+    setSaving(true)
     try {
       // 1) Create employee
       const createRes = await fetch(`/api/pro/employees` , {
@@ -361,6 +379,8 @@ export default function EmployeesPage() {
       await loadEmployees()
     } catch (e: any) {
       alert(e?.message || "Impossible d'ajouter l'employé")
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -430,6 +450,7 @@ export default function EmployeesPage() {
 
   async function handleSaveEdit() {
     if (!selectedEmployee?.id) return
+    setSaving(true)
     const nameEl = document.getElementById("edit-name") as HTMLInputElement | null
     const emailEl = document.getElementById("edit-email") as HTMLInputElement | null
     const phoneEl = document.getElementById("edit-phone") as HTMLInputElement | null
@@ -484,6 +505,8 @@ export default function EmployeesPage() {
       await loadEmployees()
     } catch (e: any) {
       alert(e?.message || "Erreur lors de la mise à jour")
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -493,6 +516,7 @@ export default function EmployeesPage() {
       alert("Dates requises")
       return
     }
+    setSaving(true)
     try {
       const res = await fetch(`/api/pro/employees/${selectedEmployee.id}/time-off`, {
         method: "POST",
@@ -707,7 +731,9 @@ export default function EmployeesPage() {
                   <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
                     Annuler
                   </Button>
-                  <Button type="submit" className="bg-black text-white hover:bg-gray-800">Ajouter l'employé</Button>
+                  <Button type="submit" disabled={saving} className="bg-black text-white hover:bg-gray-800">
+                    {saving ? "Chargement..." : "Ajouter l'employé"}
+                  </Button>
                 </div>
               </form>
             </DialogContent>
@@ -1085,8 +1111,10 @@ export default function EmployeesPage() {
                                 </div>
                                 <Input placeholder="Raison (optionnel)" value={toReason} onChange={(e) => setToReason(e.target.value)} />
                                 <div className="flex justify-end gap-2">
-                                  <Button type="button" variant="ghost" size="sm" onClick={() => { setShowTimeOffForm(false); setToStart(""); setToEnd(""); setToReason("") }}>Annuler</Button>
-                                  <Button type="button" variant="outline" size="sm" onClick={handleAddTimeOff}>Ajouter le congé</Button>
+                                  <Button type="button" variant="ghost" size="sm" onClick={() => { setShowTimeOffForm(false); setToStart(""); setToEnd(""); setToReason("") }} disabled={saving}>Annuler</Button>
+                                  <Button type="button" variant="outline" size="sm" onClick={handleAddTimeOff} disabled={saving}>
+                                    {saving ? "..." : "Ajouter le congé"}
+                                  </Button>
                                 </div>
                               </>
                             )}
@@ -1108,7 +1136,7 @@ export default function EmployeesPage() {
                           <div className="grid gap-2 mt-2">
                             {!showOverrideForm ? (
                               <div className="flex justify-start">
-                                <Button type="button" variant="outline" size="sm" onClick={() => setShowOverrideForm(true)}>Ajouter une disponibilité exceptionnelle</Button>
+                                <Button type="button" variant="outline" size="sm" onClick={() => setShowOverrideForm(true)} disabled={saving}>Ajouter une disponibilité exceptionnelle</Button>
                               </div>
                             ) : (
                               <>
@@ -1153,7 +1181,9 @@ export default function EmployeesPage() {
                                 )) : <div className="text-gray-500">Aucune exception</div>}
                             </div>
                             <div className="flex justify-end">
-                              <Button type="button" className="bg-black text-white hover:bg-gray-800" size="sm" onClick={handleSaveOverrides}>Enregistrer les exceptions</Button>
+                              <Button type="button" className="bg-black text-white hover:bg-gray-800" size="sm" onClick={handleSaveOverrides} disabled={saving}>
+                                {saving ? "..." : "Enregistrer les exceptions"}
+                              </Button>
                             </div>
                           </div>
                         </div>
@@ -1162,8 +1192,10 @@ export default function EmployeesPage() {
                   </Accordion>
                 </div>
                 <div className="flex justify-end space-x-2 pt-4 border-t mt-4">
-                  <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>Annuler</Button>
-                  <Button type="submit" className="bg-black text-white hover:bg-gray-800">Sauvegarder les modifications</Button>
+                  <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)} disabled={saving}>Annuler</Button>
+                  <Button type="submit" className="bg-black text-white hover:bg-gray-800" disabled={saving}>
+                    {saving ? "Sauvegarde..." : "Sauvegarder les modifications"}
+                  </Button>
                 </div>
               </form>
             )}

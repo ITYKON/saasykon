@@ -30,7 +30,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
   if (access.status !== 200) return NextResponse.json({ error: access.error }, { status: access.status });
   const body = await req.json().catch(() => null);
   if (!body || !Array.isArray(body.service_ids)) return NextResponse.json({ error: "service_ids array required" }, { status: 400 });
-  const serviceIds: string[] = body.service_ids;
+  const serviceIds: string[] = Array.from(new Set(body.service_ids as string[]));
 
   // Validate services belong to same business
   const validServices = await prisma.services.findMany({ where: { id: { in: serviceIds }, business_id: access.emp!.business_id }, select: { id: true } });

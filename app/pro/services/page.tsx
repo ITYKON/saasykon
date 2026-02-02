@@ -280,7 +280,13 @@ export default function ProServices() {
       
 
       if (Array.isArray(data?.categories)) {
-        setCategoriesApi(data.categories);
+        // Enlever les doublons par nom (sensible à la casse ou non selon le besoin, ici insensible)
+        const unique = new Map();
+        data.categories.forEach((cat: any) => {
+          const norm = cat.name.trim().toLowerCase();
+          if (!unique.has(norm)) unique.set(norm, cat);
+        });
+        setCategoriesApi(Array.from(unique.values()));
       } else {
         console.error('Format de données inattendu:', data);
         setCategoriesApi([]);
@@ -311,6 +317,7 @@ export default function ProServices() {
       if (isNaN(priceMin) || priceMin < 0) return alert("Prix minimum invalide")
     }
     const category_id = selectedCategoryId ? parseInt(selectedCategoryId, 10) : undefined
+    setLoading(true)
     try {
       // Front guard: check duplicates before creating
       const normalize = (s: string) => s.trim().replace(/\s+/g, ' ')
@@ -399,6 +406,8 @@ export default function ProServices() {
       alert("Service ajouté")
     } catch (e: any) {
       alert(e?.message || "Impossible d'ajouter le service")
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -423,8 +432,7 @@ export default function ProServices() {
       return
     }
 
-
-    
+    setLoading(true)
     try {
       const response = await fetch(`/api/pro/service-categories`, {
         method: "POST",
@@ -459,6 +467,8 @@ export default function ProServices() {
     } catch (error) {
       console.error('Erreur lors de la création de la catégorie:', error);
       alert(error instanceof Error ? error.message : "Une erreur inattendue est survenue");
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -572,7 +582,9 @@ export default function ProServices() {
               </div>
               <div className="flex justify-end gap-2 mt-4">
                 <Button type="button" variant="outline" onClick={() => setIsServiceModalOpen(false)}>Annuler</Button>
-                <Button type="submit" disabled={loading} className="bg-black text-white hover:bg-gray-800">Ajouter le service</Button>
+                <Button type="submit" disabled={loading} className="bg-black text-white hover:bg-gray-800">
+                  {loading ? "Ajout..." : "Ajouter le service"}
+                </Button>
               </div>
             </form>
          </DialogContent>
@@ -605,7 +617,9 @@ export default function ProServices() {
             </div>
             <div className="flex justify-end gap-2 mt-4">
               <Button type="button" variant="outline" onClick={() => setIsCategoryModalOpen(false)}>Annuler</Button>
-              <Button type="submit" className="bg-black text-white hover:bg-gray-800">Créer</Button>
+              <Button type="submit" disabled={loading} className="bg-black text-white hover:bg-gray-800">
+                {loading ? "Création..." : "Créer"}
+              </Button>
             </div>
           </form>
         </DialogContent>
