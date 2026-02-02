@@ -112,7 +112,7 @@ export default function HomePage() {
             </div>
             <div className="text-center p-6 border border-gray-200 rounded-lg">
               <div className="text-4xl font-bold text-black mb-2">45%</div>
-              <p className="text-gray-600">d’augmentation des retours clients grâce à un système de réservation professionnel</p>
+              <p className="text-gray-600">retours clients positifs</p>
             </div>
           </div>
         </div>
