@@ -812,8 +812,8 @@ export default function EmployeesPage() {
           </div>
         </div>
 
-        {/* Employees Table */}
-        <div className="rounded-md border bg-white overflow-hidden">
+        {/* Employees List - Desktop Table */}
+        <div className="hidden md:block rounded-md border bg-white overflow-hidden">
           <Table>
             <TableHeader className="bg-gray-50/50">
               <TableRow>
@@ -827,7 +827,7 @@ export default function EmployeesPage() {
               {filteredEmployees.map((employee) => (
                 <TableRow key={employee.id} className="hover:bg-gray-50/50">
                   <TableCell className="pl-6">
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                    <div className="flex flex-row items-center gap-2">
                       <span className="font-medium text-sm text-gray-900">{employee.name}</span>
                       {employee.hasAccount && (
                          <Badge variant="outline" className="h-4 bg-green-50 text-green-700 border-green-200 text-[9px] px-1.5 flex items-center gap-1 w-fit">
@@ -880,6 +880,58 @@ export default function EmployeesPage() {
               )}
             </TableBody>
           </Table>
+        </div>
+
+        {/* Employees List - Mobile Cards */}
+        <div className="md:hidden space-y-3">
+          {filteredEmployees.map((employee) => (
+            <div key={employee.id} className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm hover:shadow-md transition-shadow">
+              <div className="flex justify-between items-start mb-3">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-gray-900">{employee.name}</span>
+                    {employee.hasAccount && (
+                      <Badge variant="outline" className="h-4 bg-green-50 text-green-700 border-green-200 text-[8px] px-1.5">
+                        {employee.accessLevel || "Compte"}
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="text-sm text-gray-500 font-medium">{employee.post}</div>
+                </div>
+                <div className="flex items-center gap-0.5">
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400" onClick={() => handleViewEmployee(employee)}>
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400" onClick={() => handleEditEmployee(employee)}>
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-red-400 hover:text-red-600 hover:bg-red-50" onClick={() => handleDeleteEmployee(employee.id)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+              
+              <div className="flex flex-col gap-1.5 pt-3 border-t border-gray-50">
+                {employee.email && (
+                  <div className="flex items-center gap-2 text-xs text-gray-500">
+                    <Mail className="h-3.5 w-3.5 text-gray-400" />
+                    <span>{employee.email}</span>
+                  </div>
+                )}
+                {employee.phone && (
+                  <div className="flex items-center gap-2 text-xs text-gray-500">
+                    <Phone className="h-3.5 w-3.5 text-gray-400" />
+                    <span>{employee.phone}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+          {filteredEmployees.length === 0 && (
+            <div className="bg-white rounded-xl border border-dashed border-gray-200 p-8 text-center text-gray-500">
+              Aucun employé trouvé.
+            </div>
+          )}
         </div>
 </div>
         {/* View Employee Dialog */}
