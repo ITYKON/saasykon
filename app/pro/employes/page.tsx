@@ -3,7 +3,14 @@
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
-import { Card, CardContent } from "@/components/ui/card"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -13,6 +20,8 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Plus, Search, Edit, Trash2, Calendar, Clock, Phone, Mail, User, Eye, Shield } from "lucide-react"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
+
+const ALL_DAYS = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"]
 
 // Chargé dynamiquement depuis l'API
 type UIEmployee = {
@@ -803,122 +812,74 @@ export default function EmployeesPage() {
           </div>
         </div>
 
-        {/* Employees Grid */}
-        <div className="grid gap-0">
-          {filteredEmployees.map((employee) => (
-            <Card key={employee.id} className="hover:shadow-md transition-shadow overflow-hidden mb-0 border-x-0 sm:border-x sm:mb-2 sm:rounded-xl rounded-none relative">
-              <CardContent className="p-3 sm:p-6">
-                {/* Mobile-only Top Actions */}
-                <div className="sm:hidden absolute top-2 right-2 flex gap-1 z-10">
-                  <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-500 hover:text-black hover:bg-gray-100" onClick={() => handleViewEmployee(employee)}>
-                    <Eye className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-500 hover:text-black hover:bg-gray-100" onClick={() => handleEditEmployee(employee)}>
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => handleDeleteEmployee(employee.id)}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-6">
-                  {/* Left: Info */}
-                  <div className="flex items-start gap-3 sm:gap-4 pr-24 sm:pr-0">
-                    <Avatar className="h-10 w-10 sm:h-16 sm:w-16 flex-shrink-0">
-                      <AvatarImage src={employee.avatar || "/placeholder.svg"} />
-                      <AvatarFallback><User className="h-5 w-5 sm:h-8 sm:w-8 text-gray-400" /></AvatarFallback>
-                    </Avatar>
-                    
-                    <div className="flex-1 min-w-0">
-                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-1">
-                        <h3 className="text-[13px] sm:text-lg font-bold text-gray-900 truncate">{employee.name}</h3>
-                        <Badge variant={employee.status === "Actif" ? "default" : "secondary"} className="h-4 sm:h-6 px-1.5 text-[8px] sm:text-xs uppercase tracking-wider">{employee.status}</Badge>
-                        {employee.hasAccount && (
-                          <Badge variant="outline" className="hidden sm:flex h-6 bg-green-50 text-green-700 border-green-200 text-xs px-2">
-                            <Shield className="h-3 w-3 mr-1" /> {employee.accessLevel || "Compte"}
-                          </Badge>
-                        )}
-                      </div>
-                      
-                      <p className="text-[10px] sm:text-base text-gray-600 mb-1 sm:mb-2 font-medium">{employee.post}</p>
-
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-1 bg-yellow-50 px-1 sm:px-2 py-0.5 rounded border border-yellow-100">
-                          <span className="text-yellow-500 text-[9px] sm:text-xs">★</span>
-                          <span className="text-[9px] sm:text-sm font-bold text-yellow-700">{employee.rating || 5.0}</span>
-                        </div>
-                        <div className="flex items-baseline gap-1">
-                          <span className="text-[11px] sm:text-lg font-bold text-gray-900">{employee.totalClients || 0}</span>
-                          <span className="text-[9px] sm:text-sm text-gray-500 font-medium">clients</span>
-                        </div>
-                      </div>
-
-                      {/* Desktop Contact Row */}
-                      <div className="hidden sm:flex items-center gap-4 mt-2 text-sm text-gray-500">
+        {/* Employees Table */}
+        <div className="rounded-md border bg-white overflow-hidden">
+          <Table>
+            <TableHeader className="bg-gray-50/50">
+              <TableRow>
+                <TableHead className="w-[30%] pl-6">Employé</TableHead>
+                <TableHead className="w-[35%]">Contact</TableHead>
+                <TableHead className="w-[25%]">Poste</TableHead>
+                <TableHead className="w-[10%] pl-[14px] pr-6">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredEmployees.map((employee) => (
+                <TableRow key={employee.id} className="hover:bg-gray-50/50">
+                  <TableCell className="pl-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                      <span className="font-medium text-sm text-gray-900">{employee.name}</span>
+                      {employee.hasAccount && (
+                         <Badge variant="outline" className="h-4 bg-green-50 text-green-700 border-green-200 text-[9px] px-1.5 flex items-center gap-1 w-fit">
+                            <Shield className="h-2.5 w-2.5" /> {employee.accessLevel || "Compte"}
+                         </Badge>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-col text-xs text-gray-500">
+                      {employee.email && (
                         <div className="flex items-center gap-1.5">
-                          <Mail className="h-4 w-4 text-gray-400" />
-                          <span>{employee.email}</span>
+                          <Mail className="h-3 w-3" />
+                          <span className="truncate max-w-[180px]" title={employee.email}>{employee.email}</span>
                         </div>
-                        {employee.phone && (
-                          <div className="flex items-center gap-1.5">
-                            <Phone className="h-4 w-4 text-gray-400" />
-                            <span>{employee.phone}</span>
-                          </div>
-                        )}
-                      </div>
+                      )}
+                      {employee.phone && (
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <Phone className="h-3 w-3" />
+                          <span>{employee.phone}</span>
+                        </div>
+                      )}
                     </div>
-                  </div>
+                  </TableCell>
+                  <TableCell>
+                    <span className="text-sm text-gray-600 font-medium">{employee.post}</span>
+                  </TableCell>
 
-                  {/* Middle: Schedule (Compact on mobile, Grid on desktop) */}
-                  <div className="sm:flex-1 sm:max-w-md bg-gray-50/60 sm:bg-transparent rounded-lg p-2 sm:p-0 border border-gray-100 sm:border-0">
-                    <div className="grid grid-cols-2 sm:grid-cols-2 gap-2 sm:gap-6 text-[10px] sm:text-sm">
-                      <div className="flex flex-col sm:gap-1">
-                        <span className="text-gray-500 font-medium flex items-center gap-1 uppercase tracking-tighter sm:tracking-normal sm:lowercase sm:capitalize text-[8px] sm:text-xs">
-                          <Clock className="h-3 w-3 sm:h-4 sm:w-4" /> Horaires
-                        </span>
-                        <span className="font-semibold text-gray-800 sm:text-gray-900">{employee.workHours}</span>
-                      </div>
-                      <div className="flex flex-col sm:gap-1">
-                        <span className="text-gray-500 font-medium flex items-center gap-1 uppercase tracking-tighter sm:tracking-normal sm:lowercase sm:capitalize text-[8px] sm:text-xs">
-                          <Calendar className="h-3 w-3 sm:h-4 sm:w-4" /> Jours
-                        </span>
-                        <span className="font-semibold text-gray-800 sm:text-gray-900 truncate" title={employee.workDays.join(", ")}>{employee.workDays.join(", ")}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Desktop Actions Row */}
-                  <div className="hidden sm:flex flex-col items-end gap-3">
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" className="h-9 w-9 p-0" onClick={() => handleViewEmployee(employee)}>
+                  <TableCell className="pr-6">
+                    <div className="flex items-center justify-start gap-1">
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-gray-500 hover:text-black" onClick={() => handleViewEmployee(employee)} title="Voir détails">
                         <Eye className="h-4 w-4" />
                       </Button>
-                      <Button variant="outline" size="sm" className="h-9 w-9 p-0" onClick={() => handleEditEmployee(employee)}>
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-gray-500 hover:text-black" onClick={() => handleEditEmployee(employee)} title="Modifier">
                         <Edit className="h-4 w-4" />
                       </Button>
-                      <Button variant="outline" size="sm" className="h-9 w-9 p-0 text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => handleDeleteEmployee(employee.id)}>
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => handleDeleteEmployee(employee.id)} title="Supprimer">
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
-                  </div>
-
-                  {/* Mobile Mobile Contact Row */}
-                  <div className="sm:hidden flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-gray-500">
-                    <div className="flex items-center gap-1.5">
-                      <Mail className="h-3 w-3 text-gray-400 shrink-0" />
-                      <span className="truncate max-w-[150px]">{employee.email}</span>
-                    </div>
-                    {employee.phone && (
-                      <div className="flex items-center gap-1.5">
-                        <Phone className="h-3 w-3 text-gray-400 shrink-0" />
-                        <span>{employee.phone}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                  </TableCell>
+                </TableRow>
+              ))}
+              {filteredEmployees.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={4} className="h-24 text-center text-gray-500">
+                    Aucun employé trouvé.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
         </div>
 </div>
         {/* View Employee Dialog */}
