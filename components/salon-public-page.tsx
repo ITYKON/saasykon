@@ -253,6 +253,8 @@ export default function SalonPublicPage({ salonId }: SalonPublicPageProps) {
               src={
                 businessId === '71831c69-7b17-4344-b873-583e4a976f07' 
                   ? "/institutbykm.jpg" 
+                  : businessId === '9243a411-db6d-4f27-a318-c7e2e253c727'
+                  ? "/yokainstitut.jpg"
                   : (salon?.images?.[currentImageIndex]) || "/placeholder.svg"
               }
               alt={`${salon?.name || "Salon"} ${currentImageIndex + 1}`}
@@ -261,7 +263,7 @@ export default function SalonPublicPage({ salonId }: SalonPublicPageProps) {
               priority
             />
           </div>
-          {businessId !== '71831c69-7b17-4344-b873-583e4a976f07' && salon?.images?.length > 1 && (
+          {businessId !== '71831c69-7b17-4344-b873-583e4a976f07' && businessId !== '9243a411-db6d-4f27-a318-c7e2e253c727' && salon?.images?.length > 1 && (
             <>
               <Button
                 variant="outline"
