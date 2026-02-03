@@ -349,7 +349,7 @@ Créez votre compte gratuitement et commencez dès maintenant.</p>
                         onOpenChange={(open) => open && scrollToSelect()}
                         required
                       >
-                        <SelectTrigger className="w-full h-12 px-4 text-base border-2 border-gray-200 hover:border-primary transition-colors rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                        <SelectTrigger>
                           <SelectValue placeholder="Sélectionner une wilaya" />
                         </SelectTrigger>
                         <SelectContent 
