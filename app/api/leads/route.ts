@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
 
   // Email leads
 try {
-  const salesFrom = process.env.EMAIL_FROM || "no-reply@example.com";
+  const salesFrom = process.env.EMAIL_FROM || 'Équipe Yoka <equipe@yoka-dz.com>';
   
   await sendEmail({
     to: email,
