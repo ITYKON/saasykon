@@ -203,7 +203,22 @@ export default function RegisterPage() {
                     
                     if (!registerRes.ok) {
                       const errorData = await registerRes.json();
-                      throw new Error(errorData.message || "Erreur lors de l'inscription");
+                      
+                      // Gérer spécifiquement les erreurs 409 (Conflict)
+                      if (registerRes.status === 409) {
+                        if (errorData.field === "email") {
+                          setEmailError(errorData.error || "Cet email est déjà utilisé");
+                        } else if (errorData.field === "phone") {
+                          setPhoneError(errorData.error || "Ce numéro de téléphone est déjà utilisé");
+                        } else {
+                          setError(errorData.error || "Un conflit s'est produit");
+                        }
+                        setIsSubmitting(false);
+                        return;
+                      }
+                      
+                      // Autres erreurs
+                      throw new Error(errorData.error || errorData.message || "Erreur lors de l'inscription");
                     }
                     
                     // Redirection après inscription réussie
@@ -213,13 +228,9 @@ export default function RegisterPage() {
                   } catch (error) {
                     console.error("Erreur lors de l'inscription:", error);
                     
-                    // Gestion des erreurs spécifiques
+                    // Gestion des erreurs générales
                     if (error instanceof Error) {
                       setError(error.message);
-                    } else if (typeof error === 'object' && error !== null && 'error' in error) {
-                      // Gestion des erreurs de l'API
-                      const apiError = error as { error: string };
-                      setError(apiError.error);
                     } else {
                       setError("Une erreur est survenue. Veuillez réessayer.");
                     }
