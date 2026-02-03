@@ -270,6 +270,7 @@ export default function ProAgenda() {
 
       const qs = new URLSearchParams({
         date: toDateStr(debouncedDate || currentDate),
+        status: "CONFIRMED",
       });
 
       // Obtenir les IDs des employés
@@ -380,6 +381,7 @@ export default function ProAgenda() {
     };
     const qs = new URLSearchParams({
       date: toDateStr(currentDate),
+      status: "CONFIRMED",
     });
     selectedEmployees
       .map((n) => empMap[n])
@@ -431,6 +433,7 @@ export default function ProAgenda() {
         .padStart(2, "0")}`;
     const qs = new URLSearchParams({
       date: toDateStr(currentDate),
+      status: "CONFIRMED",
     });
     selectedEmployees
       .map((n) => empMap[n])
@@ -472,178 +475,21 @@ export default function ProAgenda() {
     "18:00",
   ];
 
-  // --- Month view data mocks & utils ---
-  type MonthEvent = {
-    time?: string;
-    title: string;
-    color: string;
-    employee?: string;
-    service?: string;
-    durationMin?: number;
-    priceDA?: number;
-  };
   const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`);
   const fmtKey = (d: Date) =>
     `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-  const categories = ["Coupe", "Barbe", "Coloration", "Soin", "Shampoing"];
-  // Generate a few deterministic fake events per day for month view visualization
-  const getMonthEvents = (
-    visibleDays: Date[]
-  ): Record<string, MonthEvent[]> => {
-    const out: Record<string, MonthEvent[]> = {};
-    visibleDays.forEach((d) => {
-      const key = fmtKey(d);
-      const seed = d.getDate() + d.getMonth() * 31;
-      // Ensure at least 1 event per day; sometimes overflow to demo '+X autres'
-      let count = (seed % 3) + 1; // 1..3 events
-      if (seed % 5 === 0) count += 3; // some days have 4-6 events
-      const list: MonthEvent[] = [];
-      for (let i = 0; i < count; i++) {
-        const color = palette[(seed + i) % palette.length];
-        const hh = 9 + ((seed + i) % 8); // between 9..16
-        const time = `${pad(hh)}:${i % 2 === 0 ? "00" : "30"}`;
-        const services = ["Coupe", "Barbe", "Coloration", "Soin", "Shampoing"];
-        const employeesNames = ["Jean Charles", "Julie", "Marc"];
-        const duration = (seed + i) % 2 === 0 ? 30 : 60;
-        const price = 1500 + ((seed + i) % 7) * 500;
-        list.push({
-          time,
-          title: `RDV ${i + 1}`,
-          color,
-          service: services[(seed + i) % services.length],
-          employee: employeesNames[(seed + i) % employeesNames.length],
-          durationMin: duration,
-          priceDA: price,
-        });
-      }
-      out[key] = list;
-    });
-    return out;
-  };
-
-  // Date helpers (placed here so they are available to mocks below)
+  
   const addDays = (d: Date, n: number) =>
     new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
   const addMonths = (d: Date, n: number) =>
     new Date(d.getFullYear(), d.getMonth() + n, 1);
 
-  // Remove mock all-day events in week view
-  type AllDayEvent = { start: Date; end: Date; title: string; color: string };
-  const sampleAllDay: AllDayEvent[] = [];
-
-  type LegacyAppointment = {
-    start: string; // HH:mm
-    end: string; // HH:mm
-    title: string;
-    notes?: string;
-    span?: number; // number of time slots tall
-    color?: string;
-    client?: string;
+  const getMonthMatrix = (d: Date) => {
+    const first = new Date(d.getFullYear(), d.getMonth(), 1);
+    const startDay = (first.getDay() || 7) - 1;
+    const start = addDays(first, -startDay);
+    return Array.from({ length: 42 }, (_, i) => addDays(start, i));
   };
-
-  type LegacyEmployee = {
-    name: string;
-    avatar: string;
-    slots: Array<LegacyAppointment | null>;
-  };
-
-  // Mock data to mirror the screenshot
-  const employees: LegacyEmployee[] = [
-    {
-      name: "Jean Charles",
-      avatar: "https://i.pravatar.cc/48?img=3",
-      slots: [
-        {
-          start: "10:00",
-          end: "11:00",
-          title: "Coupe + Barbe + Soin complet",
-          color: "#3b82f6",
-        },
-        {
-          start: "11:00",
-          end: "12:00",
-          title: "Coupe + Barbe + Soin complet + Épilation complète",
-          color: "#10b981",
-        },
-        null,
-        {
-          start: "14:00",
-          end: "15:00",
-          title: "Coupe ciseau + Barbe + Shampoing + Coiffage",
-          color: "#ef4444",
-        },
-        {
-          start: "15:00",
-          end: "16:00",
-          title: "Coupe + Taille barbe simple (tondeuse)",
-          color: "#f59e0b",
-        },
-        null,
-        null,
-      ],
-    },
-    {
-      name: "Julie",
-      avatar: "https://i.pravatar.cc/48?img=5",
-      slots: [
-        {
-          start: "10:00",
-          end: "10:45",
-          title: "Coupe homme",
-          color: "#06b6d4",
-        },
-        null,
-        {
-          start: "11:00",
-          end: "13:00",
-          title: "Couleur • Shampoing Coupe Brushing • Cheveux Longs",
-          color: "#8b5cf6",
-        },
-        null,
-        {
-          start: "15:00",
-          end: "16:00",
-          title: "Coloration Sans Ammoniaque • Shampoing Brushing",
-          color: "#22c55e",
-        },
-        null,
-        null,
-      ],
-    },
-    {
-      name: "Marc",
-      avatar: "https://i.pravatar.cc/48?img=8",
-      slots: [
-        {
-          start: "10:00",
-          end: "11:00",
-          title: "Taille de barbe et contours tondeuse",
-          color: "#f97316",
-        },
-        {
-          start: "11:00",
-          end: "13:00",
-          title: "Taille de barbe et contours rasoir",
-          color: "#0ea5e9",
-        },
-        null,
-        {
-          start: "14:00",
-          end: "15:00",
-          title: "Rasage de crâne et/ou barbe à l'ancienne",
-          color: "#84cc16",
-        },
-        {
-          start: "15:00",
-          end: "16:00",
-          title: "Taille de barbe",
-          color: "#e11d48",
-        },
-        null,
-        null,
-      ],
-    },
-  ];
 
   // Config for time-grid (Google Calendar-like)
   const hourHeight = 44; // px per hour (more compact)
@@ -1125,92 +971,7 @@ export default function ProAgenda() {
           ))}
         </div>
 
-        {/* All-day row with spanning events (render only if needed) */}
-        {sampleAllDay.length > 0 && (
-          <div
-            className="mb-3 grid items-stretch"
-            style={{
-              gridTemplateColumns: `72px repeat(${weekDays.length}, minmax(0, 1fr))`,
-            }}
-          >
-            <div className="text-[11px] text-gray-500 pr-2 h-7 leading-7 text-right">
-              Toute la journée
-            </div>
-            {/* All-day grid */}
-            <div className="col-span-7 grid grid-cols-7 gap-px bg-gray-200 rounded-md overflow-hidden">
-              {weekDays.map((d, i) => (
-                <div
-                  key={i}
-                  className={`h-7 bg-white ${
-                    [6, 0].includes(d.getDay()) ? "bg-gray-50" : ""
-                  }`}
-                />
-              ))}
-            </div>
-            {/* Bars positioned using CSS grid with col-span */}
-            <div className="col-span-7 -mt-7 grid grid-cols-7 gap-0 pointer-events-none">
-              {sampleAllDay.map((e, idx) => {
-                // compute span within this week
-                const startIdx = Math.max(
-                  0,
-                  weekDays.findIndex(
-                    (d) =>
-                      fmtKey(d) >=
-                      fmtKey(
-                        new Date(
-                          e.start.getFullYear(),
-                          e.start.getMonth(),
-                          e.start.getDate()
-                        )
-                      )
-                  )
-                );
-                const endIdx = Math.min(
-                  6,
-                  weekDays.findIndex(
-                    (d) =>
-                      fmtKey(d) >=
-                      fmtKey(
-                        new Date(
-                          e.end.getFullYear(),
-                          e.end.getMonth(),
-                          e.end.getDate()
-                        )
-                      )
-                  )
-                );
-                const from = Math.max(
-                  0,
-                  weekDays.findIndex(
-                    (d) => d.toDateString() === new Date(e.start).toDateString()
-                  )
-                );
-                const to = Math.max(
-                  from,
-                  weekDays.findIndex(
-                    (d) => d.toDateString() === new Date(e.end).toDateString()
-                  )
-                );
-                const colStart = (from === -1 ? 0 : from) + 1;
-                const span = (to === -1 ? 6 : to) - (from === -1 ? 0 : from) + 1;
-                return (
-                  <div
-                    key={idx}
-                    className="h-7 px-1"
-                    style={{ gridColumn: `${colStart} / span ${span}` }}
-                  >
-                    <div
-                      className="pointer-events-auto h-full rounded-md text-xs flex items-center px-2 shadow-sm"
-                      style={{ background: e.color, color: "white" }}
-                    >
-                      {e.title}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
+
 
         <div
           className="grid min-w-[600px]" // Même largeur minimale que l'en-tête
@@ -1355,19 +1116,12 @@ export default function ProAgenda() {
     );
   };
 
-  const getMonthMatrix = (d: Date) => {
-    const first = new Date(d.getFullYear(), d.getMonth(), 1);
-    const startDay = (first.getDay() || 7) - 1;
-    const start = addDays(first, -startDay);
-    return Array.from({ length: 42 }, (_, i) => addDays(start, i));
-  };
-
   const renderMonthView = () => {
     const days = getMonthMatrix(currentDate);
     const month = currentDate.getMonth();
     const todayKey = fmtKey(new Date());
     const maxVisible = isMobile ? 0 : 3; // show up to 3 events per day cell on desktop, none on mobile (indicators used instead)
-    const monthEvents = liveMonthDays || getMonthEvents(days);
+    const monthEvents = liveMonthDays || {};
 
     // Filter events for the currently selected day on mobile
     const selectedDayKey = fmtKey(currentDate);
