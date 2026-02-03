@@ -69,7 +69,6 @@ function AdminSalonsContent() {
   const [lastUpdated, setLastUpdated] = React.useState(Date.now());
 
   React.useEffect(() => {
-    console.log("Début de la récupération des salons...");
     setError(null);
     setLoading(true);
 
@@ -81,7 +80,6 @@ function AdminSalonsContent() {
 
     fetch(`/api/admin/salons?${params.toString()}`)
       .then(async (res) => {
-        console.log("Réponse reçue, statut:", res.status);
         if (!res.ok) {
           const errorText = await res.text();
           console.error("Erreur de l'API:", errorText);
@@ -90,7 +88,6 @@ function AdminSalonsContent() {
         return res.json();
       })
       .then((data) => {
-        console.log("Données reçues de l'API:", data);
         if (data.success && data.data) {
           setSalons(data.data.salons || []);
         } else {
@@ -518,7 +515,7 @@ function AdminSalonsContent() {
                 )}
                 {salon.claim_status === "none" && (
                   <Link
-                    href={`/salon/${buildSalonSlug(
+                    href={salon.slug ? `/${salon.slug}` : `/salon/${buildSalonSlug(
                       salon.public_name || salon.legal_name || "",
                       salon.id,
                       salon.business_locations?.[0]?.cities?.name || null
@@ -539,7 +536,7 @@ function AdminSalonsContent() {
                   size="sm"
                   className="text-red-600 border-red-600 hover:bg-red-50 bg-transparent"
                   onClick={async () => {
-                    if (window.confirm("Confirmer la suppression ?")) {
+                    if (window.confirm("Êtes-vous sûr ? Le salon sera archivé et ne s'affichera plus dans la liste, mais pourra être restauré depuis la page Archives.")) {
                       try {
                         const res = await fetch("/api/admin/salons", {
                           method: "DELETE",
@@ -550,10 +547,10 @@ function AdminSalonsContent() {
                         if (!res.ok) {
                           alert(
                             "Erreur: " +
-                              (result.error || "Suppression impossible")
+                              (result.error || "Archivage impossible")
                           );
                         } else {
-                          alert("Salon supprimé");
+                          alert("Salon archivé avec succès. Vous pouvez le restaurer depuis la page Archives.");
                           const params = new URLSearchParams();
                           if (claimStatusFilter !== "all") {
                             params.set("claim_status", claimStatusFilter);
@@ -582,6 +579,7 @@ function AdminSalonsContent() {
 
       {/* Modals CRUD salons */}
       <SalonFormModal
+        key="add-salon-modal"
         open={addModalOpen}
         onClose={() => setAddModalOpen(false)}
         onSave={async (salon) => {
@@ -607,7 +605,8 @@ function AdminSalonsContent() {
           mode="add"
         />
         {selectedSalon && (
-          <SalonFormModal
+        <SalonFormModal
+            key={`edit-salon-${selectedSalon.id}`}
             open={editModalOpen}
             onClose={() => setEditModalOpen(false)}
             onSave={async (salon) => {

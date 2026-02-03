@@ -7,8 +7,19 @@ export async function GET() {
   if (!user) return NextResponse.json({ dashboard: null }, { status: 401 })
 
   // Récupérer le client
-  const client = await prisma.clients.findFirst({ where: { user_id: user.id } })
-  if (!client) return NextResponse.json({ dashboard: null }, { status: 404 })
+  let client = await prisma.clients.findFirst({ where: { user_id: user.id } })
+  if (!client) {
+    // Lazy creation if missing
+    client = await prisma.clients.create({
+      data: {
+        user_id: user.id,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        phone: user.phone,
+        status: 'NOUVEAU',
+      }
+    });
+  }
 
   // Statistiques dashboard
   const upcomingCount = await prisma.reservations.count({

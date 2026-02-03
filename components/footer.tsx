@@ -1,4 +1,4 @@
-import Link from "next/link";
+ import Link from "next/link";
 import { ServicesSection } from "./footer/services/ServicesSection";
 import { ProfessionnelsSection } from "./footer/professionnels/ProfessionnelsSection";
 import { AProposSection } from "./footer/a-propos/AProposSection";
@@ -17,7 +17,7 @@ export function Footer() {
           <AProposSection />
         </div>
         <div className="border-t border-gray-200 mt-8 pt-8 text-center text-gray-600">
-          <p>&copy; 2025 YOKA. Tous droits réservés.</p>
+          <p>&copy; 2026 YOKA. Tous droits réservés.</p>
         </div>
       </div>
     </footer>

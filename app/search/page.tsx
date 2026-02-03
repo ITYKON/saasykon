@@ -5,13 +5,18 @@ import { useSearchParams, useRouter } from "next/navigation"
 import { SearchMap } from "@/components/search-map"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { MapPin, Star, Filter, Calendar, Search as SearchIcon } from "lucide-react"
+import { MapPin, Star, Filter, Calendar as CalendarIcon, Search as SearchIcon, List, Map as MapIcon, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import Link from "next/link"
 import Image from "next/image"
 import { buildSalonSlug } from "@/lib/salon-slug"
 import type { Business } from "@/types/business"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Calendar } from "@/components/ui/calendar"
+import { format, addDays } from "date-fns"
+import { fr } from "date-fns/locale"
+import { cn } from "@/lib/utils"
 
 export default function SearchPage() {
   const searchParams = useSearchParams()
@@ -25,6 +30,16 @@ export default function SearchPage() {
   const [category, setCategory] = useState(searchParams?.get("category") ?? "")
   const [selectedService, setSelectedService] = useState<string | null>(null)
   const [showFilters, setShowFilters] = useState(false)
+  const [showMapMobile, setShowMapMobile] = useState(false)
+  const [mapBounds, setMapBounds] = useState<{ n: number, s: number, e: number, w: number } | null>(null)
+  const [wasMapMoved, setWasMapMoved] = useState(false)
+  const [selectedMobileBusinessId, setSelectedMobileBusinessId] = useState<string | null>(null)
+  
+  const selectedMobileBusiness = businesses.find(b => b.id === selectedMobileBusinessId)
+
+  const [date, setDate] = useState<Date | undefined>(
+    searchParams?.get("date") ? new Date(searchParams.get("date")!) : undefined
+  )
   
   // Services populaires pour les filtres
   const [popularServices, setPopularServices] = useState<string[]>([])
@@ -55,9 +70,17 @@ export default function SearchPage() {
         const params = new URLSearchParams()
         if (query) params.set("q", query)
         if (location) params.set("location", location)
+        if (date) params.set("date", date.toISOString())
+        
+        if (mapBounds) {
+            params.set("n", mapBounds.n.toString())
+            params.set("s", mapBounds.s.toString())
+            params.set("e", mapBounds.e.toString())
+            params.set("w", mapBounds.w.toString())
+        }
         
         // Si la requête et la localisation sont vides, on réinitialise les résultats
-        if (!query.trim() && !location.trim()) {
+        if (!query.trim() && !location.trim() && !mapBounds && !date) {
           setBusinesses([])
           setTotal(0)
           setPage(1)
@@ -106,7 +129,7 @@ export default function SearchPage() {
 
     // Ajout d'un délai de 300ms pour éviter les appels API excessifs
     const debounceTimer = setTimeout(() => {
-      if (query || location) {
+      if (query || location || mapBounds || date) {
         fetchResults()
       } else {
         setBusinesses([])
@@ -116,23 +139,26 @@ export default function SearchPage() {
 
     // Nettoyage du timer si le composant est démonté ou si les dépendances changent
     return () => clearTimeout(debounceTimer)
-  }, [query, location, page]) // Ajouter location aux dépendances
+  }, [query, location, page, mapBounds, date]) // Retirer searchAsIMove des dépendances
 
   const handleSearch = (e?: React.FormEvent) => {
     e?.preventDefault()
     
     // Si aucun terme ni location, on ne fait rien
-    if (!query.trim() && !location.trim()) {
+    if (!query.trim() && !location.trim() && !date) {
       return
     }
     
-    // Réinitialiser la page à 1 lors d'une nouvelle recherche
+    // Réinitialiser la page à 1 et les bounds lors d'une nouvelle recherche manuelle
     setPage(1)
+    setMapBounds(null)
+    setWasMapMoved(false)
     
     // Mettre à jour l'URL avec les paramètres
     const params = new URLSearchParams()
     if (query.trim()) params.set("q", query.trim())
     if (location.trim()) params.set("location", location.trim())
+    if (date) params.set("date", date.toISOString())
     
     // Utiliser replace au lieu de push pour éviter l'accumulation dans l'historique
     router.replace(`/search?${params.toString()}`, { scroll: false })
@@ -152,91 +178,168 @@ export default function SearchPage() {
       {/* Search Bar */}
       <div className="bg-white border-b border-gray-200 py-4">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <form onSubmit={handleSearch} className="flex items-center gap-4">
-            <div className="flex-1">
+          <form onSubmit={handleSearch} className="flex flex-col md:flex-row items-stretch md:items-center gap-4">
+            <div className="flex-1 w-full">
               <Input
                 placeholder="Nom de l'institut ou service recherché"
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                onChange={(e) => {
+                  setQuery(e.target.value)
+                  setWasMapMoved(false)
+                }}
                 onKeyDown={handleKeyDown}
                 className="h-11 w-full"
                 aria-label="Rechercher un institut ou un service"
               />
             </div>
-            <div className="flex-1">
+            <div className="flex-1 w-full">
               <Input
                 placeholder="Ville, adresse ou code postal"
                 value={location}
-                onChange={(e) => setLocation(e.target.value)}
+                onChange={(e) => {
+                  setLocation(e.target.value)
+                  setWasMapMoved(false)
+                }}
                 onKeyDown={handleKeyDown}
                 className="h-11 w-full"
                 aria-label="Localisation (ville, adresse, code postal)"
               />
             </div>
-            <Button 
-              type="submit" 
-              className="h-11 px-6 bg-black hover:bg-gray-800 flex-shrink-0"
-              disabled={!query && !location}
-            >
-              <span className="sr-only">Rechercher</span>
-              <SearchIcon className="h-5 w-5 mr-2" />
-              Rechercher
-            </Button>
-            <Button 
-              type="button" // Important: pas 'submit'
-              variant="outline" 
-              className="h-11"
-              onClick={() => alert("La sélection par date arrive bientôt !")}
-            >
-              <Calendar className="h-4 w-4 mr-2" />
-              À tout moment
-            </Button>
+            <div className="flex gap-2 w-full md:w-auto">
+              <Button 
+                type="submit" 
+                className="h-11 px-6 bg-black hover:bg-gray-800 flex-1 md:flex-initial"
+                disabled={!query && !location}
+              >
+                <span className="sr-only">Rechercher</span>
+                <SearchIcon className="h-5 w-5 mr-2" />
+                Rechercher
+              </Button>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    className={cn(
+                      "h-11 flex-1 md:flex-initial justify-start text-left font-normal",
+                      !date && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="h-4 w-4 mr-2" />
+                    {date ? format(date, "d MMMM yyyy", { locale: fr }) : "À tout moment"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={date}
+                    onSelect={setDate}
+                    initialFocus
+                    locale={fr}
+                    disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
           </form>
         </div>
       </div>
 
       {/* Filters Bar */}
-      <div className="bg-white border-b border-gray-200 py-3 overflow-hidden">
+      <div className="bg-white border-b border-gray-200 py-3 sticky top-0 z-20 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide pb-2">
-            <Button
+          <div className="flex items-center gap-2">
+            {/* Mobile Toggles - NOW HIDDEN in normal flow as they are inside the Map Overlay when active, or in the filter bar when inactive */ }
+             <Button
               variant="outline"
               size="sm"
+              onClick={() => setShowMapMobile(true)}
+              className={cn("md:hidden flex-1", showMapMobile ? "hidden" : "flex")}
+            >
+              {showMapMobile ? <List className="h-4 w-4 mr-2" /> : <MapIcon className="h-4 w-4 mr-2" />}
+              {showMapMobile ? "Liste" : "Carte"}
+            </Button>
+
+            <Button
+              variant={showFilters ? "default" : "outline"}
+              size="sm"
               onClick={() => setShowFilters(!showFilters)}
-              className="whitespace-nowrap"
+              className="whitespace-nowrap flex-1 md:flex-none"
             >
               <Filter className="h-4 w-4 mr-2" />
               Filtres
             </Button>
-            <Button
-              variant={!category ? "default" : "outline"}
-              size="sm"
-              onClick={() => setCategory("")}
-              className="whitespace-nowrap"
-            >
-              Tous
-            </Button>
-            {popularServices.map((service) => (
+
+            {/* Desktop Horizontal Filters (Always visible) */}
+            <div className="hidden md:flex items-center gap-2 overflow-x-auto scrollbar-hide">
               <Button
-                key={service}
-                variant={selectedService === service ? "default" : "outline"}
+                variant={!category ? "default" : "outline"}
                 size="sm"
                 onClick={() => {
-                  setSelectedService(selectedService === service ? null : service)
-                  setQuery(selectedService === service ? "" : service)
+                  setCategory("")
+                  setWasMapMoved(false)
                 }}
                 className="whitespace-nowrap"
               >
-                {service}
+                Tous
               </Button>
-            ))}
+              {popularServices.map((service) => (
+                <Button
+                  key={service}
+                  variant={selectedService === service ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    setSelectedService(selectedService === service ? null : service)
+                    setQuery(selectedService === service ? "" : service)
+                    setWasMapMoved(false)
+                  }}
+                  className="whitespace-nowrap"
+                >
+                  {service}
+                </Button>
+              ))}
+            </div>
           </div>
+
+          {/* Mobile Collapsible Filters */}
+          {showFilters && (
+            <div className="md:hidden mt-3 grid grid-cols-2 gap-2 pb-2">
+              <Button
+                variant={!category ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                   setCategory("")
+                   setWasMapMoved(false)
+                   setShowFilters(false)
+                }}
+                className="w-full"
+              >
+                Tous
+              </Button>
+              {popularServices.map((service) => (
+                <Button
+                  key={service}
+                  variant={selectedService === service ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    setSelectedService(selectedService === service ? null : service)
+                    setQuery(selectedService === service ? "" : service)
+                    setWasMapMoved(false)
+                    setShowFilters(false)
+                  }}
+                  className="w-full"
+                >
+                   {service}
+                </Button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
       {/* Results Layout */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="mb-4">
+        <div className={cn("mb-4", showMapMobile ? "hidden" : "block")}>
           <h2 className="text-xl font-semibold text-black">
             Sélectionnez un salon
           </h2>
@@ -250,9 +353,9 @@ export default function SearchPage() {
           )}
         </div>
 
-        <div className="flex gap-6">
+        <div className="flex gap-6 relative">
           {/* Liste des résultats */}
-          <div className="flex-1 space-y-4">
+          <div className={cn("flex-1 space-y-4", showMapMobile ? "hidden" : "block")}>
             {loading ? (
               <div className="space-y-4">
                 {[1, 2, 3].map((i) => (
@@ -277,93 +380,94 @@ export default function SearchPage() {
                 {businesses.map((business) => (
                   <Link
                     key={business.id}
-                    href={`/salon/${buildSalonSlug(business.name, business.id, business.city || business.location?.city)}`}
+                    href={business.slug ? `/${business.slug}` : `/salon/${buildSalonSlug(business.name, business.id, business.city || business.location?.city)}`}
                     id={`business-${business.id}`}
                   >
                     <Card className="hover:shadow-md transition-shadow cursor-pointer">
-                      <div className="flex gap-4 p-4">
-                        {/* Image */}
-                        <div className="relative w-32 h-32 flex-shrink-0">
-                          {business.cover_url || business.media?.[0]?.url ? (
-                            <Image
-                              src={business.cover_url || business.media?.[0]?.url || ""}
-                              alt={business.name}
-                              fill
-                              className="object-cover rounded"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 rounded">
-                              <span className="text-gray-400 text-2xl font-bold">
-                                {business.name.charAt(0)}
-                              </span>
-                            </div>
-                          )}
-                          {business.isPremium && (
-                            <Badge className="absolute top-1 left-1 bg-blue-600 text-white border-0 text-xs">À la une</Badge>
-                          )}
-                        </div>
-
-                        {/* Info */}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between mb-2">
-                            <div className="flex-1">
-                              <h3 className="font-bold text-lg text-black mb-1">
-                                {business.name}
-                              </h3>
-                              {business.location && (
-                                <div className="flex items-center text-gray-600 text-sm mb-1">
-                                  <MapPin className="h-3 w-3 mr-1 flex-shrink-0" />
-                                  <span className="line-clamp-1">{business.location.address}</span>
-                                </div>
-                              )}
-                              {business.description && (
-                                <p className="text-sm text-gray-600 line-clamp-2 mt-1">
-                                  {business.description}
-                                </p>
-                              )}
-                              {business.isPremium && (
-                                <div className="flex items-center">
-                                  <span className="text-xs text-gray-500">€€€</span>
-                                </div>
-                              )}
-                            </div>
+                      <div className="flex flex-col sm:flex-row gap-4 p-4">
+                        <div className="flex flex-1 gap-4">
+                          {/* Image */}
+                          <div className="relative w-24 h-24 sm:w-32 sm:h-32 flex-shrink-0">
+                            {business.cover_url || business.media?.[0]?.url ? (
+                              <Image
+                                src={business.cover_url || business.media?.[0]?.url || ""}
+                                alt={business.name}
+                                fill
+                                className="object-cover rounded"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 rounded">
+                                <span className="text-gray-400 text-2xl font-bold">
+                                  {business.name.charAt(0)}
+                                </span>
+                              </div>
+                            )}
+                            {business.isPremium && (
+                              <Badge className="absolute top-1 left-1 bg-blue-600 text-white border-0 text-xs">À la une</Badge>
+                            )}
                           </div>
 
-                          {/* Services et prix */}
-                          {business.services?.length > 0 && (
-                            <div className="mt-3">
-                              <div className="text-sm text-gray-700">
-                                {business.services.slice(0, 1).map((service) => (
-                                  <div key={service.id} className="mb-2">
-                                    <span className="font-medium">{service.name}</span>
-                                    {service.duration_minutes && (
-                                      <span className="text-gray-500"> • {service.duration_minutes}min</span>
-                                    )}
-                                    {service.price_cents && (
-                                      <span className="text-gray-500"> • {(service.price_cents / 100).toFixed(0)} DA</span>
-                                    )}
+                          {/* Info */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between mb-2">
+                              <div className="flex-1">
+                                <h3 className="font-bold text-lg text-black mb-1">
+                                  {business.name}
+                                </h3>
+                                {business.location && (
+                                  <div className="flex items-center text-gray-600 text-sm mb-1">
+                                    <MapPin className="h-3 w-3 mr-1 flex-shrink-0" />
+                                    <span className="line-clamp-1">{business.location.address}</span>
                                   </div>
-                                ))}
+                                )}
+                                {business.description && (
+                                  <p className="text-sm text-gray-600 line-clamp-2 mt-1">
+                                    {business.description}
+                                  </p>
+                                )}
+                                {business.isPremium && (
+                                  <div className="flex items-center">
+                                    <span className="text-xs text-gray-500">€€€</span>
+                                  </div>
+                                )}
                               </div>
                             </div>
-                          )}
 
-                          {/* Disponibilités */}
-                          <div className="mt-3 flex gap-2">
-                            <Button size="sm" variant="outline" className="text-xs">
-                              Mar 14
-                            </Button>
-                            <Button size="sm" variant="outline" className="text-xs">
-                              Mer 15
-                            </Button>
-                            <Button size="sm" variant="outline" className="text-xs">
-                              Jeu 16
-                            </Button>
+                            {/* Services et prix */}
+                            {business.services?.length > 0 && (
+                              <div className="mt-3">
+                                <div className="text-sm text-gray-700">
+                                  {business.services.slice(0, 1).map((service) => (
+                                    <div key={service.id} className="mb-2">
+                                      <span className="font-medium">{service.name}</span>
+                                      {service.duration_minutes && (
+                                        <span className="text-gray-500"> • {service.duration_minutes}min</span>
+                                      )}
+                                      {service.price_cents && (
+                                        <span className="text-gray-500"> • {(service.price_cents / 100).toFixed(0)} DA</span>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Disponibilités */}
+                            <div className="mt-3 flex gap-2">
+                              {[0, 1, 2].map((offset) => {
+                                const d = addDays(date || new Date(), offset);
+                                return (
+                                  <Button key={offset} size="sm" variant="outline" className="text-xs capitalize">
+                                    {format(d, "EEE d", { locale: fr })}
+                                  </Button>
+                                );
+                              })}
+                            </div>
                           </div>
                         </div>
 
                         {/* Actions */}
-                        <div className="flex flex-col gap-2">
+                        <div className="flex flex-row sm:flex-col gap-2 w-full sm:w-auto mt-2 sm:mt-0">
                           {business.claim_status === 'approved' ? (
                             <Button size="sm" variant="default" className="bg-black hover:bg-gray-800 w-full">
                               Prendre RDV
@@ -372,7 +476,7 @@ export default function SearchPage() {
                             <Button 
                               size="sm" 
                               variant="outline" 
-                              className="border-blue-600 text-blue-600 hover:bg-blue-50"
+                              className="border-blue-600 text-blue-600 hover:bg-blue-50 w-full"
                               onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
@@ -419,17 +523,230 @@ export default function SearchPage() {
             )}
           </div>
 
-          {/* Carte */}
+          {/* Carte Desktop */}
           <div className="hidden lg:block w-[500px] sticky top-4 h-[calc(100vh-120px)]">
             <SearchMap 
               businesses={businesses}
+              searchLocation={location}
+              wasMapMoved={wasMapMoved}
               onMarkerClick={(businessId) => {
                 // Scroll vers le salon sélectionné
                 const element = document.getElementById(`business-${businessId}`)
                 element?.scrollIntoView({ behavior: 'smooth', block: 'center' })
               }}
+              onBoundsChange={(bounds) => {
+                  setWasMapMoved(true)
+                  setMapBounds({
+                    n: bounds.north,
+                    s: bounds.south,
+                    e: bounds.east,
+                    w: bounds.west
+                  })
+              }}
             />
           </div>
+
+          {/* Carte Mobile (Overlay Fullscreen) */}
+          {showMapMobile && (
+            <div className="fixed inset-0 z-50 bg-gray-100 flex flex-col">
+              {/* Conteneur de la carte (Background) */}
+              <div className="absolute inset-0 z-0">
+                <SearchMap 
+                  businesses={businesses}
+                  center={businesses.length > 0 && businesses[0].location ? { lat: businesses[0].location.latitude!, lng: businesses[0].location.longitude! } : undefined}
+                  searchLocation={location}
+                  wasMapMoved={wasMapMoved}
+                  onBoundsChange={(bounds) => {
+                      setWasMapMoved(true)
+                      setMapBounds({
+                        n: bounds.north,
+                        s: bounds.south,
+                        e: bounds.east,
+                        w: bounds.west
+                      })
+                  }}
+                  onMarkerClick={(id) => setSelectedMobileBusinessId(id)}
+                  onMapClick={() => setSelectedMobileBusinessId(null)}
+                />
+              </div>
+
+              {/* Interface Overlay */}
+              {/* Interface Overlay */}
+              <div className="relative z-10 p-2 flex flex-col gap-2 pointer-events-none h-full">
+                 {/* Top Row: Close + Search Query */}
+                 <div className="flex gap-2 pointer-events-auto">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setShowMapMobile(false)}
+                      className="h-9 w-9 rounded-full bg-white shadow-md border-0 shrink-0"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                    <div className="flex-1">
+                      <Input
+                        placeholder="Rechercher..."
+                        value={query}
+                        onChange={(e) => setQuery(e.target.value)}
+                        onKeyDown={handleKeyDown}
+                        className="h-9 w-full bg-white shadow-md border-0 rounded-md text-sm"
+                      />
+                    </div>
+                 </div>
+
+                 {/* Row 2: Location + Date (Side by Side) */}
+                 <div className="flex gap-2 pointer-events-auto">
+                   {/* Location Input */}
+                   <div className="flex-1">
+                     <Input
+                        placeholder="Localisation"
+                        value={location}
+                        onChange={(e) => setLocation(e.target.value)}
+                        onKeyDown={handleKeyDown}
+                        className="h-9 w-full bg-white shadow-md border-0 rounded-md text-sm"
+                     />
+                   </div>
+
+                   {/* Date Picker */}
+                   <div className="flex-1">
+                     <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "h-9 w-full bg-white shadow-md border-0 rounded-md justify-start font-normal px-2 text-sm truncate",
+                              !date && "text-muted-foreground"
+                            )}
+                          >
+                            <CalendarIcon className="h-3 w-3 mr-1.5 shrink-0" />
+                            <span className="truncate">{date ? format(date, "d MMM", { locale: fr }) : "Date"}</span>
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="end">
+                          <Calendar
+                            mode="single"
+                            selected={date}
+                            onSelect={setDate}
+                            initialFocus
+                            locale={fr}
+                            disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                          />
+                        </PopoverContent>
+                     </Popover>
+                   </div>
+                 </div>
+
+                 {/* Row 3: List + Filters Buttons */}
+                 <div className="flex gap-2 pointer-events-auto">
+                    <Button 
+                      className="flex-1 bg-white text-black hover:bg-gray-50 shadow-md border-0 h-9 text-sm"
+                      onClick={() => setShowMapMobile(false)}
+                    >
+                      <List className="h-3.5 w-3.5 mr-1.5" />
+                      Liste
+                    </Button>
+                    <Button 
+                      className="flex-1 bg-white text-black hover:bg-gray-50 shadow-md border-0 h-9 text-sm"
+                      onClick={() => {
+                        setShowFilters(!showFilters) 
+                      }}
+                    >
+                      <Filter className="h-3.5 w-3.5 mr-1.5" />
+                      Filtres
+                    </Button>
+                 </div>
+
+                 {/* Spacer to push content to bottom */}
+                 <div className="flex-1"></div>
+
+                 {/* Bottom content: Selected Card or Filter Buttons */}
+                 <div className="pointer-events-auto">
+                    {selectedMobileBusiness ? (
+                      <Link href={`/salon/${buildSalonSlug(selectedMobileBusiness.name, selectedMobileBusiness.id, selectedMobileBusiness.city || selectedMobileBusiness.location?.city)}`}>
+                        <Card className="shadow-xl border-0 overflow-hidden animate-in slide-in-from-bottom-5">
+                          <div className="flex h-24">
+                            {/* Image */}
+                            <div className="relative w-24 h-full shrink-0 bg-gray-100">
+                                {selectedMobileBusiness.cover_url || selectedMobileBusiness.media?.[0]?.url ? (
+                                  <Image
+                                    src={selectedMobileBusiness.cover_url || selectedMobileBusiness.media?.[0]?.url || ""}
+                                    alt={selectedMobileBusiness.name}
+                                    fill
+                                    className="object-cover"
+                                  />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center">
+                                    <span className="text-gray-400 font-bold text-xl">{selectedMobileBusiness.name.charAt(0)}</span>
+                                  </div>
+                                )}
+                            </div>
+                            
+                            {/* Content */}
+                            <div className="flex-1 p-3 flex flex-col justify-center min-w-0">
+                               <h3 className="font-bold text-base truncate">{selectedMobileBusiness.name}</h3>
+                               <div className="flex items-center text-sm text-gray-500 mb-1">
+                                  <MapPin className="h-3 w-3 mr-1 shrink-0" />
+                                  <span className="truncate">{selectedMobileBusiness.location?.address || selectedMobileBusiness.city || selectedMobileBusiness.location?.city}</span>
+                               </div>
+                            </div>
+                          </div>
+                        </Card>
+                      </Link>
+                    ) : null}
+                 </div>
+
+                 {/* Filters Overlay (Bottom Sheet) */}
+                 {showFilters && (
+                    <div className="absolute inset-0 z-50 flex flex-col justify-end">
+                       {/* Backdrop */}
+                       <div 
+                          className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+                          onClick={() => setShowFilters(false)}
+                       />
+                       
+                       {/* Sheet content */}
+                       <div className="relative bg-white rounded-t-xl p-4 shadow-xl animate-in slide-in-from-bottom-10 pointer-events-auto">
+                          <div className="flex justify-between items-center mb-4">
+                             <h3 className="font-semibold text-lg">Filtres</h3>
+                             <Button variant="ghost" size="sm" onClick={() => setShowFilters(false)}>Fermer</Button>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-2 max-h-[50vh] overflow-y-auto">
+                             <Button
+                                variant={!category ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => {
+                                   setCategory("")
+                                   setWasMapMoved(false)
+                                   setShowFilters(false)
+                                }}
+                                className="w-full justify-start"
+                             >
+                                Tous
+                             </Button>
+                             {popularServices.map((service) => (
+                                <Button
+                                   key={service}
+                                   variant={selectedService === service ? "default" : "outline"}
+                                   size="sm"
+                                   onClick={() => {
+                                      setSelectedService(selectedService === service ? null : service)
+                                      setQuery(selectedService === service ? "" : service)
+                                      setWasMapMoved(false)
+                                      setShowFilters(false)
+                                   }}
+                                   className="w-full justify-start"
+                                >
+                                   {service}
+                                </Button>
+                             ))}
+                          </div>
+                       </div>
+                    </div>
+                 )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

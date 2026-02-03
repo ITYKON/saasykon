@@ -118,7 +118,6 @@ export async function GET(req: Request): Promise<NextResponse> {
 
     // Gestion de la recherche par localisation
     if (location) {
-      console.log('Recherche par localisation:', { location });
       where.business_locations = {
         some: { 
           OR: [
@@ -181,21 +180,30 @@ export async function GET(req: Request): Promise<NextResponse> {
       );
     }
     
-    console.log('Requête Prisma:', JSON.stringify({ where, orderBy, skip, take: pageSize }, null, 2));
-    
     // Exécution de la requête principale
-    console.log('Exécution de la requête Prisma...');
     
-    const [businesses, total] = await Promise.all([
+    const [allBusinesses, total] = await Promise.all([
       prisma.businesses.findMany({
         where,
         include,
         orderBy,
-        skip,
-        take: pageSize,
+        skip: 0,
+        take: pageSize * 3, // Fetch more to sort properly
       }) as unknown as Business[],
       prisma.businesses.count({ where })
     ]);
+
+    // Sort by claim_status first (functional salons first, then claimable)
+    const sortedByClaimStatus = allBusinesses.sort((a: any, b: any) => {
+      const aIsFunctional = (a.claim_status ?? 'none') !== 'none';
+      const bIsFunctional = (b.claim_status ?? 'none') !== 'none';
+      if (aIsFunctional && !bIsFunctional) return -1;
+      if (!aIsFunctional && bIsFunctional) return 1;
+      return 0;
+    });
+    
+    // Apply pagination after sorting
+    const businesses = sortedByClaimStatus.slice(skip, skip + pageSize);
     
     // Formatage des résultats pour le frontend
     const formattedResults = businesses.map((business) => {
@@ -255,7 +263,7 @@ export async function GET(req: Request): Promise<NextResponse> {
         totalPages: Math.ceil(total / pageSize)
       };
       
-      console.log(`Recherche terminée: ${formattedResults.length} résultats sur ${total}`);
+
       
       return NextResponse.json(responseData);
   } catch (error) {

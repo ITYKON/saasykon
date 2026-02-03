@@ -13,6 +13,8 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
         email: true,
         phone: true,
         description: true,
+        archived_at: true,
+        deleted_at: true,
         business_locations: {
           where: { is_primary: true },
           take: 1,
@@ -38,7 +40,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
       },
     });
 
-    if (!business) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    if (!business || business.archived_at || business.deleted_at) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
     const address = business.business_locations?.[0];
     const cityName = address?.cities?.name ?? null;

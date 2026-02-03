@@ -113,7 +113,7 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
     }
 
-    console.log(`Utilisateur connecté: ${user.id} (${user.email})`);
+
     
     // Vérifier que le corps de la requête est valide
     let data;

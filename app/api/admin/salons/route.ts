@@ -69,6 +69,9 @@ export async function GET(req: Request) {
     // Construction de la requête de recherche
     const claimStatusFilter = searchParams.get("claim_status");
     const where: any = {
+      // Exclure les salons archivés et supprimés
+      archived_at: null,
+      deleted_at: null,
       ...(q && {
         OR: [
           { public_name: { contains: q, mode: 'insensitive' } },
@@ -95,6 +98,7 @@ export async function GET(req: Request) {
         cover_url: true,
         status: true,
         claim_status: true,
+        slug: true,
         created_at: true,
         updated_at: true,
         archived_at: true,
@@ -297,14 +301,65 @@ const salonSchema = z.object({
   logo_url: z.string().nullable().optional(),
   cover_url: z.string().nullable().optional(),
   location: z.string().min(1, "La wilaya est requise"), 
-  status: z.string().nullable().optional(),
+  google_maps_link: z.string().nullable().optional(),
+  latitude: z.string().nullable().optional().or(z.number()),
+  longitude: z.string().nullable().optional().or(z.number()),
 });
+
+
+async function expandShortUrl(url: string): Promise<string> {
+  if (!url) return url;
+  if (!url.includes("goo.gl") && !url.includes("g.page") && !url.includes("google.com/maps")) return url;
+  
+  try {
+    const response = await fetch(url, { method: 'HEAD', redirect: 'follow' });
+    return response.url;
+  } catch (error) {
+    console.warn("Failed to expand short URL:", url, error);
+    return url;
+  }
+}
+
+function extractCoordinatesFromUrl(url: string): { latitude: number, longitude: number } | null {
+  if (!url) return null;
+  
+  // Format 1: @lat,lng (e.g., https://www.google.com/maps/place/.../@36.75,3.05,15z)
+  const atMatch = url.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+  if (atMatch) {
+    return { latitude: parseFloat(atMatch[1]), longitude: parseFloat(atMatch[2]) };
+  }
+
+  // Format 1b: !3dlat!4dlng (Very common in Google Maps place URLs)
+  const dMatch = url.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
+  if (dMatch) {
+    return { latitude: parseFloat(dMatch[1]), longitude: parseFloat(dMatch[2]) };
+  }
+  
+  // Format 2: q=lat,lng (e.g., https://maps.google.com/?q=36.75,3.05)
+  const qMatch = url.match(/[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)/);
+  if (qMatch) {
+    return { latitude: parseFloat(qMatch[1]), longitude: parseFloat(qMatch[2]) };
+  }
+  
+  // Format 3: ll=lat,lng
+  const llMatch = url.match(/[?&]ll=(-?\d+\.\d+),(-?\d+\.\d+)/);
+  if (llMatch) {
+    return { latitude: parseFloat(llMatch[1]), longitude: parseFloat(llMatch[2]) };
+  }
+
+  // Format 4: 36.75, 3.05 (just coordinates)
+  const coordsMatch = url.match(/^\[?\s*(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)\s*\]?$/);
+  if (coordsMatch) {
+     return { latitude: parseFloat(coordsMatch[1]), longitude: parseFloat(coordsMatch[2]) };
+  }
+  
+  return null;
+}
 
 export async function POST(req: Request) {
     const authCheck = await requireAdminOrPermission("salons");
     if (authCheck instanceof NextResponse) return authCheck;
     const data = await req.json();
-  console.log("[POST /api/admin/salons] data reçu:", data);
   const parse = salonSchema.safeParse(data);
   if (!parse.success) {
     console.error("[POST /api/admin/salons] Validation error:", parse.error);
@@ -326,7 +381,6 @@ export async function POST(req: Request) {
       });
       
       if (existingUser) {
-        console.log(`[POST /api/admin/salons] Email déjà utilisé: ${data.email}`);
         return NextResponse.json(
           { 
             error: "email_exists",
@@ -349,7 +403,6 @@ export async function POST(req: Request) {
         },
       });
       ownerUserId = ownerUser.id;
-      console.log("[POST /api/admin/salons] Nouvel utilisateur créé:", ownerUser);
     } catch (error) {
       console.error("[POST /api/admin/salons] Erreur création utilisateur:", error);
       const err = error as { code?: string; meta?: { target?: string[] } };
@@ -422,10 +475,15 @@ export async function POST(req: Request) {
       salonData.verification_status = "verified";
     }
 
+    // Generate slug
+    const { generateUniqueSlug } = await import("@/lib/salon-slug");
+    const cityForSlug = parse.data.location || "";
+    const nameForSlug = salonData.public_name || salonData.legal_name || "salon";
+    salonData.slug = await generateUniqueSlug(nameForSlug, cityForSlug);
+
     const salon = await prisma.businesses.create({
       data: salonData,
     });
-    console.log("[POST /api/admin/salons] Salon créé:", salon);
 
     // Create business location if location is provided
     if (parse.data.location) {
@@ -440,15 +498,33 @@ export async function POST(req: Request) {
           },
         });
 
+        // Use coordinates from body if available, otherwise try to extract from link
+        let lat = data.latitude ? parseFloat(data.latitude.toString()) : null;
+        let lng = data.longitude ? parseFloat(data.longitude.toString()) : null;
+
+        if (!lat || !lng) {
+          const expandedUrl = parse.data.google_maps_link 
+             ? await expandShortUrl(parse.data.google_maps_link) 
+             : null;
+             
+          const coords = expandedUrl 
+              ? extractCoordinatesFromUrl(expandedUrl) 
+              : null;
+          
+          lat = coords?.latitude || null;
+          lng = coords?.longitude || null;
+        }
+
         await prisma.business_locations.create({
           data: {
             business_id: salon.id,
             address_line1: parse.data.location,
             city_id: city?.id,
             is_primary: true,
+            latitude: lat,
+            longitude: lng,
           },
         });
-        console.log("[POST /api/admin/salons] Localisation créée:", parse.data.location);
       } catch (locationError) {
         console.error("[POST /api/admin/salons] Erreur création localisation:", locationError);
         // Continue even if location creation fails
@@ -472,7 +548,6 @@ export async function PUT(req: Request) {
     const authCheck = await requireAdminOrPermission("salons");
     if (authCheck instanceof NextResponse) return authCheck;
     const data = await req.json();
-  console.log("[PUT /api/admin/salons] data reçu:", data);
   if (!data.id) {
     console.error("[PUT /api/admin/salons] Missing salon id");
     return NextResponse.json({ error: "Missing salon id" }, { status: 400 });
@@ -488,7 +563,6 @@ export async function PUT(req: Request) {
           updated_at: new Date(),
         },
       });
-      console.log("[PUT /api/admin/salons] Statut du salon modifié:", salon);
       await prisma.event_logs.create({
         data: {
           user_id: (authCheck as any).userId,
@@ -537,16 +611,36 @@ export async function PUT(req: Request) {
     });
     
     // Handle location update if provided
-    if (data.location) {
+    if (data.location || data.google_maps_link) {
+      let city = null;
       // Find the city by name
-      const city = await prisma.cities.findFirst({
-        where: {
-          name: {
-            contains: data.location,
-            mode: 'insensitive'
-          }
-        }
-      });
+      if (data.location) {
+        city = await prisma.cities.findFirst({
+            where: {
+            name: {
+                contains: data.location,
+                mode: 'insensitive'
+            }
+            }
+        });
+      }
+
+      // Use coordinates from body if available, otherwise try to extract from link
+      let lat = data.latitude ? parseFloat(data.latitude.toString()) : null;
+      let lng = data.longitude ? parseFloat(data.longitude.toString()) : null;
+
+      if (!lat || !lng) {
+        const expandedUrl = data.google_maps_link 
+          ? await expandShortUrl(data.google_maps_link) 
+          : null;
+
+        const coords = expandedUrl 
+          ? extractCoordinatesFromUrl(expandedUrl) 
+          : null;
+        
+        lat = coords?.latitude || null;
+        lng = coords?.longitude || null;
+      }
       
       // Update or create business location
       const existingLocation = await prisma.business_locations.findFirst({
@@ -557,23 +651,28 @@ export async function PUT(req: Request) {
         await prisma.business_locations.update({
           where: { id: existingLocation.id },
           data: {
-            address_line1: data.location,
-            city_id: city?.id,
+            ...(data.location ? { address_line1: data.location } : {}),
+            ...(city ? { city_id: city.id } : {}),
+            latitude: lat,
+            longitude: lng,
             updated_at: new Date()
           }
         });
       } else {
-        await prisma.business_locations.create({
-          data: {
-            business_id: data.id,
-            address_line1: data.location,
-            city_id: city?.id,
-            is_primary: true
-          }
-        });
+        if (data.location) {
+            await prisma.business_locations.create({
+            data: {
+                business_id: data.id,
+                address_line1: data.location,
+                city_id: city?.id,
+                is_primary: true,
+                latitude: lat,
+                longitude: lng,
+            }
+            });
+        }
       }
     }
-    console.log("[PUT /api/admin/salons] Salon modifié:", salon);
     await prisma.event_logs.create({
       data: {
         user_id: (authCheck as any).userId,

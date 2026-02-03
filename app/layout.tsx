@@ -14,6 +14,9 @@ export const metadata: Metadata = {
   description:
     "Trouvez rapidement un salon de coiffure, institut de beauté, un barbier près de chez vous. RDV en ligne 24/7. Confirmation immédiate.",
   generator: "YOKA",
+  icons: {
+    icon: "/favicon.svg",
+  },
 };
 
 export default function RootLayout({

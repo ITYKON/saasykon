@@ -47,9 +47,9 @@ function SearchForm() {
           <div className="relative">
             <Input
               name="q"
-              type="text"
-              placeholder="Que cherchez-vous ?"
-              defaultValue="Instituts de beauté"
+              // type="text"
+              placeholder="Que cherchez-vous ? (Instituts de beauté)"
+              // defaultValue="Instituts de beauté"
               className="border-0 focus:ring-0 text-gray-900 bg-transparent"
             />
           </div>
@@ -58,9 +58,9 @@ function SearchForm() {
           <div className="relative">
             <Input
               name="where"
-              type="text"
-              placeholder="Où"
-              defaultValue="Adresse, ville..."
+              // type="text"
+              placeholder="Où ? (Adresse, ville...)"
+              // defaultValue="Adresse, ville..."
               className="border-0 focus:ring-0 text-gray-500 bg-transparent"
             />
           </div>
@@ -210,11 +210,11 @@ export default async function InstitutDeBeautePage({
             Rejoignez YOKA et développez votre clientèle grâce à notre plateforme de réservation en ligne
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="lg" className="bg-black hover:bg-gray-800 text-white">
-              Devenir partenaire
+            <Button size="lg" className="bg-black hover:bg-gray-800 text-white" asChild>
+              <Link href="/auth/pro">Devenir partenaire</Link>
             </Button>
-            <Button size="lg" variant="outline">
-              En savoir plus
+            <Button size="lg" variant="outline" asChild>
+              <Link href="/a-propos/qui-sommes-nous">En savoir plus</Link>
             </Button>
           </div>
         </div>

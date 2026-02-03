@@ -1,26 +1,17 @@
-
+# Pour développement et CI/CD : UNIQUEMENT l'app
 services:
   saasykon-app:
     image: ghcr.io/itykon/saasykon-app:latest
-    container_name: saasykon-app
     ports:
       - "3000:3000"
     environment:
       - NODE_ENV=production
       - HOSTNAME=0.0.0.0
       - PORT=3000
-      - NEXT_PUBLIC_API_URL=http://localhost:3000/api
-      - INTERNAL_API_URL=http://host.docker.internal:3000/api
-      - DATABASE_URL=postgresql://azureyoka:Ahlemaz2025@yoka-postgres-01.postgres.database.azure.com:5432/saas__yoka?schema=public&sslmode=require
+      - NEXT_PUBLIC_API_URL=http://localhost:3000/api  # Pour dev local
+      - INTERNAL_API_URL=http://saasykon-app:3000/api
+      - DATABASE_URL=${DATABASE_URL}
       - DISABLE_SECURE_COOKIES=${DISABLE_SECURE_COOKIES:-false}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped
-    networks:
-      - saasykon-network
-
-networks:
-  saasykon-network:
-    driver: bridge
-
-

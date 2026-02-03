@@ -3,9 +3,7 @@ import { sendTestEmail } from '@/lib/email';
 
 export async function GET() {
   try {
-    console.log('🔄 Sending test email...');
     const result = await sendTestEmail();
-    console.log('✅ Email sent successfully:', result);
     return NextResponse.json({
       success: true,
       message: 'Test email sent successfully',

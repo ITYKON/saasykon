@@ -147,7 +147,7 @@ export default function AbonnementPage() {
         </div>
         </div>
         </header>
-
+<div className="px-6 py-4">
         {/* Current Subscription Status */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           <Card className="lg:col-span-2">
@@ -391,6 +391,7 @@ export default function AbonnementPage() {
             </div>
           </CardContent>
         </Card>
+        </div>
       </div>
     </div>
   )

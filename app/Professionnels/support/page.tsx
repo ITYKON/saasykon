@@ -19,7 +19,7 @@ export default function SupportPage() {
                     const searchTerm = (e.target as HTMLInputElement).value.trim();
                     if (searchTerm) {
                       // Implémentez la logique de recherche ici
-                      console.log('Recherche pour :', searchTerm);
+
                     }
                   }
                 }}

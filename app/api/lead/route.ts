@@ -28,6 +28,11 @@ export async function POST(req: Request) {
 
   // Crée le business lead avec ce user comme owner
   // Les salons créés depuis le formulaire de lead ne sont PAS revendicables
+  
+  // Generate slug
+  const { generateUniqueSlug } = await import("@/lib/salon-slug");
+  const slug = await generateUniqueSlug(data.companyName, data.city);
+
   const lead = await prisma.businesses.create({
     data: {
       legal_name: data.companyName,
@@ -41,6 +46,7 @@ export async function POST(req: Request) {
       deleted_at: null,
       status: "pending_verification" as any,
       claim_status: "not_claimable", // Les salons créés depuis les leads ne sont pas revendicables
+      slug,
     },
   });
 

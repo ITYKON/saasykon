@@ -8,17 +8,24 @@ export async function GET(req: Request): Promise<NextResponse> {
     // Récupération des paramètres de requête
     const { searchParams } = new URL(req.url);
     const query = (searchParams.get("q") || "").trim();
-    const locationQuery = (searchParams.get("location") || "").trim(); // Ajout paramètre location
+    const locationQuery = (searchParams.get("location") || "").trim();
     const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
     const pageSize = Math.min(100, parseInt(searchParams.get("pageSize") || "20", 10));
     const skip = (page - 1) * pageSize;
     
-    // Si pas de query ni de location, on peut renvoyer une erreur ou des résultats par défaut
-    // Ici on permet si au moins l'un des deux est présent
-    if (!query && !locationQuery) {
+    // Paramètres de bounding box pour la recherche par carte
+    const north = searchParams.get("n");
+    const south = searchParams.get("s");
+    const east = searchParams.get("e");
+    const west = searchParams.get("w");
+    
+    const hasBounds = north && south && east && west;
+    
+    // Si pas de query ni de location ni de bounds, on renvoie une erreur ou des résultats par défaut
+    if (!query && !locationQuery && !hasBounds) {
        return NextResponse.json(
         { 
-          error: "Veuillez spécifier une recherche ou une localisation",
+          error: "Veuillez spécifier une recherche, une localisation ou des coordonnées",
           code: "MISSING_PARAMS"
         },
         { status: 400 }
@@ -65,17 +72,62 @@ export async function GET(req: Request): Promise<NextResponse> {
       where.OR = textConditions;
     }
 
-    // --- 2. Filtre par LOCALISATION (Ville) ---
-    if (locationQuery) {
-      where.business_locations = {
-        some: {
-          OR: [
-             { cities: { name: { contains: locationQuery, mode: 'insensitive' as const } } },
-             { address_line1: { contains: locationQuery, mode: 'insensitive' as const } },
-             { postal_code: { contains: locationQuery, mode: 'insensitive' as const } },
-          ]
+    // --- 2. Filtre par LOCALISATION (Ville) et/ou CARTE (Bounds) ---
+    const locationConditions: any[] = [];
+
+    // B. Filtre géographique (Bounds)
+    if (hasBounds) {
+        // Si on a des bounds, on ignore le filtre texte de localisation car l'utilisateur 
+        // est en train de naviguer manuellement sur la carte.
+        locationConditions.push({
+            latitude: { lte: parseFloat(north!), gte: parseFloat(south!) },
+            longitude: { lte: parseFloat(east!), gte: parseFloat(west!) }
+        });
+    } else if (locationQuery) {
+        // A. Filtre texte (Ville, adresse, etc.) - Uniquement si pas de bounds
+        const parts = locationQuery.split(',').map(p => p.trim());
+        
+        if (parts.length >= 2) {
+            // Format "Commune, Wilaya"
+            const [commune, wilaya] = parts;
+            
+            locationConditions.push({
+                OR: [
+                    {
+                        AND: [
+                            { cities: { name: { contains: wilaya, mode: 'insensitive' as const } } },
+                            { 
+                                OR: [
+                                    { address_line1: { contains: commune, mode: 'insensitive' as const } },
+                                    { address_line2: { contains: commune, mode: 'insensitive' as const } }
+                                ]
+                            }
+                        ]
+                    },
+                    { cities: { name: { contains: locationQuery, mode: 'insensitive' as const } } },
+                    { address_line1: { contains: locationQuery, mode: 'insensitive' as const } }
+                ]
+            });
+        } else {
+            // Recherche par terme unique
+            locationConditions.push({
+                OR: [
+                    { cities: { name: { contains: locationQuery, mode: 'insensitive' as const } } },
+                    { address_line1: { contains: locationQuery, mode: 'insensitive' as const } },
+                    { address_line2: { contains: locationQuery, mode: 'insensitive' as const } },
+                    { postal_code: { contains: locationQuery, mode: 'insensitive' as const } },
+                ]
+            });
         }
-      };
+    }
+
+    // Appliquer les filtres sur les localisations
+    if (locationConditions.length > 0) {
+        where.business_locations = {
+            some: {
+                AND: locationConditions
+            }
+        };
     }
 
     // Configuration du tri
@@ -85,7 +137,7 @@ export async function GET(req: Request): Promise<NextResponse> {
     ];
     
     // Exécution de la requête Prisma
-    const [businesses, total] = await Promise.all([
+    const [allBusinesses, total] = await Promise.all([
       prisma.businesses.findMany({
         where,
         include: {
@@ -128,11 +180,23 @@ export async function GET(req: Request): Promise<NextResponse> {
           }
         },
         orderBy,
-        skip,
-        take: pageSize,
+        skip: 0,
+        take: pageSize * 3, // Fetch more to sort properly
       }),
       prisma.businesses.count({ where })
     ]);
+    
+    // Sort by claim_status first (functional salons first, then claimable)
+    const sortedByClaimStatus = allBusinesses.sort((a: any, b: any) => {
+      const aIsFunctional = (a.claim_status ?? 'none') !== 'none';
+      const bIsFunctional = (b.claim_status ?? 'none') !== 'none';
+      if (aIsFunctional && !bIsFunctional) return -1;
+      if (!aIsFunctional && bIsFunctional) return 1;
+      return 0;
+    });
+    
+    // Apply pagination after sorting
+    const businesses = sortedByClaimStatus.slice(skip, skip + pageSize);
     
     // Formatage des résultats pour le frontend
     const formattedResults = businesses.map((business: any) => { // FIX: cast as any because of complex include inference
@@ -151,6 +215,11 @@ export async function GET(req: Request): Promise<NextResponse> {
         address: primaryLocation ? `${primaryLocation.address_line1} ${primaryLocation.address_line2 || ''}`.trim() : '',
         city: primaryLocation?.cities?.name || '',
         postalCode: primaryLocation?.postal_code || '',
+        location: {
+          latitude: primaryLocation?.latitude,
+          longitude: primaryLocation?.longitude,
+          address: primaryLocation ? `${primaryLocation.address_line1} ${primaryLocation.address_line2 || ''}`.trim() : ''
+        },
         employeesCount: business.employees.length,
         // Mapping des services
         services: business.services.map((s: any) => {
@@ -164,9 +233,39 @@ export async function GET(req: Request): Promise<NextResponse> {
         }),
         isPremium: business.subscriptions.some((sub: any) => sub.plans.code === 'premium'),
         isNew: new Date(business.created_at) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // Moins de 30 jours
-        isTop: Number(business.ratings_aggregates?.rating_avg || 0) >= 4.5
+        isTop: Number(business.ratings_aggregates?.rating_avg || 0) >= 4.5,
+        slug: business.slug,
       };
     });
+
+    // --- 4. Tri par pertinence de localisation ---
+    if (locationQuery) {
+      const normalizedQuery = locationQuery.toLowerCase();
+      const queryParts = normalizedQuery.split(',').map(p => p.trim());
+      const communeQuery = queryParts[0];
+      const wilayaQuery = queryParts[1] || queryParts[0];
+
+      formattedResults.sort((a, b) => {
+        const aCity = a.city.toLowerCase();
+        const aAddr = a.address.toLowerCase();
+        const bCity = b.city.toLowerCase();
+        const bAddr = b.address.toLowerCase();
+
+        // 1. Priorité aux communes exactes (ex: "Bejaia" -> "Bejaia")
+        const aExactCommune = aAddr.includes(communeQuery) || aCity === communeQuery;
+        const bExactCommune = bAddr.includes(communeQuery) || bCity === communeQuery;
+        if (aExactCommune && !bExactCommune) return -1;
+        if (bExactCommune && !aExactCommune) return 1;
+
+        // 2. Priorité au "centre" de la wilaya cherchée (ex: "Alger" -> "Alger centre")
+        const aIsCentre = (aAddr.includes("centre") || aCity.includes("centre")) && (aCity.includes(wilayaQuery) || aAddr.includes(wilayaQuery));
+        const bIsCentre = (bAddr.includes("centre") || bCity.includes("centre")) && (bCity.includes(wilayaQuery) || bAddr.includes(wilayaQuery));
+        if (aIsCentre && !bIsCentre) return -1;
+        if (bIsCentre && !aIsCentre) return 1;
+
+        return 0;
+      });
+    }
     
     // Réponse finale
     return NextResponse.json({

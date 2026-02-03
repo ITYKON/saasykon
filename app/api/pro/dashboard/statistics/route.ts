@@ -6,18 +6,15 @@ import type { DashboardStatistics } from '@/types/statistics';
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  console.log('Début de la récupération des statistiques');
   try {
     // Vérification de l'authentification
     const user = await getAuthUserFromCookies();
-    console.log('Utilisateur récupéré:', user?.id);
     if (!user?.id) {
       console.error('Erreur: Utilisateur non authentifié');
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
     }
 
     // Récupération des entreprises de l'utilisateur
-    console.log('Récupération des entreprises pour l\'utilisateur:', user.id);
     const userBusinesses = await prisma.user_roles.findMany({
       where: { user_id: user.id },
       include: {
@@ -29,7 +26,7 @@ export async function GET() {
       }
     });
 
-    console.log('Entreprises récupérées:', JSON.stringify(userBusinesses, null, 2));
+
 
     if (userBusinesses.length === 0) {
       console.error('Erreur: Aucune entreprise trouvée pour cet utilisateur');
@@ -38,7 +35,6 @@ export async function GET() {
 
     // Prendre la première entreprise de l'utilisateur
     const business = userBusinesses[0]?.businesses;
-    console.log('Entreprise sélectionnée:', business);
     
     if (!business) {
       console.error('Erreur: Aucune entreprise valide trouvée');
@@ -46,7 +42,6 @@ export async function GET() {
     }
     
     const businessLocationId = business.business_locations?.[0]?.id;
-    console.log('ID de l\'emplacement du salon:', businessLocationId);
 
     if (!businessLocationId) {
       console.error('Erreur: Aucun emplacement de salon trouvé');
@@ -58,8 +53,6 @@ export async function GET() {
     thirtyDaysAgo.setDate(now.getDate() - 30);
 
     // Récupération des réservations des 30 derniers jours
-    console.log('Récupération des réservations pour l\'emplacement:', businessLocationId);
-    console.log('Période:', thirtyDaysAgo, 'à', now);
     
     const reservations = await prisma.reservations.findMany({
       where: {
@@ -84,23 +77,12 @@ export async function GET() {
       }
     });
 
-    console.log(`Nombre de réservations trouvées: ${reservations.length}`);
-
     // Calcul des statistiques
     const stats = calculateStatistics(reservations, thirtyDaysAgo, now);
-    
-    console.log('Statistiques calculées:', JSON.stringify({
-      overview: stats.overview,
-      dailyStatsCount: stats.dailyStats.length,
-      serviceStatsCount: stats.serviceStats.length,
-      employeeStatsCount: stats.employeeStats.length,
-      recentAppointmentsCount: stats.recentAppointments.length
-    }, null, 2));
 
     return NextResponse.json(stats);
   } catch (error) {
     console.error('Erreur lors de la récupération des statistiques:', error);
-    console.error('Stack trace:', error instanceof Error ? error.stack : 'Pas de stack trace disponible');
     return NextResponse.json(
       { 
         error: 'Erreur lors de la récupération des statistiques',

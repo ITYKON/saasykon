@@ -7,12 +7,11 @@ export default function LogoutPage() {
   const [logs, setLogs] = useState<string[]>([])
 
   const addLog = (message: string) => {
-    console.log(message)
     setLogs(prev => [...prev, message])
   }
 
   useEffect(() => {
-    console.log("🚀 LogoutPage monté - début déconnexion")
+
     
     const logout = async () => {
       try {
@@ -39,26 +38,10 @@ export default function LogoutPage() {
 
         addLog("✅ API déconnexion réussie")
 
-        // 2. Suppression manuelle des cookies côté client
-        addLog("🗑️ Suppression manuelle des cookies...")
-        
-        // Méthode SIMPLIFIÉE sans domaine complexe
-        const deleteCookie = (name: string) => {
-          // Méthode 1 : sans domaine (la plus fiable)
-          document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`
-          addLog(`🗑️ Cookie ${name} supprimé`)
-        }
+        // 2. Suppression manuelle côté client (Désactivé car HttpOnly)
+        addLog("🧹 Nettoyage terminé via les en-têtes API")
 
-        // Suppression des cookies
-        deleteCookie('saas_session')
-        deleteCookie('saas_roles')
-        deleteCookie('business_id')
-        deleteCookie('onboarding_done')
-
-        // 3. Vérification finale
-        addLog(`🔍 Cookies restants: ${document.cookie || "AUCUN"}`)
-
-        // 4. Redirection
+        // 3. Redirection
         addLog("🔄 Redirection vers /auth/login...")
         setStatus("Redirection vers la page de connexion...")
         setTimeout(() => {

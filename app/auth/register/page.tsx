@@ -148,7 +148,7 @@ export default function RegisterPage() {
               <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="first_name">Prénom *</Label>
+                    <Label htmlFor="first_name">Prénom</Label>
                     <div className="space-y-1">
                       <Input
                         id="first_name"
@@ -168,7 +168,7 @@ export default function RegisterPage() {
                     </div>
                   </div>
                   <div>
-                    <Label htmlFor="last_name">Nom *</Label>
+                    <Label htmlFor="last_name">Nom</Label>
                     <div className="space-y-1">
                       <Input
                         id="last_name"
@@ -190,7 +190,7 @@ export default function RegisterPage() {
                 </div>
                 <div>
                   <div className="space-y-1">
-                    <Label htmlFor="phone">Téléphone portable *</Label>
+                    <Label htmlFor="phone">Téléphone portable</Label>
                     <PhoneInput
                       id="phone"
                       required
@@ -214,7 +214,7 @@ export default function RegisterPage() {
                 </div>
 
                 <div>
-                  <Label htmlFor="email">Email *</Label>
+                  <Label htmlFor="email">Email </Label>
                   <Input
                     id="email"
                     type="email"
@@ -233,7 +233,7 @@ export default function RegisterPage() {
                 </div>
 
                 <div>
-                  <Label htmlFor="password">Mot de passe *</Label>
+                  <Label htmlFor="password">Mot de passe </Label>
                   <div className="relative mt-1">
                     <Input
                       id="password"
@@ -257,8 +257,8 @@ export default function RegisterPage() {
                 </div>
 
               </div>
-                                <div className="flex flex-col gap-2">
-                  <div className="flex items-start gap-3">
+                                <div className="flex flex-col gap-3">
+                  <div className="flex items-start gap-1">
                     <Checkbox 
                       id="consent" 
                       checked={formData.acceptTerms} 
