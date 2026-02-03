@@ -14,6 +14,8 @@ export async function GET(req: NextRequest) {
   let allowed = 
     ctx.roles.includes("ADMIN") || 
     ctx.roles.includes("EMPLOYEE") ||
+    ctx.permissions.includes("agenda_view") ||
+    ctx.permissions.includes("employees") ||
     ctx.assignments.some((a) => a.business_id === businessId && (a.role === "PRO" || a.role === "PROFESSIONNEL"));
   
   // Si l'utilisateur est un employé, vérifier les permissions spécifiques

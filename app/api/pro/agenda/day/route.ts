@@ -44,7 +44,9 @@ export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const businessId = url.searchParams.get("business_id") || cookieStore.get("business_id")?.value || ctx.assignments[0]?.business_id;
   if (!businessId) return NextResponse.json({ error: "business_id required" }, { status: 400 });
-  const allowed = ctx.roles.includes("ADMIN") || ctx.assignments.some((a) => a.business_id === businessId && (a.role === "PRO" || a.role === "PROFESSIONNEL"));
+  const allowed = ctx.roles.includes("ADMIN") || 
+                  ctx.permissions.includes("agenda_view") ||
+                  ctx.assignments.some((a) => a.business_id === businessId && (a.role === "PRO" || a.role === "PROFESSIONNEL"));
   if (!allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const dateParam = url.searchParams.get("date"); // yyyy-mm-dd
