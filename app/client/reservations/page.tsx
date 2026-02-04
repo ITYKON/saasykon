@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
+import Link from 'next/link';
 
 type Booking = {
   id: string
@@ -89,7 +90,9 @@ export default function ClientReservations() {
         <h1 className="text-2xl font-bold text-black">Mes réservations</h1>
                       <p className="text-gray-600 mt-1">Gérez vos réservations beauté en toute simplicité.</p>
       </div>
-        <Button className="bg-black text-white hover:bg-gray-800">Nouveau rendez-vous</Button>
+        <Button className="bg-black text-white hover:bg-gray-800" >
+          <Link href="/institut-de-beaute"> Nouveau rendez-vous</Link>
+          </Button>
       </div>
       </div>
       </header>
