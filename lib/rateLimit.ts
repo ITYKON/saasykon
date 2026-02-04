@@ -38,3 +38,11 @@ export function rateLimit(key: string, limit: number, windowMs: number) {
   bucket.count++;
   return { ok: true };
 }
+
+/**
+ * Reset the rate limit counter for a specific key
+ * Useful for clearing failed login attempts after a successful login
+ */
+export function resetRateLimit(key: string) {
+  buckets.delete(key);
+}
