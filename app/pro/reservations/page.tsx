@@ -350,6 +350,10 @@ export default function ReservationsPage() {
 
   const saveEdit = async () => {
     if (!editData) return
+    if (editData.item && !editData.item.employee_id) {
+      alert("Veuillez sélectionner un employé pour la prestation.")
+      return
+    }
     setSavingEdit(true)
     try {
       const starts_at = new Date(`${editData.date}T${editData.time}:00`).toISOString()
@@ -782,11 +786,10 @@ export default function ReservationsPage() {
               </Select>
             </div> */}
             <div>
-              <label className="block text-sm mb-1">Employé (item)</label>
+              <label className="block text-sm mb-1">Employé *</label>
               <Select 
-                value={editData?.item?.employee_id ?? "none"} 
-                onValueChange={(v) => {
-                  const val = v === 'none' ? null : v;
+                value={editData?.item?.employee_id || ""} 
+                onValueChange={(val) => {
                   setEditData(d => d ? { 
                     ...d, 
                     employee_id: val, // Sync with main level
@@ -794,7 +797,7 @@ export default function ReservationsPage() {
                   } : d)
                 }}
               >
-                <SelectTrigger><SelectValue placeholder="Sélectionner" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Sélectionner un employé" /></SelectTrigger>
                 <SelectContent>
                   {filteredEmployees.map((e: any) => (
                     <SelectItem key={e.id} value={e.id}>{e.full_name}</SelectItem>

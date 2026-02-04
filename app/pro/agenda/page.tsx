@@ -209,22 +209,6 @@ export default function ProAgenda() {
       .catch(() => {});
   }, []);
 
-  // Fonction utilitaire de debounce
-  const useDebounce = (value: any, delay: number) => {
-    const [debouncedValue, setDebouncedValue] = useState(value);
-
-    useEffect(() => {
-      const handler = setTimeout(() => {
-        setDebouncedValue(value);
-      }, delay);
-
-      return () => {
-        clearTimeout(handler);
-      };
-    }, [value, delay]);
-
-    return debouncedValue;
-  };
 
   // Valeurs debounced pour éviter les appels API trop fréquents
   const debouncedSearch = useDebounce(search, 500);
@@ -472,7 +456,6 @@ export default function ProAgenda() {
     "15:00",
     "16:00",
     "17:00",
-    "18:00",
   ];
 
   const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`);
@@ -492,12 +475,12 @@ export default function ProAgenda() {
   };
 
   // Config for time-grid (Google Calendar-like)
-  const hourHeight = 44; // px per hour (more compact)
+  const hourHeight = 62; // px per hour (more compact)
   const pxPerMinute = hourHeight / 60;
   const [workingStart, setWorkingStart] = useState<number>(9);
-  const [workingEnd, setWorkingEnd] = useState<number>(18);
+  const [workingEnd, setWorkingEnd] = useState<number>(17);
   const [workingStartMin, setWorkingStartMin] = useState<number>(9*60);
-  const [workingEndMin, setWorkingEndMin] = useState<number>(18*60);
+  const [workingEndMin, setWorkingEndMin] = useState<number>(17*60);
 
   // Sync working hours with business profile
   useEffect(() => {
@@ -519,7 +502,7 @@ export default function ProAgenda() {
         const endM = parseMin(today?.fin);
         if (typeof startM === 'number' && typeof endM === 'number' && endM > startM) {
           setWorkingStart(Math.floor(startM/60));
-          setWorkingEnd(Math.ceil(endM/60));
+          setWorkingEnd(Math.floor(endM/60));
           setWorkingStartMin(startM);
           setWorkingEndMin(endM);
         }
@@ -628,12 +611,127 @@ export default function ProAgenda() {
 
     const toDateStr = (d: Date) =>
       `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
+    // Always render using real API employees only (no mock fallback)
+    const base = allEmployees;
+    const sourceEmployees: Employee[] = base.map((e) => {
+      const id = empMap[norm(e.name)];
+      let slots = id && liveSlotsById[id] ? liveSlotsById[id] : [];
+      if ((!slots || slots.length === 0) && liveSlotsByName[norm(e.name)])
+        slots = liveSlotsByName[norm(e.name)];
+      return { ...e, slots };
+    });
+
+    if (isMobile) {
+      return (
+        <div className="bg-neutral-100 -mx-4 px-4 py-2 min-h-[calc(100vh-200px)]">
+          {/* Main Horizontal Scroll Container */}
+          <div className="overflow-x-auto no-scrollbar snap-x pb-6">
+            {/* Shared Vertical Scroll Container */}
+            <div className="overflow-y-auto no-scrollbar rounded-2xl overscroll-contain" style={{ height: `${(endMin - startMin) * pxPerMinute + 120}px` }}>
+              <div className="flex gap-4 min-w-max px-8 scroll-px-8">
+                {sourceEmployees.map((emp) => {
+                  const filtered = emp.slots.filter(
+                    (slot): slot is Appointment => slot !== null
+                  );
+                  const events = layoutEvents(filtered);
+                  const gridHeight = (endMin - startMin) * pxPerMinute;
+
+                  return (
+                    <div key={emp.name} className="flex-none w-[calc(100vw-64px)] snap-center flex flex-col gap-2">
+                      {/* Employee Header - Sticky Top */}
+                      <div className="sticky top-0 z-20 bg-neutral-100/80 backdrop-blur-sm pb-1">
+                        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 flex items-center gap-3 active:scale-95 transition-transform cursor-pointer">
+                          <div className="relative">
+                            <div className="h-10 w-10 rounded-full bg-gray-50 overflow-hidden border-2 border-white shadow-sm flex items-center justify-center text-gray-600 font-bold text-sm uppercase">
+                              {emp.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                            </div>
+                            <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white shadow-sm" style={{ backgroundColor: colorMap[norm(emp.name)] || '#3b82f6' }} />
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="font-bold text-gray-900 text-sm">{emp.name}</span>
+                            <span className="text-[10px] text-gray-400 font-medium uppercase tracking-wider">{filtered.length} RDV • {Math.floor(workingStartMin / 60)}h - {Math.floor(workingEndMin / 60)}h</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Column Grid Area (No internal scroll) */}
+                      <div className="relative bg-white/50 rounded-2xl border border-gray-200/50 shadow-inner overflow-hidden">
+                        <div className="relative" style={{ height: gridHeight + 60 }}>
+                          {/* Background Time Lines */}
+                          {rangeMinutes(startMin, endMin, 60).map((m, i) => (
+                            <div
+                              key={m}
+                              className="absolute left-0 right-0 border-t border-gray-200/40"
+                              style={{ top: i * hourHeight }}
+                            >
+                              <span className="absolute top-1 left-2 text-[10px] font-bold text-gray-400">
+                                {pad(Math.floor(m / 60))}:00
+                              </span>
+                            </div>
+                          ))}
+                          
+                          {/* Events */}
+                          {events.map((ev, i) => (
+                            <div
+                              key={i}
+                              className="absolute left-0 right-0 mx-2"
+                              style={{
+                                top: ev.top,
+                                height: ev.height,
+                                left: `${(ev.col * 100) / ev.cols}%`,
+                                width: `${100 / ev.cols}%`,
+                              }}
+                            >
+                              <div
+                                className="h-full bg-white rounded-xl p-3 border border-gray-100 shadow-sm flex flex-col gap-1 overflow-hidden active:brightness-95 transition-all cursor-pointer group"
+                                onClick={() => {
+                                  setDetail({
+                                    dateStr: toDateStr(currentDate),
+                                    time: `${ev.start}-${ev.end}`,
+                                    title: ev.title,
+                                    color: ev.color,
+                                    client: ev.client,
+                                    clientPhone: ev.clientPhone,
+                                    durationMin: ev.durationMin,
+                                  });
+                                  setDetailOpen(true);
+                                }}
+                              >
+                                <div className="text-[13px] font-bold text-gray-800">
+                                  {ev.start} - {ev.end}
+                                </div>
+                                <div className="text-[12px] font-bold text-gray-900 truncate">
+                                  {ev.client || 'Client anonyme'}
+                                </div>
+                                <div className="text-[11px] text-gray-600 font-medium leading-tight">
+                                  {ev.title}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Add Button */}
+                      
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     const roundToStep = (m: number) => {
       const s = step;
       const r = Math.max(0, Math.min(m, endMin - startMin));
       const rel = Math.round(r / s) * s;
       return rel;
     };
+
     const openAt = (
       clientY: number,
       container: HTMLElement,
@@ -648,22 +746,14 @@ export default function ProAgenda() {
       const mm = total % 60;
       setPrefillDate(toDateStr(currentDate));
       setPrefillTime(`${pad(hh)}:${pad(mm)}`);
-      if (empName) setPrefillEmployeeId(empMap[empName] || "none");
+      if (empName) setPrefillEmployeeId(empMap[norm(empName)] || "none");
       setOpenSignal((s) => s + 1);
     };
-    // Always render using real API employees only (no mock fallback)
-    const base = allEmployees;
-    const sourceEmployees: Employee[] = base.map((e) => {
-      const id = empMap[norm(e.name)];
-      let slots = id && liveSlotsById[id] ? liveSlotsById[id] : [];
-      if ((!slots || slots.length === 0) && liveSlotsByName[norm(e.name)])
-        slots = liveSlotsByName[norm(e.name)];
-      return { ...e, slots };
-    });
+
     return (
       <div className="bg-white rounded-xl p-3 border border-gray-200">
         {/* Time grid with synced employees header */}
-        <div className="overflow-x-auto no-scrollbar">
+        <div className="overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
           {/* Employees header chips - sticky at top */}
           <div className="grid sticky top-0 z-10 bg-white" style={{ gridTemplateColumns: `${gutter}px repeat(${sourceEmployees.length}, minmax(${colMin}px, 1fr))` }}>
             <div />
@@ -1335,11 +1425,11 @@ export default function ProAgenda() {
   return (
     <div className="min-h-screen bg-neutral-50">
       <div className="sticky top-0 z-30 bg-white/70 supports-[backdrop-filter]:bg-white/60 backdrop-blur border-b border-neutral-200">
-        <div className="px-3 sm:px-4 md:px-6 py-2 sm:py-3 md:py-4">
-          <div className="flex flex-col gap-2 sm:gap-3 md:flex-row md:items-center md:justify-between">
-            {/* Left: navigation + date */}
-            <div className="flex items-center flex-wrap gap-1 sm:gap-2">
-              <div className="flex items-center">
+        <div className="px-3 sm:px-4 md:px-6 py-1.5 sm:py-3 md:py-4">
+          <div className="flex items-center justify-between gap-2">
+            {/* Left/Main Row: navigation + Select (on mobile) */}
+            <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto no-scrollbar flex-1">
+              <div className="flex items-center shrink-0">
                 <Button
                   variant="outline"
                   size="icon"
@@ -1350,7 +1440,7 @@ export default function ProAgenda() {
                 </Button>
                 <Button
                   variant="outline"
-                  className="rounded-lg h-8 text-xs sm:text-sm px-2 sm:px-3"
+                  className="rounded-lg h-8 text-[11px] font-bold px-2 shrink-0 bg-neutral-50/50"
                   onClick={() => setCurrentDate(new Date())}
                 >
                   Aujourd'hui
@@ -1364,36 +1454,52 @@ export default function ProAgenda() {
                   <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4" />
                 </Button>
               </div>
-              <h2 className="text-sm sm:text-base md:text-lg lg:text-xl font-semibold text-black capitalize tracking-tight ml-1 sm:ml-3">
+
+              {isMobile && (
+                <Select value={view} onValueChange={(v) => setView(v as any)}>
+                  <SelectTrigger className="h-8 w-[85px] rounded-lg bg-neutral-100 border-none text-[10px] font-bold focus:ring-0 shadow-none shrink-0">
+                    <SelectValue placeholder="Vue" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="day">Jour</SelectItem>
+                    <SelectItem value="week">Semaine</SelectItem>
+                    <SelectItem value="month">Mois</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+
+              <h2 className="text-xs sm:text-sm md:text-base lg:text-lg font-bold text-black capitalize tracking-tight truncate min-w-0">
                 {dateTitle}
               </h2>
             </div>
 
-            {/* Right: view switch + filters popover + primary action */}
-            <div className="flex items-center w-full sm:w-auto mt-2 sm:mt-0">
-              <div className="bg-neutral-100 rounded-lg p-0.5 w-full sm:w-auto flex justify-between sm:inline-flex">
-                <Button
-                  variant={view === "day" ? "default" : "ghost"}
-                  className="rounded-md px-2 sm:px-3 h-8 text-xs sm:text-sm flex-1 sm:flex-none"
-                  onClick={() => setView("day")}
-                >
-                  Jour
-                </Button>
-                <Button
-                  variant={view === "week" ? "default" : "ghost"}
-                  className="rounded-md px-2 sm:px-3 h-8 text-xs sm:text-sm flex-1 sm:flex-none"
-                  onClick={() => setView("week")}
-                >
-                  Semaine
-                </Button>
-                <Button
-                  variant={view === "month" ? "default" : "ghost"}
-                  className="rounded-md px-2 sm:px-3 h-8 text-xs sm:text-sm flex-1 sm:flex-none"
-                  onClick={() => setView("month")}
-                >
-                  Mois
-                </Button>
-              </div>
+            {/* Right: view switch (desktop) + filters popover */}
+            <div className="flex items-center gap-2 shrink-0">
+              {!isMobile && (
+                <div className="bg-neutral-100 rounded-lg p-0.5 flex">
+                  <Button
+                    variant={view === "day" ? "default" : "ghost"}
+                    className="rounded-md px-3 h-8 text-sm"
+                    onClick={() => setView("day")}
+                  >
+                    Jour
+                  </Button>
+                  <Button
+                    variant={view === "week" ? "default" : "ghost"}
+                    className="rounded-md px-3 h-8 text-sm"
+                    onClick={() => setView("week")}
+                  >
+                    Semaine
+                  </Button>
+                  <Button
+                    variant={view === "month" ? "default" : "ghost"}
+                    className="rounded-md px-3 h-8 text-sm"
+                    onClick={() => setView("month")}
+                  >
+                    Mois
+                  </Button>
+                </div>
+              )}
 
               {/* Filters collapsed */}
               {!isMobile && (
@@ -1824,7 +1930,7 @@ export default function ProAgenda() {
         </div>
       </div>
 
-      <div className="p-6" key={refreshKey}>
+      <div className="p-2 sm:p-4 md:p-6" key={refreshKey}>
         {view === "day" && renderDayView()}
         {view === "week" && renderWeekView()}
         {view === "month" && renderMonthView()}
