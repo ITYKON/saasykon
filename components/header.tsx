@@ -57,7 +57,21 @@ export function Header() {
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex space-x-8">
-            <Link href="/institut-de-beaute" className={`transition-colors ${navTextClasses}`}>
+            <Link href="/institut-de-beaute" className={`
+    relative inline-block
+    ${navTextClasses}
+    after:content-['']
+    after:absolute
+    after:left-1/2
+    after:-bottom-1
+    after:h-[1px]
+    after:w-0
+    after:bg-current
+    after:transition-all
+    after:duration-300
+    after:ease-out
+    after:-translate-x-1/2
+    hover:after:w-full`}>
             Institut de beauté
             </Link>
             {/* <Link href="/coiffeur" className="text-gray-700 hover:text-black transition-colors">
