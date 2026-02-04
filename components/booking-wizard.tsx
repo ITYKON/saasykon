@@ -337,23 +337,23 @@ interface BookingWizardProps {
   }
 
   const renderStep1 = () => (
-    <div className="space-y-5">
-      <div className="space-y-4">
-        <div className="flex items-center justify-between px-4 sm:px-0">
+    <div className="space-y-3 sm:space-y-5">
+      <div className="space-y-2 sm:space-y-4">
+        <div className="flex items-center justify-between px-0 sm:px-0">
           <h2 className="text-base font-semibold text-black">
             <span className="text-blue-600">1.</span> Prestation sélectionnée
           </h2>
         </div>
         <div className="bg-white sm:rounded-xl p-0 sm:p-4 shadow-none sm:shadow-sm border-0 sm:border border-gray-50">
-          <div className="flex flex-col gap-3 px-4 sm:px-0">
+          <div className="flex flex-col gap-2 px-0 sm:px-0">
             <div className="min-w-0">
 
               {!!selectedItems.length && (
-                <div className="mt-1 space-y-2">
+                <div className="mt-1 space-y-1 sm:space-y-2">
                   {selectedItems.map((item, idx) => (
                     <div 
                       key={idx}
-                      className={`w-full bg-white border rounded-xl p-3 flex flex-col gap-1 transition-all ${editingItemIndex === idx ? 'border-black ring-1 ring-black shadow-sm' : 'border-gray-100 hover:border-gray-300'}`}
+                      className={`w-full bg-white border rounded-xl p-2 sm:p-3 flex flex-col gap-1 transition-all ${editingItemIndex === idx ? 'border-blue-200 ring-1 ring-blue-100 shadow-sm sm:border-black sm:ring-black' : 'border-gray-100 hover:border-gray-300'}`}
                       onClick={() => {
                         setEditingItemIndex(idx)
                         setShowAgenda(true)
@@ -418,7 +418,7 @@ interface BookingWizardProps {
                       {/* Employee Selection (Edit Mode) */}
                       {editingItemIndex === idx && employees.length > 1 && (
                         <div onClick={(e) => e.stopPropagation()} className="mt-4 pt-4 border-t border-gray-100">
-                           <Label className="text-sm font-medium text-gray-900 mb-3 block">Choisir avec qui ?</Label>
+                           <Label className="text-sm font-medium text-gray-900 mb-1.5 sm:mb-3 block">Choisir avec qui ?</Label>
                            <div className="flex gap-1.5 overflow-x-auto pb-2 -mx-1 px-1 custom-scrollbar">
                              {/* Sans préférence Option */}
                              <div 
@@ -431,18 +431,20 @@ interface BookingWizardProps {
                                  ))
                                  setShowAgenda(true)
                                }}
-                               className={`flex-1 min-w-[100px] max-w-[200px] cursor-pointer border rounded-xl p-1.5 flex items-center justify-between transition-all ${
+                               className={`flex-1 min-w-[90px] max-w-[200px] cursor-pointer border rounded-xl p-1 sm:p-1.5 flex items-center justify-between transition-all ${
                                  // Selected if explicitly marked as random
                                  (item as any).is_random 
-                                   ? 'border-black ring-1 ring-black bg-gray-50' 
+                                   ? 'border-blue-200 bg-blue-50 sm:border-black sm:ring-1 sm:ring-black sm:bg-gray-50' 
                                    : 'bg-white border-gray-200 hover:border-gray-400'
                                }`}
                              >
-                                <span className="font-medium text-gray-900 text-[10px] text-balance leading-tight">Sans préférence</span>
-                                <div className={`h-3.5 w-3.5 rounded-full border flex items-center justify-center flex-shrink-0 ${(item as any).is_random ? 'border-black' : 'border-gray-300'}`}>
-                                  {(item as any).is_random && <div className="h-1.5 w-1.5 rounded-full bg-black" />}
+                                <span className={`font-medium ${(item as any).is_random ? 'text-blue-700 sm:text-gray-900' : 'text-gray-900'} text-[10px] text-balance leading-tight`}>Sans préférence</span>
+                                <div className={`h-3.5 w-3.5 rounded-full border flex items-center justify-center flex-shrink-0 ${
+                                  (item as any).is_random ? 'border-blue-500 sm:border-black' : 'border-gray-300'
+                                }`}>
+                                  {(item as any).is_random && <div className="h-1.5 w-1.5 rounded-full bg-blue-600 sm:bg-black" />}
                                 </div>
-                             </div>
+                              </div>
 
                              {employees.map((e) => {
                                // Selected only if matching ID AND NOT random
@@ -460,18 +462,18 @@ interface BookingWizardProps {
                                      ))
                                      setShowAgenda(true)
                                    }}
-                                   className={`flex-1 min-w-[100px] max-w-[200px] cursor-pointer border rounded-xl p-1.5 flex items-center gap-1.5 transition-all ${
-                                     isSelected ? 'border-black ring-1 ring-black bg-gray-50' : 'bg-white border-gray-200 hover:border-gray-300'
+                                   className={`flex-1 min-w-[90px] max-w-[200px] cursor-pointer border rounded-xl p-1 sm:p-1.5 flex items-center gap-1 transition-all ${
+                                     isSelected ? 'border-blue-200 bg-blue-50 sm:border-black sm:ring-1 sm:ring-black sm:bg-gray-50' : 'bg-white border-gray-200 hover:border-gray-300'
                                    }`}
                                  >
-                                    <div className="h-6 w-6 rounded-full bg-black text-white flex items-center justify-center text-[9px] font-bold">
+                                    <div className={`h-6 w-6 rounded-full ${isSelected ? 'bg-blue-600 sm:bg-black' : 'bg-black'} text-white flex items-center justify-center text-[9px] font-bold`}>
                                       {initials}
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                      <div className="font-medium text-gray-900 text-[10px] truncate uppercase">{e.full_name}</div>
+                                      <div className={`font-medium ${isSelected ? 'text-blue-700 sm:text-gray-900' : 'text-gray-900'} text-[10px] truncate uppercase`}>{e.full_name}</div>
                                     </div>
-                                    <div className={`h-3.5 w-3.5 rounded-full border flex items-center justify-center flex-shrink-0 ${isSelected ? 'border-black' : 'border-gray-300'}`}>
-                                      {isSelected && <div className="h-1.5 w-1.5 rounded-full bg-black" />}
+                                    <div className={`h-3.5 w-3.5 rounded-full border flex items-center justify-center flex-shrink-0 ${isSelected ? 'border-blue-500 sm:border-black' : 'border-gray-300'}`}>
+                                      {isSelected && <div className="h-1.5 w-1.5 rounded-full bg-blue-600 sm:bg-black" />}
                                     </div>
                                  </div>
                                )
@@ -544,8 +546,8 @@ interface BookingWizardProps {
         )}
 
         {!!selectedItems.length && (
-          <div className="mt-6">
-            <div className="flex items-center justify-between mb-3">
+          <div className="mt-4 sm:mt-6">
+            <div className="flex items-center justify-between px-0 sm:px-0 mb-2 sm:mb-4">
               <h2 className="text-base font-semibold text-black">
                 <span className="text-blue-600 mr-2">2.</span> 
                 {editingItemIndex !== null 
@@ -588,133 +590,217 @@ interface BookingWizardProps {
             )}
 
             {loadingSlots ? (
-              <div className="text-sm text-gray-500">Chargement des créneaux…</div>
+              <div className="text-sm text-gray-500 py-6 text-center">Chargement des créneaux…</div>
             ) : (
-              <div className={`relative ${!showAgenda ? 'hidden' : ''}`}>
-                <div className="flex items-center justify-between mb-4 px-1">
-                  <button 
-                    aria-label="Semaine précédente" 
-                    className="rounded-full p-2 hover:bg-gray-100 flex items-center"
-                    onClick={() => { 
-                      const d = new Date(startDate); 
-                      d.setDate(d.getDate() - 7); 
-                      setStartDate(d.toISOString().split('T')[0]) 
-                    }}
-                  >
-                    <ChevronLeft className="h-5 w-5" />
-                    <span className="sr-only">Semaine précédente</span>
-                  </button>
-                  <div className="text-sm font-medium">
-                    {new Date(startDate).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}
-                  </div>
-                  <button 
-                    aria-label="Semaine suivante" 
-                    className="rounded-full p-2 hover:bg-gray-100 flex items-center"
-                    onClick={() => { 
-                      const d = new Date(startDate); 
-                      d.setDate(d.getDate() + 7); 
-                      setStartDate(d.toISOString().split('T')[0]) 
-                    }}
-                  >
-                    <ChevronRight className="h-5 w-5" />
-                    <span className="sr-only">Semaine suivante</span>
-                  </button>
-                </div>
+              <div className={!showAgenda ? 'hidden' : ''}>
                 
-                <div className="overflow-x-auto pb-2 -mx-2 px-2">
-                  <div className="grid grid-cols-7 gap-1 min-w-max w-full">
-                    {slots.slice(0, 7).map((d) => {
+                {/* --- MOBILE VIEW: Accordion (Zero-Waste) --- */}
+                <div className="sm:hidden space-y-1">
+                  {slots
+                    .filter(d => d.slots.length > 0)
+                    .map((d) => {
                       const dateObj = new Date(d.date)
-                      const dayName = dateObj.toLocaleDateString('fr-FR', { weekday: 'short' }).substring(0, 3)
-                      const day = dateObj.toLocaleDateString('fr-FR', { day: '2-digit' })
-                      const isToday = new Date().toDateString() === dateObj.toDateString()
-                      const isSelected = selectedDate === d.date
+                      const fullDate = dateObj.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
+                      const isExpanded = selectedDate === d.date
                       
                       return (
-                        <button
-                          key={d.date}
-                          onClick={() => {
-                            setSelectedDate(d.date)
-                            setSelectedTime('')
-                          }}
-                          className="flex flex-col items-center p-2 rounded-xl transition-all"
-                        >
-                          <div className={`text-[10px] uppercase font-semibold mb-1 ${isSelected ? 'text-black' : 'text-gray-400'}`}>
-                            {dayName}
-                          </div>
-                          <div className={`h-8 w-8 flex items-center justify-center text-sm font-semibold rounded-full transition-all ${
-                            isSelected ? 'bg-black text-white shadow-sm' : isToday ? 'bg-gray-100 text-black' : 'text-gray-900'
-                          }`}>
-                            {day}
-                          </div>
-                          <div className="h-2 mt-1">
-                            {d.slots.length > 0 && <div className="h-1 w-1 rounded-full bg-blue-500"></div>}
-                          </div>
-                        </button>
+                        <div key={d.date} className="border border-gray-100 rounded-xl overflow-hidden bg-white shadow-sm">
+                          <button
+                            onClick={() => {
+                              setSelectedDate(isExpanded ? "" : d.date)
+                              setSelectedTime("")
+                            }}
+                            className="w-full flex items-center justify-between p-3 hover:bg-gray-50 transition-colors text-left"
+                          >
+                            <span className="text-sm font-medium text-gray-900 capitalize">{fullDate}</span>
+                            <ChevronRight className={`h-4 w-4 text-gray-400 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                          </button>
+
+                          {isExpanded && (
+                            <div className="p-3 pt-0">
+                              <div className="grid grid-cols-3 gap-2 mt-1">
+                                {d.slots.map((time) => (
+                                  <button
+                                    key={time}
+                                    onClick={() => {
+                                      const emp = employees.find(e => e.id === selectedEmployeeId);
+                                      const targetIndex = editingItemIndex !== null ? editingItemIndex : (selectedItems.length > 0 ? 0 : null);
+                                      
+                                      if (targetIndex !== null) {
+                                        setSelectedItems(prev => {
+                                          const next = [...prev]
+                                          if (next[targetIndex]) {
+                                            next[targetIndex] = { 
+                                              ...next[targetIndex], 
+                                              date: d.date, 
+                                              time: time,
+                                              employee_id: selectedEmployeeId,
+                                              employee_name: emp?.full_name || 'Sans préférence'
+                                            }
+                                          }
+                                          return next
+                                        })
+                                        setSelectedDate(d.date)
+                                        setSelectedTime(time)
+                                        setEditingItemIndex(null)
+                                      }
+                                      setShowAgenda(false);
+                                      setShowInfo(true);
+                                    }}
+                                    className={`py-2 px-3 rounded-lg text-sm font-medium transition-colors border ${
+                                      selectedTime === time 
+                                        ? 'bg-blue-600 text-white border-blue-600' 
+                                        : 'bg-gray-50 text-gray-800 border-transparent hover:bg-gray-100'
+                                    }`}
+                                  >
+                                    {time}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       )
                     })}
+                </div>
+
+                {/* --- DESKTOP VIEW: Horizontal Calendar --- */}
+                <div className="hidden sm:block relative">
+                  <div className="flex items-center justify-between mb-4 px-1">
+                    <button 
+                      aria-label="Semaine précédente" 
+                      className="rounded-full p-2 hover:bg-gray-100 flex items-center"
+                      onClick={() => { 
+                        const d = new Date(startDate); 
+                        d.setDate(d.getDate() - 7); 
+                        setStartDate(d.toISOString().split('T')[0]) 
+                      }}
+                    >
+                      <ChevronLeft className="h-5 w-5" />
+                    </button>
+                    <div className="text-sm font-medium uppercase tracking-wider text-gray-500">
+                      {new Date(startDate).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}
+                    </div>
+                    <button 
+                      aria-label="Semaine suivante" 
+                      className="rounded-full p-2 hover:bg-gray-100 flex items-center"
+                      onClick={() => { 
+                        const d = new Date(startDate); 
+                        d.setDate(d.getDate() + 7); 
+                        setStartDate(d.toISOString().split('T')[0]) 
+                      }}
+                    >
+                      <ChevronRight className="h-5 w-5" />
+                    </button>
+                  </div>
+                  
+                  <div className="overflow-x-auto pb-2 -mx-2 px-2">
+                    <div className="grid grid-cols-7 gap-1 min-w-max w-full">
+                      {slots.slice(0, 7).map((d) => {
+                        const dateObj = new Date(d.date)
+                        const dayName = dateObj.toLocaleDateString('fr-FR', { weekday: 'short' }).substring(0, 3)
+                        const day = dateObj.toLocaleDateString('fr-FR', { day: '2-digit' })
+                        const isToday = new Date().toDateString() === dateObj.toDateString()
+                        const isSelected = selectedDate === d.date
+                        
+                        return (
+                          <button
+                            key={d.date}
+                            onClick={() => {
+                              setSelectedDate(d.date)
+                              setSelectedTime('')
+                            }}
+                            className="flex flex-col items-center p-2 rounded-xl transition-all"
+                          >
+                            <div className={`text-[10px] uppercase font-semibold mb-1 ${isSelected ? 'text-black' : 'text-gray-400'}`}>
+                              {dayName}
+                            </div>
+                            <div className={`h-10 w-10 flex items-center justify-center text-sm font-semibold rounded-full transition-all ${
+                              isSelected ? 'bg-black text-white shadow-sm' : isToday ? 'bg-gray-100 text-black' : 'text-gray-900 border border-transparent hover:border-gray-200'
+                            }`}>
+                              {day}
+                            </div>
+                            <div className="h-2 mt-1">
+                              {d.slots.length > 0 && <div className={`h-1 w-1 rounded-full ${isSelected ? 'bg-black' : 'bg-blue-600'}`}></div>}
+                            </div>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                  
+                  <div className="mt-4 bg-white border border-gray-100 rounded-xl p-6 shadow-sm">
+                    {selectedDate ? (
+                      <div className="space-y-4">
+                        <h3 className="font-semibold text-gray-900 text-lg capitalize">
+                          {new Date(selectedDate).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
+                        </h3>
+                        <div className="grid grid-cols-4 lg:grid-cols-6 gap-2">
+                          {(() => {
+                            const selectedDay = slots.find(s => s.date === selectedDate)
+                            if (!selectedDay) return null
+                            if (selectedDay.slots.length === 0) return <div className="col-span-full text-sm text-gray-500 py-8 text-center">Aucun créneau disponible</div>
+                            
+                            return selectedDay.slots.map((time) => (
+                              <button
+                                key={time}
+                                onClick={() => {
+                                  const emp = employees.find(e => e.id === selectedEmployeeId);
+                                  const targetIndex = editingItemIndex !== null ? editingItemIndex : (selectedItems.length > 0 ? 0 : null);
+                                  
+                                  if (targetIndex !== null) {
+                                    setSelectedItems(prev => {
+                                      const next = [...prev]
+                                      if (next[targetIndex]) {
+                                        next[targetIndex] = { 
+                                          ...next[targetIndex], 
+                                          date: selectedDate, 
+                                          time: time,
+                                          employee_id: selectedEmployeeId,
+                                          employee_name: emp?.full_name || 'Sans préférence'
+                                        }
+                                      }
+                                      return next
+                                    })
+                                    setSelectedDate(selectedDate)
+                                    setSelectedTime(time)
+                                    setEditingItemIndex(null)
+                                  }
+                                  setShowAgenda(false);
+                                  setShowInfo(true);
+                                }}
+                                className={`py-2 px-3 rounded-lg text-sm font-medium transition-colors border ${
+                                  selectedTime === time 
+                                    ? 'bg-black text-white border-black' 
+                                    : 'bg-gray-50 text-gray-800 border-transparent hover:bg-gray-100'
+                                }`}
+                              >
+                                {time}
+                              </button>
+                            ))
+                          })()}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-sm text-gray-500 text-center py-8">Veuillez sélectionner une date ci-dessus</div>
+                    )}
                   </div>
                 </div>
-                
-                <div className="mt-4 bg-white border rounded-xl p-4">
-                  {selectedDate ? (
-                    <div className="space-y-3">
-                      <h3 className="font-medium text-gray-900">
-                        {new Date(selectedDate).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
-                      </h3>
-                      <div className="grid grid-cols-3 gap-2">
-                        {(() => {
-                          const selectedDay = slots.find(s => s.date === selectedDate)
-                          if (!selectedDay) return null
-                          if (selectedDay.slots.length === 0) return <div className="col-span-3 text-sm text-gray-500 py-4 text-center">Aucun créneau disponible</div>
-                          
-                          return selectedDay.slots.map((time) => (
-                            <button
-                              key={time}
-                              onClick={() => {
-                                const emp = employees.find(e => e.id === selectedEmployeeId);
-                                // Fallback to index 0 if editingItemIndex is missing but we have items
-                                const targetIndex = editingItemIndex !== null ? editingItemIndex : (selectedItems.length > 0 ? 0 : null);
-                                
-                                if (targetIndex !== null) {
-                                  setSelectedItems(prev => {
-                                    const next = [...prev]
-                                    if (next[targetIndex]) {
-                                      next[targetIndex] = { 
-                                        ...next[targetIndex], 
-                                        date: selectedDate, 
-                                        time: time,
-                                        employee_id: selectedEmployeeId,
-                                        employee_name: emp?.full_name || 'Sans préférence'
-                                      }
-                                    }
-                                    return next
-                                  })
-                                  setSelectedDate(selectedDate)
-                                  setSelectedTime(time)
-                                  setEditingItemIndex(null)
-                                } else {
-                                  // Fallback: just set state (shouldn't happen with logic above)
-                                  setSelectedDate(selectedDate)
-                                  setSelectedTime(time)
-                                }
-                                setShowAgenda(false);
-                                setShowInfo(true);
-                              }}
-                              className={`py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
-                                selectedTime === time ? 'bg-black text-white' : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
-                              }`}
-                            >
-                              {time}
-                            </button>
-                          ))
-                        })()}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="text-sm text-gray-500 text-center py-4">Sélectionnez une date pour voir les créneaux disponibles</div>
-                  )}
-                </div>
+
+                {/* --- SHOW MORE DATES --- */}
+                {slots.length > 0 && slots.length < 14 && (
+                  <Button 
+                    variant="ghost" 
+                    className="w-full text-blue-600 hover:text-blue-700 hover:bg-blue-50 py-6 mt-2"
+                    onClick={() => {
+                       const d = new Date(startDate);
+                       d.setDate(d.getDate() + 7);
+                       setStartDate(d.toISOString().split('T')[0])
+                    }}
+                  >
+                    Voir plus de dates
+                  </Button>
+                )}
               </div>
             )}
           </div>
@@ -1143,7 +1229,7 @@ interface BookingWizardProps {
   )
 
   const renderStep3 = () => (
-    <div className="space-y-8">
+    <div className="space-y-3 sm:space-y-8">
       {/* Résumé date supprimé pour réduire la redondance */}
       {(auth || authOverride) && (
         <div className="space-y-4">
@@ -1158,8 +1244,8 @@ interface BookingWizardProps {
         </div>
       )}
       {!(auth || authOverride) && (
-        <div>
-          <h3 className="font-semibold mb-4">3. Identification</h3>
+        <div className="px-0 sm:px-0">
+          <h3 className="font-semibold mb-3 sm:mb-4">3. Identification</h3>
 
           {identMode === 'signup' && (
             <div className="bg-white border rounded-xl p-6 shadow-sm space-y-6">
@@ -1462,7 +1548,7 @@ interface BookingWizardProps {
       <div className="w-full max-w-[1400px] mx-auto px-0 sm:px-4 lg:px-8 py-0 sm:py-6 lg:py-8 flex-1">
         <div className="flex flex-col lg:flex-row lg:gap-6 w-full">
           {/* Main Content */}
-          <div className="w-full lg:w-2/3 lg:min-w-0 px-4 py-4 sm:px-0">
+          <div className="w-full lg:w-2/3 lg:min-w-0 px-0 py-2 sm:px-0 sm:py-4">
             <Card className="overflow-hidden border-0 shadow-none sm:border sm:shadow-sm">
               {currentStep === 3 && (
                 <CardHeader>
@@ -1473,7 +1559,7 @@ interface BookingWizardProps {
                   </div>
                 </CardHeader>
               )}
-              <CardContent>
+              <CardContent className="p-0 sm:p-6">
                 {renderStep1()}
                 {currentStep >= 2 && renderStep2()}
                 {currentStep >= 3 && renderStep3()}
@@ -1482,10 +1568,10 @@ interface BookingWizardProps {
           </div>
 
           {/* Sidebar */}
-          <div className="w-full lg:w-1/3 lg:sticky lg:top-8 px-4 pb-4 sm:px-0">
+          <div className="w-full lg:w-1/3 lg:sticky lg:top-8 px-0 pb-4 sm:px-0">
             {/* Récapitulatif de la réservation */}
             <Card className="overflow-hidden border-0 shadow-none sm:border sm:shadow">
-              <CardContent className="p-6 space-y-3">
+              <CardContent className="p-4 sm:p-6 space-y-3">
                 <h3 className="font-semibold text-lg">Récapitulatif</h3>
                 {selectedItems.length === 0 ? (
                   <div className="text-sm text-gray-600">Aucune prestation sélectionnée</div>
