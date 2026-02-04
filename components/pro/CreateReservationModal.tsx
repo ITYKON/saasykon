@@ -523,7 +523,6 @@ export default function CreateReservationModal({
                       <SelectValue placeholder={serviceId ? "Sélectionner un employé" : "Sélectionnez d'abord un service"} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none">Aucun employé spécifique</SelectItem>
                       {filteredEmployees.map((employee) => (
                         <SelectItem key={employee.id} value={employee.id}>
                           {employee.full_name || [employee.first_name, employee.last_name].filter(Boolean).join(" ")}

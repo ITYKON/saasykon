@@ -215,6 +215,7 @@ export default function ReservationsPage() {
   } | null>(null)
   const [savingEdit, setSavingEdit] = useState(false)
   const [employees, setEmployees] = useState<any[]>([])
+  const [filteredEmployees, setFilteredEmployees] = useState<any[]>([])
   const [services, setServices] = useState<any[]>([])
   const [variants, setVariants] = useState<any[]>([])
   
@@ -286,6 +287,24 @@ export default function ReservationsPage() {
       setVariants(vs)
     })
   }, [isEditOpen, businessId, editData?.id])
+
+  // Filtrer les employés par service dans l'édition
+  useEffect(() => {
+    if (!editData?.item?.service_id) {
+      setFilteredEmployees(employees)
+      return
+    }
+
+    const serviceId = editData.item.service_id
+    const filtered = employees.filter((emp: any) =>
+      Array.isArray(emp.employee_services) && 
+      emp.employee_services.some((es: any) => es?.services?.id === serviceId)
+    )
+    setFilteredEmployees(filtered)
+
+    // Si l'employé actuel n'est plus dans la liste filtrée, on pourrait le réinitialiser
+    // mais pour l'instant on laisse l'utilisateur choisir pour éviter des changements non désirés
+  }, [editData?.item?.service_id, employees])
 
   const openDelete = (id: string) => { setDeletingId(id); setIsDeleteOpen(true); }
   const confirmDelete = async () => {
@@ -764,11 +783,20 @@ export default function ReservationsPage() {
             </div> */}
             <div>
               <label className="block text-sm mb-1">Employé (item)</label>
-              <Select value={editData?.item?.employee_id ?? "none"} onValueChange={(v) => setEditData(d => d ? { ...d, item: d.item ? { ...d.item, employee_id: v === 'none' ? null : v } : d.item } : d)}>
+              <Select 
+                value={editData?.item?.employee_id ?? "none"} 
+                onValueChange={(v) => {
+                  const val = v === 'none' ? null : v;
+                  setEditData(d => d ? { 
+                    ...d, 
+                    employee_id: val, // Sync with main level
+                    item: d.item ? { ...d.item, employee_id: val } : d.item 
+                  } : d)
+                }}
+              >
                 <SelectTrigger><SelectValue placeholder="Sélectionner" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">Aucun</SelectItem>
-                  {employees.map((e: any) => (
+                  {filteredEmployees.map((e: any) => (
                     <SelectItem key={e.id} value={e.id}>{e.full_name}</SelectItem>
                   ))}
                 </SelectContent>
