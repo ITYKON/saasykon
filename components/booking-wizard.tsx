@@ -131,6 +131,32 @@ interface BookingWizardProps {
     }
   }, [ticketOpen]);
 
+   // Scroll to top when view changes
+   useEffect(() => {
+     window.scrollTo({ top: 0, behavior: 'instant' })
+   }, [currentStep, showAddService, editingItemIndex])
+
+   // Auto-assign single employee if items are present but have no employee attached (e.g. initial load)
+  useEffect(() => {
+    if (employees.length === 1 && selectedItems.length > 0) {
+      const singleEmp = employees[0]
+      let changed = false
+      const newItems = selectedItems.map(it => {
+        if (!it.employee_id) {
+          changed = true
+          return { ...it, employee_id: singleEmp.id, employee_name: singleEmp.full_name }
+        }
+        return it
+      })
+      if (changed) {
+        setSelectedItems(newItems)
+         if (editingItemIndex !== null && newItems[editingItemIndex]?.employee_id) {
+             setSelectedEmployeeId(newItems[editingItemIndex].employee_id)
+         }
+      }
+    }
+  }, [employees, selectedItems, editingItemIndex]);
+
   async function loadSlotsForService(serviceId: string) {
     if (!serviceId) return [] as Array<{ date: string; slots: string[] }>
     if (itemSlotsCache[serviceId]) return itemSlotsCache[serviceId]
@@ -171,12 +197,26 @@ interface BookingWizardProps {
         const storedId = activeItem.employee_id
         if (storedId && list.find((e: any) => e.id === storedId)) {
           setSelectedEmployeeId(storedId)
-        } else if (list.length > 0) {
-          // Auto-assign randomly when 'Sans préférence' to drive agenda if needed
-          const pick = list[Math.floor(Math.random() * list.length)]
-          setSelectedEmployeeId(pick.id)
-        } else {
+          // Only auto-open if it's not yet scheduled
+          if (!activeItem.date || !activeItem.time) {
+            setShowAgenda(true)
+          }
+        } else if (list.length === 1) {
+          const single = list[0]
+          setSelectedEmployeeId(single.id)
+          // Only auto-open if it's not yet scheduled
+          if (!activeItem.date || !activeItem.time) {
+            setShowAgenda(true)
+          }
+        } else if (list.length > 1) {
           setSelectedEmployeeId(null)
+          setShowAgenda(false)
+        } else {
+          // No employees ? allow agenda if not scheduled
+          setSelectedEmployeeId(null)
+          if (!activeItem.date || !activeItem.time) {
+            setShowAgenda(true)
+          }
         }
       } catch {
         if (!ignore) { setEmployees([]); setSelectedEmployeeId(null) }
@@ -297,101 +337,154 @@ interface BookingWizardProps {
   }
 
   const renderStep1 = () => (
-    <div className="space-y-6">
-      <div className="space-y-4 sm:space-y-6">
-        <h2 className="text-lg font-semibold text-black px-4 sm:px-0">
-          <span className="text-blue-600">1.</span> Prestation sélectionnée
-        </h2>
-        <div className="bg-white sm:rounded-xl p-0 sm:p-6 shadow-none sm:shadow-sm border-0 sm:border border-gray-100">
-          <div className="flex flex-col gap-4 px-4 sm:px-0">
+    <div className="space-y-5">
+      <div className="space-y-4">
+        <div className="flex items-center justify-between px-4 sm:px-0">
+          <h2 className="text-base font-semibold text-black">
+            <span className="text-blue-600">1.</span> Prestation sélectionnée
+          </h2>
+        </div>
+        <div className="bg-white sm:rounded-xl p-0 sm:p-4 shadow-none sm:shadow-sm border-0 sm:border border-gray-50">
+          <div className="flex flex-col gap-3 px-4 sm:px-0">
             <div className="min-w-0">
-              <h3 className="font-semibold truncate">{selectedItems.length ? "Prestations sélectionnées" : "Sélectionner une prestation"}</h3>
+
               {!!selectedItems.length && (
-                <div className="mt-2 overflow-hidden">
-                  <div className="w-full bg-white border rounded-xl p-3 flex items-center justify-between overflow-x-hidden">
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium text-gray-900 text-sm sm:text-base truncate">
-                        {selectedItems.map(s => s.name).join(' + ')}
-                      </div>
-                      <div className="flex items-center text-sm text-gray-600 mt-1">
-                        <span>
-                          {(() => {
-                            const mins = Number(totalDuration || 0)
-                            const h = Math.floor(mins / 60)
-                            const m = mins % 60
-                            return h > 0 ? `${h}h${m ? ` ${m}min` : ''}` : `${m}min`
-                          })()}
-                        </span>
-                        <span className="mx-2">•</span>
-                        <span>
-                          {(() => {
-                            let minTotal = 0, maxTotal = 0, counted = false
-                            for (const it of selectedItems) {
-                              const pc = typeof it.price_cents === 'number' ? it.price_cents : null
-                              const pmin = typeof (it as any).price_min_cents === 'number' ? (it as any).price_min_cents : null
-                              const pmax = typeof (it as any).price_max_cents === 'number' ? (it as any).price_max_cents : null
-                              if (pc != null) { minTotal += pc; maxTotal += pc; counted = true }
-                              else if (pmin != null) { minTotal += pmin; maxTotal += (pmax ?? pmin); counted = true }
-                            }
-                            const hasPrice = counted
-                            const isRange = counted && minTotal !== maxTotal
-                            return !hasPrice ? '—' : (isRange ? `à partir de ${Math.round(minTotal / 100)} DA` : `${Math.round(minTotal / 100)} DA`)
-                          })()}
-                        </span>
-                      </div>
-                    </div>
-                    <button 
-                      className="text-gray-400 hover:text-red-500 p-1 -m-1 ml-2 flex-shrink-0"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setSelectedItems([])
-                        setEditingItemIndex(null)
-                        setShowAddService(false)
+                <div className="mt-1 space-y-2">
+                  {selectedItems.map((item, idx) => (
+                    <div 
+                      key={idx}
+                      className={`w-full bg-white border rounded-xl p-3 flex flex-col gap-1 transition-all ${editingItemIndex === idx ? 'border-black ring-1 ring-black shadow-sm' : 'border-gray-100 hover:border-gray-300'}`}
+                      onClick={() => {
+                        setEditingItemIndex(idx)
+                        setShowAgenda(true)
                       }}
                     >
-                      <X className="h-4 w-4" />
-                    </button>
-                  </div>
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1 min-w-0">
+                          <div className="font-semibold text-gray-900 text-sm truncate uppercase">
+                            {item.name} - {(() => {
+                                const pc = typeof item.price_cents === 'number' ? item.price_cents : null
+                                const pmin = typeof (item as any).price_min_cents === 'number' ? (item as any).price_min_cents : null
+                                const pmax = typeof (item as any).price_max_cents === 'number' ? (item as any).price_max_cents : null
+                                
+                                if (pc !== null) return `${Math.round(pc / 100)} DA`
+                                if (pmin !== null && pmax !== null && pmin !== pmax) return `${Math.round(pmin / 100)}–${Math.round(pmax / 100)} DA`
+                                if (pmin !== null) return `à partir de ${Math.round(pmin / 100)} DA`
+                                return ''
+                              })()}
+                          </div>
+                          <div className="text-xs text-gray-500 mt-1">
+                            {(() => {
+                              const mins = Number(item.duration_minutes || 0)
+                              const h = Math.floor(mins / 60)
+                              const m = mins % 60
+                              return h > 0 ? `${h}h${m ? ` ${m}min` : ''}` : `${m}min`
+                            })()}
+                            {item.employee_name && item.employee_name !== "Sans préférence" && (
+                              <>
+                                <span className="mx-2">•</span>
+                                avec <span className="uppercase">{item.employee_name}</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        <button 
+                          className="text-xs text-blue-600 hover:text-blue-800 underline flex-shrink-0 ml-4"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            const newItems = selectedItems.filter((_, i) => i !== idx)
+                            setSelectedItems(newItems)
+                            if (newItems.length === 0) {
+                              setEditingItemIndex(null)
+                              setShowAddService(false)
+                            } else {
+                              // Reset to list view after deletion
+                              setEditingItemIndex(null)
+                            }
+                          }}
+                        >
+                          Supprimer
+                        </button>
+                      </div>
+
+                      {/* Date & Time if selected */}
+                      {item.date && item.time && (
+                         <div className="text-xs text-blue-600 font-medium mt-1">
+                           {new Date(item.date).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })} à {item.time}
+                         </div>
+                      )}
+
+                      {/* Employee Selection (Edit Mode) */}
+                      {/* Employee Selection (Edit Mode) */}
+                      {editingItemIndex === idx && employees.length > 1 && (
+                        <div onClick={(e) => e.stopPropagation()} className="mt-4 pt-4 border-t border-gray-100">
+                           <Label className="text-sm font-medium text-gray-900 mb-3 block">Choisir avec qui ?</Label>
+                           <div className="flex gap-1.5 overflow-x-auto pb-2 -mx-1 px-1 custom-scrollbar">
+                             {/* Sans préférence Option */}
+                             <div 
+                               onClick={() => {
+                                 // Randomly select an employee
+                                 const randomEmp = employees[Math.floor(Math.random() * employees.length)]
+                                 setSelectedEmployeeId(randomEmp.id)
+                                 setSelectedItems(prev => prev.map((it, i) => 
+                                   i === idx ? { ...it, employee_id: randomEmp.id, employee_name: randomEmp.full_name, is_random: true } : it
+                                 ))
+                                 setShowAgenda(true)
+                               }}
+                               className={`flex-1 min-w-[100px] max-w-[200px] cursor-pointer border rounded-xl p-1.5 flex items-center justify-between transition-all ${
+                                 // Selected if explicitly marked as random
+                                 (item as any).is_random 
+                                   ? 'border-black ring-1 ring-black bg-gray-50' 
+                                   : 'bg-white border-gray-200 hover:border-gray-400'
+                               }`}
+                             >
+                                <span className="font-medium text-gray-900 text-[10px] text-balance leading-tight">Sans préférence</span>
+                                <div className={`h-3.5 w-3.5 rounded-full border flex items-center justify-center flex-shrink-0 ${(item as any).is_random ? 'border-black' : 'border-gray-300'}`}>
+                                  {(item as any).is_random && <div className="h-1.5 w-1.5 rounded-full bg-black" />}
+                                </div>
+                             </div>
+
+                             {employees.map((e) => {
+                               // Selected only if matching ID AND NOT random
+                               const isSelected = item.employee_id === e.id && !(item as any).is_random
+                               // Generate initials
+                               const initials = e.full_name.split(' ').map(n=>n[0]).join('').substring(0,2).toUpperCase()
+                               
+                               return (
+                                 <div 
+                                   key={e.id}
+                                   onClick={() => {
+                                     setSelectedEmployeeId(e.id)
+                                     setSelectedItems(prev => prev.map((it, i) => 
+                                       i === idx ? { ...it, employee_id: e.id, employee_name: e.full_name, is_random: false } : it
+                                     ))
+                                     setShowAgenda(true)
+                                   }}
+                                   className={`flex-1 min-w-[100px] max-w-[200px] cursor-pointer border rounded-xl p-1.5 flex items-center gap-1.5 transition-all ${
+                                     isSelected ? 'border-black ring-1 ring-black bg-gray-50' : 'bg-white border-gray-200 hover:border-gray-300'
+                                   }`}
+                                 >
+                                    <div className="h-6 w-6 rounded-full bg-black text-white flex items-center justify-center text-[9px] font-bold">
+                                      {initials}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="font-medium text-gray-900 text-[10px] truncate uppercase">{e.full_name}</div>
+                                    </div>
+                                    <div className={`h-3.5 w-3.5 rounded-full border flex items-center justify-center flex-shrink-0 ${isSelected ? 'border-black' : 'border-gray-300'}`}>
+                                      {isSelected && <div className="h-1.5 w-1.5 rounded-full bg-black" />}
+                                    </div>
+                                 </div>
+                               )
+                             })}
+                           </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
               )}
 
             </div>
-            {!!selectedItems.length && (
-              <div className="min-w-0 flex-1">
-                <Label className="text-xs text-gray-500 truncate block">Avec qui ?</Label>
-                <div className="mt-1 w-full">
-                  {employees.length <= 1 ? (
-                    <div className="text-sm text-gray-600 border rounded-md h-9 px-3 flex items-center bg-gray-50 w-full min-w-0">
-                      <span className="truncate">{employees.length === 1 ? employees[0].full_name : "Sans préférence"}</span>
-                    </div>
-                  ) : (
-                    <Select 
-                      value={selectedEmployeeId ?? "none"} 
-                      onValueChange={(v) => {
-                        const newId = v === 'none' ? null : v
-                        setSelectedEmployeeId(newId)
-                        if (editingItemIndex !== null) {
-                          const emp = employees.find(e => e.id === newId)
-                          setSelectedItems(prev => prev.map((it, idx) => 
-                            idx === editingItemIndex ? { ...it, employee_id: newId, employee_name: emp?.full_name || 'Sans préférence' } : it
-                          ))
-                        }
-                      }}
-                    >
-                      <SelectTrigger className="w-full h-9 min-w-0">
-                        <SelectValue placeholder="Sans préférence" className="truncate" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Sans préférence</SelectItem>
-                        {employees.map((e) => (
-                          <SelectItem key={e.id} value={e.id}>{e.full_name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                </div>
-              </div>
-            )}
           </div>
         </div>
 
@@ -423,7 +516,7 @@ interface BookingWizardProps {
                                 ...(typeof svc.price_max_cents === 'number' ? { price_max_cents: svc.price_max_cents } : {}),
                               }];
                               setEditingItemIndex(newItems.length - 1);
-                              setShowAgenda(true);
+                              setShowAgenda(false);
                               return newItems;
                             })
                             setShowAddService(false)
@@ -461,7 +554,12 @@ interface BookingWizardProps {
               </h2>
               {!showAgenda && selectedDate && selectedTime && (
                 <button 
-                  onClick={() => setShowAgenda(true)}
+                  onClick={() => {
+                    setShowAgenda(true)
+                    if (editingItemIndex === null && selectedItems.length > 0) {
+                      setEditingItemIndex(0)
+                    }
+                  }}
                   className="text-sm text-blue-600 hover:underline"
                 >
                   Modifier
@@ -539,13 +637,19 @@ interface BookingWizardProps {
                             setSelectedDate(d.date)
                             setSelectedTime('')
                           }}
-                          className={`flex flex-col items-center p-2 rounded-lg transition-colors ${
-                            isSelected ? 'bg-blue-100 text-blue-700' : isToday ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50'
-                          }`}
+                          className="flex flex-col items-center p-2 rounded-xl transition-all"
                         >
-                          <div className="text-xs font-medium">{dayName}</div>
-                          <div className="h-8 w-8 flex items-center justify-center text-sm font-medium rounded-full">{day}</div>
-                          {d.slots.length > 0 && <div className="h-1 w-1 rounded-full bg-blue-500 mt-1"></div>}
+                          <div className={`text-[10px] uppercase font-semibold mb-1 ${isSelected ? 'text-black' : 'text-gray-400'}`}>
+                            {dayName}
+                          </div>
+                          <div className={`h-8 w-8 flex items-center justify-center text-sm font-semibold rounded-full transition-all ${
+                            isSelected ? 'bg-black text-white shadow-sm' : isToday ? 'bg-gray-100 text-black' : 'text-gray-900'
+                          }`}>
+                            {day}
+                          </div>
+                          <div className="h-2 mt-1">
+                            {d.slots.length > 0 && <div className="h-1 w-1 rounded-full bg-blue-500"></div>}
+                          </div>
                         </button>
                       )
                     })}
@@ -569,12 +673,15 @@ interface BookingWizardProps {
                               key={time}
                               onClick={() => {
                                 const emp = employees.find(e => e.id === selectedEmployeeId);
-                                if (editingItemIndex !== null) {
+                                // Fallback to index 0 if editingItemIndex is missing but we have items
+                                const targetIndex = editingItemIndex !== null ? editingItemIndex : (selectedItems.length > 0 ? 0 : null);
+                                
+                                if (targetIndex !== null) {
                                   setSelectedItems(prev => {
                                     const next = [...prev]
-                                    if (next[editingItemIndex]) {
-                                      next[editingItemIndex] = { 
-                                        ...next[editingItemIndex], 
+                                    if (next[targetIndex]) {
+                                      next[targetIndex] = { 
+                                        ...next[targetIndex], 
                                         date: selectedDate, 
                                         time: time,
                                         employee_id: selectedEmployeeId,
@@ -587,6 +694,7 @@ interface BookingWizardProps {
                                   setSelectedTime(time)
                                   setEditingItemIndex(null)
                                 } else {
+                                  // Fallback: just set state (shouldn't happen with logic above)
                                   setSelectedDate(selectedDate)
                                   setSelectedTime(time)
                                 }
@@ -594,7 +702,7 @@ interface BookingWizardProps {
                                 setShowInfo(true);
                               }}
                               className={`py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
-                                selectedTime === time ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
+                                selectedTime === time ? 'bg-black text-white' : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
                               }`}
                             >
                               {time}
@@ -613,7 +721,7 @@ interface BookingWizardProps {
         )}
       </div>
 
-      {editingItemIndex === null && (
+      {selectedItems.length > 0 && !showAddService && (
         <div className="mt-3">
           <Button variant="default" className="bg-black hover:bg-gray-800 text-white mb-3 w-full sm:w-auto" onClick={() => setShowAddService(v => !v)}>
             <Plus className="h-4 w-4 mr-2" />
@@ -638,6 +746,10 @@ interface BookingWizardProps {
                         className="w-full text-left p-3 border rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-between"
                         onClick={() => {
                           const hasRange = typeof svc.price_min_cents === 'number' && typeof svc.price_max_cents === 'number';
+                          
+                          // Auto-assign if single employee
+                          const singleEmp = employees.length === 1 ? employees[0] : null
+                          
                           setSelectedItems(prev => {
                             const newItems = [...prev, {
                                 id: svc.id,
@@ -646,9 +758,17 @@ interface BookingWizardProps {
                                 price_cents: hasRange ? null : (typeof svc.price_cents === 'number' ? svc.price_cents : null),
                                 ...(typeof svc.price_min_cents === 'number' ? { price_min_cents: svc.price_min_cents } : {}),
                                 ...(typeof svc.price_max_cents === 'number' ? { price_max_cents: svc.price_max_cents } : {}),
+                                ...(singleEmp ? { employee_id: singleEmp.id, employee_name: singleEmp.full_name } : {})
                             }];
                             setEditingItemIndex(newItems.length - 1);
-                            setShowAgenda(true);
+                            setShowAgenda(false);
+                            // If auto-assigned, we might want to also set selectedEmployeeId for the agenda
+                            // But usually agenda needs the ID when opening. The click handler sets it.
+                            if (singleEmp) { 
+                                setSelectedEmployeeId(singleEmp.id)
+                            } else {
+                                setSelectedEmployeeId(null)
+                            }
                             return newItems;
                           });
                           setShowAddService(false);
@@ -1339,25 +1459,20 @@ interface BookingWizardProps {
       {/* Header */}
 
 
-      <div className="w-full max-w-7xl mx-auto px-0 sm:px-4 lg:px-8 py-0 sm:py-6 lg:py-8 flex-1">
-        <div className="flex flex-col lg:flex-row lg:gap-8 w-full">
+      <div className="w-full max-w-[1400px] mx-auto px-0 sm:px-4 lg:px-8 py-0 sm:py-6 lg:py-8 flex-1">
+        <div className="flex flex-col lg:flex-row lg:gap-6 w-full">
           {/* Main Content */}
           <div className="w-full lg:w-2/3 lg:min-w-0 px-4 py-4 sm:px-0">
-            <Card className="overflow-hidden border-0 shadow-none sm:border sm:shadow">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-xl">
-                    {currentStep === 2 && "2. Date et heure sélectionnées"}
-                    {currentStep === 3 && "3. Identification"}
-                  </CardTitle>
-                  {currentStep > 1 && (
-                    <Button variant="ghost" size="sm" onClick={() => setCurrentStep(currentStep - 1)}>
-                      <ChevronLeft className="h-4 w-4 mr-1" />
-                      Retour
-                    </Button>
-                  )}
-                </div>
-              </CardHeader>
+            <Card className="overflow-hidden border-0 shadow-none sm:border sm:shadow-sm">
+              {currentStep === 3 && (
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-xl">
+                      3. Identification
+                    </CardTitle>
+                  </div>
+                </CardHeader>
+              )}
               <CardContent>
                 {renderStep1()}
                 {currentStep >= 2 && renderStep2()}
@@ -1378,75 +1493,63 @@ interface BookingWizardProps {
                   <div className="space-y-2">
                     <div className="space-y-1">
                       {selectedItems.map((it, idx) => (
-                        <div key={`recap-${idx}`} className="space-y-1">
-                          <div className="flex flex-nowrap items-center justify-between w-full gap-2">
-                            <span className="truncate flex-1 min-w-0">{it.name}</span>
-                            <span className="text-gray-600 whitespace-nowrap">
-                                {it.duration_minutes}min • {typeof (it as any).price_min_cents === 'number' && typeof (it as any).price_max_cents === 'number'
-                                  ? `${Math.round((it as any).price_min_cents / 100)}–${Math.round((it as any).price_max_cents / 100)} DA`
-                                  : typeof (it as any).price_min_cents === 'number'
-                                  ? `à partir de ${Math.round((it as any).price_min_cents / 100)} DA`
-                                  : `${Math.round(((it.price_cents ?? 0) as number) / 100)} DA`}
-                            </span>
+                        <div key={`recap-${idx}`} className="flex flex-col gap-1 py-1 border-b border-gray-100 last:border-0">
+                          {/* Name & Price Row */}
+                          <div className="flex items-start justify-between gap-2">
+                             <span className="font-semibold text-sm uppercase text-gray-900 leading-tight">
+                               {it.name}
+                             </span>
                           </div>
-                          <div className="flex items-center justify-between text-xs text-gray-600 w-full">
-                            <span>Date & heure</span>
-                            <div className="flex items-center gap-2">
-                              <span>{
-                                (it as any).date && (it as any).time
-                                  ? `${new Date((it as any).date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })} • ${(it as any).time}${it.employee_name ? ` • ${it.employee_name}` : ''}`
-                                  : (selectedDate && selectedTime 
-                                      ? `${new Date(selectedDate).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })} • ${selectedTime}` 
-                                      : '—'
-                                    )
-                              }</span>
-                              <button 
-                                className="text-blue-600 hover:underline whitespace-nowrap" 
-                                onClick={async () => {
-                                  setEditingItemIndex(idx)
-                                  setShowAgenda(true)
-                                  await loadSlotsForService(it.id)
+                          
+                          {/* Details Row: Price • Duration */}
+                          <div className="text-xs text-gray-500">
+                             {typeof (it as any).price_min_cents === 'number' && typeof (it as any).price_max_cents === 'number'
+                                      ? `${Math.round((it as any).price_min_cents / 100)}–${Math.round((it as any).price_max_cents / 100)} DA`
+                                      : typeof (it as any).price_min_cents === 'number'
+                                      ? `à partir de ${Math.round((it as any).price_min_cents / 100)} DA`
+                                      : `${Math.round(((it.price_cents ?? 0) as number) / 100)} DA`}
+                             {' • '}
+                             {it.duration_minutes} min
+                          </div>
+
+                          {/* Date/Time/Employee & Edit */}
+                          <div className="flex items-center justify-between mt-1">
+                             <div className="flex flex-col text-xs text-black font-medium leading-tight">
+                                <span>
+                                  {(it as any).date 
+                                    ? new Date((it as any).date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })
+                                    : (selectedDate 
+                                        ? new Date(selectedDate).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })
+                                        : 'Date à définir')
+                                  }
+                                  {' • '}
+                                  {(it as any).time || selectedTime || '--:--'}
+                                </span>
+                                {it.employee_name && it.employee_name !== "Sans préférence" && (
+                                  <span className="text-gray-500 font-normal capitalize">
+                                    avec {it.employee_name.toLowerCase()}
+                                  </span>
+                                )}
+                             </div>
+                             
+                             <button 
+                                className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditingItemIndex(idx);
+                                  setShowAgenda(true);
+                                  // Sync calendar state
+                                  if ((it as any).date) {
+                                      setSelectedDate((it as any).date);
+                                      setStartDate((it as any).date);
+                                  }
+                                  if ((it as any).time) setSelectedTime((it as any).time);
+                                  if (it.employee_id) setSelectedEmployeeId(it.employee_id);
                                 }}
                               >
                                 Modifier
                               </button>
-                            </div>
                           </div>
-                          {editingItemIndex === idx && (
-                            <div className="mt-2 rounded-md border p-2 w-full overflow-hidden">
-                              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-48 overflow-y-auto overflow-x-hidden">
-                                {(itemSlotsCache[it.id] || []).map((d) => (
-                                  <div key={`itm-${idx}-${d.date}`} className="col-span-1 min-w-0">
-                                    <div className="text-xs font-medium text-gray-700 mb-1 truncate">
-                                      {new Date(d.date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}
-                                    </div>
-                                    <div className="flex flex-col gap-1 overflow-hidden">
-                                      {d.slots.slice(0,6).map((t) => (
-                                        <button 
-                                          key={`itm-${idx}-${d.date}-${t}`} 
-                                          className={`text-xs h-7 border rounded px-2 truncate ${
-                                            ((it as any).date === d.date && (it as any).time === t) 
-                                              ? 'bg-black text-white' 
-                                              : 'bg-white hover:bg-gray-50'
-                                          }`}
-                                          onClick={() => {
-                                            setSelectedItems((prev) => 
-                                              prev.map((p, pi) => 
-                                                pi === idx ? { ...p, date: d.date, time: t } : p
-                                              )
-                                            )
-                                            setEditingItemIndex(null)
-                                          }}
-                                        >
-                                          {t}
-                                        </button>
-                                      ))}
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
                         </div>
                       ))}
                     </div>
@@ -1472,21 +1575,11 @@ interface BookingWizardProps {
                           ? `à partir de ${Math.round(minTotal / 100)} DA`
                           : `${Math.round(minTotal / 100)} DA`
                         return (
-                          <span className="font-medium">
-                            {totalDuration} min • {text}
+                          <span className="font-medium text-black">
+                            {text}
                           </span>
                         )
                       })()}
-                    </div>
-                    <div className="flex gap-2 pt-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="h-8 whitespace-nowrap" 
-                        onClick={() => setCurrentStep(1)}
-                      >
-                        Modifier prestations
-                      </Button>
                     </div>
                   </div>
                 )}
