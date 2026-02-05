@@ -41,7 +41,7 @@ function ClientSidebar({ onLinkClick }: { onLinkClick?: () => void }) {
 
   return (
     <aside className="sticky top-0 h-screen w-full overflow-y-auto">
-      <div className="p-6">
+      <div className="p-6 mt-12">
         <div className="text-center mb-8">
           {/* <div className="flex justify-center mb-6">
             <div className="relative h-28 w-28 rounded-full border-2 border-gray-200 overflow-hidden flex items-center justify-center">
@@ -61,7 +61,7 @@ function ClientSidebar({ onLinkClick }: { onLinkClick?: () => void }) {
               )}
             </div>
           </div> */}
-          <h2 className="text-4xl font-semibold text-black">{authUser ? `${authUser.first_name || ""} ${authUser.last_name || ""}`.trim() : "Utilisateur"}</h2>
+          <h2 className="text-3xl font-semibold text-black">{authUser ? `${authUser.first_name || ""} ${authUser.last_name || ""}`.trim() : "Utilisateur"}</h2>
           <p className="text-gray-600 text-sm">{authUser?.email || ""}</p>
         </div>
 

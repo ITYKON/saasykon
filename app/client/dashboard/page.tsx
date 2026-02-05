@@ -8,6 +8,9 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
 
+import { Menu, X } from "lucide-react"
+import { useAuth } from "@/hooks/useAuth"
+import { usePathname } from "next/navigation"
 
 type Booking = {
   id: string
@@ -93,13 +96,15 @@ export default function ClientDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200">
-        <div className="px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div className="w-full sm:w-auto">
-              <h1 className="text-2xl sm:text-3xl font-bold text-black">Bonjour {userName || "!"}</h1>
-              <p className="text-gray-600 mt-1 text-sm sm:text-base">Gérez vos rendez-vous beauté en toute simplicité.</p>
+      
+      {/* Header (fixed full-width overlay that continues behind the sidebar) */}
+      <header className="fixed top-0 left-0 w-full z-50 bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 lg:pl-4">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center">
+              <Link href="/" className="text-2xl font-bold tracking-wide transition-colors text-black hover:text-gray-800">
+                YOKA
+              </Link>
             </div>
             <Button className="w-full sm:w-auto bg-black text-white hover:bg-gray-800" asChild>
               <Link href="/institut-de-beaute">Prendre rendez-vous</Link>
@@ -107,6 +112,19 @@ export default function ClientDashboard() {
           </div>
         </div>
       </header>
+
+      {/* Spacer matching header height so content is not hidden behind the fixed header */}
+      <div className="h-16" />
+
+      <div>
+ <div className="px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="w-full sm:w-auto">
+              <h1 className="text-2xl sm:text-3xl font-bold text-black">Bonjour {userName || "!"}</h1>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <div className="p-4 sm:p-6 lg:p-8">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">

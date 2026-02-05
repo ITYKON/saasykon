@@ -83,8 +83,21 @@ export default function ClientReservations() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+      <header className="fixed top-0 left-0 w-full z-50 bg-white border-b border-gray-200">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 lg:pl-4">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center">
+              <Link href="/" className="text-2xl font-bold tracking-wide transition-colors text-black hover:text-gray-800">
+                YOKA
+              </Link>
+            </div>
+            <Button className="w-full sm:w-auto bg-black text-white hover:bg-gray-800" asChild>
+              <Link href="/institut-de-beaute">Prendre rendez-vous</Link>
+            </Button>
+          </div>
+        </div>
+      </header>
+              {/* <div className="px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
               <h1 className="text-2xl sm:text-3xl font-bold text-black">Mes réservations</h1>
@@ -94,11 +107,10 @@ export default function ClientReservations() {
               <Link href="/institut-de-beaute">Nouveau rendez-vous</Link>
             </Button>
           </div>
-        </div>
-      </header>
+        </div> */}
 
       {/* Main content */}
-      <div className="px-4 sm:px-6 lg:px-8 py-6 max-w-7xl mx-auto w-full">
+      <div className="px-4 sm:px-6 lg:px-8 py-6 max-w-7xl mx-auto w-full mt-16">
       {/* Filters */}
       <Card className="mb-6">
         <CardContent className="p-4 sm:p-6">
