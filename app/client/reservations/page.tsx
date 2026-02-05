@@ -167,12 +167,12 @@ export default function ClientReservations() {
             .map((booking) => {
               const isCancelled = booking.status?.toLowerCase().includes("cancel")
               return (
-              <div key={booking.id} className="border border-gray-200 rounded-lg p-4 sm:p-5 hover:shadow-md transition-shadow">
+              <div key={booking.id} className={`border border-gray-200 rounded-lg p-4 sm:p-5 hover:shadow-md transition-shadow ${isCancelled ? 'border-l-4 border-l-red-500' : 'border-l-4 border-l-green-500'}`}>
                 <div className="flex flex-col gap-4">
                   <div className="flex flex-col sm:flex-row justify-between items-start gap-3">
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-black text-base sm:text-lg truncate">{booking.businesses?.name || "Salon"}</h3>
-                      <p className="text-sm sm:text-base text-gray-600 truncate">{booking.reservation_items?.[0]?.services?.name || "Service"}</p>
+                      <h3 className={`font-semibold text-black text-base sm:text-lg truncate ${isCancelled ? 'line-through text-gray-600' : ''}`}>{booking.businesses?.name || "Salon"}</h3>
+                      <p className={`text-sm sm:text-base ${isCancelled ? 'line-through text-gray-500' : 'text-gray-600'} truncate`}>{booking.reservation_items?.[0]?.services?.name || "Service"}</p>
                     </div>
                     <Badge
                       variant="outline"
