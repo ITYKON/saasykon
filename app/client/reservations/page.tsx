@@ -164,15 +164,20 @@ export default function ClientReservations() {
           ) : (
             <div className="space-y-3 sm:space-y-4">
               {(statusFilter === "past" ? [] : upcoming)
-            .map((booking) => (
-              <div key={booking.id} className="border border-gray-200 rounded-lg p-4 sm:p-5 hover:shadow-md transition-shadow">
+            .map((booking) => {
+              const isCancelled = booking.status?.toLowerCase().includes("cancel")
+              return (
+              <div key={booking.id} className={`border border-gray-200 rounded-lg p-4 sm:p-5 hover:shadow-md transition-shadow ${isCancelled ? 'border-l-4 border-l-red-500' : 'border-l-4 border-l-green-500'}`}>
                 <div className="flex flex-col gap-4">
                   <div className="flex flex-col sm:flex-row justify-between items-start gap-3">
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-black text-base sm:text-lg truncate">{booking.businesses?.name || "Salon"}</h3>
-                      <p className="text-sm sm:text-base text-gray-600 truncate">{booking.reservation_items?.[0]?.services?.name || "Service"}</p>
+                      <h3 className={`font-semibold text-black text-base sm:text-lg truncate ${isCancelled ? 'line-through text-gray-600' : ''}`}>{booking.businesses?.name || "Salon"}</h3>
+                      <p className={`text-sm sm:text-base ${isCancelled ? 'line-through text-gray-500' : 'text-gray-600'} truncate`}>{booking.reservation_items?.[0]?.services?.name || "Service"}</p>
                     </div>
-                    <Badge variant="outline" className="text-green-600 border-green-600 whitespace-nowrap">
+                    <Badge
+                      variant="outline"
+                      className={isCancelled ? "bg-red-50 text-red-700 border-red-200 whitespace-nowrap" : "text-green-600 border-green-600 whitespace-nowrap"}
+                    >
                       {booking.status}
                     </Badge>
                   </div>
@@ -197,27 +202,31 @@ export default function ClientReservations() {
                   </div>
 
                   <div className="flex flex-col sm:flex-row gap-2 pt-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="text-blue-600 border-blue-600 hover:bg-blue-50 bg-transparent w-full sm:w-auto"
-                      onClick={() => handleModifyBooking(booking.id)}
-                    >
-                      Modifier
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="text-red-600 border-red-600 hover:bg-red-50 bg-transparent w-full sm:w-auto"
-                      onClick={() => handleCancelBooking(booking.id)}
-                      disabled={cancellingId === booking.id}
-                    >
-                      {cancellingId === booking.id ? "Annulation..." : "Annuler"}
-                    </Button>
+                    {!isCancelled && (
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-blue-600 border-blue-600 hover:bg-blue-50 bg-transparent w-full sm:w-auto"
+                          onClick={() => handleModifyBooking(booking.id)}
+                        >
+                          Modifier
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-red-600 border-red-600 hover:bg-red-50 bg-transparent w-full sm:w-auto"
+                          onClick={() => handleCancelBooking(booking.id)}
+                          disabled={cancellingId === booking.id}
+                        >
+                          {cancellingId === booking.id ? "Annulation..." : "Annuler"}
+                        </Button>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
-            ))}
+            )})}
             </div>
           )}
         </CardContent>

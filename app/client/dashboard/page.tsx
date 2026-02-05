@@ -158,23 +158,25 @@ export default function ClientDashboard() {
             </Button>
           </div>
 
-          {upcomingBookings.map((booking) => (
-            <Card key={booking.id} className="border-l-4 border-l-green-500 mb-4">
+          {upcomingBookings.map((booking) => {
+            const isCancelled = booking.status?.toLowerCase().includes("cancel")
+            return (
+            <Card key={booking.id} className={isCancelled ? "border-l-4 border-l-red-500 mb-4" : "border-l-4 border-l-green-500 mb-4"}>
               <CardContent className="p-4 sm:p-6">
                 <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
                   <div className="space-y-2 flex-1 w-full">
                     <div className="flex flex-wrap items-center gap-2">
                       <MapPin className="h-4 w-4 text-gray-500 flex-shrink-0" />
-                      <span className="font-semibold text-black text-base sm:text-lg break-words">
+                      <span className={`font-semibold text-black text-base sm:text-lg break-words ${isCancelled ? 'line-through text-gray-600' : ''}`}>
                         {booking.businesses?.name || "Salon"}
                       </span>
-                      <Badge className="bg-green-100 text-green-800 border-0 text-xs sm:text-sm">
+                      <Badge className={isCancelled ? "bg-red-50 text-red-700 border-red-200 text-xs sm:text-sm" : "bg-green-100 text-green-800 border-0 text-xs sm:text-sm"}>
                         {booking.status}
                       </Badge>
                     </div>
 
                     <div className="text-gray-600">
-                      <p className="font-medium text-sm sm:text-base">
+                      <p className={`font-medium text-sm sm:text-base ${isCancelled ? 'line-through text-gray-500' : ''}`}>
                         {booking.reservation_items?.[0]?.services?.name || "Service"}
                       </p>
                       <p className="text-xs sm:text-sm text-gray-500">
@@ -199,29 +201,33 @@ export default function ClientDashboard() {
                       {booking.reservation_items?.[0]?.price_cents ? (booking.reservation_items[0].price_cents / 100 + " DA") : ""}
                     </div>
                     <div className="flex flex-col sm:flex-row gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="bg-transparent w-full sm:w-auto"
-                        onClick={() => handleModifyBooking(booking.id)}
-                      >
-                        Modifier
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="text-red-600 border-red-600 bg-transparent w-full sm:w-auto"
-                        onClick={() => handleCancelBooking(booking.id)}
-                        disabled={cancellingId === booking.id}
-                      >
-                        {cancellingId === booking.id ? "Annulation..." : "Annuler"}
-                      </Button>
+                      {!isCancelled && (
+                        <>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="bg-transparent w-full sm:w-auto"
+                            onClick={() => handleModifyBooking(booking.id)}
+                          >
+                            Modifier
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="text-red-600 border-red-600 bg-transparent w-full sm:w-auto"
+                            onClick={() => handleCancelBooking(booking.id)}
+                            disabled={cancellingId === booking.id}
+                          >
+                            {cancellingId === booking.id ? "Annulation..." : "Annuler"}
+                          </Button>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
               </CardContent>
             </Card>
-          ))}
+          )})}
         </div>
       </div>
     </div>
