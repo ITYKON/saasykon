@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
+import Link from 'next/link';
 
 type Profile = {
   id: string
@@ -135,7 +136,7 @@ export default function ClientProfil() {
 
   return (
     <div className="space-y-6">
-            <header className="bg-white border-b border-gray-200">
+            {/* <header className="bg-white border-b border-gray-200">
         <div className="px-8 py-6">
           <div className="flex justify-between items-center">
       <div>
@@ -144,8 +145,23 @@ export default function ClientProfil() {
       </div>
       </div>
       </div>
-      </header>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      </header> */}
+            <header className="fixed top-0 left-0 w-full z-50 bg-white border-b border-gray-200">
+                      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 lg:pl-4">
+                <div className="flex justify-between items-center h-16">
+                  <div className="flex items-center">
+                    <Link href="/" className="text-2xl font-bold tracking-wide transition-colors text-black hover:text-gray-800">
+                      YOKA
+                    </Link>
+                  </div>
+                  <Button className="w-full sm:w-auto bg-black text-white hover:bg-gray-800" asChild>
+                    <Link href="/institut-de-beaute">Prendre rendez-vous</Link>
+                  </Button>
+                </div>
+              </div>
+            </header>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-20">
         {/* Profile Info */}
         <div className="lg:col-span-2 space-y-6">
           <Card>
