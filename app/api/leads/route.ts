@@ -63,19 +63,50 @@ export async function POST(req: NextRequest) {
     },
   }).catch(() => {});
 
-  // Send confirmation to prospect (optional)
-  try {
-    const salesFrom = process.env.EMAIL_FROM || "no-reply@example.com";
-    const appUrl = process.env.APP_URL || "";
-    await sendEmail({
-      to: email,
-      subject: `Merci — Nous vous contactons sous 24h`,
-      html: `<p>Bonjour ${owner_first_name},</p><p>Merci pour votre intérêt pour notre solution pro. Un expert va vous recontacter sous 24h.</p><p>Nom du salon: <b>${business_name}</b>${location ? ` — ${location}` : ""}</p>${appUrl ? `<p>Visitez: <a href="${appUrl}">${appUrl}</a></p>` : ""}`,
-      text: `Bonjour ${owner_first_name},\n\nMerci pour votre intérêt. Un expert va vous recontacter sous 24h.\nSalon: ${business_name}${location ? ` — ${location}` : ""}${appUrl ? `\nSite: ${appUrl}` : ""}`,
-      category: "lead_confirmation",
-      sandbox: true,
-    });
-  } catch {}
+  // Email leads
+try {
+  const salesFrom = process.env.EMAIL_FROM || "no-reply@example.com";
+  
+  await sendEmail({
+    to: email,
+    subject: `Bienvenue sur Yoka`,
+    html: `
+      <div style="font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height:1.6; max-width:600px;">
+        <p>Bonjour ${owner_first_name},</p>
+        
+        <p>Merci de l'intérêt que vous portez à <strong>Yoka</strong>.</p>
+        
+        <p>Votre inscription a bien été enregistrée. Vous faites désormais partie de notre <strong>liste d'accès prioritaire</strong> et serez parmi les premiers informés de notre lancement.</p>
+        
+        <p>Dès que la plateforme sera disponible, vous recevrez un email contenant :</p>
+        <ul>
+          <li>Un lien vous permettant de créer vos identifiants de connexion</li>
+          <li>Notre guide de démarrage rapide pour prendre en main l'outil en toute autonomie</li>
+        </ul>
+        
+        <p>Nous vous recontactons très prochainement.</p>
+        
+        <p>Cordialement,<br>L'équipe Yoka</p>
+      </div>
+    `,
+    text: `Bonjour ${owner_first_name},
+
+Merci de l'intérêt que vous portez à Yoka.
+
+Votre inscription a bien été enregistrée. Vous faites désormais partie de notre liste d'accès prioritaire et serez parmi les premiers informés de notre lancement.
+
+Dès que la plateforme sera disponible, vous recevrez un email contenant :
+- Un lien vous permettant de créer vos identifiants de connexion
+- Notre guide de démarrage rapide pour prendre en main l'outil en toute autonomie
+
+Nous vous recontactons très prochainement.
+
+Cordialement,
+L'équipe Yoka`,
+    category: "lead_confirmation",
+    sandbox: true,
+  });
+} catch {}
 
   // Send internal notification if configured
   try {
