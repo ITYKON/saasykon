@@ -427,7 +427,7 @@ export default function SearchPage() {
                                 )}
                                 {business.isPremium && (
                                   <div className="flex items-center">
-                                    <span className="text-xs text-gray-500">€€€</span>
+                                    <span className="text-xs text-gray-500">DA</span>
                                   </div>
                                 )}
                               </div>

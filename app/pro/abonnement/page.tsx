@@ -49,7 +49,7 @@ export default function AbonnementPage() {
     const plan = subscription?.plans
     const name = plan?.name || "—"
     const priceCents = plan?.price_cents ?? 0
-    const price = priceCents > 0 ? `${(priceCents / 100).toFixed(0)}€` : "0€"
+    const price = priceCents > 0 ? `${(priceCents / 100).toFixed(0)}DA` : "0DA"
     const interval = (plan?.billing_interval || "month").toLowerCase()
     const period = interval.startsWith("year") ? "an" : "mois"
     const end = subscription?.current_period_end ? new Date(subscription.current_period_end) : null
@@ -76,7 +76,7 @@ export default function AbonnementPage() {
     const subPlanId = subscription?.plan_id
     return (plans || []).map((p) => {
       const period = (p.billing_interval || "month").toLowerCase().startsWith("year") ? "an" : "mois"
-      const price = `${(p.price_cents / 100).toFixed(0)}€`
+      const price = `${(p.price_cents / 100).toFixed(0)}DA`
       const isCurrent = subPlanId && p.id === subPlanId
       const isPremium = p.code?.toLowerCase()?.includes("premium") || p.price_cents === Math.max(...(plans.map((x:any)=>x.price_cents) || [p.price_cents]))
       const isPopular = p.code?.toLowerCase()?.includes("pro") || (!isPremium && p.price_cents === Math.round(((Math.min(...(plans.map((x:any)=>x.price_cents) || [p.price_cents])) + Math.max(...(plans.map((x:any)=>x.price_cents) || [p.price_cents])))/2)))
