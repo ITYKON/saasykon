@@ -2,13 +2,12 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { randomBytes } from "crypto";
 import { sendEmail } from "@/lib/email";
-import { rateLimit, getClientIp } from "@/lib/rateLimit";
+import { rateLimit, getRateLimitKey } from "@/lib/rateLimit";
 
 export async function POST(request: Request) {
   try {
-    // Rate limiting: 3 requests per 15 minutes per IP
-    const clientIp = getClientIp(request);
-    const rateLimitKey = `password-reset:${clientIp}`;
+    // Rate limiting: 3 requests per 15 minutes per device
+    const rateLimitKey = `password-reset:${getRateLimitKey(request)}`;
     const rateLimitResult = rateLimit(rateLimitKey, 3, 15 * 60 * 1000); // 15 minutes
     
     if (!rateLimitResult.ok) {

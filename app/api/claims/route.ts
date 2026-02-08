@@ -1,16 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { rateLimit } from "@/lib/rateLimit";
+import { rateLimit, getRateLimitKey } from "@/lib/rateLimit";
 import { randomBytes, createHash } from "crypto";
 import { sendEmail } from "@/lib/email";
 
-function getIp(req: NextRequest) {
-  return req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.ip || "";
-}
-
 export async function POST(req: NextRequest) {
-  const ip = getIp(req);
-  const rl = rateLimit(`claim-create:${ip}`, 5, 60_000);
+  const rateLimitKey = `claim-create:${getRateLimitKey(req)}`;
+  const rl = rateLimit(rateLimitKey, 5, 60_000);
   if (!rl.ok) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
 
   let body: any;
