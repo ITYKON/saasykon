@@ -335,7 +335,7 @@ function AdminArchivesPageContent() {
               <Badge variant="secondary">{abonnement.plans ? abonnement.plans.name : "-"}</Badge>
             </TableCell>
             <TableCell>{abonnement.current_period_end ? new Date(abonnement.current_period_end).toLocaleDateString() : "-"}</TableCell>
-            <TableCell className="font-medium">{abonnement.plans?.price_cents != null ? `${(abonnement.plans.price_cents / 100).toFixed(2)} €` : "-"}</TableCell>
+            <TableCell className="font-medium">{abonnement.plans?.price_cents != null ? `${(abonnement.plans.price_cents / 100).toFixed(2)} DA` : "-"}</TableCell>
             <TableCell>-</TableCell>
             <TableCell>-</TableCell>
             <TableCell>
