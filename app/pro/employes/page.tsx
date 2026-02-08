@@ -980,15 +980,9 @@ export default function EmployeesPage() {
                     <div className="mt-1">{viewEmployee.restDays.join(", ") || "-"}</div>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label className="mb-1.5 block">Statut</Label>
-                    <div className="mt-1">{viewEmployee.status}</div>
-                  </div>
-                  <div>
-                    <Label className="mb-1.5 block">ID</Label>
-                    <div className="mt-1 text-xs text-gray-500 break-all">{viewEmployee.id}</div>
-                  </div>
+                <div>
+                  <Label className="mb-1.5 block">Statut</Label>
+                  <div className="mt-1">{viewEmployee.status}</div>
                 </div>
               </div>
             )}
