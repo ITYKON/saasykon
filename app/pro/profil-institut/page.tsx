@@ -294,11 +294,11 @@ const responseData = await response.json();
 </header>
     <div className="p-6">
       <Tabs defaultValue="informations" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="informations">Informations</TabsTrigger>
           <TabsTrigger value="photos">Photos</TabsTrigger>
           <TabsTrigger value="horaires">Horaires</TabsTrigger>
-          <TabsTrigger value="parametres">Paramètres</TabsTrigger>
+          {/* <TabsTrigger value="parametres">Paramètres</TabsTrigger> */}
         </TabsList>
 
         <TabsContent value="informations" className="space-y-6">
@@ -539,7 +539,7 @@ const responseData = await response.json();
           </Card>
         </TabsContent>
 
-        <TabsContent value="parametres" className="space-y-6">
+        {/* <TabsContent value="parametres" className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
@@ -627,7 +627,7 @@ const responseData = await response.json();
               )}
             </Button>
           </div>
-        </TabsContent>
+        </TabsContent> */}
       </Tabs>
 
       {/* Boîte de dialogue de confirmation de suppression */}
