@@ -48,8 +48,13 @@ export default function EditBookingPage() {
         if (data.booking) {
           setBooking(data.booking)
           const startsAt = new Date(data.booking.starts_at)
+          const toDatetimeLocal = (d: Date) => {
+            const pad = (n: number) => String(n).padStart(2, '0')
+            return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+          }
+
           setFormData({
-            starts_at: startsAt.toISOString().slice(0, 16),
+            starts_at: toDatetimeLocal(startsAt),
             notes: data.booking.notes || ""
           })
         }
