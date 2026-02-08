@@ -1,20 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { rateLimit } from "@/lib/rateLimit";
+import { rateLimit, getRateLimitKey } from "@/lib/rateLimit";
 import { createHash } from "crypto";
 import { createSessionData, setAuthCookies, hashPassword } from "@/lib/auth";
 
-function getIp(req: NextRequest) {
-  return req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.ip || "";
-}
-
-function getUA(req: NextRequest) {
-  return req.headers.get("user-agent") || "";
-}
-
 export async function POST(req: NextRequest) {
-  const ip = getIp(req);
-  const rl = rateLimit(`invite-complete:${ip}`, 10, 60_000);
+  const rateLimitKey = `invite-complete:${getRateLimitKey(req)}`;
+  const rl = rateLimit(rateLimitKey, 10, 60_000);
   if (!rl.ok) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
 
   let body: any;
@@ -38,7 +30,7 @@ export async function POST(req: NextRequest) {
   await prisma.event_logs.create({
     data: {
       event_name: "invite.complete_attempt",
-      payload: { ok, ip, ua: getUA(req), invite_id: invite?.id, email: invite?.email },
+      payload: { ok, rateLimitKey, ua: req.headers.get("user-agent") || "", invite_id: invite?.id, email: invite?.email },
     },
   }).catch(() => {});
 
@@ -95,7 +87,7 @@ export async function POST(req: NextRequest) {
     data: {
       user_id: invite!.user_id,
       event_name: "invite.completed",
-      payload: { ip, ua: getUA(req), invite_id: invite!.id },
+      payload: { rateLimitKey, ua: req.headers.get("user-agent") || "", invite_id: invite!.id },
     },
   }).catch(() => {});
 

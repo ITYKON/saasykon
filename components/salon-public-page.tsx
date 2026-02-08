@@ -88,6 +88,32 @@ export default function SalonPublicPage({ salonId }: SalonPublicPageProps) {
   }, [data?.name, businessId, router])
   */
 
+  // Handle browser back button to close booking wizard
+  useEffect(() => {
+    if (showBooking) {
+      // Push state when opening
+      window.history.pushState({ booking: true }, '')
+      
+      const handlePopState = (e: PopStateEvent) => {
+        // Close wizard if we pop back
+        setShowBooking(false)
+      }
+      
+      window.addEventListener('popstate', handlePopState)
+      return () => {
+        window.removeEventListener('popstate', handlePopState)
+      }
+    }
+  }, [showBooking])
+
+  // When manually closing, ensure we remove the history state if it was pushed
+  const handleCloseBooking = () => {
+    setShowBooking(false)
+    if (window.history.state?.booking) {
+      window.history.back()
+    }
+  }
+
   const salon = useMemo(() => {
     if (!data) return null
     const ratings = {
@@ -163,7 +189,7 @@ export default function SalonPublicPage({ salonId }: SalonPublicPageProps) {
   }
 
   if (showBooking && salon) {
-    return <BookingWizard salon={salon} initialService={selectedServiceForBooking} onClose={() => setShowBooking(false)} />
+    return <BookingWizard salon={salon} initialService={selectedServiceForBooking} onClose={handleCloseBooking} />
   }
 
   if (loading) {
@@ -356,8 +382,9 @@ export default function SalonPublicPage({ salonId }: SalonPublicPageProps) {
                                     ...(typeof service.price_min_cents === 'number' ? { price_min_cents: service.price_min_cents } : {}),
                                     ...(typeof service.price_max_cents === 'number' ? { price_max_cents: service.price_max_cents } : {}),
                                   })
-                                  setShowBooking(true)
-                                }}
+                                   setShowBooking(true)
+                                   window.scrollTo({ top: 0, behavior: 'instant' })
+                                 }}
                               >
                                 Choisir
                               </Button>

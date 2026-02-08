@@ -38,7 +38,7 @@ export default function CreateReservationModal({
   const [serviceId, setServiceId] = useState<string>("");
   const [variantId, setVariantId] = useState<string>("");
   const [employees, setEmployees] = useState<Array<{ id: string; full_name: string }>>([]);
-  const [employeeId, setEmployeeId] = useState<string | "none">(defaultEmployeeId || "none");
+  const [employeeId, setEmployeeId] = useState<string>(defaultEmployeeId === "none" ? "" : defaultEmployeeId || "");
   const employeesRef = useRef(employees);
   employeesRef.current = employees;
   const [client, setClient] = useState<{id: string; name: string; phone?: string; email?: string} | null>(null);
@@ -84,7 +84,7 @@ export default function CreateReservationModal({
     if (!open) return;
     if (defaultDate) setDate(defaultDate);
     if (defaultTime) setTime(defaultTime);
-    if (typeof defaultEmployeeId !== 'undefined') setEmployeeId(defaultEmployeeId || "none");
+    if (typeof defaultEmployeeId !== 'undefined') setEmployeeId(defaultEmployeeId === "none" ? "" : defaultEmployeeId || "");
   }, [open]);
 
   // Ouvrir sur demande externe avec pré-remplissage
@@ -92,7 +92,7 @@ export default function CreateReservationModal({
     if (typeof forceOpenSignal === 'number' && forceOpenSignal > 0) {
       if (defaultDate) setDate(defaultDate);
       if (defaultTime) setTime(defaultTime);
-      if (typeof defaultEmployeeId !== 'undefined') setEmployeeId(defaultEmployeeId || "none");
+      if (typeof defaultEmployeeId !== 'undefined') setEmployeeId(defaultEmployeeId === "none" ? "" : defaultEmployeeId || "");
       setOpen(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -102,7 +102,7 @@ export default function CreateReservationModal({
   useEffect(() => {
     if (!serviceId) {
       setFilteredEmployees(allEmployees);
-      setEmployeeId("none");
+      setEmployeeId("");
       return;
     }
 
@@ -116,7 +116,7 @@ export default function CreateReservationModal({
     setFilteredEmployees(filtered);
     
     // Réinitialiser la sélection d'employé
-    setEmployeeId("none");
+    setEmployeeId("");
   }, [serviceId, services, allEmployees]);
 
   const selectedService = useMemo(() => services.find((s) => s.id === serviceId), [services, serviceId]);
@@ -170,7 +170,7 @@ export default function CreateReservationModal({
         body: JSON.stringify({
           starts_at: startsAt.toISOString(),
           ends_at: endsAt.toISOString(),
-          employee_id: employeeId === "none" ? null : employeeId,
+          employee_id: !employeeId ? null : employeeId,
         }),
       });
       
@@ -239,6 +239,11 @@ export default function CreateReservationModal({
       setAvailabilityError("Veuillez sélectionner un service");
       return;
     }
+
+    if (!employeeId) {
+      setAvailabilityError("Veuillez sélectionner un employé");
+      return;
+    }
     
     if (!date || !time) {
       setAvailabilityError("Veuillez sélectionner une date et une heure");
@@ -268,7 +273,7 @@ export default function CreateReservationModal({
             phone: newClientPhone,
             email: newClientEmail
           } : null,
-          employee_id: employeeId === "none" ? null : employeeId || null,
+          employee_id: employeeId || null,
           starts_at: starts_at.toISOString(),
           notes: notes || null,
           items: [
@@ -277,7 +282,7 @@ export default function CreateReservationModal({
               variant_id: variantId || null,
               price_cents: priceMode === 'fixed' ? Number(priceCents || 0) : null,
               currency: 'DZD',
-              employee_id: employeeId === "none" ? null : employeeId || null,
+              employee_id: employeeId || null,
               duration_minutes: Number(duration || 30),
             },
           ],
@@ -304,7 +309,7 @@ export default function CreateReservationModal({
       setNewClientEmail("");
       setServiceId("");
       setVariantId("");
-      setEmployeeId("none");
+      setEmployeeId("");
       setDate("");
       setTime("");
       setNotes("");
@@ -508,9 +513,8 @@ export default function CreateReservationModal({
                   </div>
                 )}
 
-                {/* Employé */}
                 <div className="space-y-2">
-                  <Label>Employé (optionnel)</Label>
+                  <Label>Employé *</Label>
                   <Select 
                     value={employeeId} 
                     onValueChange={(v) => {
@@ -523,7 +527,6 @@ export default function CreateReservationModal({
                       <SelectValue placeholder={serviceId ? "Sélectionner un employé" : "Sélectionnez d'abord un service"} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none">Aucun employé spécifique</SelectItem>
                       {filteredEmployees.map((employee) => (
                         <SelectItem key={employee.id} value={employee.id}>
                           {employee.full_name || [employee.first_name, employee.last_name].filter(Boolean).join(" ")}
@@ -641,7 +644,7 @@ export default function CreateReservationModal({
                   <div className="relative group">
                     <Button 
                       type="submit"
-                      disabled={submitting || !!availabilityError || (!isNewClient && !client) || (isNewClient && (!newClientFirstName || !newClientLastName)) || !serviceId || !date || !time}
+                      disabled={submitting || !!availabilityError || (!isNewClient && !client) || (isNewClient && (!newClientFirstName || !newClientLastName)) || !serviceId || !employeeId || !date || !time}
                       className="w-full"
                     >
                       {submitting ? "Création en cours..." : "Confirmer la réservation"}
@@ -655,16 +658,18 @@ export default function CreateReservationModal({
                          (!isNewClient && !client) ? "Sélectionnez d'abord un client" :
                          (isNewClient && (!newClientFirstName || !newClientLastName)) ? "Remplissez le nom et prénom" : 
                          !serviceId ? "Sélectionnez un service" :
+                         !employeeId ? "Sélectionnez un employé" :
                          !date || !time ? "Sélectionnez une date et une heure" : 
                          "Confirmer la réservation"}
                       </div>
                     )}
                   </div>
-                  {(!isNewClient && !client) || (isNewClient && (!newClientFirstName || !newClientLastName)) || !serviceId || !date || !time ? (
+                  {(!isNewClient && !client) || (isNewClient && (!newClientFirstName || !newClientLastName)) || !serviceId || !employeeId || !date || !time ? (
                     <p className="text-sm text-gray-500 text-center">
                       {(!isNewClient && !client) ? "Sélectionnez un client" :
                        (isNewClient && (!newClientFirstName || !newClientLastName)) ? "Remplissez le nom et prénom" :
                        !serviceId ? "Sélectionnez un service" :
+                       !employeeId ? "Sélectionnez un employé" :
                        !date || !time ? "Sélectionnez une date et une heure" : ""}
                     </p>
                   ) : null}

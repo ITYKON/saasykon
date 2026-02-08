@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyPassword, createSessionData, setAuthCookies } from "@/lib/auth";
-import { rateLimit, getClientIp } from "@/lib/rateLimit";
+import { rateLimit, getRateLimitKey, resetRateLimit } from "@/lib/rateLimit";
 
 // Fonction pour enregistrer une tentative de connexion échouée
 async function logFailedLoginAttempt(userId: string | null, email: string) {
@@ -53,15 +53,21 @@ async function logSuccessfulLogin(userId: string, email: string) {
 
 export async function POST(request: Request) {
   try {
-    // Rate limiting: 5 attempts per 15 minutes per IP
-    const clientIp = getClientIp(request);
-    const rateLimitKey = `login:${clientIp}`;
-    const rateLimitResult = rateLimit(rateLimitKey, 5, 15 * 60 * 1000); // 15 minutes
+    // Check rate limit BEFORE attempting login (to prevent brute force)
+    const rateLimitKey = `login-failed:${getRateLimitKey(request)}`;
     
-    if (!rateLimitResult.ok) {
-      const retryAfterSeconds = Math.ceil(rateLimitResult.retryAfterMs! / 1000);
+    // Check if user is currently blocked due to too many failed attempts
+    const rateLimitCheck = rateLimit(rateLimitKey, 10, 5 * 60 * 1000); // 10 failed attempts per 5 minutes
+    if (!rateLimitCheck.ok) {
+      const retryAfterSeconds = Math.ceil(rateLimitCheck.retryAfterMs! / 1000);
+      const minutes = Math.floor(retryAfterSeconds / 60);
+      const seconds = retryAfterSeconds % 60;
+      const timeMessage = minutes > 0 
+        ? `${minutes} minute${minutes > 1 ? 's' : ''}${seconds > 0 ? ` et ${seconds} seconde${seconds > 1 ? 's' : ''}` : ''}`
+        : `${seconds} seconde${seconds > 1 ? 's' : ''}`;
+      
       return NextResponse.json(
-        { error: "Trop de tentatives de connexion. Veuillez réessayer plus tard." },
+        { error: `Trop de tentatives de connexion échouées. Veuillez réessayer dans ${timeMessage}.` },
         { 
           status: 429,
           headers: {
@@ -123,6 +129,9 @@ export async function POST(request: Request) {
 
     // Log successful login
     await logSuccessfulLogin(user.id, email);
+    
+    // Reset rate limit counter on successful login
+    resetRateLimit(rateLimitKey);
     
     // Lazy Role Assignment Fallback for Legacy Users
     try {

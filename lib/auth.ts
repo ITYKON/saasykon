@@ -101,7 +101,7 @@ export async function createSessionData(userId: string) {
         .setExpirationTime("7d")
         .sign(JWT_SECRET);
 
-      console.log(`[Auth] Created session JWT for user: ${userId}, roles: ${roles.join(',')}`)
+     
       
       // Still save to DB for record/revocation if needed
       await prisma.sessions.create({

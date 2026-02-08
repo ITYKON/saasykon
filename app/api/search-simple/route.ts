@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
-import { rateLimit, getClientIp } from "@/lib/rateLimit";
+import { rateLimit, getRateLimitKey } from "@/lib/rateLimit";
 
 const searchSimpleSchema = z.object({
   q: z.string().optional().default(""),
@@ -14,9 +14,8 @@ const searchSimpleSchema = z.object({
 
 export async function GET(req: Request): Promise<NextResponse> {
   try {
-    // Rate limiting: 30 requests per minute per IP
-    const clientIp = getClientIp(req);
-    const rateLimitKey = `search-simple:${clientIp}`;
+    // Rate limiting: 30 requests per minute per device
+    const rateLimitKey = `search-simple:${getRateLimitKey(req)}`;
     const rateLimitResult = rateLimit(rateLimitKey, 30, 60 * 1000); // 1 minute
     
     if (!rateLimitResult.ok) {

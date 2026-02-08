@@ -1,15 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { rateLimit } from "@/lib/rateLimit";
+import { rateLimit, getRateLimitKey } from "@/lib/rateLimit";
 import { sendEmail } from "@/lib/email";
 
-function getIp(req: NextRequest) {
-  return req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.ip || "";
-}
-
 export async function POST(req: NextRequest) {
-  const ip = getIp(req);
-  const rl = rateLimit(`lead-create:${ip}`, 5, 60_000);
+  const rateLimitKey = `lead-create:${getRateLimitKey(req)}`;
+  const rl = rateLimit(rateLimitKey, 5, 60_000);
   if (!rl.ok) return NextResponse.json({ error: "Trop de tentatives. Réessayez plus tard." }, { status: 429 });
 
   let body: any;
@@ -63,7 +59,7 @@ export async function POST(req: NextRequest) {
   await prisma.event_logs.create({
     data: {
       event_name: "lead.created",
-      payload: { ip, lead_id: lead.id, email, business_name, activity_type, location },
+      payload: { rateLimitKey, lead_id: lead.id, email, business_name, activity_type, location },
     },
   }).catch(() => {});
 
